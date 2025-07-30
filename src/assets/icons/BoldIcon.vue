@@ -1,0 +1,3 @@
+<template>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><rect width="8" height="8" rx="2" transform="translate(10 2.5) rotate(90)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/><path d="M2,17.5a4,4,0,0,1,4-4,4.062,4.062,0,0,1,4,4,4,4,0,0,1-8,0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/><rect width="19" height="9" rx="2" transform="translate(22 2.5) rotate(90)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/><rect width="24" height="24" transform="translate(24) rotate(90)" fill="none"/></svg>
+</template>

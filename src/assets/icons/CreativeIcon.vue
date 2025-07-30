@@ -1,0 +1,4 @@
+<template>
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="19.5" height="19.5" viewBox="0 0 19.5 19.5"><g transform="translate(-2.25 -2.25)"><rect width="18" height="5" rx="2" transform="translate(3 3)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/><rect width="10" height="10" rx="2" transform="translate(11 11)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/><rect width="5" height="10" rx="2" transform="translate(3 11)" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1"/></g></svg>
+</template>
