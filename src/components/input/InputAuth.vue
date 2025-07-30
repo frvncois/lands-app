@@ -1,14 +1,12 @@
 <template>
  <div class="input">
-   <input 
-     :placeholder="placeholder" 
-     type="email" 
+   <input
+     :placeholder="placeholder"
+     type="text"
      v-model="model"
-     autocomplete="email"
-     spellcheck="false"
-     autocorrect="off"
-     autocapitalize="off"
+     :maxlength="maxLength"
      @input="handleInput"
+     @paste="handlePaste"
    />
  </div>
 </template>
@@ -17,35 +15,51 @@
 import { watch } from 'vue'
 
 const model = defineModel()
-defineProps({ placeholder: String })
 
-function sanitizeEmail(value) {
- if (typeof value !== 'string') return ''
- 
- return value
-   .toLowerCase()
-   .replace(/[<>'"]/g, '')
-   .replace(/javascript:/gi, '')
-   .replace(/on\w+=/gi, '')
-   .replace(/[^\w@.-]/g, '')
-   .slice(0, 254)
+const props = defineProps({
+ placeholder: String,
+ maxLength: {
+   type: Number,
+   default: 50
+ }
+})
+
+
+function sanitizeName(value) {
+  if (typeof value !== 'string') return ''
+  
+  return value
+    .replace(/[<>'"&]/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+=/gi, '')
+    .replace(/[^a-zA-ZÀ-ÿĀ-žА-я\s\-']/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, props.maxLength)
 }
 
 function handleInput(e) {
- const sanitized = sanitizeEmail(e.target.value)
- if (sanitized !== e.target.value) {
-   model.value = sanitized
-   e.target.value = sanitized
- }
+  const sanitized = sanitizeName(e.target.value)
+  if (sanitized !== e.target.value) {
+    model.value = sanitized
+    e.target.value = sanitized
+  }
+}
+
+function handlePaste(e) {
+  e.preventDefault()
+  const pastedText = (e.clipboardData || window.clipboardData).getData('text')
+  const sanitized = sanitizeName(pastedText)
+  model.value = sanitized
 }
 
 watch(model, (newValue) => {
- if (newValue && typeof newValue === 'string') {
-   const sanitized = sanitizeEmail(newValue)
-   if (sanitized !== newValue) {
-     model.value = sanitized
-   }
- }
+  if (newValue && typeof newValue === 'string') {
+    const sanitized = sanitizeName(newValue)
+    if (sanitized !== newValue) {
+      model.value = sanitized
+    }
+  }
 })
 </script>
 

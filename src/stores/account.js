@@ -1,176 +1,229 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { useProjectStore } from './projects'
-import { useTeamStore } from './team'
+import { supabase } from '@/services/supabase.js'
 
 export const useAccountStore = defineStore('account', () => {
-  const firstName = ref('')
-  const lastName = ref('')
-  const email = ref('')
-  const password = ref('')
-  const isAuthenticated = ref(false)
-  
-  // Account status management
-  const status = ref('') // 'NewAccount', 'Confirmed', 'Delete'
-  const statusTimestamp = ref(null) // Timestamp for status tracking
+  const user = ref(null)
+  const session = ref(null)
+  const loading = ref(false)
+  const error = ref(null)
 
-  // Settings for AccountSettings component
-  const settings = ref({
-    marketing: false,
-    analytics: false
-  })
+  // Computed
+  const isAuthenticated = computed(() => !!session.value)
+  const userEmail = computed(() => user.value?.email || '')
+  const userMetadata = computed(() => user.value?.user_metadata || {})
 
-  // Get projects from project store
-  const userProjects = computed(() => {
-    const projectStore = useProjectStore()
-    return projectStore.projects
-  })
+  // Initialize auth state
+  async function initialize() {
+    loading.value = true
+    try {
+      // Get the current session from Supabase
+      const { data: { session: currentSession }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('Session retrieval error:', error)
+        throw error
+      }
 
-  // Check if user should see create project modal
-  const shouldShowCreateModal = computed(() => {
-    return status.value === 'NewAccount' && userProjects.value.length === 0
-  })
+      if (currentSession) {
+        // Security: Check if token is close to expiring
+        const tokenExpiry = new Date(currentSession.expires_at * 1000)
+        const now = new Date()
+        const timeUntilExpiry = tokenExpiry.getTime() - now.getTime()
+        
+        // If token expires in less than 5 minutes, refresh it
+        if (timeUntilExpiry < 5 * 60 * 1000) {
+          console.log('🔄 Token close to expiry, refreshing...')
+          const { data: refreshedSession } = await supabase.auth.refreshSession()
+          if (refreshedSession.session) {
+            session.value = refreshedSession.session
+            user.value = refreshedSession.session.user
+          }
+        } else {
+          session.value = currentSession
+          user.value = currentSession.user
+        }
+        
+        console.log('✅ Session restored:', currentSession.user.email)
+      } else {
+        console.log('❌ No active session found')
+      }
 
-  // Check if account is eligible for cleanup (30+ days as NewAccount)
-  const isEligibleForCleanup = computed(() => {
-    if (status.value !== 'NewAccount' || !statusTimestamp.value) return false
-    
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    
-    return new Date(statusTimestamp.value) < thirtyDaysAgo
-  })
-
-  // Check if account is in grace period for deletion (7 days)
-  const isInGracePeriod = computed(() => {
-    if (status.value !== 'Delete' || !statusTimestamp.value) return false
-    
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    
-    return new Date(statusTimestamp.value) > sevenDaysAgo
-  })
-
-  // Computed account object for easy component access
-  const account = computed(() => ({
-    firstName: firstName.value,
-    lastName: lastName.value,
-    email: email.value,
-    password: password.value,
-    settings: settings.value,
-    status: status.value,
-    statusTimestamp: statusTimestamp.value
-  }))
-
-  function login(loginData) {
-    firstName.value = loginData.firstName
-    lastName.value = loginData.lastName
-    email.value = loginData.email
-    isAuthenticated.value = true
-
-    // Set status to NewAccount for new registrations
-    status.value = 'NewAccount'
-    statusTimestamp.value = new Date().toISOString()
-
-    // Initialize settings if provided, otherwise use defaults
-    if (loginData.settings) {
-      settings.value = { ...settings.value, ...loginData.settings }
+      // Listen for auth changes
+      supabase.auth.onAuthStateChange((event, newSession) => {
+        console.log('🔄 Auth state changed:', event, newSession?.user?.email || 'no user')
+        
+        // Security: Clear sensitive data on sign out
+        if (event === 'SIGNED_OUT') {
+          user.value = null
+          session.value = null
+          // Clear any cached data
+          localStorage.removeItem('recent-projects')
+          sessionStorage.clear()
+        } else {
+          session.value = newSession
+          user.value = newSession?.user || null
+        }
+      })
+    } catch (err) {
+      console.error('Auth initialization error:', err)
+      error.value = err.message
+      // Reset auth state on error
+      user.value = null
+      session.value = null
+    } finally {
+      loading.value = false
     }
   }
 
-  function confirmAccount() {
-    status.value = 'Confirmed'
-    statusTimestamp.value = new Date().toISOString()
-  }
+  // Sign up
+  async function signUp(email, password, metadata = {}) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.toLowerCase().trim(),
+        password,
+        options: {
+          data: {
+            first_name: metadata.firstName || '',
+            last_name: metadata.lastName || '',
+            marketing_emails: metadata.marketing || false
+          }
+        }
+      })
 
-  function requestAccountDeletion() {
-    status.value = 'Delete'
-    statusTimestamp.value = new Date().toISOString()
-  }
+      if (signUpError) throw signUpError
 
-  function cancelAccountDeletion() {
-    // Restore to confirmed status if canceling deletion
-    status.value = 'Confirmed'
-    statusTimestamp.value = new Date().toISOString()
-  }
-
-  function logout() {
-    // Clear account data
-    firstName.value = ''
-    lastName.value = ''
-    email.value = ''
-    password.value = ''
-    isAuthenticated.value = false
-    status.value = ''
-    statusTimestamp.value = null
-
-    // Reset settings to defaults
-    settings.value = {
-      marketing: false,
-      analytics: false
+      // User will need to verify email
+      return { success: true, needsVerification: !data.session }
+    } catch (err) {
+      console.error('Sign up error:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    } finally {
+      loading.value = false
     }
-
-    // Clear project store
-    const projectStore = useProjectStore()
-    projectStore.reset()
-
-    // Clear team store
-    const teamStore = useTeamStore()
-    teamStore.reset()
-
-    // Clear localStorage
-    localStorage.removeItem('account')
-    localStorage.removeItem('projects')
-    localStorage.removeItem('team')
   }
 
-  function updateProfile(data) {
-    firstName.value = data.firstName || firstName.value
-    lastName.value = data.lastName || lastName.value
-    email.value = data.email || email.value
-    password.value = data.password || password.value
-  }
+  // Sign in
+  async function signIn(email, password) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase().trim(),
+        password
+      })
 
-  function updateSettings(newSettings) {
-    settings.value = { ...settings.value, ...newSettings }
-  }
+      if (signInError) throw signInError
 
-  function reset() {
-    firstName.value = ''
-    lastName.value = ''
-    email.value = ''
-    password.value = ''
-    status.value = ''
-    statusTimestamp.value = null
-    settings.value = {
-      marketing: false,
-      analytics: false
+      session.value = data.session
+      user.value = data.user
+      
+      return { success: true }
+    } catch (err) {
+      console.error('Sign in error:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    } finally {
+      loading.value = false
     }
+  }
+
+  // Reset password
+  async function resetPassword(email) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/change-password`
+      })
+
+      if (resetError) throw resetError
+
+      return { success: true }
+    } catch (err) {
+      console.error('Password reset error:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Update password
+  async function updatePassword(newPassword) {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+
+      if (updateError) throw updateError
+
+      return { success: true }
+    } catch (err) {
+      console.error('Password update error:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Sign out
+  async function signOut() {
+    loading.value = true
+    error.value = null
+    
+    try {
+      const { error: signOutError } = await supabase.auth.signOut()
+      
+      if (signOutError) throw signOutError
+
+      user.value = null
+      session.value = null
+      
+      return { success: true }
+    } catch (err) {
+      console.error('Sign out error:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Clear errors
+  function clearError() {
+    error.value = null
   }
 
   return {
-    firstName,
-    lastName,
-    email,
-    password,
+    // State
+    user,
+    session,
+    loading,
+    error,
+    
+    // Computed
     isAuthenticated,
-    status,
-    statusTimestamp,
-    settings,
-    userProjects,
-    account,
-    shouldShowCreateModal,
-    isEligibleForCleanup,
-    isInGracePeriod,
-    login,
-    confirmAccount,
-    requestAccountDeletion,
-    cancelAccountDeletion,
-    logout,
-    updateProfile,
-    updateSettings,
-    reset
+    userEmail,
+    userMetadata,
+    
+    // Actions
+    initialize,
+    signUp,
+    signIn,
+    resetPassword,
+    updatePassword,
+    signOut,
+    clearError
   }
-}, {
-  persist: true
 })

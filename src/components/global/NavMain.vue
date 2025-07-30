@@ -12,9 +12,13 @@ const router = useRouter()
 const route = useRoute()
 const accountStore = useAccountStore()
 
-function handleLogout() {
-  accountStore.logout()
-  router.push('/')
+async function handleLogout() {
+  try {
+    await accountStore.signOut()
+  } catch (error) {
+    console.error('Logout failed:', error)
+    router.push('/')
+  }
 }
 </script>
 
@@ -27,16 +31,16 @@ function handleLogout() {
         </div>
       </li>
       <li>
-<router-link
-  class="is-item"
-  active-class=""
-  exact-active-class=""
-  :class="{ active: route.path === '/' || route.path.startsWith('/projects/') }"
-  to="/"
->
-  <ProjectsIcon />
-  <h2>Projects</h2>
-</router-link>
+        <router-link
+          class="is-item"
+          active-class=""
+          exact-active-class=""
+          :class="{ active: route.path === '/' || route.path.startsWith('/projects/') }"
+          to="/"
+        >
+          <ProjectsIcon />
+          <h2>Projects</h2>
+        </router-link>
       </li>
       <li>
         <router-link 

@@ -3,12 +3,25 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import AuthHeader from './AuthHeader.vue'
 import AuthLogin from './AuthLogin.vue'
 import AuthJoin from './AuthJoin.vue'
+import AuthLostPassword from './AuthLostPassword.vue'
+import AuthSetPassword from './AuthSetPassword.vue'
 import AuthCover from './AuthCover.vue'
 
 const showLogin = ref(true)
+const currentView = ref('login') // 'login', 'join', 'lost-password', 'set-password'
 
 function toggleAuth() {
   showLogin.value = !showLogin.value
+  currentView.value = showLogin.value ? 'login' : 'join'
+}
+
+function goToLostPassword() {
+  currentView.value = 'lost-password'
+}
+
+function goBackToLogin() {
+  currentView.value = 'login'
+  showLogin.value = true
 }
 
 function clearSensitiveData() {
@@ -37,11 +50,42 @@ onUnmounted(() => {
 
 <template>
   <ul class="auth">
-    <AuthHeader :showLogin="showLogin" @toggle="toggleAuth"/>
+    <!-- Show header toggle only for main login/join -->
+    <AuthHeader 
+      v-if="currentView === 'login' || currentView === 'join'"
+      :showLogin="showLogin" 
+      @toggle="toggleAuth"
+    />
+    <!-- Hide toggle for password reset pages -->
+    <AuthHeader 
+      v-else
+      :showLogin="true"
+      :hideToggle="true"
+    />
 
     <transition name="auth-fade" mode="out-in">
-      <AuthLogin v-if="showLogin" key="login" />
-      <AuthJoin v-else key="join" />
+      <!-- Main login/join toggle -->
+      <AuthLogin 
+        v-if="currentView === 'login'" 
+        key="login" 
+        @go-to-lost-password="goToLostPassword"
+      />
+      <AuthJoin 
+        v-else-if="currentView === 'join'" 
+        key="join" 
+      />
+      
+      <!-- Password reset components -->
+      <AuthLostPassword 
+        v-else-if="currentView === 'lost-password'" 
+        key="lost-password" 
+        @go-back-to-login="goBackToLogin"
+      />
+      <AuthSetPassword 
+        v-else-if="currentView === 'set-password'" 
+        key="set-password" 
+        @go-back-to-login="goBackToLogin"
+      />
     </transition>
     
     <li><p>Made with ♥ in Montreal</p></li>
