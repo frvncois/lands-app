@@ -6,6 +6,7 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/services/supabase.js'
 import { apiService } from '@/services/api.js'
 import { useProjectStore } from './projects.js'
+import { jwtDecode } from 'jwt-decode'
 
 export const useAccountStore = defineStore('account', () => {
   // Auth state
@@ -110,6 +111,51 @@ export const useAccountStore = defineStore('account', () => {
       isLoadingData.value = false
     }
   }
+
+  // Add this new function after loadUserData()
+async function validateSession() {
+  if (!isAuthenticated.value) return false
+
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error || !session?.access_token) {
+      console.log('❌ No valid session found')
+      await signOut()
+      return false
+    }
+
+    // Decode and check JWT expiration
+    const decoded = jwtDecode(session.access_token)
+    const now = Math.floor(Date.now() / 1000)
+    const timeUntilExpiry = decoded.exp - now
+
+    console.log('🔍 JWT expires in:', timeUntilExpiry, 'seconds')
+
+    // If token expires in less than 5 minutes, refresh it
+    if (timeUntilExpiry < 300) {
+      console.log('🔄 Token expiring soon, refreshing...')
+      
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
+      
+      if (refreshError || !refreshed.session) {
+        console.error('❌ Session refresh failed:', refreshError)
+        await signOut()
+        return false
+      }
+      
+      session.value = refreshed.session
+      user.value = refreshed.session.user
+      console.log('✅ Session refreshed successfully')
+    }
+
+    return true
+  } catch (error) {
+    console.error('❌ JWT validation failed:', error)
+    await signOut()
+    return false
+  }
+}
 
   // Update user profile via secure edge function
   async function updateProfile(updates) {
@@ -422,6 +468,7 @@ export const useAccountStore = defineStore('account', () => {
     profileLoading,
     dataLoading,
     
+    
     // Computed
     isAuthenticated,
     userEmail,
@@ -432,6 +479,7 @@ export const useAccountStore = defineStore('account', () => {
     signUp,
     signIn,
     signOut,
+    validateSession,
     clearError,
     loadUserData,
     updateProfile,

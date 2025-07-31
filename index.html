@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LANDS</title>
   <link rel="icon" href="/favicon.svg">
+  <meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.supabase.co;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: https: blob:;
+  connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+  font-src 'self' data:;
+  frame-src 'none';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  upgrade-insecure-requests;
+">
 </head>
 
 <body>

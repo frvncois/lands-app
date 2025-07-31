@@ -43,10 +43,15 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   const accountStore = useAccountStore()
+  
   if (to.meta.requiresAuth) {
-    if (!accountStore.isAuthenticated) {
+    // Enhanced validation with JWT check
+    const isValidSession = await accountStore.validateSession()
+    
+    if (!isValidSession) {
+      console.log('❌ Invalid session, blocking route access')
       next(false)
       return
     }
