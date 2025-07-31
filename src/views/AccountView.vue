@@ -41,6 +41,7 @@ function handleTabChange(tabId) {
       />
     </li>
     <li v-if="activeTab === 'profile'">
+      <!-- Pass the entire account store so AccountProfile can access profile data -->
       <AccountProfile :account="accountStore" />
     </li>
     <li v-if="activeTab === 'billing'">

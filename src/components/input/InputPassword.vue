@@ -1,5 +1,6 @@
 <template>
  <div class="input">
+  <label v-if="label">{{ label }}</label>
    <input
      :placeholder="placeholder"
      :type="showPassword ? 'text' : 'password'"
@@ -31,7 +32,7 @@ import HideIcon from '@/assets/icons/HideIcon.vue'
 import RevealIcon from '@/assets/icons/RevealIcon.vue'
 
 const model = defineModel()
-defineProps({ placeholder: String })
+defineProps({ placeholder: String, label: String })
 
 const showPassword = ref(false)
 

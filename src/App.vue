@@ -1,18 +1,13 @@
 <script setup>
-import { onMounted, computed } from 'vue'
-import { RouterView } from 'vue-router'
+import { onMounted, computed, watch } from 'vue'
+import { RouterView, useRouter } from 'vue-router'
 import { useAccountStore } from './stores/account'
 import NavMain from './components/global/NavMain.vue'
 import AuthMain from './components/auth/AuthMain.vue'
 import ProjectPreview from './components/project/ProjectPreview.vue'
 
 const accountStore = useAccountStore()
-
-// Debug logs to check the store state
-console.log('🔍 Account Store Methods:', Object.keys(accountStore))
-console.log('🔍 Has initialize method:', typeof accountStore.initialize === 'function')
-console.log('🔍 Current loading state:', accountStore.loading)
-console.log('🔍 Current auth state:', accountStore.isAuthenticated)
+const router = useRouter()
 
 // Computed to handle the three states properly
 const appState = computed(() => {
@@ -26,6 +21,25 @@ const appState = computed(() => {
   if (accountStore.isAuthenticated) return 'authenticated'
   return 'unauthenticated'
 })
+
+// Watch for authentication changes and navigate to root
+watch(
+  () => accountStore.isAuthenticated,
+  (isAuthenticated, wasAuthenticated) => {
+    console.log('🔄 Auth state changed:', { isAuthenticated, wasAuthenticated })
+    
+    // When user becomes authenticated, navigate to home page
+    if (isAuthenticated && !wasAuthenticated) {
+      console.log('✅ User authenticated, navigating to home')
+      router.push('/')
+    }
+    
+    // When user becomes unauthenticated, they'll see AuthMain automatically
+    if (!isAuthenticated && wasAuthenticated) {
+      console.log('❌ User unauthenticated')
+    }
+  }
+)
 
 onMounted(async () => {
   console.log('🚀 App mounted, initializing auth...')
