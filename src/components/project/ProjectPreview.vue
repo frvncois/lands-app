@@ -1,10 +1,12 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 import { useProjectStore } from '@/stores/projects'
 import { themes } from '@/components/theme/ThemeList.js'
 
 const projectStore = useProjectStore()
+const isSaving = ref(false)
+const isPublishing = ref(false)
 
 // Get the selected theme component by looking up the theme ID
 const selectedThemeComponent = computed(() => {
@@ -36,9 +38,75 @@ const selectedTheme = computed(() => {
   return themes.find(t => t.id === themeId) || null
 })
 
-function publishProject() {
-  if (projectStore.currentProject && !projectStore.currentProject.settings.published) {
-    projectStore.currentProject.settings.published = true
+async function saveProject() {
+  if (!projectStore.currentProject) return
+  
+  isSaving.value = true
+  
+  try {
+    console.log('💾 Saving project data to database...')
+    
+    // Save current project data to database via project store
+    const result = await projectStore.updateProject(
+      projectStore.currentProject.id, 
+      projectStore.currentProject
+    )
+    
+    if (result.success) {
+      console.log('✅ Project saved successfully')
+      
+      // Clear localStorage draft after successful save
+      clearLocalStorageDraft()
+    } else {
+      console.error('❌ Failed to save project:', result.error)
+    }
+  } catch (error) {
+    console.error('❌ Error saving project:', error)
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function publishProject() {
+  if (!projectStore.currentProject) return
+  
+  isPublishing.value = true
+  
+  try {
+    console.log('📤 Publishing project...')
+    
+    // First save the project data
+    await saveProject()
+    
+    // Then publish to storage via edge function
+    const result = await projectStore.publishProject(projectStore.currentProject.id)
+    
+    if (result.success) {
+      console.log('✅ Project published successfully')
+      
+      // Update project published status
+      if (projectStore.currentProject && !projectStore.currentProject.settings.published) {
+        projectStore.currentProject.settings.published = true
+      }
+    } else {
+      console.error('❌ Failed to publish project:', result.error)
+    }
+  } catch (error) {
+    console.error('❌ Error publishing project:', error)
+  } finally {
+    isPublishing.value = false
+  }
+}
+
+function clearLocalStorageDraft() {
+  if (projectStore.currentProject?.id) {
+    try {
+      const key = `project_draft_${projectStore.currentProject.id}`
+      localStorage.removeItem(key)
+      console.log('🗑️ Cleared localStorage draft for project')
+    } catch (error) {
+      console.error('❌ Failed to clear localStorage:', error)
+    }
   }
 }
 </script>
@@ -56,102 +124,68 @@ function publishProject() {
           buttonStyle="light"
         />
       </div>
-      <ButtonMain
-        :label="projectStore.currentProject.settings.published ? 'Published' : 'Publish'"
-        :buttonStyle="projectStore.currentProject.settings.published ? 'dark' : 'light'"
-        @click="publishProject"
-      />
-    </li>
-    <li>
-      <div class="mobile">
-        <!-- Display the selected theme with current project data -->
-        <component 
-          v-if="selectedThemeComponent" 
-          :is="selectedThemeComponent" 
-          :project="projectStore.currentProject"
-          class="theme-preview"
+      <div class="save-publish">
+        <ButtonMain
+          :label="isSaving ? 'Saving...' : 'Save'"
+          buttonStyle="light"
+          :disabled="isSaving || isPublishing"
+          @click="saveProject"
         />
-        
-        <!-- Fallback if no theme is selected -->
-        <div v-else class="no-theme">
-          <h3>{{ projectStore.currentProject.name }}</h3>
-          <p>No theme selected</p>
-          <div class="theme-info">
-            <strong>Theme:</strong> {{ selectedTheme?.title || 'None' }}
-          </div>
-          <div class="debug-info" style="font-size: 0.7rem; color: #666; margin-top: 1rem;">
-            <div>Theme ID: {{ projectStore.currentProject.design?.themeId || 'None' }}</div>
-            <div>Legacy Theme: {{ projectStore.currentProject.design?.theme?.id || 'None' }}</div>
-          </div>
-        </div>
+        <ButtonMain
+          :label="isPublishing ? 'Publishing...' : (projectStore.currentProject.settings.published ? 'Published' : 'Publish')"
+          :buttonStyle="projectStore.currentProject.settings.published ? 'dark' : 'light'"
+          :disabled="isSaving || isPublishing"
+          @click="publishProject"
+        />
       </div>
     </li>
-  </ul>
-  
-  <ul class="preview" v-else>
-    <li class="no-project">
-      <p>No project selected</p>
+    
+    <li class="display" v-if="selectedThemeComponent">
+      <component 
+        :is="selectedThemeComponent" 
+        :project="projectStore.currentProject"
+        :preview="true"
+      />
+    </li>
+    
+    <li v-else class="no-theme">
+      <p>No theme selected. Please select a theme in the Design tab.</p>
     </li>
   </ul>
 </template>
 
 <style scoped>
-ul.preview {
-  > .actions {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: var(--space-lg);
-    
-    > div {
-      display: flex;
-      gap: var(--space-sm);
-    }
-  }
-}
-
-.mobile {
-  aspect-ratio: 9 / 16;
-  background: var(--bg);
-  border-radius: var(--radius-lg);
-  width: 28vw;
-  margin: var(--space-lg) auto;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.theme-preview {
-  width: 100%;
+.preview {
+  display: flex;
+  flex-direction: column;
   height: 100%;
-  font-size: 0.8rem; /* Scale down for mobile preview */
-  overflow-y: auto;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.save-publish {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.display {
+  flex: 1;
+  overflow: auto;
+  background: white;
 }
 
 .no-theme {
-  padding: var(--space-lg);
-  text-align: center;
-  height: 100%;
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   color: var(--text-secondary);
 }
-
-.no-theme h3 {
-  margin: 0 0 var(--space-md) 0;
-  color: var(--text-primary);
-}
-
-.theme-info {
-  margin-top: var(--space-md);
-  font-size: var(--font-sm);
-}
-
-.no-project {
-  text-align: center;
-  padding: var(--space-lg);
-  color: var(--text-secondary);
-}
-
 </style>

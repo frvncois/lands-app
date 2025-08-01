@@ -1,44 +1,26 @@
+ <!-- AccountSettings - Cleaned -->
+
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
 import ButtonMain from '@/components/button/ButtonMain.vue'
+import AccountStatus from '@/components/alert/AccountStatus.vue'
 
 const props = defineProps(['account'])
 
-// Local reactive copies - these don't affect the store until save
 const localMarketing = ref(false)
 const localAnalytics = ref(false)
+const isUpdatingSettings = ref(false)
+const statusMessage = ref('')
+const statusType = ref('')
+const showStatus = ref(false)
 
-// Initialize local values from props
 onMounted(() => {
   localMarketing.value = props.account?.settings?.marketing || false
   localAnalytics.value = props.account?.settings?.analytics || false
 })
 
-// Save function - updates the actual store
-function saveAccount() {
-  // Ensure account object structure exists
-  if (props.account) {
-    if (!props.account.settings) {
-      props.account.settings = {}
-    }
-    
-    // Update the store/props with local values
-    props.account.settings.marketing = localMarketing.value
-    props.account.settings.analytics = localAnalytics.value
-  }
-  
-  console.log('Account settings saved:', {
-    marketing: localMarketing.value,
-    analytics: localAnalytics.value
-  })
-  
-  // Here you could also emit an event or call an API
-  // emit('settings-saved', { marketing: localMarketing.value, analytics: localAnalytics.value })
-}
-
-// Check if there are unsaved changes
-function hasChanges() {
+const hasChanges = computed(() => {
   const currentMarketing = props.account?.settings?.marketing || false
   const currentAnalytics = props.account?.settings?.analytics || false
   
@@ -46,34 +28,66 @@ function hasChanges() {
     localMarketing.value !== currentMarketing ||
     localAnalytics.value !== currentAnalytics
   )
+})
+
+function showMessage(message, type = 'success') {
+  statusMessage.value = message
+  statusType.value = type
+  showStatus.value = true
+  
+  setTimeout(() => {
+    showStatus.value = false
+  }, type === 'success' ? 3000 : 5000)
+}
+
+async function saveAccount() {
+  if (!hasChanges.value) return
+  
+  showStatus.value = false
+  isUpdatingSettings.value = true
+  showMessage('Updating settings...', 'updating')
+  
+  try {
+    if (props.account) {
+      if (!props.account.settings) {
+        props.account.settings = {}
+      }
+      props.account.settings.marketing = localMarketing.value
+      props.account.settings.analytics = localAnalytics.value
+    }
+    
+    showMessage('Settings updated successfully!', 'success')
+    
+  } catch (err) {
+    showMessage(err.message || 'Failed to update settings', 'error')
+  } finally {
+    isUpdatingSettings.value = false
+  }
 }
 </script>
 
 <template>
   <ul class="list">
-    <InputBoolean 
-      label="Marketing" 
-      details="Stay up to date and receive news and updates communications about Lands.app and its parent company" 
-      v-model="localMarketing" 
-    />
-    <InputBoolean 
-      label="Analytics" 
-      details="Receive your monthly analytics report" 
-      v-model="localAnalytics" 
-    />
-  </ul>
+    <ul class="form">
+      <InputBoolean 
+        label="Marketing" 
+        details="Stay up to date and receive news and updates communications about Lands.app and its parent company" 
+        v-model="localMarketing" 
+        :disabled="isUpdatingSettings"
+      />
+      <InputBoolean 
+        label="Analytics" 
+        details="Receive your monthly analytics report" 
+        v-model="localAnalytics" 
+        :disabled="isUpdatingSettings"
+      />
       <ButtonMain
-      label="Update settings"
-      @click="saveAccount"
-      :buttonStyle="hasChanges() ? 'light' : 'dark'"
-    />
+        label="Update settings"
+        @click="saveAccount"
+        :buttonStyle="hasChanges ? 'light' : 'disabled'"
+        :disabled="!hasChanges || isUpdatingSettings"
+      />
+      <AccountStatus v-if="showStatus" :message="statusMessage" :type="statusType" />
+    </ul>
+  </ul>
 </template>
-
-<style scoped>
-ul.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg) 0;
-}
-</style>

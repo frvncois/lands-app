@@ -134,74 +134,55 @@ export const useProjectStore = defineStore('projects', () => {
   // =====================================================
 
   // FIXED: Create new project via secure edge function - removed circular import
-async function create(newName, theme = null, projectType = 'music-artist') {
-  if (!newName.trim()) {
-    return { success: false, error: 'Project name is required' }
-  }
-
-  loading.value = true
-  error.value = null
-  
-  try {
-    console.log('🔄 Creating project via secure API...', { newName, theme, projectType })
-    
-    // Generate URL slug from name
-    const urlSlug = newName
-      .toLowerCase()
-      .replace(/[^a-z0-9\s\-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .substring(0, 50)
-    
-    // FIXED: Send only what the Edge function expects
-    const projectData = {
-      name: newName,
-      description: '',
-      url_slug: urlSlug
+  async function create(newName, theme = null, projectType = 'music-artist') {
+    if (!newName.trim()) {
+      return { success: false, error: 'Project name is required' }
     }
+
+    loading.value = true
+    error.value = null
     
-    console.log('📤 Sending to API:', projectData)
-    
-    const response = await apiService.createProject(projectData)
-    
-    console.log('📥 API Response:', response)
-    
-    if (response.success) {
-      // FIXED: Create the local project object with proper structure
-      const newProject = {
-        // API response data
-        id: response.data.id, // This will be the UUID
-        name: response.data.name,
-        description: response.data.description || '',
-        url_slug: response.data.url_slug || '',
-        owner_id: response.data.owner_id,
-        user_role: 'owner',
-        owner_name: 'You', // Will be updated when account data loads
-        owner_email: '', // Will be updated when account data loads
-        created_at: response.data.created_at,
-        updated_at: response.data.updated_at || response.data.created_at,
-        
-        // Legacy structure for compatibility
-        projectType,
-        design: {
-          backgroundColor: '',
-          textColor: '',
-          accentColor: '',
-          font: '',
-          titleFont: '',
-          textFont: '',
-          theme: theme,
-          themeId: theme?.id || null // Support both formats
-        },
-        settings: {
-          url: response.data.url_slug || '',
-          published: false,
-          plan: 'free',
-          stripeSubscriptionId: null,
-          subscriptionStatus: 'active',
-          projectType,
+    try {
+      console.log('🔄 Creating project via secure API...', { newName, theme, projectType })
+      
+      // Generate URL slug from name
+      const urlSlug = newName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s\-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 50)
+      
+      // FIXED: Send only what the Edge function expects
+      const projectData = {
+        name: newName,
+        description: '',
+        url_slug: urlSlug
+      }
+      
+      console.log('📤 Sending to API:', projectData)
+      
+      const response = await apiService.createProject(projectData)
+      
+      console.log('📥 API Response:', response)
+      
+      if (response.success) {
+        // FIXED: Create the local project object with proper structure
+        const newProject = {
+          // API response data
+          id: response.data.id, // This will be the UUID
+          name: response.data.name,
+          description: response.data.description || '',
+          url_slug: response.data.url_slug || '',
+          owner_id: response.data.owner_id,
+          user_role: 'owner',
+          owner_name: 'You', // Will be updated when account data loads
+          owner_email: '', // Will be updated when account data loads
+          created_at: response.data.created_at,
+          updated_at: response.data.updated_at || response.data.created_at,
           
-          // Nested design object from response
+          // Legacy structure for compatibility
+          projectType,
           design: {
             backgroundColor: '',
             textColor: '',
@@ -210,10 +191,45 @@ async function create(newName, theme = null, projectType = 'music-artist') {
             titleFont: '',
             textFont: '',
             theme: theme,
-            themeId: theme?.id || null
+            themeId: theme?.id || null // Support both formats
+          },
+          settings: {
+            url: response.data.url_slug || '',
+            published: false,
+            plan: 'free',
+            stripeSubscriptionId: null,
+            subscriptionStatus: 'active',
+            projectType,
+            
+            // Nested design object from response
+            design: {
+              backgroundColor: '',
+              textColor: '',
+              accentColor: '',
+              font: '',
+              titleFont: '',
+              textFont: '',
+              theme: theme,
+              themeId: theme?.id || null
+            },
+            
+            // Core data arrays
+            links: [],
+            socials: [],
+            posts: [],
+            releases: [],
+            shows: [],
+            merch: [],
+            
+            // Other settings
+            coverImage: '',
+            location: '',
+            contacts: [],
+            socialLinks: [],
+            musicbrainzData: null
           },
           
-          // Core data arrays
+          // Core data arrays (legacy support)
           links: [],
           socials: [],
           posts: [],
@@ -221,73 +237,57 @@ async function create(newName, theme = null, projectType = 'music-artist') {
           shows: [],
           merch: [],
           
-          // Other settings
+          // Legacy fields
           coverImage: '',
           location: '',
           contacts: [],
           socialLinks: [],
           musicbrainzData: null
-        },
+        }
         
-        // Core data arrays (legacy support)
-        links: [],
-        socials: [],
-        posts: [],
-        releases: [],
-        shows: [],
-        merch: [],
+        // FIXED: Add to BEGINNING of local store array  
+        projects.value.unshift(newProject)
         
-        // Legacy fields
-        coverImage: '',
-        location: '',
-        contacts: [],
-        socialLinks: [],
-        musicbrainzData: null
+        // FIXED: Update stats immediately
+        stats.value.total_projects++
+        stats.value.owned_projects++
+        
+        // Clear name field
+        name.value = ''
+        
+        console.log('✅ Project created and added to local store:', newProject.id)
+        console.log('📊 Updated projects count:', projects.value.length)
+        console.log('📋 First project in list:', projects.value[0]?.name)
+        
+        // FIXED: Return success response object with all data
+        return { 
+          success: true, 
+          data: newProject,
+          projectId: newProject.id 
+        }
+      } else {
+        const errorMessage = response.error || response.message || 'Failed to create project'
+        error.value = errorMessage
+        console.error('❌ API Error:', errorMessage)
+        
+        return { 
+          success: false, 
+          error: errorMessage 
+        }
       }
-      
-      // FIXED: Add to BEGINNING of local store array  
-      projects.value.unshift(newProject)
-      
-      // FIXED: Update stats immediately
-      stats.value.total_projects++
-      stats.value.owned_projects++
-      
-      // Clear name field
-      name.value = ''
-      
-      console.log('✅ Project created and added to local store:', newProject.id)
-      console.log('📊 Updated projects count:', projects.value.length)
-      console.log('📋 First project in list:', projects.value[0]?.name)
-      
-      // FIXED: Return success response object with all data
-      return { 
-        success: true, 
-        data: newProject,
-        projectId: newProject.id 
-      }
-    } else {
-      const errorMessage = response.error || response.message || 'Failed to create project'
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to create project'
+      console.error('❌ Create project error:', err)
       error.value = errorMessage
-      console.error('❌ API Error:', errorMessage)
       
       return { 
         success: false, 
         error: errorMessage 
       }
+    } finally {
+      loading.value = false
     }
-  } catch (err) {
-    const errorMessage = err.message || 'Failed to create project'
-    console.error('❌ Create project error:', err)
-    error.value = errorMessage
-    
-    return { 
-      success: false, 
-      error: errorMessage 
-    }
-  } finally {
-    loading.value = false
   }
-}
 
   // Update project via secure edge function
   async function updateProject(projectId, updates) {
@@ -335,6 +335,41 @@ async function create(newName, theme = null, projectType = 'music-artist') {
       loading.value = false
     }
   }
+
+async function publishProject(projectId) {
+  if (!projectId) return { success: false, error: 'Project ID required' }
+  
+  loading.value = true
+  error.value = null
+  
+  try {
+    console.log('📤 Publishing project via edge function...', projectId)
+    
+    const response = await apiService.publishProject(projectId)
+    
+    if (response.success) {
+      console.log('✅ Project published successfully:', projectId)
+      
+      // Update local project published status
+      const project = projects.value.find(p => p.id === projectId)
+      if (project) {
+        if (!project.settings) project.settings = {}
+        project.settings.published = true
+        project.settings.publishedAt = new Date().toISOString()
+      }
+      
+      return { success: true, data: response.data }
+    } else {
+      throw new Error(response.error || 'Failed to publish project')
+    }
+  } catch (err) {
+    console.error('Failed to publish project:', err)
+    error.value = err.message
+    return { success: false, error: err.message }
+  } finally {
+    loading.value = false
+  }
+}
 
   // Delete project via secure edge function
   async function deleteProject(projectId) {
@@ -521,6 +556,7 @@ async function create(newName, theme = null, projectType = 'music-artist') {
     setStats,
     updateProject,
     deleteProject,
+    publishProject,
     refreshProjects,
     
     // Legacy Functions (Updated)
@@ -528,6 +564,7 @@ async function create(newName, theme = null, projectType = 'music-artist') {
     forceRefresh,
     setCurrentProject,
     clearCurrentProject,
+    
     getProjectsByType,
     getProjectTypeInfo,
     checkSubscriptionStatus,

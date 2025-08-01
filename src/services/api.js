@@ -103,117 +103,126 @@ class ApiService {
       body: updates
     })
   }
-async deleteProject(projectId) {
-  console.log('🔄 Deleting project...', projectId)
-  console.log('🔍 Project ID type:', typeof projectId)
-  console.log('🔍 Project ID length:', String(projectId).length)
-  
-  const functionUrl = `project-operations?id=${projectId}`
-  const fullUrl = `${this.baseUrl}/${functionUrl}`
-  
-  console.log('🌐 Full request URL:', fullUrl)
-  console.log('🔗 Base URL:', this.baseUrl)
-  console.log('📋 Function URL:', functionUrl)
-  
-  try {
-    const token = await this.getAuthToken()
-    if (!token) {
-      throw new Error('Not authenticated - no valid session token')
-    }
-    
-    console.log('🔑 Auth token obtained, length:', token.length)
-    console.log('⏰ Starting DELETE request at:', new Date().toISOString())
-    
-    // Add fetch timeout using AbortController
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => {
-      console.log('⏰ DELETE request TIMEOUT after 20 seconds')
-      controller.abort()
-    }, 20000)
-    
-    console.log('📡 Making DELETE request with headers:')
-    console.log('  Authorization: Bearer ' + token.substring(0, 20) + '...')
-    console.log('  Content-Type: application/json')
-    console.log('  Accept: application/json')
-    
-    const response = await fetch(fullUrl, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      signal: controller.signal
-    })
-    
-    clearTimeout(timeoutId)
-    
-    console.log('📥 DELETE response received at:', new Date().toISOString())
-    console.log('📊 Response status:', response.status)
-    console.log('📊 Response statusText:', response.statusText)
-    console.log('📊 Response ok:', response.ok)
-    console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()))
-    
-    if (!response.ok) {
-      console.log('❌ Response not ok, attempting to parse error...')
-      
-      let errorData
-      try {
-        const errorText = await response.text()
-        console.log('📋 Raw error response:', errorText)
-        
-        try {
-          errorData = JSON.parse(errorText)
-          console.log('📋 Parsed error data:', errorData)
-        } catch (jsonError) {
-          console.log('❌ Error response is not valid JSON')
-          errorData = { error: 'Request failed', message: errorText || `HTTP ${response.status}` }
-        }
-      } catch (textError) {
-        console.log('❌ Could not read error response text')
-        errorData = { error: 'Request failed', message: `HTTP ${response.status}: ${response.statusText}` }
-      }
-      
-      console.error('❌ Edge function delete failed:', errorData)
-      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`)
-    }
-    
-    console.log('✅ Response ok, attempting to parse result...')
-    
-    let result
-    try {
-      const responseText = await response.text()
-      console.log('📋 Raw success response:', responseText)
-      
-      if (responseText.trim() === '') {
-        console.log('⚠️ Empty response body, assuming success')
-        result = { success: true }
-      } else {
-        result = JSON.parse(responseText)
-        console.log('📋 Parsed success result:', result)
-      }
-    } catch (parseError) {
-      console.log('❌ Could not parse success response, assuming success:', parseError)
-      result = { success: true }
-    }
-    
-    console.log('✅ Edge function DELETE completed successfully')
-    return result
-    
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('❌ DELETE request ABORTED due to timeout')
-      throw new Error('Delete request timed out after 20 seconds')
-    }
-    
-    console.error('❌ DELETE request failed:', error)
-    console.error('❌ Error name:', error.name)
-    console.error('❌ Error message:', error.message)
-    console.error('❌ Error stack:', error.stack)
-    
-    throw error
-  }
+
+async publishProject(projectId) {
+  console.log('📤 Publishing project...', projectId)
+  return await this.callEdgeFunction('publish-project', {
+    method: 'POST',
+    body: { projectId }
+  })
 }
+  
+  async deleteProject(projectId) {
+    console.log('🔄 Deleting project...', projectId)
+    console.log('🔍 Project ID type:', typeof projectId)
+    console.log('🔍 Project ID length:', String(projectId).length)
+    
+    const functionUrl = `project-operations?id=${projectId}`
+    const fullUrl = `${this.baseUrl}/${functionUrl}`
+    
+    console.log('🌐 Full request URL:', fullUrl)
+    console.log('🔗 Base URL:', this.baseUrl)
+    console.log('📋 Function URL:', functionUrl)
+    
+    try {
+      const token = await this.getAuthToken()
+      if (!token) {
+        throw new Error('Not authenticated - no valid session token')
+      }
+      
+      console.log('🔑 Auth token obtained, length:', token.length)
+      console.log('⏰ Starting DELETE request at:', new Date().toISOString())
+      
+      // Add fetch timeout using AbortController
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ DELETE request TIMEOUT after 20 seconds')
+        controller.abort()
+      }, 20000)
+      
+      console.log('📡 Making DELETE request with headers:')
+      console.log('  Authorization: Bearer ' + token.substring(0, 20) + '...')
+      console.log('  Content-Type: application/json')
+      console.log('  Accept: application/json')
+      
+      const response = await fetch(fullUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      console.log('📥 DELETE response received at:', new Date().toISOString())
+      console.log('📊 Response status:', response.status)
+      console.log('📊 Response statusText:', response.statusText)
+      console.log('📊 Response ok:', response.ok)
+      console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()))
+      
+      if (!response.ok) {
+        console.log('❌ Response not ok, attempting to parse error...')
+        
+        let errorData
+        try {
+          const errorText = await response.text()
+          console.log('📋 Raw error response:', errorText)
+          
+          try {
+            errorData = JSON.parse(errorText)
+            console.log('📋 Parsed error data:', errorData)
+          } catch (jsonError) {
+            console.log('❌ Error response is not valid JSON')
+            errorData = { error: 'Request failed', message: errorText || `HTTP ${response.status}` }
+          }
+        } catch (textError) {
+          console.log('❌ Could not read error response text')
+          errorData = { error: 'Request failed', message: `HTTP ${response.status}: ${response.statusText}` }
+        }
+        
+        console.error('❌ Edge function delete failed:', errorData)
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`)
+      }
+      
+      console.log('✅ Response ok, attempting to parse result...')
+      
+      let result
+      try {
+        const responseText = await response.text()
+        console.log('📋 Raw success response:', responseText)
+        
+        if (responseText.trim() === '') {
+          console.log('⚠️ Empty response body, assuming success')
+          result = { success: true }
+        } else {
+          result = JSON.parse(responseText)
+          console.log('📋 Parsed success result:', result)
+        }
+      } catch (parseError) {
+        console.log('❌ Could not parse success response, assuming success:', parseError)
+        result = { success: true }
+      }
+      
+      console.log('✅ Edge function DELETE completed successfully')
+      return result
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        console.error('❌ DELETE request ABORTED due to timeout')
+        throw new Error('Delete request timed out after 20 seconds')
+      }
+      
+      console.error('❌ DELETE request failed:', error)
+      console.error('❌ Error name:', error.name)
+      console.error('❌ Error message:', error.message)
+      console.error('❌ Error stack:', error.stack)
+      
+      throw error
+    }
+  }
 
 
   // Helper for handling rate limits
@@ -241,5 +250,6 @@ export const {
   updateProfile,
   createProject,
   updateProject,
-  deleteProject
+  deleteProject,
+  publishProject 
 } = apiService
