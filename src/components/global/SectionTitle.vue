@@ -1,7 +1,7 @@
+<!-- SectionTitle: Reusable page title component with minimal dependencies -->
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, onBeforeUnmount, onErrorCaptured } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 import ProjectsDropdown from '@/components/project/ProjectsDropdown.vue'
 import ProjectCreate from '@/components/project/ProjectCreate.vue'
@@ -10,78 +10,75 @@ const props = defineProps({
   title: String,
   buttonLabel: String,
   buttonAfter: String,
-  buttonStyle: String
+  buttonStyle: String,
+  showDropdown: {
+    type: Boolean,
+    default: false
+  },
+  projects: {
+    type: Array,
+    default: () => []
+  },
+  currentProjectId: {
+    type: [String, Number],
+    default: null
+  },
+  userProfile: {
+    type: Object,
+    default: () => ({})
+  }
 })
 
-defineEmits(['action'])
+const emit = defineEmits(['action', 'project-created', 'dropdown-action', 'edit-project', 'create-project'])
 
 const router = useRouter()
 const route = useRoute()
-const accountStore = useAccountStore()
 const isLeaving = ref(false)
 const showCreateModal = ref(false)
+const componentError = ref(null)
 
-// Check if current route starts with /projects/
-const showProjectsDropdown = computed(() => {
-  return route.path.startsWith('/projects/')
+onErrorCaptured((error, instance, info) => {
+  componentError.value = `SectionTitle error: ${error.message}`
+  return false
 })
 
 function handleDropdownAction(actionData) {
   if (actionData.action === 'create-project') {
-    // Show the ProjectCreate modal directly
     showCreateModal.value = true
+    componentError.value = null
   }
+  emit('dropdown-action', actionData)
 }
 
 function closeCreateModal() {
   showCreateModal.value = false
 }
 
-// FIXED: Handle project creation with proper data refresh
-async function handleProjectCreated(event) {
-  console.log('🎉 Project created event received:', event)
-  
+function handleProjectCreated(event) {
   showCreateModal.value = false
-  
-  try {
-    // FIXED: Force refresh of user data to get the new project
-    console.log('🔄 Refreshing user data after project creation...')
-    
-    const refreshResult = await accountStore.loadUserData()
-    
-    if (refreshResult.success) {
-      console.log('✅ User data refreshed, new project should be visible')
-      
-      // Navigate to projects dashboard to show the new project
-      await router.push('/')
-      console.log('✅ Navigated to projects dashboard')
-    } else {
-      console.error('❌ Failed to refresh user data:', refreshResult.error)
-      // Still navigate even if refresh failed
-      await router.push('/')
-    }
-  } catch (error) {
-    console.error('❌ Error during post-creation refresh:', error)
-    // Still navigate and close modal
-    await router.push('/')
-  }
+  emit('project-created', event)
 }
 
-// Intercept navigation to allow exit animation
-const unsubscribe = router.beforeEach(async (to, from) => {
-  if (from.name && to.name !== from.name) {
-    isLeaving.value = true
-    await new Promise(resolve => setTimeout(resolve, 300))
-  }
-})
+let unsubscribe = null
+
+if (typeof window !== 'undefined') {
+  unsubscribe = router.beforeEach(async (to, from) => {
+    if (from.name && to.name !== from.name) {
+      isLeaving.value = true
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+  })
+}
 
 onBeforeUnmount(() => {
-  unsubscribe()
+  if (unsubscribe) {
+    unsubscribe()
+  }
 })
 </script>
 
 <template>
-  <ul>
+  <ul class="title">
     <li>
       <transition name="title-fade" mode="out-in" appear>
         <h1 :key="isLeaving ? 'leaving' : (title || 'empty')">
@@ -90,10 +87,14 @@ onBeforeUnmount(() => {
       </transition>
     </li>
     <li>
-      <!-- Show ProjectsDropdown if route starts with /projects/ -->
-      <ProjectsDropdown v-if="showProjectsDropdown" @action="handleDropdownAction" />
-      
-      <!-- Show ButtonMain for all other routes -->
+      <ProjectsDropdown 
+        v-if="showDropdown" 
+        :projects="projects"
+        :currentProjectId="currentProjectId"
+        @action="handleDropdownAction" 
+        @edit-project="(id) => $emit('edit-project', id)"
+        @create-project="() => $emit('create-project')"
+      />
       <ButtonMain
         v-else
         :label="buttonLabel"
@@ -103,24 +104,22 @@ onBeforeUnmount(() => {
       />
     </li>
   </ul>
-
-  <!-- ProjectCreate Modal -->
   <ProjectCreate
     v-if="showCreateModal"
+    v-bind="userProfile"
     @project-created="handleProjectCreated"
     @cancel="closeCreateModal"
   />
 </template>
 
 <style scoped>
-ul {
+ul.title {
   display: flex;
   justify-content: space-between;
   padding-bottom: var(--space-lg);
   border-bottom: 1px solid var(--border);
   position: relative;
-
-  & h1 {
+  h1 {
     font-size: var(--font-md);
     line-height: 1.25;
   }

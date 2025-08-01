@@ -74,6 +74,16 @@ function loadFromLocalStorage(projectId) {
   }
 }
 
+function handleEditProject(projectId) {
+  // Navigate to the project (or current logic)
+  projectStore.setCurrentProject(projectId)
+}
+
+function handleCreateProject() {
+  // Navigate to home or handle project creation
+  router.push('/')
+}
+
 function clearLocalStorage(projectId) {
   try {
     const key = getLocalStorageKey(projectId)
@@ -193,9 +203,14 @@ onUnmounted(() => {
 <template>
   <ul class="content" v-if="project">
     <li>
-      <SectionTitle
-        title="Edit Project"
-      />
+    <SectionTitle 
+      title="Edit Project"
+      :showDropdown="true"
+      :projects="projectStore.projects"
+      :currentProjectId="route.params.id"
+      @edit-project="handleEditProject"
+      @create-project="handleCreateProject"
+    />
     </li>
     
     <li>

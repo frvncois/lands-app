@@ -124,49 +124,6 @@ button {
     font-size: var(--font-sm);
 }
 
-ul {
-    &.content {
-        display: flex;
-        flex-direction: column;
-        padding: var(--space-lg);
-        width: 40vw;
-        padding-left: 9em;
-    }
-    &.preview {
-        background-color: var(--dark);
-        border-left: 1px solid var(--border);
-        position: fixed;
-        right: 0;
-        top: 0;
-        width: 60vw;
-        height: 100vh;
-        padding: var(--space-lg);
-    }
-    &.list {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-lg);
-        padding: var(--space-lg) 0;
-    }
-    &.form {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-rg);
-    }
-    & .empty {
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-lg);
-    text-align: center;
-    padding: var(--space-lg);
-    > p {
-        color: var(--details);
-        font-size: var(--font-sm);
-        font-family: 'mono';
-        text-transform: uppercase;
-        }
-    }
-}
-
 h1, h2, h3, h4, h5, h6 {
     font-weight: normal;
     margin: 0;
@@ -225,5 +182,49 @@ label {
         background-color: var(--success);
         color: var(--success-txt);
         border-color:  var(--success-border);
+    }
+}
+
+ul {
+    &.content {
+        display: flex;
+        flex-direction: column;
+        padding: var(--space-lg);
+        width: 40vw;
+        padding-left: 9em;
+    }
+    &.preview {
+        background-color: var(--dark);
+        border-left: 1px solid var(--border);
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: 60vw;
+        height: 100vh;
+        padding: var(--space-lg);
+    }
+    &.list {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-lg);
+        padding: var(--space-lg) 0;
+    }
+    &.form {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-rg);
+    }
+    & .empty {
+        border: 1px dashed var(--border);
+        border-radius: var(--radius-lg);
+        text-align: center;
+        padding: var(--space-lg);
+        margin: var(--space-lg) 0;
+        > p {
+            color: var(--details);
+            font-size: var(--font-sm);
+            font-family: 'mono';
+            text-transform: uppercase;
+        }
     }
 }
