@@ -1,3 +1,6 @@
+// FIXED: Router configuration in /src/router/index.js
+// Replace the existing router configuration:
+
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAccountStore } from '@/stores/account'
 import EditorView from '../views/EditorView.vue'
@@ -16,10 +19,14 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      // FIXED: Updated route to handle UUID project IDs
       path: '/projects/:id',
       name: 'project',
       component: EditorView,
-      props: true,
+      props: route => ({
+        // FIXED: Pass ID as string to handle both numeric and UUID IDs
+        id: String(route.params.id)
+      }),
       meta: { requiresAuth: true }
     },
     {

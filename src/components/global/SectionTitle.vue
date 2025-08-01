@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useAccountStore } from '@/stores/account'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 import ProjectsDropdown from '@/components/project/ProjectsDropdown.vue'
 import ProjectCreate from '@/components/project/ProjectCreate.vue'
@@ -16,6 +17,7 @@ defineEmits(['action'])
 
 const router = useRouter()
 const route = useRoute()
+const accountStore = useAccountStore()
 const isLeaving = ref(false)
 const showCreateModal = ref(false)
 
@@ -35,10 +37,34 @@ function closeCreateModal() {
   showCreateModal.value = false
 }
 
-function handleProjectCreated() {
+// FIXED: Handle project creation with proper data refresh
+async function handleProjectCreated(event) {
+  console.log('🎉 Project created event received:', event)
+  
   showCreateModal.value = false
-  // Navigate to home page after project creation
-  router.push('/')
+  
+  try {
+    // FIXED: Force refresh of user data to get the new project
+    console.log('🔄 Refreshing user data after project creation...')
+    
+    const refreshResult = await accountStore.loadUserData()
+    
+    if (refreshResult.success) {
+      console.log('✅ User data refreshed, new project should be visible')
+      
+      // Navigate to projects dashboard to show the new project
+      await router.push('/')
+      console.log('✅ Navigated to projects dashboard')
+    } else {
+      console.error('❌ Failed to refresh user data:', refreshResult.error)
+      // Still navigate even if refresh failed
+      await router.push('/')
+    }
+  } catch (error) {
+    console.error('❌ Error during post-creation refresh:', error)
+    // Still navigate and close modal
+    await router.push('/')
+  }
 }
 
 // Intercept navigation to allow exit animation

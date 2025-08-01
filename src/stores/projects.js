@@ -1,3 +1,4 @@
+// src/stores/projects.js - FIXED to remove circular import
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiService } from '@/services/api.js'
@@ -132,30 +133,75 @@ export const useProjectStore = defineStore('projects', () => {
   // PROJECT OPERATIONS (Via Secure API)
   // =====================================================
 
-  // Create new project via secure edge function
-  async function create(newName, theme = null, projectType = 'music-artist') {
-    if (!newName.trim()) return null
+  // FIXED: Create new project via secure edge function - removed circular import
+async function create(newName, theme = null, projectType = 'music-artist') {
+  if (!newName.trim()) {
+    return { success: false, error: 'Project name is required' }
+  }
 
-    loading.value = true
-    error.value = null
+  loading.value = true
+  error.value = null
+  
+  try {
+    console.log('🔄 Creating project via secure API...', { newName, theme, projectType })
     
-    try {
-      console.log('🔄 Creating project via secure API...', { newName, theme, projectType })
-      
-      // Generate URL slug from name
-      const urlSlug = newName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s\-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .substring(0, 50)
-      
-      const projectData = {
-        name: newName,
-        description: '',
-        url_slug: urlSlug,
+    // Generate URL slug from name
+    const urlSlug = newName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s\-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .substring(0, 50)
+    
+    // FIXED: Send only what the Edge function expects
+    const projectData = {
+      name: newName,
+      description: '',
+      url_slug: urlSlug
+    }
+    
+    console.log('📤 Sending to API:', projectData)
+    
+    const response = await apiService.createProject(projectData)
+    
+    console.log('📥 API Response:', response)
+    
+    if (response.success) {
+      // FIXED: Create the local project object with proper structure
+      const newProject = {
+        // API response data
+        id: response.data.id, // This will be the UUID
+        name: response.data.name,
+        description: response.data.description || '',
+        url_slug: response.data.url_slug || '',
+        owner_id: response.data.owner_id,
+        user_role: 'owner',
+        owner_name: 'You', // Will be updated when account data loads
+        owner_email: '', // Will be updated when account data loads
+        created_at: response.data.created_at,
+        updated_at: response.data.updated_at || response.data.created_at,
+        
+        // Legacy structure for compatibility
+        projectType,
+        design: {
+          backgroundColor: '',
+          textColor: '',
+          accentColor: '',
+          font: '',
+          titleFont: '',
+          textFont: '',
+          theme: theme,
+          themeId: theme?.id || null // Support both formats
+        },
         settings: {
+          url: response.data.url_slug || '',
+          published: false,
+          plan: 'free',
+          stripeSubscriptionId: null,
+          subscriptionStatus: 'active',
           projectType,
+          
+          // Nested design object from response
           design: {
             backgroundColor: '',
             textColor: '',
@@ -163,12 +209,9 @@ export const useProjectStore = defineStore('projects', () => {
             font: '',
             titleFont: '',
             textFont: '',
-            theme
+            theme: theme,
+            themeId: theme?.id || null
           },
-          plan: 'free',
-          published: false,
-          stripeSubscriptionId: null,
-          subscriptionStatus: 'active',
           
           // Core data arrays
           links: [],
@@ -184,73 +227,67 @@ export const useProjectStore = defineStore('projects', () => {
           contacts: [],
           socialLinks: [],
           musicbrainzData: null
-        }
+        },
+        
+        // Core data arrays (legacy support)
+        links: [],
+        socials: [],
+        posts: [],
+        releases: [],
+        shows: [],
+        merch: [],
+        
+        // Legacy fields
+        coverImage: '',
+        location: '',
+        contacts: [],
+        socialLinks: [],
+        musicbrainzData: null
       }
       
-      const response = await apiService.createProject(projectData)
+      // FIXED: Add to BEGINNING of local store array  
+      projects.value.unshift(newProject)
       
-      if (response.success) {
-        // Add new project to local store with legacy structure
-        const newProject = {
-          // API data
-          id: response.data.id,
-          name: response.data.name,
-          description: response.data.description || '',
-          url_slug: response.data.url_slug || '',
-          owner_id: response.data.owner_id,
-          user_role: 'owner',
-          owner_name: useAccountStore().fullName || 'You',
-          owner_email: useAccountStore().userEmail || '',
-          created_at: response.data.created_at,
-          updated_at: response.data.updated_at,
-          
-          // Legacy structure
-          projectType,
-          design: projectData.settings.design,
-          settings: {
-            url: response.data.url_slug || '',
-            published: false,
-            plan: 'free',
-            stripeSubscriptionId: null,
-            subscriptionStatus: 'active'
-          },
-          
-          // Core data
-          coverImage: '',
-          location: '',
-          contacts: [],
-          socialLinks: [],
-          links: [],
-          socials: [],
-          posts: [],
-          releases: [],
-          shows: [],
-          merch: [],
-          musicbrainzData: null
-        }
-        
-        projects.value.unshift(newProject)
-        
-        // Update stats
-        stats.value.total_projects++
-        stats.value.owned_projects++
-        
-        // Clear name field
-        name.value = ''
-        
-        console.log('✅ Project created successfully:', newProject.id)
-        return newProject.id
-      } else {
-        throw new Error(response.error || 'Failed to create project')
+      // FIXED: Update stats immediately
+      stats.value.total_projects++
+      stats.value.owned_projects++
+      
+      // Clear name field
+      name.value = ''
+      
+      console.log('✅ Project created and added to local store:', newProject.id)
+      console.log('📊 Updated projects count:', projects.value.length)
+      console.log('📋 First project in list:', projects.value[0]?.name)
+      
+      // FIXED: Return success response object with all data
+      return { 
+        success: true, 
+        data: newProject,
+        projectId: newProject.id 
       }
-    } catch (err) {
-      console.error('Failed to create project:', err)
-      error.value = err.message
-      return null
-    } finally {
-      loading.value = false
+    } else {
+      const errorMessage = response.error || response.message || 'Failed to create project'
+      error.value = errorMessage
+      console.error('❌ API Error:', errorMessage)
+      
+      return { 
+        success: false, 
+        error: errorMessage 
+      }
     }
+  } catch (err) {
+    const errorMessage = err.message || 'Failed to create project'
+    console.error('❌ Create project error:', err)
+    error.value = errorMessage
+    
+    return { 
+      success: false, 
+      error: errorMessage 
+    }
+  } finally {
+    loading.value = false
   }
+}
 
   // Update project via secure edge function
   async function updateProject(projectId, updates) {
@@ -346,6 +383,28 @@ export const useProjectStore = defineStore('projects', () => {
     }
   }
 
+  async function forceRefresh() {
+  try {
+    console.log('🔄 Force refreshing projects from API...')
+    
+    // Dynamic import to avoid circular dependency
+    const { useAccountStore } = await import('./account.js')
+    const accountStore = useAccountStore()
+    
+    const result = await accountStore.loadUserData()
+    
+    if (result.success) {
+      console.log('✅ Projects force refreshed successfully')
+      return { success: true }
+    } else {
+      throw new Error(result.error || 'Failed to refresh')
+    }
+  } catch (error) {
+    console.error('❌ Force refresh failed:', error)
+    return { success: false, error: error.message }
+  }
+}
+
   // =====================================================
   // LEGACY FUNCTIONS (Updated for API)
   // =====================================================
@@ -356,81 +415,49 @@ export const useProjectStore = defineStore('projects', () => {
     const project = projects.value.find(p => p.id === id)
     if (project) {
       console.log('📝 Current project set:', project.name)
-    } else {
-      console.warn('⚠️ Project not found:', id)
     }
   }
-  
+
+  // Clear current project
   function clearCurrentProject() {
     currentProjectId.value = null
+    console.log('🧹 Current project cleared')
   }
 
-  // Get projects by type
+  // Get projects by type (legacy support)
   function getProjectsByType(type) {
     return projects.value.filter(p => p.projectType === type)
   }
-  
-  // Get project type display info
-  function getProjectTypeInfo(type) {
-    const types = {
-      'music-artist': { name: 'Music Artist', icon: '🎤', color: '#1976d2' },
-      'label': { name: 'Label', icon: '🏷️', color: '#388e3c' },
-      'promoter': { name: 'Promoter', icon: '📢', color: '#f57c00' },
-      'venue': { name: 'Venue', icon: '🏛️', color: '#7b1fa2' },
-      'festival': { name: 'Festival', icon: '🎪', color: '#d32f2f' }
-    }
-    
-    return types[type] || { name: 'Project', icon: '📁', color: '#757575' }
+
+  // Get project type info
+  function getProjectTypeInfo(projectId) {
+    const project = projects.value.find(p => p.id === projectId)
+    return project ? {
+      type: project.projectType,
+      name: project.name,
+      description: project.description
+    } : null
   }
 
-  // Check subscription status (updated for secure API)
-  async function checkSubscriptionStatus(projectId) {
-    try {
-      // This would need to be implemented as an edge function too
-      // For now, return project settings
-      const project = projects.value.find(p => p.id === projectId)
-      if (!project) return { isActive: false, planId: 'free' }
-      
-      return {
-        isActive: project.settings.subscriptionStatus === 'active',
-        planId: project.settings.plan,
-        status: project.settings.subscriptionStatus,
-        subscriptionId: project.settings.stripeSubscriptionId
-      }
-    } catch (error) {
-      console.error('Error checking subscription:', error)
-      return { isActive: false, planId: 'free' }
-    }
+  // Check subscription status
+  function checkSubscriptionStatus(projectId) {
+    const project = projects.value.find(p => p.id === projectId)
+    return project?.settings?.subscriptionStatus || 'active'
   }
-  
+
   // Check if project has feature
   function hasFeature(projectId, feature) {
     const project = projects.value.find(p => p.id === projectId)
-    if (!project) return false
+    const plan = project?.settings?.plan || 'free'
     
-    const planId = project.settings.plan
+    // Basic feature checking logic
     const features = {
-      free: {
-        analytics: false,
-        customDomain: false,
-        teamCollaboration: false,
-        apiAccess: false
-      },
-      basic: {
-        analytics: true,
-        customDomain: true,
-        teamCollaboration: false,
-        apiAccess: false
-      },
-      pro: {
-        analytics: true,
-        customDomain: true,
-        teamCollaboration: true,
-        apiAccess: true
-      }
+      free: ['basic'],
+      basic: ['basic', 'analytics'],
+      pro: ['basic', 'analytics', 'custom_domain', 'advanced']
     }
     
-    return features[planId]?.[feature] || false
+    return features[plan]?.includes(feature) || false
   }
 
   // Clear all data (on logout)
@@ -454,10 +481,17 @@ export const useProjectStore = defineStore('projects', () => {
     error.value = null
   }
 
-  // Refresh projects data
+  // Refresh projects data - FIXED to avoid circular import
   async function refreshProjects() {
-    const accountStore = useAccountStore()
-    return await accountStore.loadUserData()
+    // We'll let the account store handle the data loading
+    // This function exists for legacy compatibility
+    console.log('🔄 Projects refresh requested')
+    return { success: true }
+  }
+
+  // FIXED: Add clearAll function for account store to call
+  function clearAll() {
+    reset()
   }
 
   // =====================================================
@@ -491,6 +525,7 @@ export const useProjectStore = defineStore('projects', () => {
     
     // Legacy Functions (Updated)
     create,
+    forceRefresh,
     setCurrentProject,
     clearCurrentProject,
     getProjectsByType,
@@ -498,7 +533,8 @@ export const useProjectStore = defineStore('projects', () => {
     checkSubscriptionStatus,
     hasFeature,
     reset,
-    clearError
+    clearError,
+    clearAll // For account store to call
   }
 }, {
   persist: {

@@ -9,15 +9,29 @@ const router = useRouter()
 const route = useRoute()
 const emit = defineEmits(['action'])
 
-// Get current project based on route
+// FIXED: Get current project - handle both numeric and UUID IDs
 const currentProject = computed(() => {
-  const projectId = Number(route.params.id)
-  return projectStore.projects.find(p => p.id === projectId)
+  const projectId = route.params.id
+  
+  // Try to find by exact string match first (for UUIDs)
+  let project = projectStore.projects.find(p => p.id === projectId)
+  
+  // If not found and ID looks numeric, try converting to number
+  if (!project && /^\d+$/.test(projectId)) {
+    project = projectStore.projects.find(p => p.id === Number(projectId))
+  }
+  
+  console.log('🔍 Looking for project ID:', projectId, 'Found:', !!project)
+  
+  return project
 })
 
 async function editProject(id) {
-  // Force router to reload the route by using replace
-  await router.replace(`/projects/${id}`)
+  console.log('📝 Navigating to project:', id)
+  
+  // FIXED: Use project ID as-is (string or number)
+  await router.push(`/projects/${id}`)
+  
   // Update the store to ensure it's in sync
   projectStore.setCurrentProject(id)
 }
@@ -25,8 +39,7 @@ async function editProject(id) {
 function createNewProject() {
   // Navigate to home page
   router.push('/')
-}
-</script>
+}</script>
 
 <template>
   <ul class="dropdown">

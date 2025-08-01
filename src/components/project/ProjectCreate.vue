@@ -13,6 +13,8 @@ const emit = defineEmits(['project-created', 'cancel'])
 const currentStep = ref(1)
 const selectedProjectType = ref(null)
 const projectData = ref({})
+const isCreating = ref(false)
+const createError = ref(null)
 
 const steps = [
   { id: 1, name: 'Project Type', component: 'ProjectType' },
@@ -56,38 +58,63 @@ function handleContinueToThemes(data) {
     currentStep.value = 3
   }
 }
-
-function handleCreateProject(data) {
+async function handleCreateProject(data) {
   console.log('🚀 Creating NEW project with data:', data)
-  // ALWAYS create a new project - never check for existing ones
-  const projectId = projectStore.create(data.name, data.design?.theme, data.type)
   
-  if (projectId && data.fetchedData) {
-    const project = projectStore.projects.find(p => p.id === projectId)
-    if (project) {
-      console.log('🔧 Applying fetched data to new project:', project.name)
-      project.description = data.fetchedData.description || project.description
+  isCreating.value = true
+  createError.value = null
+  
+  try {
+    // FIXED: Await the async project creation
+    const result = await projectStore.create(data.name, data.design?.theme, data.type)
+    
+    if (result.success) {
+      const projectId = result.data.id
+      console.log('✅ Project created with ID:', projectId)
       
-      if (data.fetchedData.releases?.length > 0) {
-        project.releases.push(...data.fetchedData.releases)
-        console.log('📀 Added releases:', data.fetchedData.releases.length)
+      // Apply fetched data if available
+      if (projectId && data.fetchedData) {
+        const project = projectStore.projects.find(p => p.id === projectId)
+        if (project) {
+          console.log('🔧 Applying fetched data to new project:', project.name)
+          project.description = data.fetchedData.description || project.description
+          
+          if (data.fetchedData.releases?.length > 0) {
+            project.releases.push(...data.fetchedData.releases)
+            console.log('📀 Added releases:', data.fetchedData.releases.length)
+          }
+          
+          if (data.fetchedData.socials?.length > 0) {
+            project.socials.push(...data.fetchedData.socials)
+            console.log('🔗 Added socials:', data.fetchedData.socials.length)
+          }
+          
+          project.musicbrainzData = data.fetchedData.musicbrainzData
+          console.log('✅ Project created with external data')
+        }
       }
       
-      if (data.fetchedData.socials?.length > 0) {
-        project.socials.push(...data.fetchedData.socials)
-        console.log('🔗 Added socials:', data.fetchedData.socials.length)
-      }
+      // FIXED: Emit success but DON'T navigate automatically
+      // Let the parent component handle navigation
+      emit('project-created', { projectId, project: result.data })
       
-      project.musicbrainzData = data.fetchedData.musicbrainzData
-      console.log('✅ New project created with data')
+      // FIXED: Don't navigate here - let SectionTitle handle it
+      console.log('✅ Project creation completed, modal will close')
+      
+    } else {
+      // Handle creation failure
+      createError.value = result.error || 'Failed to create project'
+      console.error('❌ Project creation failed:', createError.value)
     }
-  }
-  
-  if (projectId) {
-    emit('project-created')
-    router.push('/')
+  } catch (error) {
+    createError.value = error.message || 'An unexpected error occurred'
+    console.error('❌ Project creation error:', error)
+  } finally {
+    isCreating.value = false
   }
 }
+
+
 
 function goBack() {
   if (currentStep.value > 1) {
@@ -125,8 +152,6 @@ function getCurrentStepComponent() {
 <template>
   <ul class="modal">
     <li class="content">
-
-
       <div class="steps">
         <div 
           v-for="step in steps" 
@@ -141,6 +166,12 @@ function getCurrentStepComponent() {
           <div class="number">{{ step.id }}</div>
           <div class="title">{{ step.name }}</div>
         </div>
+      </div>
+
+      <!-- Error Display -->
+      <div v-if="createError" class="error-message">
+        <p>❌ {{ createError }}</p>
+        <button @click="createError = null">Dismiss</button>
       </div>
 
       <!-- Current Step Component -->
@@ -162,17 +193,9 @@ function getCurrentStepComponent() {
             v-if="canGoBack"
             class="nav-button secondary"
             @click="goBack"
+            :disabled="isCreating"
           >
             ← Back
-          </button>
-        </div>
-
-        <div class="nav-center">
-          <button 
-            class="nav-button cancel"
-            @click="handleCancel"
-          >
-            Cancel
           </button>
         </div>
 
@@ -181,183 +204,181 @@ function getCurrentStepComponent() {
             v-if="currentStep < 3 && canGoForward"
             class="nav-button primary"
             @click="goForward"
+            :disabled="isCreating"
           >
-            Continue →
+            Next →
+          </button>
+          
+          <button 
+            class="nav-button secondary"
+            @click="handleCancel"
+            :disabled="isCreating"
+          >
+            Cancel
           </button>
         </div>
+      </div>
+
+      <!-- Loading State -->
+      <div v-if="isCreating" class="creating-overlay">
+        <p>Creating your project...</p>
       </div>
     </li>
   </ul>
 </template>
 
 <style scoped>
-ul.modal {
+.modal {
   position: fixed;
-  overflow: scroll;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  background-color: var(--modal);
-  backdrop-filter: blur(1em);
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
 
-  & li.content {
-    width: 35vw;
-    margin-top: var(--space-lg);
-    border-radius: var(--radius-lg);
-    background-color: var(--bg);
-    display: flex;
-    flex-direction: column;
-  }
+.content {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90%;
+  overflow-y: auto;
 }
 
 .steps {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-md) 0;
-  border-bottom: 1px solid var(--border);
-
-  .step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-xs);
-    flex: 1;
-    position: relative;
-
-
-    .number {
-      width: 2rem;
-      height: 2rem;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: var(--font-sm);
-      font-weight: bold;
-      border: 1px solid var(--border);
-      background-color: var(--bg);
-      color: var(--details);
-      transition: all var(--transition-smooth);
-    }
-
-    .title {
-      font-size: var(--font-xs);
-      font-family: 'mono';
-      text-transform: uppercase;
-      color: var(--details);
-      text-align: center;
-    }
-
-    &.active {
-      .number {
-        border-color: var(--light);
-        color: var(--light);
-      }
-      .title{
-        color: var(--text-primary);
-      }
-    }
-
-    &.completed {
-      .step-number {
-        border-color: var(--success);
-        background-color: var(--success);
-        color: var(--bg);
-      }
-      .step-name {
-        color: var(--success);
-      }
-    }
-
-    &.disabled {
-      opacity: 0.5;
-    }
-  }
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+  justify-content: center;
 }
 
-.step-content {
-  flex: 1;
+.step {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.step.active {
+  opacity: 1;
+}
+
+.step.completed {
+  opacity: 0.8;
+}
+
+.step .number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.step.active .number {
+  background: var(--accent);
+  color: white;
+}
+
+.step.completed .number {
+  background: var(--success);
+  color: white;
+}
+
+.error-message {
+  background: var(--error-bg);
+  border: 1px solid var(--error);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-message p {
+  margin: 0;
+  color: var(--error);
+}
+
+.error-message button {
+  background: none;
+  border: none;
+  color: var(--error);
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .navigation {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md);
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
+}
 
-  .nav-left, .nav-right {
-    display: flex;
-  }
+.nav-right {
+  display: flex;
+  gap: var(--space-md);
+}
 
-  .nav-right {
-    justify-content: flex-end;
-  }
+.nav-button {
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
 
-  .nav-center {
-    display: flex;
-    justify-content: center;
-  }
+.nav-button.primary {
+  background: var(--accent);
+  color: white;
+}
 
-  .nav-button {
-    padding: var(--space-sm) var(--space-md);
-    border-radius: var(--radius-md);
-    font-size: var(--font-sm);
-    font-family: 'mono';
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all var(--transition-smooth);
-    border: 1px solid var(--border);
+.nav-button.secondary {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
 
-    &.primary {
-      background-color: var(--focus);
-      color: var(--bg);
-      border-color: var(--focus);
+.nav-button:hover:not(:disabled) {
+  opacity: 0.8;
+}
 
-      &:hover {
-        background-color: var(--focus-hover);
-        transform: translateY(-1px);
-      }
-    }
+.nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-    &.secondary {
-      background-color: var(--card);
-      color: var(--text-primary);
+.creating-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-lg);
+}
 
-      &:hover {
-        background-color: var(--dark-hover);
-        border-color: var(--focus);
-      }
-    }
-
-    &.cancel {
-      background-color: transparent;
-      color: var(--details);
-      border-color: transparent;
-
-      &:hover {
-        color: var(--text-primary);
-        background-color: var(--card);
-      }
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      
-      &:hover {
-        transform: none;
-      }
-    }
-  }
+.creating-overlay p {
+  color: white;
+  font-size: var(--font-lg);
+  font-weight: 500;
 }
 </style>
