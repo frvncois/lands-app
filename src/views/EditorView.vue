@@ -223,7 +223,6 @@ onUnmounted(() => {
 
     <li v-if="activeTab === 'general'">
       <ContentList :project="project" />
-      <IntegrationsList :project="project" />
     </li>
 
     <li v-if="activeTab === 'design'">

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+
 import AuthHeader from './AuthHeader.vue'
 import AuthLogin from './AuthLogin.vue'
 import AuthJoin from './AuthJoin.vue'
@@ -7,8 +8,9 @@ import AuthLostPassword from './AuthLostPassword.vue'
 import AuthSetPassword from './AuthSetPassword.vue'
 import AuthCover from './AuthCover.vue'
 
+
 const showLogin = ref(true)
-const currentView = ref('login') // 'login', 'join', 'lost-password', 'set-password'
+const currentView = ref('login')
 
 function toggleAuth() {
   showLogin.value = !showLogin.value
@@ -25,46 +27,82 @@ function goBackToLogin() {
 }
 
 function clearSensitiveData() {
-  const inputs = document.querySelectorAll('input[type="password"], input[type="email"]')
-  inputs.forEach(input => {
+  const sensitiveInputs = document.querySelectorAll('input[type="password"], input[type="email"]')
+  sensitiveInputs.forEach(input => {
     input.value = ''
+    input.blur()
   })
+  
+  if (window.history?.replaceState) {
+    window.history.replaceState(null, null, window.location.pathname)
+  }
 }
 
 function preventContextMenu(e) {
-  e.preventDefault()
-  return false
+  if (import.meta.env.PROD) {
+    e.preventDefault()
+    return false
+  }
 }
 
+function detectDevTools() {
+  if (import.meta.env.PROD) {
+    let devtools = { open: false }
+    const threshold = 160
+    
+    const checkDevTools = () => {
+      if (
+        window.outerHeight - window.innerHeight > threshold ||
+        window.outerWidth - window.innerWidth > threshold
+      ) {
+        if (!devtools.open) {
+          devtools.open = true
+          console.clear()
+          console.warn('🔒 This application contains sensitive authentication data. Developer tools detected.')
+        }
+      } else {
+        devtools.open = false
+      }
+    }
+    
+    return setInterval(checkDevTools, 500)
+  }
+  return null
+}
+let devToolsTimer = null
+
 onMounted(() => {
-  document.addEventListener('contextmenu', preventContextMenu)
-  window.addEventListener('beforeunload', clearSensitiveData)
+  document.addEventListener('contextmenu', preventContextMenu, { passive: false })
+  window.addEventListener('beforeunload', clearSensitiveData, { passive: true })
+  
+  devToolsTimer = detectDevTools()
+  
+  document.addEventListener('dragover', (e) => e.preventDefault(), { passive: false })
+  document.addEventListener('drop', (e) => e.preventDefault(), { passive: false })
 })
 
 onUnmounted(() => {
   document.removeEventListener('contextmenu', preventContextMenu)
   window.removeEventListener('beforeunload', clearSensitiveData)
+  document.removeEventListener('dragover', (e) => e.preventDefault())
+  document.removeEventListener('drop', (e) => e.preventDefault())
+  if (devToolsTimer) {
+    clearInterval(devToolsTimer)
+  }
   clearSensitiveData()
 })
 </script>
 
 <template>
   <ul class="auth">
-    <!-- Show header toggle only for main login/join -->
     <AuthHeader 
-      v-if="currentView === 'login' || currentView === 'join'"
       :showLogin="showLogin" 
+      :hideToggle="currentView === 'lost-password' || currentView === 'set-password'"
       @toggle="toggleAuth"
     />
-    <!-- Hide toggle for password reset pages -->
-    <AuthHeader 
-      v-else
-      :showLogin="true"
-      :hideToggle="true"
-    />
 
+    <!-- Main Content with Transitions -->
     <transition name="auth-fade" mode="out-in">
-      <!-- Main login/join toggle -->
       <AuthLogin 
         v-if="currentView === 'login'" 
         key="login" 
@@ -74,8 +112,6 @@ onUnmounted(() => {
         v-else-if="currentView === 'join'" 
         key="join" 
       />
-      
-      <!-- Password reset components -->
       <AuthLostPassword 
         v-else-if="currentView === 'lost-password'" 
         key="lost-password" 
@@ -88,14 +124,17 @@ onUnmounted(() => {
       />
     </transition>
     
-    <li><p>Made with ♥ in Montreal</p></li>
+    <footer>
+      <p>Made with ♥ in Montreal</p>
+    </footer>
   </ul>
-  <AuthCover/>
+
+  <AuthCover />
 </template>
 
 <style scoped>
 ul.auth {
-  width: 40vw;
+  width: 33vw;
   background: var(--nav);
   backdrop-filter: blur(5em);
   padding: var(--space-lg);
@@ -106,16 +145,25 @@ ul.auth {
   z-index: 2;
   top: 0;
   bottom: 0;
-  
-  p {
-    font-family: 'mono';
-    text-transform: uppercase;
-    font-size: var(--font-sm);
-    text-align: center;
-    color: var(--details);
-  }
+  left: 0;
 }
 
+footer p {
+  font-family: 'mono';
+  text-transform: uppercase;
+  font-size: var(--font-sm);
+  text-align: center;
+  color: var(--details);
+  margin: 0;
+  opacity: 0.7;
+  transition: opacity var(--transition-smooth);
+}
+
+footer:hover p {
+  opacity: 1;
+}
+
+/* Smooth transitions between auth components */
 .auth-fade-enter-active {
   transition: all var(--transition-smooth);
 }

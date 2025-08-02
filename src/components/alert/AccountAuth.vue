@@ -1,7 +1,6 @@
-<!-- AccountStatus - Cleaned -->
+<!-- AccountAuth - Duplicated from AccountStatus with different props -->
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue'
-
 import AlertIcon from '@/assets/icons/AlertIcon.vue'
 import SettingsIcon from '@/assets/icons/SettingsIcon.vue'
 import ProjectsIcon from '@/assets/icons/ProjectsIcon.vue'
@@ -31,10 +30,9 @@ const currentIcon = computed(() => {
 })
 
 function startAutoHide() {
-  if (props.type === 'updating') return // Don't auto-hide updating messages
+  if (props.type === 'updating') return
   
   const hideDelay = props.type === 'success' ? 3000 : 5000
-  
   setTimeout(() => {
     isVisible.value = false
   }, hideDelay)

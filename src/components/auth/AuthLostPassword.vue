@@ -1,40 +1,73 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import InputEmail from '@/components/input/InputEmail.vue'
 import ButtonAuth from '@/components/button/ButtonAuth.vue'
-import AuthError from '@/components/alert/AuthError.vue'
+import AccountAuth from '@/components/alert/AccountAuth.vue'
 
+// Form state
 const email = ref('')
-const showError = ref(false)
-const errorMessage = ref('')
+const isLoading = ref(false)
 const emailSent = ref(false)
 
+// Alert state
+const alertMessage = ref('')
+const alertType = ref('error')
+
 const emit = defineEmits(['go-back-to-login'])
+
+// Computed properties
+const canSubmit = computed(() => {
+  return email.value.trim() !== '' && 
+         isValidEmail(email.value) && 
+         !isLoading.value
+})
+
+// Methods
+function showAlert(type, message) {
+  alertType.value = type
+  alertMessage.value = message
+}
+
+function clearAlert() {
+  alertMessage.value = ''
+}
 
 function isValidEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
 }
 
-function handleResetPassword() {
-  showError.value = false
-  errorMessage.value = ''
+async function handleResetPassword() {
+  clearAlert()
   
   if (!email.value.trim()) {
-    showError.value = true
-    errorMessage.value = 'Please enter your email address'
+    showAlert('error', 'Please enter your email address')
     return
   }
   
   if (!isValidEmail(email.value)) {
-    showError.value = true
-    errorMessage.value = 'Please enter a valid email address'
+    showAlert('error', 'Please enter a valid email address')
     return
   }
   
-  // TODO: Replace with actual API call to send reset email
-  // For now, we'll simulate success
-  emailSent.value = true
+  isLoading.value = true
+  showAlert('updating', 'Sending reset email...')
+  
+  try {
+    // Simulate API call - replace with actual Supabase call
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // TODO: Replace with actual API call to send reset email
+    // const result = await supabase.auth.resetPasswordForEmail(email.value)
+    
+    emailSent.value = true
+    showAlert('success', 'Reset email sent')
+  } catch (err) {
+    console.error('Password reset error:', err)
+    showAlert('error', 'Failed to send reset email. Please try again')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 function goBackToLogin() {
@@ -43,79 +76,64 @@ function goBackToLogin() {
 </script>
 
 <template>
-  <ul class="form">
+  <ul class="list">
     <transition name="auth-fade" mode="out-in">
-      <li v-if="!emailSent" key="reset-title">
+      <li v-if="!emailSent">
         <h1>Reset your password</h1>
       </li>
-      <li v-else key="check-title">
+      <li v-else>
         <h1>Check your email</h1>
       </li>
     </transition>
     
     <transition name="auth-fade" mode="out-in">
-      <div v-if="!emailSent" key="reset-form" class="form-content">
-        <InputEmail placeholder="Email" type="email" v-model="email" />
+      <ul v-if="!emailSent" key="reset-form" class="form">
+        <!-- Alert -->
+        <AccountAuth
+          v-if="alertMessage"
+          :type="alertType"
+          :message="alertMessage"
+        />
+        
+        <InputEmail 
+          placeholder="Email" 
+          v-model="email"
+          :disabled="isLoading"
+          autocomplete="email"
+        />
+        
         <ButtonAuth
-          label="Send reset email"
+          :label="isLoading ? 'Sending...' : 'Send reset email'"
+          :disabled="!canSubmit"
+          :loading="isLoading"
           @click="handleResetPassword"
         />
-        <AuthError v-if="showError" :message="errorMessage" />
+      </ul>
+      
+      <div v-else key="success-message" class="form">
+        <AccountAuth
+          type="success"
+          message="Reset email sent"
+        />
+        <p class="success-details">
+          Thank you, we will send you an email with instructions to reset your password.
+          Please check your inbox and follow the link in the email.
+        </p>
+        <a @click="goBackToLogin" class="link">
+        Back to login
+      </a>
       </div>
       
-      <div v-else key="success-message" class="form-content">
-        <p>Thank you, we will send you an email with instructions to reset your password. Please check your inbox and follow the link in the email.</p>
-      </div>
     </transition>
     
-    <li><a @click="goBackToLogin">Back to login</a></li>
+    <li>
+    </li>
   </ul>
 </template>
 
 <style scoped>
-ul {
-  .form {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-rg);
-  }
-  
-  .form-content {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-rg);
-  }
-  
-  h1 {
-    text-align: center;
-    margin-bottom: var(--space-md);
-    font-size: var(--font-lg);
-  }
-  
-  p {
-    text-align: center;
-    line-height: 1.5;
-    color: var(--light);
-  }
-  
-  a {
-    font-family: 'mono';
-    text-transform: uppercase;
-    font-size: var(--font-sm);
-    text-align: center;
-    color: var(--details);
-    text-decoration: none;
-    cursor: pointer;
-    
-    &:hover {
-      color: var(--light);
-    }
-  }
-}
 
-/* Same transition animation as AuthMain */
+/* Same transition animations as AuthMain */
 .auth-fade-enter-active {
   transition: all var(--transition-smooth);
 }

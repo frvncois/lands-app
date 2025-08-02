@@ -21,15 +21,3 @@ defineEmits(['toggle'])
    </div>
  </header>
 </template>
-
-<style scoped>
-header {
- display: flex;
- justify-content: space-between;
- 
- .logo {
-   display: flex;
-   gap: var(--space-md);
- }
-}
-</style>

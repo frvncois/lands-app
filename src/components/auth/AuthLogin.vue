@@ -1,47 +1,59 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useAccountStore } from '@/stores/account'
 import InputEmail from '@/components/input/InputEmail.vue'
 import InputPassword from '@/components/input/InputPassword.vue'
 import ButtonAuth from '@/components/button/ButtonAuth.vue'
-import AuthError from '@/components/alert/AuthError.vue'
-import { useAccountStore } from '@/stores/account'
+import AccountAuth from '@/components/alert/AccountAuth.vue'
 
 const accountStore = useAccountStore()
+
+// Form fields
 const email = ref('')
 const password = ref('')
-const showError = ref(false)
-const errorMessage = ref('')
-const isLoading = ref(false)
 
-const failedAttempts = ref(parseInt(localStorage.getItem('login_failed_attempts') || '0'))
-const lastFailedAttempt = ref(parseInt(localStorage.getItem('login_last_failed') || '0'))
-const isBlocked = ref(false)
+// UI state
+const isLoading = ref(false)
+const alertMessage = ref('')
+const alertType = ref('error')
+
+// Security tracking
+const failedAttempts = ref(parseInt(sessionStorage.getItem('login_failed_attempts') || '0'))
+const lastFailedAttempt = ref(parseInt(sessionStorage.getItem('login_last_failed') || '0'))
+const blockedUntil = ref(0)
 
 const emit = defineEmits(['go-to-lost-password'])
 
-// Check if user is blocked due to too many failed attempts
-function checkBlocked() {
-  const now = Date.now()
-  const timeSinceLastFailed = now - lastFailedAttempt.value
-  const blockDuration = Math.min(300000, failedAttempts.value * 30000)
-  
-  if (failedAttempts.value >= 5 && timeSinceLastFailed < blockDuration) {
-    isBlocked.value = true
-    const remainingTime = Math.ceil((blockDuration - timeSinceLastFailed) / 1000)
-    errorMessage.value = `Too many failed attempts. Try again in ${remainingTime} seconds.`
-    showError.value = true
-    return true
-  }
-  
-  // Reset if block period has passed
-  if (timeSinceLastFailed > blockDuration) {
-    failedAttempts.value = 0
-    isBlocked.value = false
-    localStorage.removeItem('login_failed_attempts')
-    localStorage.removeItem('login_last_failed')
-  }
-  
-  return false
+// Constants
+const MAX_ATTEMPTS = 5
+const BASE_BLOCK_DURATION = 30000 // 30 seconds
+const MAX_BLOCK_DURATION = 300000 // 5 minutes
+
+// Computed properties
+const isBlocked = computed(() => {
+  return Date.now() < blockedUntil.value
+})
+
+const blockTimeRemaining = computed(() => {
+  if (!isBlocked.value) return 0
+  return Math.ceil((blockedUntil.value - Date.now()) / 1000)
+})
+
+const canSubmit = computed(() => {
+  return email.value.trim() !== '' && 
+         password.value.trim() !== '' && 
+         !isLoading.value && 
+         !isBlocked.value
+})
+
+// Methods
+function showAlert(type, message) {
+  alertType.value = type
+  alertMessage.value = message
+}
+
+function clearAlert() {
+  alertMessage.value = ''
 }
 
 function isValidEmail(email) {
@@ -49,135 +61,185 @@ function isValidEmail(email) {
   return emailRegex.test(email)
 }
 
+function updateBlockStatus() {
+  if (failedAttempts.value >= MAX_ATTEMPTS) {
+    const blockDuration = Math.min(
+      BASE_BLOCK_DURATION * Math.pow(2, failedAttempts.value - MAX_ATTEMPTS),
+      MAX_BLOCK_DURATION
+    )
+    blockedUntil.value = lastFailedAttempt.value + blockDuration
+  }
+}
+
+function trackFailedAttempt() {
+  failedAttempts.value++
+  lastFailedAttempt.value = Date.now()
+  
+  sessionStorage.setItem('login_failed_attempts', failedAttempts.value.toString())
+  sessionStorage.setItem('login_last_failed', lastFailedAttempt.value.toString())
+  
+  updateBlockStatus()
+}
+
+function resetFailedAttempts() {
+  failedAttempts.value = 0
+  blockedUntil.value = 0
+  sessionStorage.removeItem('login_failed_attempts')
+  sessionStorage.removeItem('login_last_failed')
+}
+
 async function handleLogin() {
-  showError.value = false
-  errorMessage.value = ''
+  // Clear previous alerts
+  clearAlert()
   
-  console.log('🔐 Login attempt started')
-  
-  if (checkBlocked()) {
-    isLoading.value = false
-    console.log('🚫 User blocked due to failed attempts')
+  // Validation
+  if (!email.value.trim()) {
+    showAlert('error', 'Email is required')
     return
   }
   
-  isLoading.value = true
-  
-  if (!email.value.trim() || !password.value.trim()) {
-    showError.value = true
-    errorMessage.value = 'Please fill in all fields'
-    isLoading.value = false
-    console.log('❌ Validation failed: empty fields')
+  if (!password.value.trim()) {
+    showAlert('error', 'Password is required')
     return
   }
   
   if (!isValidEmail(email.value)) {
-    showError.value = true
-    errorMessage.value = 'Please enter a valid email address'
-    isLoading.value = false
-    console.log('❌ Validation failed: invalid email')
+    showAlert('error', 'Please enter a valid email address')
     return
   }
   
-  const startTime = Date.now()
+  if (isBlocked.value) {
+    showAlert('error', `Account locked. Try again in ${blockTimeRemaining.value} seconds`)
+    return
+  }
+  
+  isLoading.value = true
+  showAlert('updating', 'Signing in...')
   
   try {
-    console.log('🔍 Attempting Supabase sign in...')
-    const result = await accountStore.signIn(email.value, password.value)
-    console.log('📊 Sign in result:', result)
+    // Add artificial delay for security (prevent timing attacks)
+    const startTime = Date.now()
+    
+    const result = await accountStore.signIn(
+      email.value.toLowerCase().trim(),
+      password.value
+    )
+    
+    // Ensure minimum response time
     const elapsed = Date.now() - startTime
     if (elapsed < 1000) {
       await new Promise(resolve => setTimeout(resolve, 1000 - elapsed))
     }
     
     if (result.success) {
-      failedAttempts.value = 0
-      localStorage.removeItem('login_failed_attempts')
-      localStorage.removeItem('login_last_failed')
-      console.log('✅ Login successful')
+      resetFailedAttempts()
+      showAlert('success', 'Login successful')
+      
+      // Clear sensitive data
+      password.value = ''
     } else {
-      failedAttempts.value++
-      lastFailedAttempt.value = Date.now()
-      localStorage.setItem('login_failed_attempts', failedAttempts.value.toString())
-      localStorage.setItem('login_last_failed', lastFailedAttempt.value.toString())
+      trackFailedAttempt()
       
-      console.log('❌ Login failed:', result.error)
+      // Show user-friendly error messages
+      let errorMessage = 'Invalid email or password'
       
-      showError.value = true
-      switch (result.error) {
-        case 'Invalid login credentials':
-          errorMessage.value = 'Invalid email or password'
-          break
-        case 'Email not confirmed':
-          errorMessage.value = 'Please check your email and click the verification link'
-          break
-        case 'Too many requests':
-          errorMessage.value = 'Too many login attempts. Please try again later'
-          break
-        default:
-          errorMessage.value = 'Login failed. Please try again'
+      if (failedAttempts.value >= MAX_ATTEMPTS) {
+        errorMessage = `Account locked. Try again in ${blockTimeRemaining.value} seconds`
       }
       
-      console.log('🚨 Error message set:', errorMessage.value, 'Show error:', showError.value)
+      showAlert('error', errorMessage)
     }
-  } catch (error) {
-    console.error('❌ Unexpected error during login:', error)
-    showError.value = true
-    errorMessage.value = 'An unexpected error occurred'
+  } catch (err) {
+    trackFailedAttempt()
+    console.error('Login error:', err)
+    showAlert('error', 'Connection error. Please try again')
+  } finally {
+    isLoading.value = false
   }
-  
-  isLoading.value = false
 }
 
 function goToLostPassword() {
   emit('go-to-lost-password')
 }
+
+// Auto-update block status
+let blockTimer = null
+
+function startBlockTimer() {
+  if (blockTimer) clearInterval(blockTimer)
+  
+  if (isBlocked.value) {
+    blockTimer = setInterval(() => {
+      if (!isBlocked.value) {
+        clearInterval(blockTimer)
+        clearAlert()
+      } else if (alertMessage.value && alertType.value === 'error') {
+        // Update remaining time in alert
+        showAlert('error', `Account locked. Try again in ${blockTimeRemaining.value} seconds`)
+      }
+    }, 1000)
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  updateBlockStatus()
+  startBlockTimer()
+})
+
+onUnmounted(() => {
+  if (blockTimer) clearInterval(blockTimer)
+  // Clear sensitive data
+  password.value = ''
+})
 </script>
 
 <template>
-  <ul class="form">
-    <li><h1>Welcome back</h1></li>
+  <ul class="list">
+    <li>
+      <h1>Sign in to your account</h1>
+    </li>
 
+    <ul class="form">
+      <!-- Alert -->
+      <AccountAuth
+        v-if="alertMessage"
+        :type="alertType"
+        :message="alertMessage"
+      />
+      
+      <!-- Form Fields -->
       <InputEmail 
         placeholder="Email" 
-        type="email" 
         v-model="email"
-        :disabled="isLoading"
+        :disabled="isLoading || isBlocked"
+        autocomplete="email"
       />
+      
       <InputPassword 
         placeholder="Password" 
         v-model="password"
-        :disabled="isLoading"
+        :disabled="isLoading || isBlocked"
+        autocomplete="current-password"
       />
+      
+      <!-- Submit Button -->
       <ButtonAuth
-        :label="isLoading ? 'Signing in...' : 'Login'"
+        :label="isLoading ? 'Signing in...' : 'Sign in'"
+        :disabled="!canSubmit"
+        :loading="isLoading"
         @click="handleLogin"
-        :disabled="isLoading"
       />
-
-      <AuthError :message="errorMessage" v-if="showError"/>
-    
-    <li>
-      <a @click="goToLostPassword" :class="{ disabled: isLoading }">
-        Lost password?
-      </a>
-    </li>
+      <li>
+        <a @click="goToLostPassword" class="link">
+          Forgot your password?
+        </a>
+      </li>
+    </ul>
   </ul>
 </template>
 
 <style scoped>
-ul.form {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-rg);
-  & h1 {
-    text-align: center;
-    margin-bottom: var(--space-md);
-    font-size: var(--font-lg);
-  }
-}
-
 a {
   font-family: 'mono';
   text-transform: uppercase;
@@ -186,14 +248,5 @@ a {
   color: var(--details);
   cursor: pointer;
   text-align: center;
-  
-  &:hover:not(.disabled) {
-    color: var(--light);
-  }
-  
-  &.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
 }
 </style>

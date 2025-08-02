@@ -9,34 +9,54 @@ import ProjectPreview from './components/project/ProjectPreview.vue'
 const accountStore = useAccountStore()
 const router = useRouter()
 
-// Computed to handle the three states properly
+// FIXED: Simplified app state logic
 const appState = computed(() => {
   console.log('🔄 Computing app state:', {
     loading: accountStore.loading,
     isAuthenticated: accountStore.isAuthenticated,
-    hasSession: accountStore.session
+    hasSession: !!accountStore.session,
+    user: accountStore.user
   })
   
   if (accountStore.loading) return 'loading'
-  if (accountStore.isAuthenticated) return 'authenticated'
+  
+  // FIXED: Simple check - if authenticated with valid session, show app
+  if (accountStore.isAuthenticated) {
+    const user = accountStore.user
+    console.log('👤 User authenticated:', user?.email)
+    
+    // Check if email is confirmed
+    const emailConfirmed = user?.email_confirmed_at !== null
+    console.log('📧 Email confirmed:', emailConfirmed)
+    
+    if (!emailConfirmed) {
+      console.log('🔄 Email not confirmed, staying on auth screen')
+      return 'unauthenticated'
+    }
+    
+    return 'authenticated'
+  }
+  
   return 'unauthenticated'
 })
 
-// Watch for authentication changes and navigate to root
+// FIXED: Simple navigation watcher - only navigate when truly authenticated
 watch(
   () => accountStore.isAuthenticated,
   (isAuthenticated, wasAuthenticated) => {
     console.log('🔄 Auth state changed:', { isAuthenticated, wasAuthenticated })
     
-    // When user becomes authenticated, navigate to home page
+    // Only navigate when user becomes authenticated with verified email
     if (isAuthenticated && !wasAuthenticated) {
-      console.log('✅ User authenticated, navigating to home')
-      router.push('/')
-    }
-    
-    // When user becomes unauthenticated, they'll see AuthMain automatically
-    if (!isAuthenticated && wasAuthenticated) {
-      console.log('❌ User unauthenticated')
+      const user = accountStore.user
+      const emailConfirmed = user?.email_confirmed_at !== null
+      
+      if (emailConfirmed) {
+        console.log('✅ User authenticated with verified email, navigating to home')
+        router.push('/')
+      } else {
+        console.log('📧 User authenticated but email not verified, staying on auth')
+      }
     }
   }
 )
@@ -44,20 +64,18 @@ watch(
 onMounted(async () => {
   console.log('🚀 App mounted, initializing auth...')
   
-  // Check if initialize method exists
   if (typeof accountStore.initialize === 'function') {
     console.log('✅ Initialize method found, calling...')
     await accountStore.initialize()
     console.log('✅ Initialize completed')
   } else {
     console.error('❌ Initialize method not found in account store!')
-    console.log('Available methods:', Object.keys(accountStore))
   }
 })
 </script>
 
 <template>
-  <!-- Loading state - show until auth is initialized -->
+  <!-- Loading state -->
   <main v-if="appState === 'loading'" class="loading">
     <div class="spinner">
       <div class="spinner-icon"></div>

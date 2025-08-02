@@ -1,162 +1,174 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import InputPassword from '@/components/input/InputPassword.vue'
 import ButtonAuth from '@/components/button/ButtonAuth.vue'
-import AuthError from '@/components/alert/AuthError.vue'
+import AccountAuth from '@/components/alert/AccountAuth.vue'
 
 const route = useRoute()
 const router = useRouter()
+
+// Form state
 const password = ref('')
 const confirmPassword = ref('')
-const showError = ref(false)
-const errorMessage = ref('')
 const isLoading = ref(false)
+
+// Alert state
+const alertMessage = ref('')
+const alertType = ref('error')
 
 // Extract token from URL query parameters
 const resetToken = ref('')
 
-onMounted(() => {
-  resetToken.value = route.query.token || ''
-  
-  // Redirect to main page if no token provided
-  if (!resetToken.value) {
-    router.push('/')
-  }
+// Computed properties
+const canSubmit = computed(() => {
+  return password.value.trim() !== '' && 
+         confirmPassword.value.trim() !== '' &&
+         password.value === confirmPassword.value &&
+         isPasswordValid(password.value) &&
+         !isLoading.value
 })
 
+// Methods
+function showAlert(type, message) {
+  alertType.value = type
+  alertMessage.value = message
+}
+
+function clearAlert() {
+  alertMessage.value = ''
+}
+
+function isPasswordValid(password) {
+  if (password.length < 12) return false
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?])/.test(password)) return false
+  return true
+}
+
 function validatePassword(password) {
-  if (password.length < 8) {
-    return 'Password must be at least 8 characters long'
+  if (password.length < 12) {
+    return 'Password must be at least 12 characters long'
   }
-  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-    return 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?])/.test(password)) {
+    return 'Password must contain uppercase, lowercase, number, and special character'
   }
   return null
 }
 
-function handleSetPassword() {
-  showError.value = false
-  errorMessage.value = ''
+async function handleSetPassword() {
+  clearAlert()
   
   if (!password.value.trim() || !confirmPassword.value.trim()) {
-    showError.value = true
-    errorMessage.value = 'Please fill in all fields'
+    showAlert('error', 'Please fill in all fields')
     return
   }
   
   const passwordError = validatePassword(password.value)
   if (passwordError) {
-    showError.value = true
-    errorMessage.value = passwordError
+    showAlert('error', passwordError)
     return
   }
   
   if (password.value !== confirmPassword.value) {
-    showError.value = true
-    errorMessage.value = 'Passwords do not match'
+    showAlert('error', 'Passwords do not match')
     return
   }
   
   isLoading.value = true
+  showAlert('updating', 'Setting new password...')
   
-  // TODO: Replace with actual API call to set new password
-  // For now, we'll simulate success and redirect to login
-  setTimeout(() => {
+  try {
+    // TODO: Replace with actual API call to set new password
+    // const result = await supabase.auth.updateUser({ password: password.value })
+    
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    showAlert('success', 'Password updated successfully')
+    
+    password.value = ''
+    confirmPassword.value = ''
+
+    setTimeout(() => {
+      router.push('/')
+    }, 2000)
+  } catch (err) {
+    console.error('Set password error:', err)
+    showAlert('error', 'Failed to update password. Please try again')
+  } finally {
     isLoading.value = false
-    // Redirect to main page (more secure - no auto-login)
-    router.push('/')
-  }, 1000)
+  }
 }
 
 function goBackToLogin() {
   router.push('/')
 }
+
+onMounted(() => {
+  resetToken.value = route.query.token || ''
+  
+  if (!resetToken.value) {
+    showAlert('error', 'Invalid or missing reset token')
+    setTimeout(() => {
+      router.push('/')
+    }, 3000)
+  }
+})
 </script>
 
 <template>
-  <ul class="form">
-    <li><h1>Set new password</h1></li>
+  <ul class="list">
+    <li>
+      <h1>Set new password</h1>
+    </li>
     
-    <InputPassword placeholder="New password" v-model="password" />
-    <InputPassword placeholder="Confirm password" v-model="confirmPassword" />
+    <ul class="form">
+    <AccountAuth
+      v-if="alertMessage"
+      :type="alertType"
+      :message="alertMessage"
+    />
     
-    <div class="password-requirements">
-      <p>Password requirements:</p>
-      <ul>
-        <li>At least 8 characters long</li>
-        <li>One uppercase letter</li>
-        <li>One lowercase letter</li>
-        <li>One number</li>
-      </ul>
-    </div>
+    <InputPassword 
+      placeholder="New password" 
+      v-model="password"
+      :disabled="isLoading"
+      autocomplete="new-password"
+    />
+    
+    <InputPassword 
+      placeholder="Confirm password" 
+      v-model="confirmPassword"
+      :disabled="isLoading"
+      autocomplete="new-password"
+    />
+    </ul>
     
     <ButtonAuth
-      :label="isLoading ? 'Setting password...' : 'Set password'"
-      :watchValues="[password, confirmPassword]"
+      :label="isLoading ? 'Updating...' : 'Update password'"
+      :disabled="!canSubmit"
+      :loading="isLoading"
       @click="handleSetPassword"
     />
     
-    <AuthError v-if="showError" :message="errorMessage" />
-    
-    <li><a @click="goBackToLogin">Back to login</a></li>
+    <li>
+      <a @click="goBackToLogin" class="link">
+        Back to login
+      </a>
+    </li>
   </ul>
 </template>
 
 <style scoped>
-ul {
-  .form {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-rg);
-  }
-  
-  h1 {
-    text-align: center;
-    margin-bottom: var(--space-md);
-    font-size: var(--font-lg);
-  }
-  
-  .password-requirements {
-    p {
-      font-family: 'mono';
-      text-transform: uppercase;
-      font-size: var(--font-sm);
-      color: var(--details);
-      margin-bottom: var(--space-sm);
-    }
-    
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      
-      li {
-        font-size: var(--font-sm);
-        color: var(--details);
-        margin-bottom: var(--space-xs);
-        
-        &::before {
-          content: '•';
-          margin-right: var(--space-sm);
-        }
-      }
-    }
-  }
-  
-  a {
-    font-family: 'mono';
-    text-transform: uppercase;
-    font-size: var(--font-sm);
-    text-align: center;
-    color: var(--details);
-    text-decoration: none;
-    cursor: pointer;
-    
-    &:hover {
-      color: var(--light);
-    }
-  }
+ul.form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-rg);
+}
+
+h1 {
+  text-align: center;
+  margin: 0;
+  font-size: var(--font-lg);
 }
 </style>

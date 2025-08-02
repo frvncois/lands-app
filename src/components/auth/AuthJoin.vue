@@ -1,12 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAccountStore } from '@/stores/account'
 import InputAuth from '@/components/input/InputAuth.vue'
 import InputEmail from '@/components/input/InputEmail.vue'
 import ButtonAuth from '@/components/button/ButtonAuth.vue'
-import InputPassword from '../input/InputPassword.vue'
+import InputPassword from '@/components/input/InputPassword.vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
-import AuthError from '@/components/alert/AuthError.vue'
+import AccountAuth from '@/components/alert/AccountAuth.vue'
 
 const accountStore = useAccountStore()
 
@@ -22,25 +22,45 @@ const stayUpToDate = ref(false)
 
 // UI state
 const isLoading = ref(false)
-const showError = ref(false)
-const errorMessage = ref('')
+const alertMessage = ref('')
+const alertType = ref('error')
 const showSuccess = ref(false)
-
-// Security: Rate limiting for signup attempts
-const signupAttempts = ref(parseInt(localStorage.getItem('signup_attempts') || '0'))
-const lastSignupAttempt = ref(parseInt(localStorage.getItem('last_signup_attempt') || '0'))
 
 // Security: Honeypot field (hidden from users, bots will fill it)
 const honeypot = ref('')
 
-// Computed property to check if form is valid
+// Security tracking
+const signupAttempts = ref(parseInt(sessionStorage.getItem('signup_attempts') || '0'))
+const lastSignupAttempt = ref(parseInt(sessionStorage.getItem('last_signup_attempt') || '0'))
+
+// Constants
+const MAX_ATTEMPTS = 3
+const RATE_LIMIT_WINDOW = 300000 // 5 minutes
+
+// Computed properties
 const isFormValid = computed(() => {
   return firstName.value.trim() !== '' &&
          lastName.value.trim() !== '' &&
          email.value.trim() !== '' &&
          password.value.trim() !== '' &&
          acceptTerms.value === true &&
-         honeypot.value === '' // Security: honeypot must be empty
+         honeypot.value === '' && // Security: honeypot must be empty
+         !isRateLimited.value
+})
+
+const isRateLimited = computed(() => {
+  const now = Date.now()
+  const timeSinceLastAttempt = now - lastSignupAttempt.value
+  
+  return signupAttempts.value >= MAX_ATTEMPTS && 
+         timeSinceLastAttempt < RATE_LIMIT_WINDOW
+})
+
+const rateLimitTimeRemaining = computed(() => {
+  if (!isRateLimited.value) return 0
+  const now = Date.now()
+  const timeSinceLastAttempt = now - lastSignupAttempt.value
+  return Math.ceil((RATE_LIMIT_WINDOW - timeSinceLastAttempt) / 1000 / 60) // minutes
 })
 
 // Password strength indicator
@@ -76,241 +96,259 @@ const passwordStrengthText = computed(() => {
   return 'Strong password'
 })
 
-// Security: Enhanced password validation
+// Methods
+function showAlert(type, message) {
+  alertType.value = type
+  alertMessage.value = message
+}
+
+function clearAlert() {
+  alertMessage.value = ''
+}
+
+function validateName(name, fieldName) {
+  if (!name || name.trim() === '') {
+    return `${fieldName} is required`
+  }
+  
+  if (name.length < 2) {
+    return `${fieldName} must be at least 2 characters`
+  }
+  
+  if (name.length > 50) {
+    return `${fieldName} must be less than 50 characters`
+  }
+  
+  if (!/^[a-zA-ZÀ-ÿĀ-žА-я\u4e00-\u9fff\u0100-\u017f\u0180-\u024f\u1e00-\u1eff\s\-'.]+$/.test(name)) {
+    return `${fieldName} contains invalid characters`
+  }
+  
+  return null
+}
+
 function validatePassword(password) {
   if (password.length < 12) {
     return 'Password must be at least 12 characters long'
   }
+  
   if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?])/.test(password)) {
     return 'Password must contain uppercase, lowercase, number, and special character'
   }
+  
   // Check for common weak patterns
-  if (/(.)\1{2,}/.test(password)) {
-    return 'Password cannot contain repeated characters'
+  if (/(.)\1{3,}/.test(password)) {
+    return 'Password cannot have 4 or more repeated characters'
   }
-  if (/123|abc|qwe|password|admin/i.test(password)) {
-    return 'Password cannot contain common patterns'
+  
+  if (/^(012|123|234|345|456|567|678|789|890|abc|bcd|cde)/i.test(password)) {
+    return 'Password cannot contain obvious sequences'
   }
+  
   return null
 }
 
-// Security: Validate name inputs
-function validateName(name, fieldName) {
-  if (name.length < 2) {
-    return `${fieldName} must be at least 2 characters long`
-  }
-  if (name.length > 50) {
-    return `${fieldName} must be less than 50 characters`
-  }
-  if (!/^[a-zA-Z\s\-']+$/.test(name)) {
-    return `${fieldName} can only contain letters, spaces, hyphens, and apostrophes`
-  }
-  return null
+function trackSignupAttempt() {
+  signupAttempts.value++
+  lastSignupAttempt.value = Date.now()
+  
+  sessionStorage.setItem('signup_attempts', signupAttempts.value.toString())
+  sessionStorage.setItem('last_signup_attempt', lastSignupAttempt.value.toString())
 }
 
-// Security: Rate limiting check
-function checkRateLimit() {
-  const now = Date.now()
-  const timeSinceLastAttempt = now - lastSignupAttempt.value
-  const cooldownPeriod = Math.min(600000, signupAttempts.value * 60000) // Max 10 minutes
-  
-  if (signupAttempts.value >= 3 && timeSinceLastAttempt < cooldownPeriod) {
-    const remainingTime = Math.ceil((cooldownPeriod - timeSinceLastAttempt) / 60000)
-    errorMessage.value = `Too many signup attempts. Please try again in ${remainingTime} minutes.`
-    showError.value = true
-    return false
-  }
-  
-  // Reset if cooldown period has passed
-  if (timeSinceLastAttempt > cooldownPeriod) {
-    signupAttempts.value = 0
-    localStorage.removeItem('signup_attempts')
-    localStorage.removeItem('last_signup_attempt')
-  }
-  
-  return true
+function resetSignupAttempts() {
+  signupAttempts.value = 0
+  sessionStorage.removeItem('signup_attempts')
+  sessionStorage.removeItem('last_signup_attempt')
 }
 
-async function handleSignUp() {
-  if (!isFormValid.value) return
+async function handleSignup() {
+  // Clear previous alerts
+  clearAlert()
   
-  showError.value = false
-  showSuccess.value = false
-  
-  // Security: Check rate limiting
-  if (!checkRateLimit()) {
-    isLoading.value = false
+  // Rate limiting check
+  if (isRateLimited.value) {
+    showAlert('error', `Too many attempts. Try again in ${rateLimitTimeRemaining.value} minutes`)
     return
   }
   
-  // Security: Honeypot check
+  // Honeypot check
   if (honeypot.value !== '') {
     console.warn('Bot detected via honeypot')
-    // Silently fail for bots
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    showError.value = true
-    errorMessage.value = 'Please try again'
     return
   }
-  
-  isLoading.value = true
   
   // Validate names
   const firstNameError = validateName(firstName.value.trim(), 'First name')
   if (firstNameError) {
-    showError.value = true
-    errorMessage.value = firstNameError
-    isLoading.value = false
+    showAlert('error', firstNameError)
     return
   }
   
   const lastNameError = validateName(lastName.value.trim(), 'Last name')
   if (lastNameError) {
-    showError.value = true
-    errorMessage.value = lastNameError
-    isLoading.value = false
+    showAlert('error', lastNameError)
     return
   }
   
   // Validate password
   const passwordError = validatePassword(password.value)
   if (passwordError) {
-    showError.value = true
-    errorMessage.value = passwordError
-    isLoading.value = false
+    showAlert('error', passwordError)
     return
   }
   
-  // Security: Add timing protection
-  const startTime = Date.now()
-  
-  // Attempt to sign up with Supabase
-  const result = await accountStore.signUp(
-    email.value.toLowerCase().trim(),
-    password.value,
-    {
-      firstName: firstName.value.trim(),
-      lastName: lastName.value.trim(),
-      marketing: stayUpToDate.value
-    }
-  )
-  
-  // Security: Ensure minimum response time
-  const elapsed = Date.now() - startTime
-  if (elapsed < 1500) {
-    await new Promise(resolve => setTimeout(resolve, 1500 - elapsed))
+  // Check terms acceptance
+  if (!acceptTerms.value) {
+    showAlert('error', 'Please accept the terms and conditions')
+    return
   }
   
-  if (result.success) {
-    // Reset signup attempts on success
-    signupAttempts.value = 0
-    localStorage.removeItem('signup_attempts')
-    localStorage.removeItem('last_signup_attempt')
+  isLoading.value = true
+  showAlert('updating', 'Creating your account...')
+  
+  try {
+    // Security: Add timing protection
+    const startTime = Date.now()
     
-    if (result.needsVerification) {
+    // Attempt to sign up with Supabase
+    const result = await accountStore.signUp(
+      email.value.toLowerCase().trim(),
+      password.value,
+      {
+        firstName: firstName.value.trim(),
+        lastName: lastName.value.trim(),
+        marketing: stayUpToDate.value
+      }
+    )
+    
+    // Security: Ensure minimum response time
+    const elapsed = Date.now() - startTime
+    if (elapsed < 1500) {
+      await new Promise(resolve => setTimeout(resolve, 1500 - elapsed))
+    }
+    
+    if (result.success) {
+      // Reset signup attempts on success
+      resetSignupAttempts()
+      
+      // ALWAYS show success message regardless of verification requirements
       showSuccess.value = true
+      showAlert('success', 'Account created successfully')
+    } else {
+      // Track failed attempts
+      trackSignupAttempt()
+      
+      // Map Supabase errors to user-friendly messages
+      let errorMessage = 'Account creation failed'
+      
+      switch (result.error) {
+        case 'User already registered':
+        case 'Email address already in use':
+          errorMessage = 'An account with this email already exists'
+          break
+        case 'Password should be at least 6 characters':
+          errorMessage = 'Password must be at least 12 characters long'
+          break
+        case 'Invalid email':
+          errorMessage = 'Please enter a valid email address'
+          break
+        case 'Signup is disabled':
+          errorMessage = 'Account creation is temporarily disabled'
+          break
+        default:
+          errorMessage = 'Account creation failed. Please try again'
+      }
+      
+      showAlert('error', errorMessage)
     }
-    // If no verification needed, user will be logged in automatically
-  } else {
-    // Track failed attempts
-    signupAttempts.value++
-    lastSignupAttempt.value = Date.now()
-    localStorage.setItem('signup_attempts', signupAttempts.value.toString())
-    localStorage.setItem('last_signup_attempt', lastSignupAttempt.value.toString())
-    
-    showError.value = true
-    // Map Supabase errors to user-friendly messages
-    switch (result.error) {
-      case 'User already registered':
-      case 'Email address already in use':
-        errorMessage.value = 'An account with this email already exists'
-        break
-      case 'Password should be at least 6 characters':
-        errorMessage.value = 'Password must be at least 12 characters long'
-        break
-      case 'Invalid email':
-        errorMessage.value = 'Please enter a valid email address'
-        break
-      case 'Signup is disabled':
-        errorMessage.value = 'Account creation is temporarily disabled'
-        break
-      default:
-        errorMessage.value = 'Account creation failed. Please try again'
-    }
+  } catch (err) {
+    trackSignupAttempt()
+    console.error('Signup error:', err)
+    showAlert('error', 'Connection error. Please try again')
+  } finally {
+    isLoading.value = false
   }
-  
-  isLoading.value = false
 }
 
 // Security: Clear sensitive data on component unmount
 onMounted(() => {
-  return () => {
-    password.value = ''
-    honeypot.value = ''
+  // Check if already rate limited
+  if (isRateLimited.value) {
+    showAlert('error', `Too many attempts. Try again in ${rateLimitTimeRemaining.value} minutes`)
   }
+})
+
+onUnmounted(() => {
+  password.value = ''
+  honeypot.value = ''
 })
 </script>
 
 <template>
-  <ul class="form">
+  <ul class="list">
     <transition name="auth-fade" mode="out-in">
-      <li v-if="!showSuccess" key="signup-title">
+      <li v-if="!showSuccess">
         <h1>Create your account</h1>
       </li>
-      <li v-else key="success-title">
+      <li v-else>
         <h1>Check your email</h1>
       </li>
     </transition>
     
     <transition name="auth-fade" mode="out-in">
-      <div v-if="!showSuccess" key="signup-form" class="form-content">
-        <!-- Security: Honeypot field (hidden from users) -->
-        <input 
-          v-model="honeypot" 
-          type="text" 
-          style="position: absolute; left: -9999px; opacity: 0;" 
-          tabindex="-1" 
-          autocomplete="off"
-        />
+      <ul v-if="!showSuccess" key="signup-form" class="form">
+          <AccountAuth
+            v-if="alertMessage"
+            :type="alertType"
+            :message="alertMessage"
+          />
+          <input 
+            v-model="honeypot" 
+            type="text" 
+            style="position: absolute; left: -9999px; opacity: 0;" 
+            tabindex="-1" 
+            autocomplete="off"
+          />
+          
+          <InputAuth 
+            placeholder="First name" 
+            v-model="firstName"
+            :disabled="isLoading"
+            autocomplete="given-name"
+          />
+          <InputAuth 
+            placeholder="Last name" 
+            v-model="lastName"
+            :disabled="isLoading"
+            autocomplete="family-name"
+          />
+          <InputEmail 
+            placeholder="Email" 
+            v-model="email"
+            :disabled="isLoading"
+            autocomplete="email"
+          />
+          <InputPassword 
+            placeholder="Password" 
+            v-model="password"
+            :disabled="isLoading"
+            autocomplete="new-password"
+          />
+          
+          <!-- Password strength indicator -->
+          <li v-if="password.length > 0" class="strength">
+            <div class="bar">
+              <div 
+                class="fill" 
+                :class="passwordStrengthClass"
+                :style="{ width: passwordStrengthPercent + '%' }"
+              ></div>
+            </div>
+            <p class="text">{{ passwordStrengthText }}</p>
+          </li>
         
-        <InputAuth 
-          placeholder="First name" 
-          v-model="firstName"
-          :disabled="isLoading"
-          autocomplete="given-name"
-        />
-        <InputAuth 
-          placeholder="Last name" 
-          v-model="lastName"
-          :disabled="isLoading"
-          autocomplete="family-name"
-        />
-        <InputEmail 
-          placeholder="Email" 
-          v-model="email"
-          :disabled="isLoading"
-          autocomplete="email"
-        />
-        <InputPassword 
-          placeholder="Password" 
-          v-model="password"
-          :disabled="isLoading"
-          autocomplete="new-password"
-        />
-        
-        <!-- Password strength indicator -->
-        <div v-if="password.length > 0" class="password-strength">
-          <div class="strength-bar">
-            <div 
-              class="strength-fill" 
-              :class="passwordStrengthClass"
-              :style="{ width: passwordStrengthPercent + '%' }"
-            ></div>
-          </div>
-          <p class="strength-text">{{ passwordStrengthText }}</p>
-        </div>
-        
-        <ul class="list">
+        <!-- Separate form for checkboxes and submit button -->
+        <ul class="options">
           <InputBoolean 
             label="Accept terms and conditions"
             details="By creating an account, you agree to our terms of service and privacy policy. You can review these documents at any time."
@@ -324,110 +362,71 @@ onMounted(() => {
             v-model="stayUpToDate"
             :disabled="isLoading"
           />
+        
         </ul>
-        
-        <ButtonAuth 
-          :label="isLoading ? 'Creating account...' : 'Continue'"
-          @click="handleSignUp"
-          :disabled="!isFormValid || isLoading"
-        />
-        
-        <AuthError v-if="showError" :message="errorMessage" />
-      </div>
+          <ButtonAuth 
+            :label="isLoading ? 'Creating account...' : 'Create account'"
+            :buttonStyle="isFormValid && !isLoading ? 'light' : 'disabled'"
+            @click="handleSignup"
+          />
+      </ul>
       
-      <div v-else key="success-message" class="success-message">
-        <p>Please check your email and click the verification link to complete your account setup.</p>
-        <p class="note">The verification link will expire in 24 hours.</p>
-      </div>
+      <ul v-else key="success-message" class="list">
+        <AccountAuth
+          type="success"
+          message="Account created successfully"
+        />
+        <p class="details">
+          Thank you for joining Lands! We've sent you an email with instructions to verify your account. 
+          Please check your inbox and follow the link in the email.
+        </p>
+      </ul>
     </transition>
   </ul>
 </template>
 
 <style scoped>
-ul {
-  .form {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-rg);
-  }
-  
-  .form-content {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-rg);
-  }
-  
-  h1 {
-    text-align: center;
-    margin-bottom: var(--space-md);
-  }
-  
-  .list {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--space-md);
-    margin: var(--space-md) 0;
-  }
-  
-  .success-message {
-    text-align: center;
-    
-    p {
-      line-height: 1.5;
-      color: var(--light);
-      margin-bottom: var(--space-sm);
-    }
-    
-    .note {
-      font-size: var(--font-sm);
-      color: var(--details);
-      margin-bottom: 0;
-    }
-  }
-  
-  .password-strength {
-    margin-top: calc(var(--space-rg) * -0.5);
-    
-    .strength-bar {
-      width: 100%;
-      height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      overflow: hidden;
-      margin-bottom: var(--space-xs);
-    }
-    
-    .strength-fill {
+li.strength {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  > .bar {
+    height: 4px;
+    background: var(--input-border);
+    border-radius: 2px;
+    overflow: hidden;
+    > .fill {
       height: 100%;
-      transition: width 0.3s ease, background-color 0.3s ease;
-      
+      transition: width var(--transition-smooth), background-color var(--transition-smooth);
       &.weak {
-        background: var(--alert-border);
+        background: var(--error-border);
       }
-      
       &.medium {
         background: var(--warning-border);
       }
-      
       &.strong {
         background: var(--success-border);
       }
     }
-    
-    .strength-text {
-      font-size: var(--font-sm);
-      font-family: 'mono';
-      text-transform: uppercase;
-      color: var(--details);
-      margin: 0;
-    }
+  }
+  > .text {
+  font-size: var(--font-sm);
+  font-family: 'mono';
+  text-transform: uppercase;
+  color: var(--details);
+  margin: 0;
   }
 }
+ul.options {
+  margin: var(--space-lg) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
 
-/* Transition animations */
+
+
+/* Same transition animations as AuthMain */
 .auth-fade-enter-active {
   transition: all var(--transition-smooth);
 }

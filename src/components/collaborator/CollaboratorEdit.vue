@@ -1,134 +1,158 @@
+<!-- CollaboratorEdit.vue - Props-based approach -->
 <script setup>
 import { ref, onMounted } from 'vue'
-import InputNormal from '@/components/input/InputNormal.vue'
-import ButtonSubmit from '@/components/button/ButtonMain.vue'
-import { useProjectStore } from '@/stores/projects'
-import { useTeamStore } from '@/stores/team'
+import InputAuth from '@/components/input/InputAuth.vue'
+import InputEmail from '@/components/input/InputEmail.vue'
+import InputBoolean from '@/components/input/InputBoolean.vue'
+import ButtonMain from '@/components/button/ButtonMain.vue'
 
-const props = defineProps(['collaborator'])
-const emit = defineEmits(['close'])
-const projectStore = useProjectStore()
-const teamStore = useTeamStore()
+const props = defineProps({
+  collaborator: {
+    type: Object,
+    required: true
+  },
+  projects: {
+    type: Array,
+    required: true
+  },
+  getProjectsByCollaborator: {
+    type: Function,
+    required: true
+  }
+})
 
-const name = ref('')
+const emit = defineEmits(['update', 'remove', 'close'])
+
+const firstName = ref('')
+const lastName = ref('')
 const email = ref('')
-const selectedProjects = ref([])
+const selectedProjects = ref({})
+
+// Initialize selectedProjects when component mounts
+function initializeProjectSelection() {
+  const newSelection = {}
+  const collaboratorProjects = props.getProjectsByCollaborator(props.collaborator.accountId)
+  
+  props.projects.forEach(project => {
+    newSelection[project.id] = collaboratorProjects.includes(project.id)
+  })
+  selectedProjects.value = newSelection
+}
 
 onMounted(() => {
-  name.value = props.collaborator.name
-  email.value = props.collaborator.email
-  selectedProjects.value = teamStore.getProjectsByCollaborator(props.collaborator.accountId)
+  // Split the name into first and last name
+  const fullName = props.collaborator.name || ''
+  const nameParts = fullName.trim().split(' ')
+  firstName.value = nameParts[0] || ''
+  lastName.value = nameParts.slice(1).join(' ') || ''
+  
+  email.value = props.collaborator.email || ''
+  initializeProjectSelection()
 })
 
 function updateCollaborator() {
-  // Update account info
-  teamStore.addAccountInfo(props.collaborator.accountId, {
-    name: name.value,
-    email: email.value
+  // Get selected project IDs from the boolean object
+  const selectedProjectIds = Object.keys(selectedProjects.value)
+    .filter(projectId => selectedProjects.value[projectId])
+
+  // Combine first and last name
+  const fullName = `${firstName.value.trim()} ${lastName.value.trim()}`.trim()
+
+  console.log('Update collaborator called', {
+    name: fullName,
+    email: email.value,
+    projects: selectedProjectIds,
+    projectsLength: selectedProjectIds.length
   })
-  
-  // Get current projects and update
-  const currentProjects = teamStore.getProjectsByCollaborator(props.collaborator.accountId)
-  
-  // Remove from projects not selected
-  currentProjects.forEach(projectId => {
-    if (!selectedProjects.value.includes(projectId)) {
-      teamStore.removeCollaboratorFromProject(projectId, props.collaborator.accountId)
-    }
-  })
-  
-  // Add to newly selected projects
-  selectedProjects.value.forEach(projectId => {
-    teamStore.addCollaboratorToProject(projectId, props.collaborator.accountId)
-  })
-  
-  emit('close')
+
+  if (fullName.trim() && email.value.trim()) {
+    emit('update', props.collaborator.accountId, {
+      name: fullName,
+      email: email.value,
+      selectedProjects: selectedProjectIds
+    })
+  } else {
+    console.log('Validation failed', {
+      hasName: !!fullName.trim(),
+      hasEmail: !!email.value.trim()
+    })
+  }
 }
 
 function removeCollaborator() {
   if (confirm('Are you sure you want to remove this collaborator?')) {
-    // Remove from all projects
-    const projects = teamStore.getProjectsByCollaborator(props.collaborator.accountId)
-    projects.forEach(projectId => {
-      teamStore.removeCollaboratorFromProject(projectId, props.collaborator.accountId)
-    })
-    
-    // Remove account info
-    teamStore.removeAccountInfo(props.collaborator.accountId)
-    emit('close')
+    emit('remove', props.collaborator.accountId)
   }
 }
 </script>
 
 <template>
-  <ul class="modal">
-    <li class="content">
-      <div class="header">
-        <h2>Edit member</h2>
-      </div>
-      <div class="form">
-        <InputNormal label="Name" v-model="name" />
-        <InputNormal label="Email" type="email" v-model="email" />
-        
-        <div>
-          <label>Assigned to</label>
-          <div v-for="project in projectStore.projects" :key="project.id">
-              <input 
-                type="checkbox" 
-                :value="project.id" 
-                v-model="selectedProjects"
-              />
-              {{ project.name }}
-          </div>
-        </div>
-      </div>
-      <div class="actions">
-        <ButtonSubmit label="Update" @click="updateCollaborator" />
-        <button @click="removeCollaborator" style="background: red; color: white;">Remove</button>
-        <button @click="emit('close')">Cancel</button>
-      </div>
+  <ul class="modal" @click="emit('close')">
+    <li class="content" @click.stop>
+      <ul class="form">
+        <li class="header">
+          <h1>Edit Collaborator</h1>
+          <p>Update collaborator information and project assignments</p>
+        </li>
+        <label>Update details</label>
+        <InputAuth
+          label="First Name"
+          placeholder="First Name"
+          v-model="firstName"
+        />
+        <InputAuth
+          label="Last Name"
+          placeholder="Last name"
+          v-model="lastName"
+        />
+        <InputEmail
+          label="Email"
+          placeholder="Enter email address"
+          v-model="email"
+        />
+      </ul>
+      <ul class="form">
+        <label>Assign to</label>
+        <InputBoolean
+          v-for="project in projects"
+          :key="project.id"
+          :label="project.name"
+          :details="project.description || 'Project'"
+          v-model="selectedProjects[project.id]"
+        />
+        <p v-if="projects.length === 0">No projects available. Collaborator will be added without project assignment.</p>
+      </ul>
+      <ul class="actions">
+        <ButtonMain label="Remove" buttonStyle="remove" @click="removeCollaborator" />
+        <ButtonMain label="Cancel" buttonStyle="dark" @click="emit('close')" />
+        <ButtonMain label="Update" buttonStyle="light" @click="updateCollaborator" />
+      </ul>
     </li>
   </ul>
 </template>
 
-
-
 <style scoped>
 ul.modal {
   position: fixed;
-  overflow: scroll;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  background-color: var(--modal);
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(1em);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 
-  & li.content {
-    width: 35vw;
+  > li.content {
+    background: var(--card);
     border-radius: var(--radius-lg);
-    background-color: var(--bg);
+    padding: var(--space-lg);
+    width: 33vw;
     display: flex;
     flex-direction: column;
-    > .header {
-      padding: var(--space-lg);
-    }
-    > .form {
-      padding: 0 var(--space-lg);
-      gap: var(--space-md);
-      display: flex;
-      flex-direction: column;
-    }
-    > .actions {
-      display: flex;
-      justify-content: center;
-      border-top: 1px solid var(--border);
-      padding: var(--space-md) var(--space-lg);
-    }
+    gap: var(--space-lg);
   }
 }
 </style>

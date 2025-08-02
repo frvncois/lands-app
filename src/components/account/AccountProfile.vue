@@ -1,7 +1,8 @@
- <!-- AccountProfile - Cleaned -->
+<!-- AccountProfile - Cleaned with Fixed Transitions -->
   
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
+
 import InputAuth from '@/components/input/InputAuth.vue'
 import InputEmail from '@/components/input/InputEmail.vue'
 import InputPassword from '@/components/input/InputPassword.vue'
@@ -20,7 +21,6 @@ const isUpdatingProfile = ref(false)
 const isUpdatingPassword = ref(false)
 const statusMessage = ref('')
 const statusType = ref('')
-const showStatus = ref(false)
 
 onMounted(() => {
   loadProfileData()
@@ -63,17 +63,11 @@ const isPasswordValid = computed(() => {
 function showMessage(message, type = 'success') {
   statusMessage.value = message
   statusType.value = type
-  showStatus.value = true
-  
-  setTimeout(() => {
-    showStatus.value = false
-  }, type === 'success' ? 3000 : 5000)
 }
 
 async function updateProfile() {
   if (!hasProfileChanges.value) return
   
-  showStatus.value = false
   isUpdatingProfile.value = true
   showMessage('Updating profile...', 'updating')
   
@@ -118,7 +112,6 @@ async function updatePassword() {
     return
   }
   
-  showStatus.value = false
   isUpdatingPassword.value = true
   showMessage('Updating password...', 'updating')
   
@@ -172,7 +165,12 @@ async function updatePassword() {
         :disabled="!hasProfileChanges || isUpdatingProfile"
       />
       
-      <AccountStatus v-if="showStatus" :message="statusMessage" :type="statusType" />
+      <AccountStatus 
+        v-if="statusMessage" 
+        :message="statusMessage" 
+        :type="statusType" 
+        :key="`${statusMessage}-${statusType}-${Date.now()}`"
+      />
     </ul>
 
     <ul class="form">

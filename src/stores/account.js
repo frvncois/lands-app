@@ -166,41 +166,47 @@ export const useAccountStore = defineStore('account', () => {
   }
 
   // Sign up
-  async function signUp(email, password, metadata = {}) {
-    loading.value = true
-    error.value = null
-    
-    try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.toLowerCase().trim(),
-        password,
-        options: {
-          data: {
-            first_name: metadata.firstName || '',
-            last_name: metadata.lastName || '',
-            marketing_emails: metadata.marketing || false
-          }
+async function signUp(email, password, metadata = {}) {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: email.toLowerCase().trim(),
+      password,
+      options: {
+        data: {
+          first_name: metadata.firstName || '',
+          last_name: metadata.lastName || '',
+          marketing_emails: metadata.marketing || false
         }
-      })
-
-      if (signUpError) throw signUpError
-
-      console.log('✅ Sign up successful')
-      
-      if (data.session) {
-        session.value = data.session
-        user.value = data.user
       }
+    })
 
-      return { success: true, needsVerification: !data.session }
-    } catch (err) {
-      console.error('Sign up error:', err)
-      error.value = err.message
-      return { success: false, error: err.message }
-    } finally {
-      loading.value = false
+    if (signUpError) throw signUpError
+
+    console.log('✅ Sign up successful')
+    
+    // FIXED: Do NOT set session/user state for unverified users
+    // This prevents auto-authentication and unwanted navigation
+    if (data.session && data.user?.email_confirmed_at) {
+      // Only set session if email is already confirmed (rare case)
+      session.value = data.session
+      user.value = data.user
+      return { success: true, needsVerification: false }
+    } else {
+      // Email verification required - don't set session/user
+      console.log('📧 Email verification required - not setting session')
+      return { success: true, needsVerification: true }
     }
+  } catch (err) {
+    console.error('Sign up error:', err)
+    error.value = err.message
+    return { success: false, error: err.message }
+  } finally {
+    loading.value = false
   }
+}
 
   // Sign in
   async function signIn(email, password) {

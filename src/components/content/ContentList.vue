@@ -7,7 +7,8 @@ import ContentPosts from '@/components/content/ContentPosts.vue'
 import ContentReleases from '@/components/content/ContentReleases.vue'
 import ContentShows from '@/components/content/ContentShows.vue'
 import ContentMerch from '@/components/content/ContentMerch.vue'
-import ButtonMain from '../button/ButtonMain.vue'
+import ButtonMain from '@/components/button/ButtonMain.vue'
+import IntegrationsList from '@/components/integrations/IntegrationsList.vue'
 
 const props = defineProps(['project'])
 const currentView = ref('overview')
@@ -51,25 +52,28 @@ function handleCloseModal() {
 
 <template>
   <ul class="list" v-if="currentView === 'overview'">
-    <label>Content</label>
-    <li
-      v-for="content in contentComponents"
-      :key="content.id"
-      @click="selectContent(content)"
-    >
-      <div class="icon">
-        <component :is="content.icon" />
-      </div>
-      <div class="content">
-        <h3>{{ content.name }}</h3>
-        <p>{{ content.description }}</p>
-      </div>
-      <div class="actions">
-        <button>→</button>
-      </div>
-    </li>
+    <ul class="items">
+      <label>Content</label>
+      <li
+        v-for="content in contentComponents"
+        :key="content.id"
+        @click="selectContent(content)"
+      >
+        <div class="icon">
+          <component :is="content.icon" />
+        </div>
+        <div class="content">
+          <h3>{{ content.name }}</h3>
+          <p>{{ content.description }}</p>
+        </div>
+        <div class="actions">
+          <button>→</button>
+        </div>
+      </li>
+    </ul>
+    <IntegrationsList :project="project" v-if="currentView === 'overview'"/>
   </ul>
-  <ul class="modal" v-if="currentView !== 'overview'">
+  <ul class="form" v-if="currentView !== 'overview'">
     <li class="title">
       <div>
         <button @click="goBackToOverview">←</button>
@@ -94,15 +98,9 @@ function handleCloseModal() {
 </template>
 
 <style scoped>
-ul {
-  display: flex;
-  flex-direction: column;
-}
+
 
 ul.list {
-  gap: var(--space-rg);
-  padding: var(--space-lg) 0;
-  
   li {
     display: grid;
     grid-template-columns: 0.15fr 1fr 0.15fr;

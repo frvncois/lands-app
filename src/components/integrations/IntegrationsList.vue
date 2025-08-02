@@ -4,7 +4,7 @@ import AnalyticsIcon from '@/assets/icons/AnalyticsIcon.vue';
 </script>
 
 <template>
-    <ul class="list">
+    <ul class="items">
         <label>Integrations</label>
         <li>
             <div class="icon">
@@ -35,89 +35,63 @@ import AnalyticsIcon from '@/assets/icons/AnalyticsIcon.vue';
 
 
 <style scoped>
-ul.list {
-  display: flex;
-  flex-direction: column;
+li {
+  display: grid;
+  grid-template-columns: 0.15fr 1fr 0.15fr;
+  align-items: center;
   gap: var(--space-rg);
+  cursor: pointer;
+  padding: var(--space-rg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  transition: all var(--transition-smooth);
+  background: var(--card);
   
-  li {
-    display: grid;
-    grid-template-columns: 0.15fr 1fr 0.15fr;
+  > .icon {
+    display: flex;
     align-items: center;
-    gap: var(--space-rg);
-    cursor: pointer;
-    padding: var(--space-rg);
-    border-radius: var(--radius-lg);
+    justify-content: center;
+    aspect-ratio: 1;
     border: 1px solid var(--border);
-    transition: all var(--transition-smooth);
-    background: var(--card);
+    border-radius: var(--radius-md);
+  }
+  
+  > .content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
     
-    > .icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      aspect-ratio: 1;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-    }
-    
-    > .content {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-xs);
-      
-      > p {
-        color: var(--details);
-        font-size: var(--font-sm);
-        font-family: 'mono';
-        text-transform: uppercase;
-        transition: all var(--transition-smooth);
-      }
-    }
-    
-    > .actions {
-      display: flex;
-      justify-content: flex-end;
-      margin-right: var(--space-md);
-      
-      > button {
-        font-size: var(--font-rg);
-        transition: all var(--transition-smooth);
-      }
-    }
-    
-    &:hover {
-      background: var(--dark-hover);
-      transform: scale(1.01);
-      border-color: var(--focus);
-      
-      > .actions > button {
-        transform: translateX(0.25em);
-      }
-
-      > .content > p {
-        color: var(--light);
-      }
+    > p {
+      color: var(--details);
+      font-size: var(--font-sm);
+      font-family: 'mono';
+      text-transform: uppercase;
+      transition: all var(--transition-smooth);
     }
   }
-}
-
-.modal {
-  gap: var(--space-md);
-  padding: var(--space-md) 0;
   
-  > .title {
+  > .actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
+    margin-right: var(--space-md);
     
-    > div {
-      display: flex;
-      gap: var(--space-md);
-      align-items: center;
-      
-      > h3 {
-        font-size: 1em;
-      }
+    > button {
+      font-size: var(--font-rg);
+      transition: all var(--transition-smooth);
+    }
+  }
+  
+  &:hover {
+    background: var(--dark-hover);
+    transform: scale(1.01);
+    border-color: var(--focus);
+    
+    > .actions > button {
+      transform: translateX(0.25em);
+    }
+
+    > .content > p {
+      color: var(--light);
     }
   }
 }

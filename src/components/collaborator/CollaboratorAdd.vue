@@ -1,46 +1,70 @@
+<!-- CollaboratorAdd.vue - Props-based approach -->
 <script setup>
-import { ref } from 'vue'
-import InputNormal from '@/components/input/InputNormal.vue'
+import { ref, onMounted } from 'vue'
+import InputAuth from '@/components/input/InputAuth.vue'
+import InputEmail from '@/components/input/InputEmail.vue'
+import InputBoolean from '@/components/input/InputBoolean.vue'
 import ButtonMain from '@/components/button/ButtonMain.vue'
-import { useProjectStore } from '@/stores/projects'
-import { useTeamStore } from '@/stores/team'
 
-const emit = defineEmits(['close'])
-const projectStore = useProjectStore()
-const teamStore = useTeamStore()
-const name = ref('')
+const props = defineProps({
+  projects: {
+    type: Array,
+    required: true
+  }
+})
+
+const emit = defineEmits(['add', 'close'])
+
+const firstName = ref('')
+const lastName = ref('')
 const email = ref('')
-const selectedProjects = ref([])
+const selectedProjects = ref({})
+
+// Initialize selectedProjects when component mounts
+function initializeProjectSelection() {
+  const newSelection = {}
+  props.projects.forEach(project => {
+    newSelection[project.id] = false
+  })
+  selectedProjects.value = newSelection
+}
+
+onMounted(() => {
+  initializeProjectSelection()
+})
 
 function addCollaborator() {
-  console.log('Add collaborator called', { 
-    name: name.value, 
-    email: email.value, 
-    projects: selectedProjects.value,
-    projectsLength: selectedProjects.value.length
-  })
-  
-  if (name.value.trim() && email.value.trim()) {
-    // Create a simple account ID (in real app, this would be from account creation)
-    const accountId = `acc_${Date.now()}`
-    
-    if (selectedProjects.value && selectedProjects.value.length > 0) {
-      selectedProjects.value.forEach(projectId => {
-        teamStore.addCollaboratorToProject(projectId, accountId)
-      })
-    }
-    
-    teamStore.addAccountInfo(accountId, { name: name.value, email: email.value })
-    
-    name.value = ''
-    email.value = ''
-    selectedProjects.value = []
-    
-    emit('close')
+  // Get selected project IDs from the boolean object
+  const selectedProjectIds = Object.keys(selectedProjects.value)
+    .filter(projectId => selectedProjects.value[projectId])
 
+  // Combine first and last name
+  const fullName = `${firstName.value.trim()} ${lastName.value.trim()}`.trim()
+
+  console.log('Add collaborator called', {
+    name: fullName,
+    email: email.value,
+    projects: selectedProjectIds,
+    projectsLength: selectedProjectIds.length
+  })
+
+  if (fullName.trim() && email.value.trim()) {
+    // Emit to parent with collaborator data
+    emit('add', {
+      name: fullName,
+      email: email.value,
+      selectedProjects: selectedProjectIds
+    })
+
+    // Reset form
+    firstName.value = ''
+    lastName.value = ''
+    email.value = ''
+    initializeProjectSelection()
+    emit('close')
   } else {
     console.log('Validation failed', {
-      hasName: !!name.value.trim(),
+      hasName: !!fullName.trim(),
       hasEmail: !!email.value.trim()
     })
   }
@@ -48,41 +72,45 @@ function addCollaborator() {
 </script>
 
 <template>
-  <ul class="modal">
-    <li class="content">
-      <div class="header">
-        <h2>Add Collaborator</h2>
-      </div>
-      <div class="form">
-        <InputNormal 
-          label="Name" 
-          placeholder="Enter full name"
-          v-model="name" 
+  <ul class="modal" @click="emit('close')">
+    <li class="content" @click.stop>
+      <ul class="form">
+        <li class="header">
+          <h1>Add Collaborator</h1>
+          <p>Invite collaborator to work on your project</p>
+        </li>
+        <label>Send invite to</label>
+        <InputAuth
+          label="First Name"
+          placeholder="First Name"
+          v-model="firstName"
         />
-        <InputNormal 
-          label="Email" 
+        <InputAuth
+          label="Last Name"
+          placeholder="Last name"
+          v-model="lastName"
+        />
+        <InputEmail
+          label="Email"
           placeholder="Enter email address"
-          v-model="email" 
+          v-model="email"
         />
-         <div class="projects">
-          <label>Assign to project</label>
-          <div v-if="projectStore.projects.length > 0">
-            <div v-for="project in projectStore.projects" :key="project.id">
-                <input
-                  type="checkbox"
-                  :value="project.id"
-                  v-model="selectedProjects"
-                />
-                {{ project.name }}
-            </div>
-          </div>
-          <p v-else>No projects available. Collaborator will be added without project assignment.</p>
-        </div>
-    </div>
-    <div class="actions">
-      <ButtonMain label="Add" buttonStyle="light" @click="addCollaborator" />
-      <ButtonMain label="Cancel" buttonStyle="dark" @click="emit('close')" />
-    </div>
+      </ul>
+      <ul class="form">
+        <label>Assign to</label>
+        <InputBoolean
+          v-for="project in projects"
+          :key="project.id"
+          :label="project.name"
+          :details="project.description || 'Project'"
+          v-model="selectedProjects[project.id]"
+        />
+        <p v-if="projects.length === 0">No projects available. Collaborator will be added without project assignment.</p>
+      </ul>
+      <ul class="actions">
+        <ButtonMain label="Cancel" buttonStyle="dark" @click="emit('close')" />
+        <ButtonMain label="Add" buttonStyle="light" @click="addCollaborator" />
+      </ul>
     </li>
   </ul>
 </template>
@@ -90,39 +118,25 @@ function addCollaborator() {
 <style scoped>
 ul.modal {
   position: fixed;
-  overflow: scroll;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   top: 0;
   left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5;
-  background-color: var(--modal);
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(1em);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 
-  & li.content {
-    width: 35vw;
+  > li.content {
+    background: var(--card);
     border-radius: var(--radius-lg);
-    background-color: var(--bg);
+    padding: var(--space-lg);
+    width: 33vw;
     display: flex;
     flex-direction: column;
-    > .header {
-      padding: var(--space-lg);
-    }
-    > .form {
-      padding: 0 var(--space-lg);
-      gap: var(--space-md);
-      display: flex;
-      flex-direction: column;
-    }
-    > .actions {
-      display: flex;
-      justify-content: center;
-      border-top: 1px solid var(--border);
-      padding: var(--space-md) var(--space-lg);
-    }
+    gap: var(--space-lg);
   }
 }
 </style>
