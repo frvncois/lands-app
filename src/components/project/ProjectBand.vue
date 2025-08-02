@@ -189,10 +189,8 @@ watch([projectName, projectUrl, () => tempProject.value.design.theme], updatePro
 </script>
 
 <template>
-  <ul class="list">
-    <li class="header">
-      <h2>Project title</h2>
-    </li>
+  <ul class="form">
+
     <ul class="form">
       <InputNormal 
         label="Artist/Band name" 
@@ -286,27 +284,16 @@ watch([projectName, projectUrl, () => tempProject.value.design.theme], updatePro
 </template>
 
 <style scoped>
-ul.list {
+ul.form {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: var(--space-lg);
   
-  .header {
-    text-align: center;
-    padding: var(--space-lg);
-    
-    h2 {
-      margin: 0 0 var(--space-sm) 0;
-      font-size: var(--font-lg);
-      color: var(--text-primary);
-    }
-    
-    p {
-      margin: 0;
-      color: var(--text-secondary);
-      font-size: var(--font-md);
-    }
+  > li.header {
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border);
+  
   }
   
   li.item {

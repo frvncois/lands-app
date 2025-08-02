@@ -60,11 +60,12 @@ function sanitizeName(value) {
     .replace(/data:/gi, '')
     .replace(/vbscript:/gi, '')
     .replace(/on\w+\s*=/gi, '')
-    // Allow international names: letters, spaces, hyphens, apostrophes
+    // FIXED: Allow letters, spaces, hyphens, apostrophes, and periods
+    // This regex now properly allows spaces and hyphens
     .replace(/[^a-zA-ZÀ-ÿĀ-žА-я\u4e00-\u9fff\u0100-\u017f\u0180-\u024f\u1e00-\u1eff\s\-'.]/g, '')
-    // Normalize multiple spaces
+    // Normalize multiple spaces to single space
     .replace(/\s{2,}/g, ' ')
-    // Remove leading/trailing whitespace
+    // Remove leading/trailing whitespace only at the end
     .trim()
     // Enforce max length
     .slice(0, props.maxLength)
@@ -94,27 +95,43 @@ function handleInput(e) {
     return
   }
   
-  const sanitized = sanitizeName(e.target.value)
+  // Don't sanitize during typing - let the user type naturally
+  const currentValue = e.target.value
   
-  // Update model if sanitization changed the value
-  if (sanitized !== e.target.value) {
-    model.value = sanitized
-    nextTick(() => {
-      e.target.value = sanitized
-    })
-  }
+  // Only do basic safety checks (remove dangerous scripts)
+  const basicClean = currentValue
+    .replace(/<[^>]*>/g, '')
+    .replace(/javascript:/gi, '')
+    .replace(/data:/gi, '')
+    .replace(/vbscript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+  
+  // Update model with minimally processed value
+  model.value = basicClean
 }
 
 function handlePaste(e) {
   e.preventDefault()
   const pastedText = (e.clipboardData || window.clipboardData).getData('text')
   const sanitized = sanitizeName(pastedText)
-  
   model.value = sanitized
+  
+  // Update the input element
+  nextTick(() => {
+    if (inputElement.value) {
+      inputElement.value.value = sanitized
+    }
+  })
 }
 
 function handleBlur() {
-  // Simple blur handling without validation messages
+  // Apply full sanitization only when user finishes typing (on blur)
+  if (model.value && typeof model.value === 'string') {
+    const sanitized = sanitizeName(model.value)
+    if (sanitized !== model.value) {
+      model.value = sanitized
+    }
+  }
 }
 
 function handleFocus() {
@@ -123,10 +140,19 @@ function handleFocus() {
 
 // Watch model for external changes
 watch(model, (newValue) => {
+  // Only sanitize if the change came from outside (not user typing)
   if (newValue && typeof newValue === 'string') {
-    const sanitized = sanitizeName(newValue)
-    if (sanitized !== newValue) {
-      model.value = sanitized
+    // Don't interfere with user's natural typing
+    // Only do basic safety sanitization
+    const basicClean = newValue
+      .replace(/<[^>]*>/g, '')
+      .replace(/javascript:/gi, '')
+      .replace(/data:/gi, '')
+      .replace(/vbscript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+    
+    if (basicClean !== newValue) {
+      model.value = basicClean
     }
   }
 })

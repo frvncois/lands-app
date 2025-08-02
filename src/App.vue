@@ -5,8 +5,11 @@ import { useAccountStore } from './stores/account'
 import NavMain from './components/global/NavMain.vue'
 import AuthMain from './components/auth/AuthMain.vue'
 import ProjectPreview from './components/project/ProjectPreview.vue'
+import AlertStatus from './components/alert/AlertStatus.vue'
+import { useAlertStore } from './stores/alert'
 
 const accountStore = useAccountStore()
+const alertStore = useAlertStore()
 const router = useRouter()
 
 // FIXED: Simplified app state logic
@@ -88,6 +91,7 @@ onMounted(async () => {
     <NavMain />
     <RouterView />
     <ProjectPreview/>
+    <AlertStatus />
   </main>
 
   <!-- Unauthenticated state -->

@@ -5,6 +5,7 @@ import { useProjectStore } from '@/stores/projects'
 import ProjectType from '@/components/project/ProjectType.vue'
 import ProjectBand from '@/components/project/ProjectBand.vue'
 import ProjectThemes from '@/components/project/ProjectThemes.vue'
+import ButtonMain from '../button/ButtonMain.vue'
 
 const router = useRouter()
 const projectStore = useProjectStore()
@@ -152,30 +153,7 @@ function getCurrentStepComponent() {
 <template>
   <ul class="modal">
     <li class="content">
-      <div class="steps">
-        <div 
-          v-for="step in steps" 
-          :key="step.id"
-          class="step"
-          :class="{ 
-            active: step.id === currentStep, 
-            completed: step.id < currentStep,
-            disabled: step.id > currentStep
-          }"
-        >
-          <div class="number">{{ step.id }}</div>
-          <div class="title">{{ step.name }}</div>
-        </div>
-      </div>
 
-      <!-- Error Display -->
-      <div v-if="createError" class="error-message">
-        <p>❌ {{ createError }}</p>
-        <button @click="createError = null">Dismiss</button>
-      </div>
-
-      <!-- Current Step Component -->
-      <div class="step-content">
         <component
           :is="getCurrentStepComponent()"
           :project-data="projectData"
@@ -184,40 +162,14 @@ function getCurrentStepComponent() {
           @continue-to-themes="handleContinueToThemes"
           @create-project="handleCreateProject"
         />
-      </div>
+        <ul>
+          <li class="actions">
+              <ButtonMain class="dark" label="Cancel" :disabled="isCreating" @click="emit('goBack')" />
+              <ButtonMain class="light" label="Next →" :disabled="isCreating" @click="emit('goForward')" />
+          </li>
+        </ul>
 
       <!-- Navigation Footer -->
-      <div class="navigation">
-        <div class="nav-left">
-          <button 
-            v-if="canGoBack"
-            class="nav-button secondary"
-            @click="goBack"
-            :disabled="isCreating"
-          >
-            ← Back
-          </button>
-        </div>
-
-        <div class="nav-right">
-          <button 
-            v-if="currentStep < 3 && canGoForward"
-            class="nav-button primary"
-            @click="goForward"
-            :disabled="isCreating"
-          >
-            Next →
-          </button>
-          
-          <button 
-            class="nav-button secondary"
-            @click="handleCancel"
-            :disabled="isCreating"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
 
       <!-- Loading State -->
       <div v-if="isCreating" class="creating-overlay">
@@ -228,157 +180,24 @@ function getCurrentStepComponent() {
 </template>
 
 <style scoped>
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
 .content {
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-  max-width: 600px;
-  width: 90%;
-  max-height: 90%;
-  overflow-y: auto;
-}
-
-.steps {
-  display: flex;
-  gap: var(--space-lg);
-  margin-bottom: var(--space-xl);
-  justify-content: center;
-}
-
-.step {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-sm);
-  opacity: 0.5;
-  transition: opacity 0.3s ease;
 }
-
-.step.active {
-  opacity: 1;
+.header {
+  padding: var(--space-lg) 0;
+  border-bottom: 1px solid var(--border);
 }
-
-.step.completed {
-  opacity: 0.8;
+.form {
+  padding: 0 var(--space-lg);
 }
-
-.step .number {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--border);
+.actions {
+  align-items: stretch;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-
-.step.active .number {
-  background: var(--accent);
-  color: white;
-}
-
-.step.completed .number {
-  background: var(--success);
-  color: white;
-}
-
-.error-message {
-  background: var(--error-bg);
-  border: 1px solid var(--error);
-  border-radius: var(--radius-md);
+  justify-content: space-between;
   padding: var(--space-md);
-  margin-bottom: var(--space-lg);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.error-message p {
-  margin: 0;
-  color: var(--error);
-}
-
-.error-message button {
-  background: none;
-  border: none;
-  color: var(--error);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.navigation {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: var(--space-xl);
-  padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
-}
-
-.nav-right {
-  display: flex;
-  gap: var(--space-md);
-}
-
-.nav-button {
-  padding: var(--space-md) var(--space-lg);
-  border-radius: var(--radius-md);
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.nav-button.primary {
-  background: var(--accent);
-  color: white;
-}
-
-.nav-button.secondary {
-  background: var(--card);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-.nav-button:hover:not(:disabled) {
-  opacity: 0.8;
-}
-
-.nav-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.creating-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-lg);
-}
-
-.creating-overlay p {
-  color: white;
-  font-size: var(--font-lg);
-  font-weight: 500;
+  background: var(--nav);
+  align-items: stretch;
 }
 </style>

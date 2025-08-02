@@ -63,7 +63,7 @@ const showDetails = computed(() => {
 </script>
 
 <template>
-  <ul class="modal">
+  <ul class="form">
     <!-- Dynamic Input Fields -->
     <component
       v-for="input in inputs"
@@ -105,36 +105,11 @@ const showDetails = computed(() => {
 </template>
 
 <style scoped>
-ul.modal {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+ul.form {
   background: var(--card);
-  position: relative;
-
-  > li {
-    padding: var(--space-rg);
-  }
-}
-
-.details {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: var(--details);
   padding: var(--space-rg);
-  border-top: 1px solid var(--border);
-}
-
-.timestamps {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.actions {
-  display: flex;
-  gap: var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
 }
 </style>

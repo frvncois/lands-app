@@ -7,20 +7,24 @@
   --dark-hover: rgba(75, 75, 75, 0.25);
 
   --modal: rgba(10, 10, 10, 0.75);
+  --modal-border: rgba(52, 52, 52, 0.559);
+
   --card: rgba(45, 45, 45, 0.75);
-  --border: rgb(70, 70, 70);
-  --focus: rgb(120, 120, 120);
+  --border: rgba(84, 84, 84, 0.5);
+  --border-light: rgba(151, 151, 151, 0.5);
+  --focus: rgba(100, 100, 100, 0.751);
 
   --active: rgba(60, 60, 60, 0.75);
   --active-border: rgba(145, 145, 145, 0.75);
   
   --inactive: rgba(165, 165, 165, 0.1);
 
-  --details: rgb(95, 95, 95);
+  --details: rgb(110, 110, 110);
   --label: rgb(200, 200, 200);
 
-  --light: rgb(245, 245, 245);
+  --light: rgb(224, 224, 224);
   --light-hover: rgb(255, 255, 255);
+  --light-shadow-hover: rgba(200, 200, 200, 0.24);
   --light-disabled: rgb(180, 180, 180);
 
   --alert: rgba(240, 50, 40, 0.5);
@@ -30,6 +34,10 @@
   --warning: rgba(255, 200, 20, 0.5);
   --warning-border: rgb(250, 215, 25);
   --warning-txt: rgb(245, 240, 205);
+
+  --draft: rgba(247, 95, 13, 0.5);
+  --draft-border: rgb(240, 93, 40);
+  --draft-txt: rgb(255, 222, 201);
 
   --remove: rgba(240, 50, 40, 0.5);
   --remove-hover: rgb(240, 50, 40);
@@ -81,6 +89,12 @@
   --font-sm: 0.75em;
   --font-md: 1.75em;
   --font-lg: 2.5em;
+
+  /* Shadow */
+  --shadow-sm: 0 0 0.25em 0em var(--dark);
+  --shadow-md: 0 0 0.5em 0em var(--dark);
+
+  --shadow-md-hover: 0 0 2em 0em var(--light-shadow-hover);
   
   /* Transitions */
   --transition-smooth: 0.33s cubic-bezier(0.4, 0, 0.2, 1);
@@ -163,6 +177,7 @@ input {
     border-radius: var(--radius-md);
     color: var(--input-txt);
     transition: all var(--transition-smooth);
+    box-shadow: 0 0 0.25em 0em var(--dark);
     &:focus {
         color: var(--light);
         border-color: var(--input-focus);
@@ -175,10 +190,6 @@ input {
     &:hover {
         border-color: var(--input-hover);
     }
-}
-
-button {
-    box-shadow: 0 0 0.25em 0em var(--dark);
 }
 
 textarea {
@@ -210,6 +221,11 @@ label {
         color: var(--success-txt);
         border-color:  var(--success-border);
     }
+    &.draft {
+        background-color: var(--draft);
+        color: var(--draft-txt);
+        border-color:  var(--draft-border);
+    }
 }
 
 ul {
@@ -235,17 +251,11 @@ ul {
         flex-direction: column;
         gap: var(--space-lg);
         padding: var(--space-lg) 0;
-        > li {
-            box-shadow: 0 0 0.25em 0em var(--dark);
-        }
     }
     &.items {
         display: flex;
         flex-direction: column;
         gap: var(--space-sm);
-        > li {
-            box-shadow: 0 0 0.25em 0em var(--dark);
-        }
     }
     &.modal {
     position: fixed;
@@ -254,6 +264,7 @@ ul {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(1em);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -261,8 +272,9 @@ ul {
         > li.content {
             background: var(--card);
             border-radius: var(--radius-lg);
-            padding: var(--space-lg);
+            border: 1px solid var(--modal-border);
             width: 33vw;
+            overflow: hidden;
         }
     }
     &.form {
@@ -270,18 +282,18 @@ ul {
         flex-direction: column;
         align-items: stretch;
         gap: var(--space-rg);
+
         > li.header {
             display: flex;
             flex-direction: column;
             gap: var(--space-sm);
-            text-align: center;
             margin-bottom: var(--space-md);
-            p {
-                font-family: 'mono';
-                font-size: var(--font-sm);
-                text-transform: uppercase;
-                color: var(--details);
-            }
+        p {
+            font-family: 'mono';
+            font-size: var(--font-sm);
+            text-transform: uppercase;
+            color: var(--details);
+        }
         }
     }
     &.actions {
@@ -289,19 +301,6 @@ ul {
         flex-direction: row;
         justify-content: flex-end;
         gap: var(--space-rg);
-    }
-    & .empty {
-        border: 1px dashed var(--border);
-        border-radius: var(--radius-lg);
-        text-align: center;
-        padding: var(--space-lg);
-        margin: var(--space-lg) 0;
-        > p {
-            color: var(--details);
-            font-size: var(--font-sm);
-            font-family: 'mono';
-            text-transform: uppercase;
-        }
     }
 }
 
@@ -312,5 +311,17 @@ li {
         position: relative;
         justify-content: center;
         align-items: center;
+    }
+    &.empty {
+        border: 1px dashed var(--border);
+        border-radius: var(--radius-lg);
+        text-align: center;
+        padding: var(--space-lg);
+        > p {
+            color: var(--details);
+            font-size: var(--font-sm);
+            font-family: 'mono';
+            text-transform: uppercase;
+        }
     }
 }

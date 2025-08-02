@@ -46,6 +46,7 @@ button {
     
     &:hover {
       background: var(--light-hover);
+      box-shadow: var(--shadow-md-hover);
     }
   }
   
@@ -63,6 +64,8 @@ button {
     background: var(--remove);
     color: var(--remove-txt);
     border: 1px solid var(--remove-border);
+    margin-left: 0;
+    margin-right: auto;
     &:hover {
       background: var(--remove-hover);
     }

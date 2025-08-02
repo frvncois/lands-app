@@ -69,7 +69,7 @@ ul.dropdown {
       cursor: pointer;
       height: 2.5em;
       width: 2.5em;
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-light);
       border-radius: var(--radius-md);
       transition: background var(--transition-smooth);
       &:hover {
@@ -84,7 +84,7 @@ ul.dropdown {
       > .dots span {
         width: 2px;
         height: 2px;
-        background-color: var(--details);
+        background-color: var(--light);
         border-radius: 50%;
         display: block;
       }
@@ -94,8 +94,8 @@ ul.dropdown {
 
 ul.menu {
   position: absolute;
-  top: -1em;
-  right: -12.5em;
+  bottom: 0em;
+  right: -11em;
   margin-top: var(--space-sm);
   background: var(--dark);
   border: 1px solid var(--border);

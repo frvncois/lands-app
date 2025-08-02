@@ -112,45 +112,58 @@ function clearLocalStorageDraft() {
 </script>
 
 <template>
-  <ul class="preview" v-if="projectStore.currentProject">
-    <li class="actions">
-      <div>
-        <ButtonMain
-          label="mobile"
-          buttonStyle="light"
+  <ul class="preview">
+    <!-- Show when a project is selected -->
+    <template v-if="projectStore.currentProject">
+      <li class="actions">
+        <div>
+          <ButtonMain
+            label="mobile"
+            buttonStyle="light"
+          />
+          <ButtonMain
+            label="desktop"
+            buttonStyle="light"
+          />
+        </div>
+        <div class="save-publish">
+          <ButtonMain
+            :label="isSaving ? 'Saving...' : 'Save'"
+            buttonStyle="light"
+            :disabled="isSaving || isPublishing"
+            @click="saveProject"
+          />
+          <ButtonMain
+            :label="isPublishing ? 'Publishing...' : (projectStore.currentProject.settings.published ? 'Published' : 'Publish')"
+            :buttonStyle="projectStore.currentProject.settings.published ? 'dark' : 'light'"
+            :disabled="isSaving || isPublishing"
+            @click="publishProject"
+          />
+        </div>
+      </li>
+      
+      <li class="display" v-if="selectedThemeComponent">
+        <component 
+          :is="selectedThemeComponent" 
+          :project="projectStore.currentProject"
+          :preview="true"
         />
-        <ButtonMain
-          label="desktop"
-          buttonStyle="light"
-        />
-      </div>
-      <div class="save-publish">
-        <ButtonMain
-          :label="isSaving ? 'Saving...' : 'Save'"
-          buttonStyle="light"
-          :disabled="isSaving || isPublishing"
-          @click="saveProject"
-        />
-        <ButtonMain
-          :label="isPublishing ? 'Publishing...' : (projectStore.currentProject.settings.published ? 'Published' : 'Publish')"
-          :buttonStyle="projectStore.currentProject.settings.published ? 'dark' : 'light'"
-          :disabled="isSaving || isPublishing"
-          @click="publishProject"
-        />
-      </div>
-    </li>
-    
-    <li class="display" v-if="selectedThemeComponent">
-      <component 
-        :is="selectedThemeComponent" 
-        :project="projectStore.currentProject"
-        :preview="true"
-      />
-    </li>
-    
-    <li v-else class="no-theme">
-      <p>No theme selected. Please select a theme in the Design tab.</p>
-    </li>
+      </li>
+      
+      <li v-else class="no-theme">
+        <p>No theme selected. Please select a theme in the Design tab.</p>
+      </li>
+    </template>
+
+    <!-- Show when no project is selected -->
+    <template v-else>
+      <li class="no-project">
+        <div class="content">
+          <h3>No Project Selected</h3>
+          <p>Select a project to see the preview, or create a new project to get started.</p>
+        </div>
+      </li>
+    </template>
   </ul>
 </template>
 
@@ -187,5 +200,28 @@ function clearLocalStorageDraft() {
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
+}
+
+.no-project {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+}
+
+.no-project .content {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.no-project .content h3 {
+  margin: 0 0 var(--space-sm) 0;
+  color: var(--text-primary);
+}
+
+.no-project .content p {
+  margin: 0;
+  line-height: 1.5;
 }
 </style>

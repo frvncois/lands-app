@@ -152,7 +152,7 @@ const getProjectUrl = (project) => {
         />
       </div>
       <div class="details">
-        <label :class="{ active: project.settings?.published }">
+        <label :class="{ active: project.settings?.published, draft: !project.settings?.published }">
           {{ getPublicationStatus(project) }}
         </label>
         <label>Updated {{ formatRelativeTime(project.updated_at) }}</label>
@@ -164,9 +164,11 @@ const getProjectUrl = (project) => {
       </div>
     </li>
   </ul>
-  <li class="empty" v-else>
-      <p>No projects yet</p>
-  </li>
+  <ul class="list" v-else>
+    <li class="empty">
+        <p>No projects yet</p>
+    </li>
+  </ul>
 </template>
 
 <style scoped>
@@ -179,6 +181,7 @@ li.project {
   transition: all var(--transition-smooth);
   background: var(--card);
   position: relative;
+  box-shadow: var(--shadow-sm);
   
   &.deleting {
     opacity: 0.6;

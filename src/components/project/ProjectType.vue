@@ -59,12 +59,12 @@ function selectType(type) {
 </script>
 
 <template>
-  <ul class="list">
+  <ul class="form">
     <li class="header">
       <h2>{{ pageTitle }}</h2>
       <p>Select a type of project</p>
     </li>
-    
+    <ul class="items">
     <li
       v-for="type in projectTypes"
       :key="type.id"
@@ -72,6 +72,7 @@ function selectType(type) {
       :class="{ selected: selectedType?.id === type.id }"
       @click="selectType(type)"
     >
+    
       <div class="icon">{{ type.icon }}</div>
       <div class="content">
         <h3>{{ type.name }}</h3>
@@ -79,31 +80,20 @@ function selectType(type) {
       </div>
 
     </li>
+    </ul>
   </ul>
 </template>
 
 <style scoped>
-ul.list {
+ul.form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-rg);
-  padding: var(--space-md);
+  gap: var(--space-md);
+  padding: var(--space-lg);
 
   > li.header {
-    text-align: center;
-    padding: var(--space-lg);
-
-    h2 {
-      margin: 0 0 var(--space-sm) 0;
-      font-size: var(--font-lg);
-      color: var(--text-primary);
-    }
-    p {
-        font-family: 'mono';
-        font-size: var(--font-sm);
-        text-transform: uppercase;
-        color: var(--details);
-      }
+    padding-bottom: var(--space-lg);
+    border-bottom: 1px solid var(--border);
   }
 
   li.item {
@@ -115,6 +105,7 @@ ul.list {
     padding: var(--space-rg);
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
     transition: all var(--transition-smooth);
     background: var(--card);
 
@@ -137,8 +128,26 @@ ul.list {
         font-size: var(--font-sm);
         font-family: 'mono';
         text-transform: uppercase;
+        transition: color var(--transition-smooth);
+      }
+    
+
+  }
+ &:hover {
+      background: var(--dark-hover);
+      transform: scale(1.01);
+      border-color: var(--focus);
+      box-shadow: var(--shadow-md);
+      
+      > .actions > button {
+        transform: translateX(0.25em);
+      }
+
+      > .content > p {
+        color: var(--light);
       }
     }
   }
+  
 }
 </style>

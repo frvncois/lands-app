@@ -1,6 +1,7 @@
-<!-- CollaboratorEdit.vue - Props-based approach -->
+<!-- CollaboratorEdit.vue - Props-based approach with global alerts -->
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useAlertStore } from '@/stores/alert'
 import InputAuth from '@/components/input/InputAuth.vue'
 import InputEmail from '@/components/input/InputEmail.vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
@@ -23,10 +24,15 @@ const props = defineProps({
 
 const emit = defineEmits(['update', 'remove', 'close'])
 
+// Import alert store
+const alertStore = useAlertStore()
+
 const firstName = ref('')
 const lastName = ref('')
 const email = ref('')
 const selectedProjects = ref({})
+const isUpdating = ref(false)
+const isRemoving = ref(false)
 
 // Initialize selectedProjects when component mounts
 function initializeProjectSelection() {
@@ -50,38 +56,73 @@ onMounted(() => {
   initializeProjectSelection()
 })
 
-function updateCollaborator() {
+async function updateCollaborator() {
+  // Validation
+  const fullName = `${firstName.value.trim()} ${lastName.value.trim()}`.trim()
+  
+  if (!fullName.trim() || !email.value.trim()) {
+    alertStore.showError('Please fill in all required fields')
+    return
+  }
+
   // Get selected project IDs from the boolean object
   const selectedProjectIds = Object.keys(selectedProjects.value)
     .filter(projectId => selectedProjects.value[projectId])
 
-  // Combine first and last name
-  const fullName = `${firstName.value.trim()} ${lastName.value.trim()}`.trim()
+  isUpdating.value = true
+  
+  // Show updating alert
+  alertStore.showUpdating('Updating collaborator...')
 
-  console.log('Update collaborator called', {
-    name: fullName,
-    email: email.value,
-    projects: selectedProjectIds,
-    projectsLength: selectedProjectIds.length
-  })
-
-  if (fullName.trim() && email.value.trim()) {
+  try {
+    // Simulate async operation with proper delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    // Emit the update event to parent component
     emit('update', props.collaborator.accountId, {
       name: fullName,
       email: email.value,
       selectedProjects: selectedProjectIds
     })
-  } else {
-    console.log('Validation failed', {
-      hasName: !!fullName.trim(),
-      hasEmail: !!email.value.trim()
-    })
+
+    // Show success alert and close modal immediately
+    alertStore.showSuccess('Collaborator updated successfully!')
+    emit('close')
+
+  } catch (error) {
+    console.error('Update collaborator error:', error)
+    alertStore.showError('Failed to update collaborator. Please try again.')
+  } finally {
+    isUpdating.value = false
   }
 }
 
-function removeCollaborator() {
-  if (confirm('Are you sure you want to remove this collaborator?')) {
+async function removeCollaborator() {
+  if (!confirm('Are you sure you want to remove this collaborator?')) {
+    return
+  }
+
+  isRemoving.value = true
+  
+  // Show updating alert
+  alertStore.showUpdating('Removing collaborator...')
+
+  try {
+    // Simulate async operation with proper delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    // Emit the remove event to parent component
     emit('remove', props.collaborator.accountId)
+    
+    // Show success alert and close modal immediately
+    alertStore.showSuccess('Collaborator removed successfully!')
+    emit('close')
+
+  } catch (error) {
+    console.error('Remove collaborator error:', error)
+    alertStore.showError('Failed to remove collaborator. Please try again.')
+  } finally {
+    isRemoving.value = false
   }
 }
 </script>
@@ -99,16 +140,19 @@ function removeCollaborator() {
           label="First Name"
           placeholder="First Name"
           v-model="firstName"
+          :disabled="isUpdating || isRemoving"
         />
         <InputAuth
           label="Last Name"
           placeholder="Last name"
           v-model="lastName"
+          :disabled="isUpdating || isRemoving"
         />
         <InputEmail
           label="Email"
           placeholder="Enter email address"
           v-model="email"
+          :disabled="isUpdating || isRemoving"
         />
       </ul>
       <ul class="form">
@@ -119,40 +163,52 @@ function removeCollaborator() {
           :label="project.name"
           :details="project.description || 'Project'"
           v-model="selectedProjects[project.id]"
+          :disabled="isUpdating || isRemoving"
         />
-        <p v-if="projects.length === 0">No projects available. Collaborator will be added without project assignment.</p>
+        <li class="empty" v-if="projects.length === 0">
+        <p>No projects available. Collaborator will be added without project assignment.</p>
+        </li>
       </ul>
       <ul class="actions">
-        <ButtonMain label="Remove" buttonStyle="remove" @click="removeCollaborator" />
-        <ButtonMain label="Cancel" buttonStyle="dark" @click="emit('close')" />
-        <ButtonMain label="Update" buttonStyle="light" @click="updateCollaborator" />
+        <ButtonMain 
+          label="Remove" 
+          buttonStyle="remove" 
+          @click="removeCollaborator"
+          :disabled="isUpdating || isRemoving"
+        />
+        <ButtonMain 
+          label="Cancel" 
+          buttonStyle="dark" 
+          @click="emit('close')"
+          :disabled="isUpdating || isRemoving"
+        />
+        <ButtonMain 
+          label="Update" 
+          buttonStyle="light" 
+          @click="updateCollaborator"
+          :disabled="isUpdating || isRemoving"
+        />
       </ul>
     </li>
   </ul>
 </template>
 
 <style scoped>
-ul.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(1em);
+.content {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-
-  > li.content {
-    background: var(--card);
-    border-radius: var(--radius-lg);
-    padding: var(--space-lg);
-    width: 33vw;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-lg);
-  }
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+.header {
+  padding: var(--space-lg) 0;
+  border-bottom: 1px solid var(--border);
+}
+.form {
+  padding: 0 var(--space-lg);
+}
+.actions {
+  padding: var(--space-md);
+  border-top: 1px solid var(--border);
+  background-color: var(--nav);
 }
 </style>

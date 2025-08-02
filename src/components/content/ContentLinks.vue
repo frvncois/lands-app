@@ -141,7 +141,6 @@ onUnmounted(() => {
       @save="handleSave"
     />
     
-    <!-- List Mode - Using Reusable ListCard -->
     <ListCard
       v-else
       :items="savedLinks"

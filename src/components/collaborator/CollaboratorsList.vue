@@ -46,6 +46,20 @@ function getProjectNames(accountId) {
   ).filter(Boolean).join(', ')
 }
 
+// Function to generate initials from collaborator name
+function getInitials(collaborator) {
+  if (!collaborator.name) return '??'
+  
+  const nameParts = collaborator.name.trim().split(' ')
+  const firstName = nameParts[0] || ''
+  const lastName = nameParts[1] || ''
+  
+  const firstInitial = firstName.charAt(0).toUpperCase()
+  const lastInitial = lastName.charAt(0).toUpperCase()
+  
+  return firstInitial + lastInitial
+}
+
 function editCollaborator(collaborator) {
   editingCollaborator.value = collaborator
   showEditModal.value = true
@@ -69,9 +83,10 @@ function closeEditModal() {
 
 <template>
   <ul class="list" v-if="filteredCollaborators.length">
-    <label>Active collaborator</label>
-    <li v-for="collaborator in filteredCollaborators" :key="collaborator.accountId">
-      <div class="icon"></div>
+    <li v-for="collaborator in filteredCollaborators" :key="collaborator.accountId" class="item">
+      <div class="icon">
+        {{ getInitials(collaborator) }}
+      </div>
       <div class="content">
         {{ collaborator.name }}
         <p>{{ collaborator.email }}</p>
@@ -82,8 +97,11 @@ function closeEditModal() {
       </div>
     </li>
   </ul>
-  <ul class="empty" v-else>
-    <p>No team members yet</p>
+  
+  <ul class="list" v-else>
+    <li class="empty">
+      <p>No team members yet</p>
+    </li>
   </ul>
 
   <CollaboratorEdit
@@ -104,7 +122,7 @@ ul.list {
   gap: var(--space-rg);
   padding: var(--space-lg) 0;
 
-  li {
+  li.item {
     display: grid;
     grid-template-columns: 0.15fr 1fr 0.15fr;
     align-items: center;
@@ -122,6 +140,9 @@ ul.list {
       aspect-ratio: 1;
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
+      font-family: 'mono';
+      font-size: var(--font-sm);
+      color: var(--light);
     }
 
     > .content {
