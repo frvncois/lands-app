@@ -9,17 +9,21 @@ const props = defineProps({
     type: Object,
     required: true
   },
+  userStore: {
+    type: Object,
+    required: true
+  },
   editingIndex: {
     type: Number,
     default: undefined
   }
 })
 
-const emit = defineEmits(['button-config', 'close-modal'])
+const emit = defineEmits(['button-config', 'close-modal', 'save-project'])
 
 console.log('🔗 ContentLinks mounted, project:', props.project?.name)
 
-// Use the FIXED CRUD composable
+// Use the CRUD composable with userStore
 const {
   isEditing,
   savedItems: savedLinks,
@@ -33,7 +37,7 @@ const {
   reorder,
   fixOrdering,
   remove
-} = useContentCrud(props.project, 'links', props.editingIndex)
+} = useContentCrud(props.userStore, 'links', props.editingIndex)
 
 // Input configuration for links
 const linksInputs = computed(() => [
@@ -68,26 +72,57 @@ function setupButtonConfig() {
   } else {
     emit('button-config', {
       title: 'Add Link',
-      action: handleCreate
+      action: handleCreate,
+      buttonStyle: 'light'
     })
   }
   console.log('⚙️ Button config updated:', isEditing.value ? 'Save' : 'Add')
 }
 
-function handleCreate() {
+async function handleCreate() {
   console.log('🆕 Creating new link...')
   const newIndex = create()
-  console.log('✅ New link created at index:', newIndex)
+  console.log('✅ New link created in user.js store at index:', newIndex)
+  
+  // Optional: Save to localStorage for drafts
+  saveToLocalStorage()
   setupButtonConfig()
 }
 
-function handleSave() {
+async function handleSave() {
   console.log('💾 Saving link...')
   if (save()) {
-    console.log('✅ Link saved successfully')
+    console.log('✅ Link saved in user.js store')
+    
+    // Optional: Save to localStorage for drafts  
+    saveToLocalStorage()
     setupButtonConfig()
   } else {
     console.error('❌ Failed to save link')
+  }
+}
+
+function saveToLocalStorage() {
+  try {
+    const projectId = props.project.id
+    if (!projectId) return
+    
+    const draftKey = `project_draft_${projectId}`
+    const existingDraft = localStorage.getItem(draftKey)
+    
+    let draftData = {}
+    if (existingDraft) {
+      draftData = JSON.parse(existingDraft)
+    }
+    
+    // Update links in draft
+    draftData.links = savedLinks.value
+    draftData.lastModified = new Date().toISOString()
+    
+    localStorage.setItem(draftKey, JSON.stringify(draftData))
+    console.log('💾 Links saved to localStorage (draft)')
+  } catch (error) {
+    console.error('❌ Error saving to localStorage:', error)
   }
 }
 
@@ -106,79 +141,78 @@ function trackChanges() {
 function handleMoveUp(index) {
   if (index > 0) {
     reorder(index, index - 1)
-    console.log(`🔼 Moved link up from ${index + 1} to ${index}`)
+    console.log(`🔼 Moved link up in user.js store from ${index + 1} to ${index}`)
+    saveToLocalStorage()
   }
 }
 
 function handleMoveDown(index) {
   if (index < savedLinks.value.length - 1) {
     reorder(index, index + 1)
-    console.log(`🔽 Moved link down from ${index + 1} to ${index + 2}`)
+    console.log(`🔽 Moved link down in user.js store from ${index + 1} to ${index + 2}`)
+    saveToLocalStorage()
   }
 }
 
-function handleDelete() {
+async function handleDelete() {
   if (confirm('Are you sure you want to delete this link?')) {
-    console.log('🗑️ Deleting current link')
-    // Find the current item in the saved links and remove it
-    const savedItemsArray = savedLinks.value
-    const currentItemToDelete = currentLink.value
-    const indexToDelete = savedItemsArray.findIndex(item => item === currentItemToDelete)
-    
-    if (indexToDelete !== -1) {
-      remove(indexToDelete)
+    if (remove()) {
+      console.log('🗑️ Link deleted from user.js store')
+      saveToLocalStorage()
       setupButtonConfig()
-      console.log('✅ Link deleted')
-    } else {
-      console.error('❌ Could not find link to delete')
     }
   }
 }
 
-// Lifecycle
-onMounted(() => {
-  console.log('🔗 ContentLinks mounted, fixing ordering...')
-  fixOrdering()
+function handleCancel() {
+  console.log('❌ Cancelled link editing')
+  cancel()
   setupButtonConfig()
-  
-  // Debug current state
-  console.log('📊 Current links count:', savedLinks.value.length)
-  console.log('📋 Current links:', savedLinks.value)
+}
+
+function handleClose() {
+  handleCancel()
+  emit('close-modal')
+}
+
+onMounted(() => {
+  setupButtonConfig()
+  console.log('🔗 ContentLinks component mounted')
 })
 
 onUnmounted(() => {
-  if (hasUnsavedChanges.value) {
-    console.log('🧹 Cleaning up unsaved changes on unmount')
-    cancel()
-  }
+  console.log('🔗 ContentLinks component unmounted')
 })
 </script>
 
 <template>
-
-    <!-- MODAL for editing/creating -->
-    <ModalContent
-      v-if="isEditing && currentLink"
-      :item="currentLink"
-      :inputs="linksInputs"
-      @input="trackChanges"
-      @delete="handleDelete"
-      @save="handleSave"
-    />
-
-    <!-- LIST for viewing -->
+  <!-- Overview Mode: Show all links -->
+  <ul v-if="!isEditing" class="overview">
     <ListCard
-      v-else
-      :items="savedLinks"
-      content-type="links"
-      title-field="name"
-      subtitle-field="url"
-      image-field="img"
-      empty-title="Untitled Link"
-      :show-image="true"
+      v-for="(link, index) in savedLinks"
+      :key="`link-${index}`"
+      :item="link"
+      :index="index"
       @edit="handleEdit"
       @move-up="handleMoveUp"
       @move-down="handleMoveDown"
+      @delete="handleDelete"
     />
+    
+    <li v-if="savedLinks.length === 0" class="empty-state">
+      <p>No links added yet</p>
+      <p>Click "Add Link" to get started</p>
+    </li>
+  </ul>
 
+  <!-- Edit Mode: Show form -->
+  <ModalContent
+    v-if="isEditing"
+    :item="currentLink"
+    :inputs="linksInputs"
+    @input="trackChanges"
+    @save="handleSave"
+    @cancel="handleCancel"
+    @close="handleClose"
+  />
 </template>

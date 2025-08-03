@@ -1,12 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import { plans } from '@/data/plans.js'
-import { useProjectStore } from '@/stores/projects'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 
 const props = defineProps(['project'])
 const emit = defineEmits(['close'])
-const projectStore = useProjectStore()
 const selectedPlan = ref(props.project?.settings.plan || 'free')
 
 function selectPlan(planId) {

@@ -1,10 +1,33 @@
 <script setup>
+import { computed } from 'vue'
 import { themes } from '@/components/theme/ThemeList.js'
 
-const props = defineProps(['project'])
+const props = defineProps({
+  project: {
+    type: Object,
+    required: true
+  },
+  userStore: {
+    type: Object,
+    default: null
+  }
+})
+
+// Ensure design object exists
+const projectDesign = computed(() => {
+  if (!props.project.design) {
+    props.project.design = {}
+  }
+  return props.project.design
+})
 
 const selectTheme = (theme) => {
   console.log('🎨 Selecting theme:', theme.title, 'ID:', theme.id)
+  
+  // Ensure design object exists before setting properties
+  if (!props.project.design) {
+    props.project.design = {}
+  }
   
   // Store the theme ID for persistence
   props.project.design.themeId = theme.id
@@ -12,8 +35,45 @@ const selectTheme = (theme) => {
   // Also store the theme object for immediate use (will be lost on refresh)
   props.project.design.theme = theme
   
-  console.log('🎨 Stored theme ID:', props.project.design.themeId)
+  console.log('🎨 Theme stored in user.js store')
+  
+  // Optional: Save to localStorage for drafts
+  saveToLocalStorage(theme)
 }
+
+function saveToLocalStorage(theme) {
+  try {
+    const projectId = props.project.id
+    if (!projectId) return
+    
+    const draftKey = `project_draft_${projectId}`
+    const existingDraft = localStorage.getItem(draftKey)
+    
+    let draftData = {}
+    if (existingDraft) {
+      draftData = JSON.parse(existingDraft)
+    }
+    
+    // Update design in draft
+    draftData.design = {
+      ...draftData.design,
+      themeId: theme.id,
+      theme: theme
+    }
+    
+    draftData.lastModified = new Date().toISOString()
+    
+    localStorage.setItem(draftKey, JSON.stringify(draftData))
+    console.log('💾 Theme saved to localStorage (not database)')
+  } catch (error) {
+    console.error('❌ Error saving to localStorage:', error)
+  }
+}
+
+// Get current selected theme ID safely
+const currentThemeId = computed(() => {
+  return projectDesign.value?.themeId || projectDesign.value?.theme?.id || null
+})
 
 const allThemes = themes
 </script>
@@ -25,7 +85,7 @@ const allThemes = themes
       :key="theme.id"
       class="item"
       @click="selectTheme(theme)"
-      :class="['activate', { active: props.project.design.theme?.id === theme.id || props.project.design.themeId === theme.id }]"
+      :class="['activate', { active: currentThemeId === theme.id }]"
     >
       <div class="icon">
         <component :is="theme.icon"/>

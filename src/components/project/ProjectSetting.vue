@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import InputNormal from '@/components/input/InputNormal.vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
 import CollaboratorsList from '@/components/collaborator/CollaboratorsList.vue'
@@ -13,7 +13,7 @@ const props = defineProps({
   },
   userStore: {
     type: Object,
-    default: null
+    required: true
   }
 })
 
@@ -29,7 +29,32 @@ const domainStatus = ref({ verified: false, message: '' })
 const isCheckingDomain = ref(false)
 
 // Get projects from user store for URL validation
-const allProjects = computed(() => props.userStore?.projects || [])
+const allProjects = computed(() => props.userStore.projects || [])
+
+// Reactive project settings - ensure they exist
+const projectSettings = computed(() => {
+  if (!props.project.settings) {
+    props.project.settings = {}
+  }
+  
+  // Initialize default values if they don't exist
+  const defaults = {
+    protected: false,
+    password: '',
+    requireEmail: false,
+    customDomain: '',
+    url: '',
+    published: false
+  }
+  
+  Object.keys(defaults).forEach(key => {
+    if (!props.project.settings.hasOwnProperty(key)) {
+      props.project.settings[key] = defaults[key]
+    }
+  })
+  
+  return props.project.settings
+})
 
 // Computed URL status
 const urlStatus = computed(() => {
@@ -39,14 +64,24 @@ const urlStatus = computed(() => {
   if (!urlAvailability.value.available) {
     return { type: 'error', message: urlAvailability.value.message }
   }
-  if (urlAvailability.value.available && props.project.settings.url) {
+  if (urlAvailability.value.available && projectSettings.value.url) {
     return { type: 'success', message: 'URL is available' }
   }
   return { type: 'neutral', message: '' }
 })
 
+// Computed domain status
+const domainStatusComputed = computed(() => {
+  if (!projectSettings.value.customDomain) return null
+  if (isCheckingDomain.value) return 'loading'
+  if (!domainValidation.value.isValid) return 'error'
+  if (domainStatus.value.verified) return 'success'
+  if (!domainStatus.value.verified && domainValidation.value.isValid) return 'warning'
+  return null
+})
+
 // Watch URL changes for validation
-watch(() => props.project.settings?.url, (newUrl) => {
+watch(() => projectSettings.value.url, (newUrl) => {
   if (newUrl) {
     validateProjectUrl(newUrl)
   } else {
@@ -57,7 +92,7 @@ watch(() => props.project.settings?.url, (newUrl) => {
 }, { immediate: true })
 
 // Watch domain changes for validation
-watch(() => props.project.settings?.customDomain, (newDomain) => {
+watch(() => projectSettings.value.customDomain, (newDomain) => {
   if (newDomain) {
     validateCustomDomain(newDomain)
   } else {
@@ -66,6 +101,7 @@ watch(() => props.project.settings?.customDomain, (newDomain) => {
   }
 }, { immediate: true })
 
+// URL validation functions
 function validateProjectUrl(url) {
   // Validate format
   urlValidation.value = validateUrl(url)
@@ -74,166 +110,128 @@ function validateProjectUrl(url) {
     // Check availability against other projects
     isCheckingUrl.value = true
     
-    // Simulate API delay (replace with actual API call later)
-    setTimeout(() => {
-      urlAvailability.value = checkUrlAvailability(
-        urlValidation.value.cleanUrl, 
-        allProjects.value.filter(p => p.id !== props.project.id)
-      )
-      
-      // Generate suggestions if not available
-      if (!urlAvailability.value.available) {
-        urlSuggestions.value = generateUrlSuggestions(urlValidation.value.cleanUrl)
-      } else {
-        urlSuggestions.value = []
-      }
-      
-      isCheckingUrl.value = false
-    }, 1000)
+    nextTick(() => {
+      checkUrlAvailability(url, allProjects.value, props.project.id)
+        .then(result => {
+          urlAvailability.value = result
+          if (!result.available && result.suggestions) {
+            urlSuggestions.value = result.suggestions
+          }
+        })
+        .catch(error => {
+          console.error('❌ URL availability check failed:', error)
+          urlAvailability.value = { available: false, message: 'Could not check availability' }
+        })
+        .finally(() => {
+          isCheckingUrl.value = false
+        })
+    })
   }
-}
-
-function generateUrlSuggestions(baseUrl) {
-  return [
-    `${baseUrl}-site`,
-    `${baseUrl}-project`, 
-    `${baseUrl}-official`,
-    `${baseUrl}-2024`,
-    `${baseUrl}-music`
-  ]
 }
 
 function validateCustomDomain(domain) {
-  domainValidation.value = validateDomain(domain)
-  
-  if (domainValidation.value.isValid) {
-    isCheckingDomain.value = true
-    
-    // Simulate domain verification check
-    setTimeout(() => {
-      // For demo purposes, randomly determine if domain is verified
-      const isVerified = Math.random() > 0.5
-      
-      domainStatus.value = {
-        verified: isVerified,
-        message: isVerified 
-          ? 'Domain is properly configured and verified'
-          : 'Domain configuration pending - check DNS settings'
-      }
-      
-      isCheckingDomain.value = false
-    }, 1500)
-  }
-}
-
-function validateDomain(domain) {
-  const errors = []
-  const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i
-  
-  if (!domain || domain.trim() === '') {
-    return { isValid: true, errors: [] } // Empty is valid (optional field)
-  }
+  // Basic domain validation
+  const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
   
   if (!domainRegex.test(domain)) {
-    errors.push('Invalid domain format')
+    domainValidation.value = {
+      isValid: false,
+      errors: ['Please enter a valid domain name'],
+      warnings: []
+    }
+    return
   }
   
-  if (domain.length > 253) {
-    errors.push('Domain name too long')
-  }
+  domainValidation.value = { isValid: true, errors: [], warnings: [] }
   
-  return {
-    isValid: errors.length === 0,
-    errors
+  // Check domain verification status
+  isCheckingDomain.value = true
+  
+  // Simulate domain verification check
+  setTimeout(() => {
+    domainStatus.value = {
+      verified: false,
+      message: 'DNS records need to be configured'
+    }
+    isCheckingDomain.value = false
+  }, 1000)
+}
+
+// Save project settings using the store
+async function saveProjectSettings() {
+  try {
+    const result = await props.userStore.updateProject(props.project.id, {
+      settings: projectSettings.value
+    })
+    
+    if (result.success) {
+      console.log('✅ Project settings saved')
+    } else {
+      console.error('❌ Failed to save settings:', result.error)
+    }
+  } catch (error) {
+    console.error('❌ Error saving settings:', error)
   }
 }
 
-function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    console.log('Copied to clipboard:', text)
-  }).catch(err => {
-    console.error('Failed to copy:', err)
-  })
-}
+// Auto-save when settings change
+watch(projectSettings, () => {
+  // Debounce the save operation
+  clearTimeout(saveTimeout)
+  saveTimeout = setTimeout(saveProjectSettings, 1000)
+}, { deep: true })
 
+let saveTimeout = null
+
+// Status helper functions
 function getUrlStatusType() {
-  if (!props.project.settings?.url) return null
+  if (!projectSettings.value.url) return null
   if (isCheckingUrl.value) return 'loading'
-  if (!urlValidation.value.isValid) return 'error'
-  if (!urlAvailability.value.available) return 'error'
-  if (urlAvailability.value.available) return 'success'
-  return null
+  return urlStatus.value.type === 'neutral' ? null : urlStatus.value.type
 }
 
 function getUrlStatusMessage() {
-  if (!props.project.settings?.url) return ''
+  if (!projectSettings.value.url) return ''
   if (isCheckingUrl.value) return 'Checking availability...'
-  if (!urlValidation.value.isValid) return urlValidation.value.errors[0]
-  if (!urlAvailability.value.available) return urlAvailability.value.message
-  if (urlAvailability.value.available) return 'URL is available'
-  return ''
+  return urlStatus.value.message
 }
 
 function getDomainStatusType() {
-  if (!props.project.settings?.customDomain) return null
-  if (isCheckingDomain.value) return 'loading'
-  if (!domainValidation.value.isValid) return 'error'
-  if (domainStatus.value.verified) return 'success'
-  if (!domainStatus.value.verified && domainValidation.value.isValid) return 'warning'
-  return null
+  return domainStatusComputed.value
 }
 
 function getDomainStatusMessage() {
-  if (!props.project.settings?.customDomain) return ''
+  if (!projectSettings.value.customDomain) return ''
   if (isCheckingDomain.value) return 'Verifying domain...'
   if (!domainValidation.value.isValid) return domainValidation.value.errors[0]
   if (domainStatus.value.verified) return 'Domain verified and connected'
   if (!domainStatus.value.verified && domainValidation.value.isValid) return domainStatus.value.message
   return ''
 }
-
-// Initialize project settings if they don't exist
-if (props.project.settings && !props.project.settings.hasOwnProperty('protected')) {
-  props.project.settings.protected = false
-}
-if (props.project.settings && !props.project.settings.hasOwnProperty('password')) {
-  props.project.settings.password = ''
-}
-if (props.project.settings && !props.project.settings.hasOwnProperty('requireEmail')) {
-  props.project.settings.requireEmail = false
-}
-if (props.project.settings && !props.project.settings.hasOwnProperty('customDomain')) {
-  props.project.settings.customDomain = ''
-}
-if (props.project.settings && !props.project.settings.hasOwnProperty('url')) {
-  props.project.settings.url = ''
-}
-if (props.project.settings && !props.project.settings.hasOwnProperty('published')) {
-  props.project.settings.published = false
-}
 </script>
 
 <template>
   <ul v-if="props.project" class="list">
-
+    <!-- Project URL Settings -->
     <InputNormal 
       label="Lands URL" 
       placeholder="your-project-name"
-      v-model="props.project.settings.url"
+      v-model="projectSettings.url"
       :status-type="getUrlStatusType()"
       :status-message="getUrlStatusMessage()"
     />
+    
     <InputNormal 
-        label="Custom Domain" 
-        placeholder="www.yoursite.com"
-        v-model="props.project.settings.customDomain"
-        :status-type="getDomainStatusType()"
-        :status-message="getDomainStatusMessage()"
+      label="Custom Domain" 
+      placeholder="www.yoursite.com"
+      v-model="projectSettings.customDomain"
+      :status-type="getDomainStatusType()"
+      :status-message="getDomainStatusMessage()"
     />
     
-    <ul class="items">
-      <div v-if="props.project.settings.customDomain && domainValidation.isValid && !isCheckingDomain" class="domain-status">
-        <!-- DNS Instructions -->
+    <!-- DNS Configuration Instructions -->
+    <ul class="items" v-if="projectSettings.customDomain && domainValidation.isValid && !isCheckingDomain">
+      <div class="domain-status">
         <div class="dns-instructions">
           <h4>DNS Configuration Required</h4>
           <p>Add these DNS records to your domain provider:</p>
@@ -241,68 +239,56 @@ if (props.project.settings && !props.project.settings.hasOwnProperty('published'
           <div class="dns-records">
             <div class="dns-record">
               <strong>CNAME Record:</strong>
-              <code>www.{{ props.project.settings.customDomain }}</code>
-              <span>→</span>
-              <code>{{ props.project.settings.url }}.lands.dev</code>
-              <button @click="copyToClipboard(`www.${props.project.settings.customDomain}`)" class="copy-btn">Copy</button>
+              <code>www.{{ projectSettings.customDomain }}</code> → <code>lands.dev</code>
+              <button class="copy-btn" @click="copyToClipboard('lands.dev')">Copy</button>
             </div>
-            
             <div class="dns-record">
               <strong>A Record:</strong>
-              <code>{{ props.project.settings.customDomain }}</code>
-              <span>→</span>
-              <code>76.76.19.19</code>
-              <button @click="copyToClipboard('76.76.19.19')" class="copy-btn">Copy</button>
+              <code>{{ projectSettings.customDomain }}</code> → <code>185.199.108.153</code>
+              <button class="copy-btn" @click="copyToClipboard('185.199.108.153')">Copy</button>
             </div>
           </div>
           
           <div class="dns-help">
-            <p><strong>Need help?</strong> DNS changes can take up to 24-48 hours to propagate worldwide.</p>
-            <button class="verify-btn">Verify Domain</button>
-            <button class="help-btn">Domain Setup Guide</button>
+            <p>Once you've added these records, it may take up to 24 hours for changes to propagate.</p>
+            <button class="verify-btn" @click="verifyDomain">Verify Domain</button>
           </div>
         </div>
       </div>
     </ul>
-
-    <ul class="form">
-      <InputBoolean 
-        label="Published" 
-        details="Make your project visible to the public"
-        v-model="props.project.settings.published" 
-      />
-      
-      <InputBoolean 
-        label="Protect by password" 
-        details="Require a password to view your project"
-        v-model="props.project.settings.protected" 
+    
+    <!-- Privacy Settings -->
+    <ul class="items">
+      <InputBoolean
+        label="Password Protection"
+        description="Require a password to view this project"
+        v-model="projectSettings.protected"
       />
       
       <InputNormal 
-        v-if="props.project.settings.protected"
-        label="Password" 
-        placeholder="Enter project password"
+        v-if="projectSettings.protected"
+        label="Password"
+        placeholder="Enter password"
         type="password"
-        v-model="props.project.settings.password" 
+        v-model="projectSettings.password"
       />
       
-      <InputBoolean 
-        label="Require email" 
-        details="Users must provide email to access your project"
-        v-model="props.project.settings.requireEmail" 
+      <InputBoolean
+        label="Require Email"
+        description="Collect visitor email addresses"
+        v-model="projectSettings.requireEmail"
       />
     </ul>
-
-    <PlanSelector
-      :project="props.project"
-    />
-
+    
+    <!-- Plan and Collaborators -->
     <ul class="items">
-      <label>Project collaborators</label>
+      <PlanSelector 
+        :project="props.project"
+        :user-store="userStore"
+      />
+      
       <CollaboratorsList 
-        :project-id="props.project.id"
-        :invitations="userStore?.invitations || []"
-        :projects="userStore?.projects || []"
+        :project="props.project"
         :user-store="userStore"
       />
     </ul>
@@ -310,12 +296,31 @@ if (props.project.settings && !props.project.settings.hasOwnProperty('published'
 </template>
 
 <style scoped>
+ul.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+ul.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--border);
+}
+
+ul.items:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .domain-status {
-  margin-top: var(--space-md);
   padding: var(--space-md);
-  background: var(--surface);
-  border-radius: var(--radius-md);
+  background: var(--card);
   border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-sm);
 }
 
 .dns-instructions {
@@ -359,6 +364,7 @@ if (props.project.settings && !props.project.settings.hasOwnProperty('published'
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-xs);
+  transition: background-color var(--transition-smooth);
 }
 
 .copy-btn:hover, .verify-btn:hover, .help-btn:hover {

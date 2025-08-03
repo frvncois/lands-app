@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SectionTitle from '@/components/global/SectionTitle.vue'
 import NavTab from '@/components/global/NavTab.vue'
@@ -17,6 +17,7 @@ const props = defineProps({
 const route = useRoute()
 const router = useRouter()
 
+// Use the reactive data from the store passed as prop
 const project = computed(() => props.userStore.currentProject)
 const activeTab = ref('general')
 
@@ -26,30 +27,103 @@ const tabItems = [
   { id: 'settings', label: 'Settings' }
 ]
 
+// Local state for auto-save functionality
+let saveTimeout = null
+const hasUnsavedChanges = ref(false)
+
 onMounted(async () => {
   const projectId = route.params.id
   
   // Set current project in store
   props.userStore.setCurrentProject(projectId)
   
-  // EditorView is special - it needs the specific project data
-  // If project not found, it means App.vue data is incomplete
-  if (!project.value) {
-    console.log('📊 Project not found, may need to wait for data...')
-    // The project should be available from App.vue initialization
-    // If not, there might be a routing issue
-  }
-  
-  // Load localStorage draft
+  // Load localStorage draft for auto-save functionality
   await loadFromLocalStorage(projectId)
 })
 
-// ... localStorage functions stay the same ...
-// (all the localStorage and auto-save functionality remains)
+function handleTabChange(tabId) {
+  activeTab.value = tabId
+}
+
+function handleEditProject(projectId) {
+  router.push({ name: 'project', params: { id: projectId } })
+}
+
+function handleCreateProject() {
+  router.push({ name: 'projects' })
+}
+
+// Auto-save functionality (localStorage for drafts)
+async function loadFromLocalStorage(projectId) {
+  try {
+    const draftKey = `project_draft_${projectId}`
+    const savedDraft = localStorage.getItem(draftKey)
+    
+    if (savedDraft) {
+      console.log('📄 Draft found for project:', projectId)
+      // Could restore draft data here if needed
+      hasUnsavedChanges.value = true
+    }
+  } catch (error) {
+    console.error('❌ Failed to load draft:', error)
+  }
+}
+
+function saveToLocalStorage(projectId, data) {
+  try {
+    const draftKey = `project_draft_${projectId}`
+    localStorage.setItem(draftKey, JSON.stringify(data))
+    hasUnsavedChanges.value = true
+    console.log('💾 Draft saved to localStorage')
+  } catch (error) {
+    console.error('❌ Failed to save draft:', error)
+  }
+}
+
+function clearLocalStorage(projectId) {
+  try {
+    const draftKey = `project_draft_${projectId}`
+    localStorage.removeItem(draftKey)
+    hasUnsavedChanges.value = false
+    console.log('🧹 Draft cleared from localStorage')
+  } catch (error) {
+    console.error('❌ Failed to clear draft:', error)
+  }
+}
+
+// Auto-save with debouncing
+function scheduleAutoSave(projectId, data) {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout)
+  }
+  
+  saveTimeout = setTimeout(() => {
+    saveToLocalStorage(projectId, data)
+  }, 1000) // Save after 1 second of inactivity
+}
+
+// Save project data to the store
+async function saveProject() {
+  if (!project.value) return
+  
+  try {
+    const result = await props.userStore.updateProject(project.value.id, project.value)
+    if (result.success) {
+      console.log('✅ Project saved to server')
+      clearLocalStorage(project.value.id)
+    } else {
+      console.error('❌ Failed to save project:', result.error)
+    }
+  } catch (error) {
+    console.error('❌ Error saving project:', error)
+  }
+}
 
 // Cleanup on unmount
 onUnmounted(() => {
-  clearTimeout(saveTimeout)
+  if (saveTimeout) {
+    clearTimeout(saveTimeout)
+  }
   props.userStore.clearCurrentProject()
 })
 </script>
@@ -76,15 +150,24 @@ onUnmounted(() => {
     </li>
 
     <li v-if="activeTab === 'general'">
-      <ContentList :project="project" :user-store="userStore" />
+      <ContentList 
+        :project="project" 
+        :user-store="userStore" 
+      />
     </li>
 
     <li v-if="activeTab === 'design'">
-      <DesignList :project="project" :user-store="userStore" />
+      <DesignList 
+        :project="project" 
+        :user-store="userStore" 
+      />
     </li>
 
     <li v-if="activeTab === 'settings'">
-      <ProjectSetting :project="project" :user-store="userStore" />
+      <ProjectSetting 
+        :project="project" 
+        :user-store="userStore" 
+      />
     </li>
   </ul>
 
@@ -92,3 +175,16 @@ onUnmounted(() => {
     <p>Loading project...</p>
   </div>
 </template>
+
+<style scoped>
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: var(--details);
+  font-family: 'mono';
+  text-transform: uppercase;
+  font-size: var(--font-sm);
+}
+</style>

@@ -15,6 +15,10 @@ const props = defineProps({
   project: {
     type: Object,
     required: true
+  },
+  userStore: {
+    type: Object,
+    required: true
   }
 })
 
@@ -96,6 +100,22 @@ function handleCloseModal() {
   goBackToOverview()
 }
 
+// Auto-save project data to the store when changes occur
+async function saveProjectData() {
+  if (!props.userStore || !validProject.value) return
+  
+  try {
+    const result = await props.userStore.updateProject(projectRef.value.id, projectData.value)
+    if (result.success) {
+      console.log('✅ Project data auto-saved')
+    } else {
+      console.error('❌ Failed to save project:', result.error)
+    }
+  } catch (error) {
+    console.error('❌ Error saving project:', error)
+  }
+}
+
 // Content data validation
 function getContentData(contentId) {
   if (!validProject.value || !contentId) return []
@@ -106,9 +126,15 @@ function getContentData(contentId) {
   return projectData.value[dataKey] || []
 }
 
+// Get count of items for each content type
+function getContentCount(contentId) {
+  const data = getContentData(contentId)
+  return Array.isArray(data) ? data.length : 0
+}
 </script>
 
 <template>
+  <!-- Overview - show all content types -->
   <ul class="list" v-if="currentView === 'overview' && validProject">
     <ul class="items">
       <label>Content</label>
@@ -124,6 +150,9 @@ function getContentData(contentId) {
         <div class="content">
           <h3>{{ content.name }}</h3>
           <p>{{ content.description }}</p>
+          <span class="count" v-if="getContentCount(content.id) > 0">
+            {{ getContentCount(content.id) }} items
+          </span>
         </div>
         <div class="actions">
           <button>→</button>
@@ -133,50 +162,60 @@ function getContentData(contentId) {
     
     <IntegrationsList 
       :project="projectData" 
+      :user-store="userStore"
       v-if="validProject"
     />
 
-
-        <li>
+    <li>
       <CTABasic 
-        title="Need a custom integration?" 
-        description="Join thousands of creators"
-        buttonLabel="Learn more"
+        title="Need a custom integration?"
+        description="Contact our team for custom solutions"
+        buttonLabel="Contact us"
         buttonStyle="light"
-    />
+      />
     </li>
   </ul>
 
-
-
-  <ul class="list" v-else-if="currentView !== 'overview' && validProject">
-    <li class="actions">
-      <div class="title">
-        <button @click="goBackToOverview">←</button>
-        <h3>{{ selectedContent?.name }}</h3>
-      </div>
-      <ButtonMain
-        v-if="buttonConfig.title && buttonConfig.action"
-        :label="buttonConfig.title"
-        :buttonStyle="buttonConfig.buttonStyle"
-        @click="buttonConfig.action"
+  <!-- Individual content type view -->
+  <ul class="content-view" v-else-if="currentView !== 'overview' && selectedContent && validProject">
+    <li class="header">
+      <button @click="goBackToOverview" class="back-button">← Back to Content</button>
+      <h2>{{ selectedContent.name }}</h2>
+      <p>{{ selectedContent.description }}</p>
+    </li>
+    
+    <li class="content-component">
+      <component 
+        :is="getCurrentComponent()"
+        :project="projectData"
+        :user-store="userStore"
+        @button-config="handleButtonConfig"
+        @close-modal="handleCloseModal"
+        @save-project="saveProjectData"
       />
     </li>
     
-      <component
-        :is="getCurrentComponent()"
-        :project="projectData"
-        @button-config="handleButtonConfig"
-        @close-modal="handleCloseModal"
-        v-if="getCurrentComponent()"
+    <!-- Action button if configured -->
+    <li v-if="buttonConfig.title && buttonConfig.action" class="actions">
+      <ButtonMain 
+        :label="buttonConfig.title"
+        :button-style="buttonConfig.buttonStyle"
+        @click="buttonConfig.action"
       />
+    </li>
   </ul>
 
   <!-- Error state -->
   <div v-else class="error-state">
-    <p>⚠️ Project data not available</p>
+    <p>Unable to load content. Please try again.</p>
+    <ButtonMain 
+      label="Back to Overview"
+      button-style="light"
+      @click="goBackToOverview"
+    />
   </div>
 </template>
+
 
 
 <style scoped>

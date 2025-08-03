@@ -1,6 +1,4 @@
-// src/stores/user.js
-// CLEAN: Single store for all user data - no legacy crap
-
+// Fixed user.js store - Complete loadUserData function
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/services/supabase.js'
@@ -111,19 +109,41 @@ export const useUserStore = defineStore('user', () => {
         // Set profile
         profile.value = response.data.profile
         
-        // Set projects (clean structure from API)
+        // ✅ FIXED: Complete project mapping including ALL fields
         projects.value = response.data.projects.map(project => ({
+          // Basic project info
           id: project.id,
           name: project.name,
           description: project.description,
+          location: project.location,
+          coverImage: project.coverImage,
           url_slug: project.url_slug,
+          
+          // Ownership info
           owner_id: project.owner_id,
           user_role: project.user_role,
           owner_name: project.owner_name,
           owner_email: project.owner_email,
+          
+          // Timestamps
           created_at: project.created_at,
           updated_at: project.updated_at,
-          settings: project.settings
+          
+          // Settings
+          settings: project.settings || {},
+          
+          // ✅ CRITICAL: Include design object for themes
+          design: project.design || {},
+          
+          // ✅ CRITICAL: Include all content arrays
+          links: project.links || [],
+          socials: project.socials || [],
+          contacts: project.contacts || [],
+          socialLinks: project.socialLinks || [],
+          posts: project.posts || [],
+          releases: project.releases || [],
+          shows: project.shows || [],
+          merch: project.merch || []
         }))
         
         // Set invitations and stats
@@ -237,6 +257,10 @@ export const useUserStore = defineStore('user', () => {
     console.log('🧹 All data cleared')
   }
 
+  // =====================================================
+  // AUTH METHODS
+  // =====================================================
+
   async function signUp(email, password, metadata = {}) {
     loading.value = true
     error.value = null
@@ -305,15 +329,11 @@ export const useUserStore = defineStore('user', () => {
 
   async function signOut() {
     loading.value = true
-    error.value = null
     
     try {
-      const { error: signOutError } = await supabase.auth.signOut()
-      
-      if (signOutError) throw signOutError
-
+      await supabase.auth.signOut()
+      await clearAllData()
       console.log('✅ Sign out successful')
-      
       return { success: true }
     } catch (err) {
       console.error('❌ Sign out error:', err)
@@ -325,51 +345,30 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function validateSession() {
-    if (!isAuthenticated.value) return false
-
     try {
-      const { data: { session }, error } = await supabase.auth.getSession()
+      if (!session.value?.access_token) return false
       
-      if (error || !session?.access_token) {
-        await signOut()
-        return false
-      }
-
-      const decoded = jwtDecode(session.access_token)
-      const now = Math.floor(Date.now() / 1000)
-      const timeUntilExpiry = decoded.exp - now
-
-      if (timeUntilExpiry < 300) {
-        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
-        
-        if (refreshError || !refreshed.session) {
-          await signOut()
-          return false
-        }
-        
-        session.value = refreshed.session
-        user.value = refreshed.session.user
-      }
-
-      return true
-    } catch (error) {
-      await signOut()
+      const decoded = jwtDecode(session.value.access_token)
+      const now = Date.now() / 1000
+      
+      return decoded.exp > now
+    } catch {
       return false
     }
   }
 
   // =====================================================
-  // PROFILE MANAGEMENT
+  // PROFILE METHODS
   // =====================================================
 
   async function updateProfile(updates) {
     if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
-
+    
     try {
       const response = await apiService.updateProfile(updates)
       
       if (response.success) {
-        profile.value = { ...profile.value, ...response.data }
+        Object.assign(profile.value, response.data)
         return { success: true, data: response.data }
       } else {
         throw new Error(response.error || 'Failed to update profile')
@@ -381,7 +380,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // =====================================================
-  // PROJECT MANAGEMENT
+  // PROJECT METHODS
   // =====================================================
 
   async function createProject(projectData) {
@@ -404,7 +403,16 @@ export const useUserStore = defineStore('user', () => {
           owner_email: userEmail.value,
           created_at: response.data.created_at,
           updated_at: response.data.updated_at,
-          settings: response.data.settings || {}
+          settings: response.data.settings || {},
+          design: response.data.design || {},
+          links: [],
+          socials: [],
+          contacts: [],
+          socialLinks: [],
+          posts: [],
+          releases: [],
+          shows: [],
+          merch: []
         }
         
         projects.value.unshift(newProject)
