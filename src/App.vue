@@ -1,31 +1,30 @@
 <script setup>
 import { onMounted, computed, watch } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
-import { useAccountStore } from './stores/account'
+import { useUserStore } from './stores/user'
 import NavMain from './components/global/NavMain.vue'
 import AuthMain from './components/auth/AuthMain.vue'
 import ProjectPreview from './components/project/ProjectPreview.vue'
 import AlertStatus from './components/alert/AlertStatus.vue'
 import { useAlertStore } from './stores/alert'
 
-const accountStore = useAccountStore()
+const userStore = useUserStore()
 const alertStore = useAlertStore()
 const router = useRouter()
 
-// FIXED: Simplified app state logic
+// Reactive app state computation
 const appState = computed(() => {
   console.log('🔄 Computing app state:', {
-    loading: accountStore.loading,
-    isAuthenticated: accountStore.isAuthenticated,
-    hasSession: !!accountStore.session,
-    user: accountStore.user
+    loading: userStore.loading,
+    isAuthenticated: userStore.isAuthenticated,
+    hasSession: !!userStore.session,
+    user: userStore.user
   })
   
-  if (accountStore.loading) return 'loading'
+  if (userStore.loading) return 'loading'
   
-  // FIXED: Simple check - if authenticated with valid session, show app
-  if (accountStore.isAuthenticated) {
-    const user = accountStore.user
+  if (userStore.isAuthenticated) {
+    const user = userStore.user
     console.log('👤 User authenticated:', user?.email)
     
     // Check if email is confirmed
@@ -43,15 +42,15 @@ const appState = computed(() => {
   return 'unauthenticated'
 })
 
-// FIXED: Simple navigation watcher - only navigate when truly authenticated
+// Watch for auth changes and navigate accordingly
 watch(
-  () => accountStore.isAuthenticated,
+  () => userStore.isAuthenticated,
   (isAuthenticated, wasAuthenticated) => {
     console.log('🔄 Auth state changed:', { isAuthenticated, wasAuthenticated })
     
     // Only navigate when user becomes authenticated with verified email
     if (isAuthenticated && !wasAuthenticated) {
-      const user = accountStore.user
+      const user = userStore.user
       const emailConfirmed = user?.email_confirmed_at !== null
       
       if (emailConfirmed) {
@@ -65,15 +64,11 @@ watch(
 )
 
 onMounted(async () => {
-  console.log('🚀 App mounted, initializing auth...')
+  console.log('🚀 App mounted, initializing user store...')
   
-  if (typeof accountStore.initialize === 'function') {
-    console.log('✅ Initialize method found, calling...')
-    await accountStore.initialize()
-    console.log('✅ Initialize completed')
-  } else {
-    console.error('❌ Initialize method not found in account store!')
-  }
+  // ONLY App.vue loads data - views just use what's already loaded
+  await userStore.initialize()
+  console.log('✅ All user data loaded and ready')
 })
 </script>
 
@@ -86,17 +81,29 @@ onMounted(async () => {
     </div>
   </main>
 
-  <!-- Authenticated state -->
+  <!-- Authenticated state - pass reactive store data down -->
   <main v-else-if="appState === 'authenticated'">
-    <NavMain />
-    <RouterView />
-    <ProjectPreview/>
+    <NavMain 
+      :user="userStore.user"
+      :profile="userStore.profile"
+      :projects="userStore.projects"
+      :current-project="userStore.currentProject"
+      :user-store="userStore"
+    />
+    <RouterView 
+      :user-store="userStore"
+    />
+    <ProjectPreview 
+      :user-store="userStore"
+    />
     <AlertStatus />
   </main>
 
   <!-- Unauthenticated state -->
   <main v-else>
-    <AuthMain />
+    <AuthMain 
+      :user-store="userStore"
+    />
   </main>
 </template>
 

@@ -143,7 +143,6 @@ function getContentData(contentId) {
         description="Join thousands of creators"
         buttonLabel="Learn more"
         buttonStyle="light"
-        @click="openSignupModal"
     />
     </li>
   </ul>

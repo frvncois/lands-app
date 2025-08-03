@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useAccountStore } from '@/stores/account'
 import InputAuth from '@/components/input/InputAuth.vue'
 import InputEmail from '@/components/input/InputEmail.vue'
 import ButtonAuth from '@/components/button/ButtonAuth.vue'
@@ -8,7 +7,12 @@ import InputPassword from '@/components/input/InputPassword.vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
 import AccountAuth from '@/components/alert/AccountAuth.vue'
 
-const accountStore = useAccountStore()
+const props = defineProps({
+  userStore: {
+    type: Object,
+    required: true
+  }
+})
 
 // Form fields
 const firstName = ref('')
@@ -26,14 +30,13 @@ const alertMessage = ref('')
 const alertType = ref('error')
 const showSuccess = ref(false)
 
-// Security: Honeypot field (hidden from users, bots will fill it)
+// Security: Honeypot field
 const honeypot = ref('')
 
 // Security tracking
 const signupAttempts = ref(parseInt(sessionStorage.getItem('signup_attempts') || '0'))
 const lastSignupAttempt = ref(parseInt(sessionStorage.getItem('last_signup_attempt') || '0'))
 
-// Constants
 const MAX_ATTEMPTS = 3
 const RATE_LIMIT_WINDOW = 300000 // 5 minutes
 
@@ -44,7 +47,7 @@ const isFormValid = computed(() => {
          email.value.trim() !== '' &&
          password.value.trim() !== '' &&
          acceptTerms.value === true &&
-         honeypot.value === '' && // Security: honeypot must be empty
+         honeypot.value === '' &&
          !isRateLimited.value
 })
 
@@ -60,10 +63,10 @@ const rateLimitTimeRemaining = computed(() => {
   if (!isRateLimited.value) return 0
   const now = Date.now()
   const timeSinceLastAttempt = now - lastSignupAttempt.value
-  return Math.ceil((RATE_LIMIT_WINDOW - timeSinceLastAttempt) / 1000 / 60) // minutes
+  return Math.ceil((RATE_LIMIT_WINDOW - timeSinceLastAttempt) / 1000 / 60)
 })
 
-// Password strength indicator
+// Password strength
 const passwordStrengthScore = computed(() => {
   const pwd = password.value
   if (!pwd) return 0
@@ -135,7 +138,6 @@ function validatePassword(password) {
     return 'Password must contain uppercase, lowercase, number, and special character'
   }
   
-  // Check for common weak patterns
   if (/(.)\1{3,}/.test(password)) {
     return 'Password cannot have 4 or more repeated characters'
   }
@@ -162,22 +164,18 @@ function resetSignupAttempts() {
 }
 
 async function handleSignup() {
-  // Clear previous alerts
   clearAlert()
   
-  // Rate limiting check
   if (isRateLimited.value) {
     showAlert('error', `Too many attempts. Try again in ${rateLimitTimeRemaining.value} minutes`)
     return
   }
   
-  // Honeypot check
   if (honeypot.value !== '') {
     console.warn('Bot detected via honeypot')
     return
   }
   
-  // Validate names
   const firstNameError = validateName(firstName.value.trim(), 'First name')
   if (firstNameError) {
     showAlert('error', firstNameError)
@@ -190,14 +188,12 @@ async function handleSignup() {
     return
   }
   
-  // Validate password
   const passwordError = validatePassword(password.value)
   if (passwordError) {
     showAlert('error', passwordError)
     return
   }
   
-  // Check terms acceptance
   if (!acceptTerms.value) {
     showAlert('error', 'Please accept the terms and conditions')
     return
@@ -207,11 +203,9 @@ async function handleSignup() {
   showAlert('updating', 'Creating your account...')
   
   try {
-    // Security: Add timing protection
     const startTime = Date.now()
     
-    // Attempt to sign up with Supabase
-    const result = await accountStore.signUp(
+    const result = await props.userStore.signUp(
       email.value.toLowerCase().trim(),
       password.value,
       {
@@ -221,24 +215,18 @@ async function handleSignup() {
       }
     )
     
-    // Security: Ensure minimum response time
     const elapsed = Date.now() - startTime
     if (elapsed < 1500) {
       await new Promise(resolve => setTimeout(resolve, 1500 - elapsed))
     }
     
     if (result.success) {
-      // Reset signup attempts on success
       resetSignupAttempts()
-      
-      // ALWAYS show success message regardless of verification requirements
       showSuccess.value = true
       showAlert('success', 'Account created successfully')
     } else {
-      // Track failed attempts
       trackSignupAttempt()
       
-      // Map Supabase errors to user-friendly messages
       let errorMessage = 'Account creation failed'
       
       switch (result.error) {
@@ -270,9 +258,7 @@ async function handleSignup() {
   }
 }
 
-// Security: Clear sensitive data on component unmount
 onMounted(() => {
-  // Check if already rate limited
   if (isRateLimited.value) {
     showAlert('error', `Too many attempts. Try again in ${rateLimitTimeRemaining.value} minutes`)
   }
@@ -335,7 +321,6 @@ onUnmounted(() => {
             autocomplete="new-password"
           />
           
-          <!-- Password strength indicator -->
           <li v-if="password.length > 0" class="strength">
             <div class="bar">
               <div 
@@ -347,28 +332,27 @@ onUnmounted(() => {
             <p class="text">{{ passwordStrengthText }}</p>
           </li>
         
-        <!-- Separate form for checkboxes and submit button -->
         <ul class="options">
           <InputBoolean 
             label="Accept terms and conditions"
-            details="By creating an account, you agree to our terms of service and privacy policy. You can review these documents at any time."
+            details="By creating an account, you agree to our terms of service and privacy policy."
             v-model="acceptTerms"
             :disabled="isLoading"
           />
           
           <InputBoolean 
             label="Stay up to date"
-            details="Receive news, updates, and product announcements about Lands.app. You can unsubscribe at any time from your account settings."
+            details="Receive news, updates, and product announcements about Lands.app."
             v-model="stayUpToDate"
             :disabled="isLoading"
           />
-        
         </ul>
-          <ButtonAuth 
-            :label="isLoading ? 'Creating account...' : 'Create account'"
-            :buttonStyle="isFormValid && !isLoading ? 'light' : 'disabled'"
-            @click="handleSignup"
-          />
+        
+        <ButtonAuth 
+          :label="isLoading ? 'Creating account...' : 'Create account'"
+          :buttonStyle="isFormValid && !isLoading ? 'light' : 'disabled'"
+          @click="handleSignup"
+        />
       </ul>
       
       <ul v-else key="success-message" class="list">
@@ -390,33 +374,40 @@ li.strength {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  > .bar {
-    height: 4px;
-    background: var(--input-border);
-    border-radius: 2px;
-    overflow: hidden;
-    > .fill {
-      height: 100%;
-      transition: width var(--transition-smooth), background-color var(--transition-smooth);
-      &.weak {
-        background: var(--error-border);
-      }
-      &.medium {
-        background: var(--warning-border);
-      }
-      &.strong {
-        background: var(--success-border);
-      }
-    }
-  }
-  > .text {
+}
+
+li.strength > .bar {
+  height: 4px;
+  background: var(--input-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+li.strength > .bar > .fill {
+  height: 100%;
+  transition: width var(--transition-smooth), background-color var(--transition-smooth);
+}
+
+li.strength > .bar > .fill.weak {
+  background: var(--error-border);
+}
+
+li.strength > .bar > .fill.medium {
+  background: var(--warning-border);
+}
+
+li.strength > .bar > .fill.strong {
+  background: var(--success-border);
+}
+
+li.strength > .text {
   font-size: var(--font-sm);
   font-family: 'mono';
   text-transform: uppercase;
   color: var(--details);
   margin: 0;
-  }
 }
+
 ul.options {
   margin: var(--space-lg) 0;
   display: flex;
@@ -424,9 +415,6 @@ ul.options {
   gap: var(--space-md);
 }
 
-
-
-/* Same transition animations as AuthMain */
 .auth-fade-enter-active {
   transition: all var(--transition-smooth);
 }

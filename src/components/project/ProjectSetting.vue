@@ -4,13 +4,18 @@ import InputNormal from '@/components/input/InputNormal.vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
 import CollaboratorsList from '@/components/collaborator/CollaboratorsList.vue'
 import PlanSelector from '@/components/project/ProjectSubscription.vue'
-import { useProjectStore } from '@/stores/projects'
-import { useTeamStore } from '@/stores/team'
 import { validateUrl, checkUrlAvailability} from '@/utils/urlValidation.js'
 
-const props = defineProps(['project'])
-const projectStore = useProjectStore()
-const teamStore = useTeamStore()
+const props = defineProps({
+  project: {
+    type: Object,
+    required: true
+  },
+  userStore: {
+    type: Object,
+    default: null
+  }
+})
 
 // URL validation state
 const urlValidation = ref({ isValid: true, errors: [], warnings: [] })
@@ -23,9 +28,8 @@ const domainValidation = ref({ isValid: true, errors: [], warnings: [] })
 const domainStatus = ref({ verified: false, message: '' })
 const isCheckingDomain = ref(false)
 
-// Team data for CollaboratorsList
-const collaborators = computed(() => teamStore.getAllCollaborators())
-const projects = computed(() => projectStore.projects || [])
+// Get projects from user store for URL validation
+const allProjects = computed(() => props.userStore?.projects || [])
 
 // Computed URL status
 const urlStatus = computed(() => {
@@ -42,7 +46,7 @@ const urlStatus = computed(() => {
 })
 
 // Watch URL changes for validation
-watch(() => props.project.settings.url, (newUrl) => {
+watch(() => props.project.settings?.url, (newUrl) => {
   if (newUrl) {
     validateProjectUrl(newUrl)
   } else {
@@ -53,7 +57,7 @@ watch(() => props.project.settings.url, (newUrl) => {
 }, { immediate: true })
 
 // Watch domain changes for validation
-watch(() => props.project.settings.customDomain, (newDomain) => {
+watch(() => props.project.settings?.customDomain, (newDomain) => {
   if (newDomain) {
     validateCustomDomain(newDomain)
   } else {
@@ -67,14 +71,14 @@ function validateProjectUrl(url) {
   urlValidation.value = validateUrl(url)
   
   if (urlValidation.value.isValid) {
-    // Check availability
+    // Check availability against other projects
     isCheckingUrl.value = true
     
     // Simulate API delay (replace with actual API call later)
     setTimeout(() => {
       urlAvailability.value = checkUrlAvailability(
         urlValidation.value.cleanUrl, 
-        projectStore.projects.filter(p => p.id !== props.project.id)
+        allProjects.value.filter(p => p.id !== props.project.id)
       )
       
       // Generate suggestions if not available
@@ -146,7 +150,6 @@ function validateDomain(domain) {
 
 function copyToClipboard(text) {
   navigator.clipboard.writeText(text).then(() => {
-    // Could add a toast notification here
     console.log('Copied to clipboard:', text)
   }).catch(err => {
     console.error('Failed to copy:', err)
@@ -154,7 +157,7 @@ function copyToClipboard(text) {
 }
 
 function getUrlStatusType() {
-  if (!props.project.settings.url) return null
+  if (!props.project.settings?.url) return null
   if (isCheckingUrl.value) return 'loading'
   if (!urlValidation.value.isValid) return 'error'
   if (!urlAvailability.value.available) return 'error'
@@ -163,7 +166,7 @@ function getUrlStatusType() {
 }
 
 function getUrlStatusMessage() {
-  if (!props.project.settings.url) return ''
+  if (!props.project.settings?.url) return ''
   if (isCheckingUrl.value) return 'Checking availability...'
   if (!urlValidation.value.isValid) return urlValidation.value.errors[0]
   if (!urlAvailability.value.available) return urlAvailability.value.message
@@ -172,7 +175,7 @@ function getUrlStatusMessage() {
 }
 
 function getDomainStatusType() {
-  if (!props.project.settings.customDomain) return null
+  if (!props.project.settings?.customDomain) return null
   if (isCheckingDomain.value) return 'loading'
   if (!domainValidation.value.isValid) return 'error'
   if (domainStatus.value.verified) return 'success'
@@ -181,7 +184,7 @@ function getDomainStatusType() {
 }
 
 function getDomainStatusMessage() {
-  if (!props.project.settings.customDomain) return ''
+  if (!props.project.settings?.customDomain) return ''
   if (isCheckingDomain.value) return 'Verifying domain...'
   if (!domainValidation.value.isValid) return domainValidation.value.errors[0]
   if (domainStatus.value.verified) return 'Domain verified and connected'
@@ -189,62 +192,24 @@ function getDomainStatusMessage() {
   return ''
 }
 
-// Team management functions
-function updateCollaborator(collaboratorId, collaboratorData) {
-  const { name, email, selectedProjects } = collaboratorData
-  
-  // Update account info
-  teamStore.addAccountInfo(collaboratorId, { name, email })
-  
-  // Get current projects and update
-  const currentProjects = teamStore.getProjectsByCollaborator(collaboratorId)
-  
-  // Remove from projects not selected
-  currentProjects.forEach(projectId => {
-    if (!selectedProjects.includes(projectId)) {
-      teamStore.removeCollaboratorFromProject(projectId, collaboratorId)
-    }
-  })
-  
-  // Add to newly selected projects
-  selectedProjects.forEach(projectId => {
-    if (!currentProjects.includes(projectId)) {
-      teamStore.addCollaboratorToProject(projectId, collaboratorId)
-    }
-  })
-  
-  console.log('Collaborator updated:', { name, email, projects: selectedProjects })
-}
-
-function removeCollaborator(collaboratorId) {
-  // Remove from all projects
-  const projects = teamStore.getProjectsByCollaborator(collaboratorId)
-  projects.forEach(projectId => {
-    teamStore.removeCollaboratorFromProject(projectId, collaboratorId)
-  })
-  
-  // Remove account info
-  teamStore.removeAccountInfo(collaboratorId)
-  
-  console.log('Collaborator removed:', collaboratorId)
-}
-
-function getProjectsByCollaborator(collaboratorId) {
-  return teamStore.getProjectsByCollaborator(collaboratorId)
-}
-
 // Initialize project settings if they don't exist
-if (!props.project.settings.hasOwnProperty('protected')) {
+if (props.project.settings && !props.project.settings.hasOwnProperty('protected')) {
   props.project.settings.protected = false
 }
-if (!props.project.settings.hasOwnProperty('password')) {
+if (props.project.settings && !props.project.settings.hasOwnProperty('password')) {
   props.project.settings.password = ''
 }
-if (!props.project.settings.hasOwnProperty('requireEmail')) {
+if (props.project.settings && !props.project.settings.hasOwnProperty('requireEmail')) {
   props.project.settings.requireEmail = false
 }
-if (!props.project.settings.hasOwnProperty('customDomain')) {
+if (props.project.settings && !props.project.settings.hasOwnProperty('customDomain')) {
   props.project.settings.customDomain = ''
+}
+if (props.project.settings && !props.project.settings.hasOwnProperty('url')) {
+  props.project.settings.url = ''
+}
+if (props.project.settings && !props.project.settings.hasOwnProperty('published')) {
+  props.project.settings.published = false
 }
 </script>
 
@@ -267,8 +232,6 @@ if (!props.project.settings.hasOwnProperty('customDomain')) {
     />
     
     <ul class="items">
-
-      
       <div v-if="props.project.settings.customDomain && domainValidation.isValid && !isCheckingDomain" class="domain-status">
         <!-- DNS Instructions -->
         <div class="dns-instructions">
@@ -330,31 +293,23 @@ if (!props.project.settings.hasOwnProperty('customDomain')) {
       />
     </ul>
 
-      <PlanSelector
-        :project="props.project"
-      />
+    <PlanSelector
+      :project="props.project"
+    />
 
     <ul class="items">
+      <label>Project collaborators</label>
       <CollaboratorsList 
-        :projectId="props.project.id"
-        :collaborators="collaborators"
-        :projects="projects"
-        :get-projects-by-collaborator="getProjectsByCollaborator"
-        @update="updateCollaborator"
-        @remove="removeCollaborator"
+        :project-id="props.project.id"
+        :invitations="userStore?.invitations || []"
+        :projects="userStore?.projects || []"
+        :user-store="userStore"
       />
     </ul>
   </ul>
 </template>
 
 <style scoped>
-ul.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-
-}
-
 .domain-status {
   margin-top: var(--space-md);
   padding: var(--space-md);

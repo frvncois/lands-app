@@ -17,7 +17,25 @@ const props = defineProps({
 
 const emit = defineEmits(['button-config', 'close-modal'])
 
-// Use the generic CRUD composable for 'links'
+console.log('🔗 ContentLinks mounted, project:', props.project?.name)
+
+// Use the FIXED CRUD composable
+const {
+  isEditing,
+  savedItems: savedLinks,
+  currentItem: currentLink,
+  hasUnsavedChanges,
+  create,
+  save,
+  edit,
+  cancel,
+  markAsChanged,
+  reorder,
+  fixOrdering,
+  remove
+} = useContentCrud(props.project, 'links', props.editingIndex)
+
+// Input configuration for links
 const linksInputs = computed(() => [
   {
     type: 'upload',
@@ -38,26 +56,12 @@ const linksInputs = computed(() => [
     placeholder: 'https://'
   }
 ])
-const {
-  isEditing,
-  savedItems: savedLinks,
-  currentItem: currentLink,
-  hasUnsavedChanges,
-  create,
-  save,
-  edit,
-  cancel,
-  markAsChanged,
-  reorder,
-  fixOrdering,
-  remove
-} = useContentCrud(props.project, 'links', props.editingIndex)
 
-// Button configuration management
+// Button configuration
 function setupButtonConfig() {
   if (isEditing.value || hasUnsavedChanges.value) {
     emit('button-config', {
-      title: 'Save',
+      title: 'Save Link',
       action: handleSave,
       buttonStyle: 'light'
     })
@@ -67,25 +71,34 @@ function setupButtonConfig() {
       action: handleCreate
     })
   }
+  console.log('⚙️ Button config updated:', isEditing.value ? 'Save' : 'Add')
 }
 
 function handleCreate() {
-  create()
+  console.log('🆕 Creating new link...')
+  const newIndex = create()
+  console.log('✅ New link created at index:', newIndex)
   setupButtonConfig()
 }
 
 function handleSave() {
+  console.log('💾 Saving link...')
   if (save()) {
+    console.log('✅ Link saved successfully')
     setupButtonConfig()
+  } else {
+    console.error('❌ Failed to save link')
   }
 }
 
 function handleEdit(index) {
+  console.log('✏️ Editing link at index:', index)
   edit(index)
   setupButtonConfig()
 }
 
 function trackChanges() {
+  console.log('📝 Link data changed')
   markAsChanged()
   setupButtonConfig()
 }
@@ -93,43 +106,57 @@ function trackChanges() {
 function handleMoveUp(index) {
   if (index > 0) {
     reorder(index, index - 1)
-    console.log(`Moved link up from position ${index + 1} to ${index}`)
+    console.log(`🔼 Moved link up from ${index + 1} to ${index}`)
   }
 }
 
 function handleMoveDown(index) {
   if (index < savedLinks.value.length - 1) {
     reorder(index, index + 1)
-    console.log(`Moved link down from position ${index + 1} to ${index + 2}`)
+    console.log(`🔽 Moved link down from ${index + 1} to ${index + 2}`)
   }
 }
 
 function handleDelete() {
   if (confirm('Are you sure you want to delete this link?')) {
-    const currentIndex = props.project.links.findIndex(link => link === currentLink.value)
-    if (currentIndex !== -1) {
-      remove(currentIndex)
+    console.log('🗑️ Deleting current link')
+    // Find the current item in the saved links and remove it
+    const savedItemsArray = savedLinks.value
+    const currentItemToDelete = currentLink.value
+    const indexToDelete = savedItemsArray.findIndex(item => item === currentItemToDelete)
+    
+    if (indexToDelete !== -1) {
+      remove(indexToDelete)
       setupButtonConfig()
-      console.log('Link deleted')
+      console.log('✅ Link deleted')
+    } else {
+      console.error('❌ Could not find link to delete')
     }
   }
 }
 
 // Lifecycle
 onMounted(() => {
-  // Fix any ordering issues on mount
+  console.log('🔗 ContentLinks mounted, fixing ordering...')
   fixOrdering()
   setupButtonConfig()
+  
+  // Debug current state
+  console.log('📊 Current links count:', savedLinks.value.length)
+  console.log('📋 Current links:', savedLinks.value)
 })
 
 onUnmounted(() => {
   if (hasUnsavedChanges.value) {
-    cancel() // Cleanup on unmount
+    console.log('🧹 Cleaning up unsaved changes on unmount')
+    cancel()
   }
 })
 </script>
 
 <template>
+
+    <!-- MODAL for editing/creating -->
     <ModalContent
       v-if="isEditing && currentLink"
       :item="currentLink"
@@ -139,7 +166,7 @@ onUnmounted(() => {
       @save="handleSave"
     />
 
-    
+    <!-- LIST for viewing -->
     <ListCard
       v-else
       :items="savedLinks"
@@ -153,4 +180,5 @@ onUnmounted(() => {
       @move-up="handleMoveUp"
       @move-down="handleMoveDown"
     />
+
 </template>

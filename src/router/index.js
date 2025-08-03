@@ -2,7 +2,7 @@
 // Replace the existing router configuration:
 
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
+import { useUserStore } from '@/stores/user'
 import EditorView from '../views/EditorView.vue'
 import ProjectsView from '@/views/ProjectsView.vue'
 import AccountView from '@/views/AccountView.vue'
@@ -51,11 +51,11 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  const accountStore = useAccountStore()
+  const userStore = useUserStore()
   
   if (to.meta.requiresAuth) {
     // Enhanced validation with JWT check
-    const isValidSession = await accountStore.validateSession()
+    const isValidSession = await userStore.validateSession()
     
     if (!isValidSession) {
       console.log('❌ Invalid session, blocking route access')

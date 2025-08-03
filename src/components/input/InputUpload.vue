@@ -1,98 +1,172 @@
+<template>
+  <li class="upload-container">
+    <label v-if="label">{{ label }}</label>
+    
+    <!-- Upload area when no image -->
+    <div 
+      v-if="!hasImage && !isProcessing"
+      class="upload"
+      :class="{ dragging: isDragging }"
+      @click="triggerFileInput"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
+    >
+      <div class="upload-icon">📁</div>
+      <p>{{ isDragging ? 'Drop image here' : 'Click to upload image' }}</p>
+    </div>
+    
+    <!-- Processing state -->
+    <div v-if="isProcessing" class="upload processing">
+      <div class="loading">Processing...</div>
+    </div>
+    
+    <!-- Preview when image exists -->
+    <div v-if="hasImage && !isProcessing" class="preview" @click="triggerFileInput">
+      <img :src="modelValue" alt="Preview"/>
+      <button @click="clearImage" type="button" title="Remove image">×</button>
+    </div>
+    
+    <!-- Error state -->
+    <div v-if="error" class="error">
+      <p>{{ error }}</p>
+    </div>
+    
+    <!-- Hidden file input -->
+    <input
+      ref="fileInput"
+      type="file"
+      accept="image/*"
+      @change="handleFileChange"
+      style="display: none;"
+    />
+  </li>
+</template>
+
 <script setup>
-import UploadIcon from '@/assets/icons/UploadIcon.vue'
-import { ref, computed, onUnmounted, watch } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
+import { imageStorage } from '@/utils/imageStorage.js'
+
+// Use defineModel for proper Vue 3 two-way binding
+const modelValue = defineModel()
 
 const props = defineProps({
-  modelValue: String,
-  label: String
+  label: String,
+  field: String, // field name (img, coverImage, etc.)
+  maxSize: {
+    type: Number,
+    default: 5 * 1024 * 1024 // 5MB
+  }
 })
 
-const emit = defineEmits(['update:modelValue'])
+// Try to get context from parent (project ID, item info)
+const projectId = inject('projectId', null)
+const itemType = inject('itemType', 'unknown')
+const itemId = inject('itemId', Date.now())
 
-const previewUrl = ref('')
 const fileInput = ref(null)
 const isDragging = ref(false)
 const isProcessing = ref(false)
+const error = ref('')
+const imageId = ref(null)
 
-// Display either the existing base64 image or new preview
-const displayImage = computed(() => {
-  return previewUrl.value || props.modelValue
+const hasImage = computed(() => {
+  return !!modelValue.value && modelValue.value.length > 0
 })
 
-// Debug logging
-watch(() => props.modelValue, (newValue, oldValue) => {
-  console.log('📸 InputUpload modelValue changed:', {
-    old: oldValue ? 'has value' : 'empty',
-    new: newValue ? 'has value' : 'empty',
-    preview: previewUrl.value ? 'has preview' : 'no preview'
-  })
+// Watch for external image ID and load from IndexedDB
+watch(() => modelValue.value, async (newValue) => {
+  if (newValue && newValue.startsWith('img_')) {
+    // This is an image ID, load from IndexedDB
+    try {
+      const imageData = await imageStorage.getImage(newValue)
+      if (imageData) {
+        // Update with actual base64 data for display
+        modelValue.value = imageData
+      }
+    } catch (error) {
+      console.error('❌ Failed to load image from IndexedDB:', error)
+    }
+  }
 }, { immediate: true })
 
 function triggerFileInput() {
-  console.log('🔍 Triggering file input...')
-  if (fileInput.value) {
-    fileInput.value.click()
-  } else {
-    console.error('❌ File input ref not found')
-  }
+  fileInput.value?.click()
 }
 
-function handleFileChange(e) {
-  console.log('📁 File input changed:', e.target.files)
-  const file = e.target.files[0]
-  if (!file) {
-    console.log('❌ No file selected')
+async function handleFileChange(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  // Basic validation
+  if (!file.type.startsWith('image/')) {
+    error.value = 'Please select an image file'
     return
   }
 
-  console.log('📄 File details:', {
-    name: file.name,
-    size: file.size,
-    type: file.type
-  })
+  if (file.size > props.maxSize) {
+    error.value = `Image must be smaller than ${Math.round(props.maxSize / 1024 / 1024)}MB`
+    return
+  }
 
+  error.value = ''
   isProcessing.value = true
 
-  // Clean up previous object URL
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value)
-  }
-
-  // Create object URL for immediate preview
-  previewUrl.value = URL.createObjectURL(file)
-  console.log('🖼️ Created preview URL:', previewUrl.value)
-
-  // Convert to base64 for storage
-  const reader = new FileReader()
-  reader.onload = () => {
-    console.log('✅ File converted to base64, length:', reader.result.length)
-    emit('update:modelValue', reader.result)
-    // Clear preview URL since we now have base64
-    URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = ''
+  try {
+    // Convert to base64
+    const base64Data = await fileToBase64(file)
+    
+    // Save to IndexedDB and get image ID
+    if (projectId) {
+      const savedImageId = await imageStorage.saveImage(
+        projectId,
+        itemType,
+        itemId,
+        props.field || 'img',
+        base64Data
+      )
+      
+      imageId.value = savedImageId
+      console.log('✅ Image saved to IndexedDB with ID:', savedImageId)
+    }
+    
+    // Update model with base64 for immediate display
+    modelValue.value = base64Data
+    
+  } catch (err) {
+    error.value = 'Upload failed'
+    console.error('❌ Upload error:', err)
+  } finally {
     isProcessing.value = false
+    e.target.value = ''
   }
-  reader.onerror = () => {
-    console.error('❌ FileReader error:', reader.error)
-    isProcessing.value = false
-  }
-  reader.readAsDataURL(file)
+}
 
-  // Clear the input so the same file can be selected again
-  e.target.value = ''
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => resolve(e.target.result)
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsDataURL(file)
+  })
 }
 
 function clearImage(event) {
-  console.log('🗑️ Clearing image...')
-  event.stopPropagation() // Prevent triggering file input
-  emit('update:modelValue', '')
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = ''
+  event.stopPropagation()
+  
+  // Delete from IndexedDB if we have an image ID
+  if (imageId.value) {
+    imageStorage.deleteImage(imageId.value)
+      .then(() => console.log('🗑️ Image deleted from IndexedDB'))
+      .catch(err => console.error('❌ Failed to delete image:', err))
   }
+  
+  modelValue.value = ''
+  imageId.value = null
+  error.value = ''
 }
 
-// Drag and drop handlers
+// Drag and drop handlers (same as before)
 function handleDragOver(event) {
   event.preventDefault()
   isDragging.value = true
@@ -109,175 +183,106 @@ function handleDrop(event) {
   
   const files = event.dataTransfer.files
   if (files.length > 0) {
-    const file = files[0]
-    if (file.type.startsWith('image/')) {
-      // Simulate file input event
-      const fakeEvent = {
-        target: {
-          files: [file],
-          value: ''
-        }
-      }
-      handleFileChange(fakeEvent)
-    } else {
-      console.warn('⚠️ File is not an image:', file.type)
-    }
+    handleFileChange({ target: { files, value: '' } })
   }
 }
-
-// Clean up object URL when component unmounts
-onUnmounted(() => {
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value)
-  }
-})
 </script>
-
-<template>
-  <li class="upload-container">
-    <label>{{ label }}</label>
-    
-    <!-- Upload area - only show when no image -->
-    <div 
-      v-if="!displayImage" 
-      class="upload" 
-      :class="{ 
-        dragging: isDragging,
-        processing: isProcessing 
-      }"
-      @click="triggerFileInput"
-      @dragover="handleDragOver"
-      @dragleave="handleDragLeave"
-      @drop="handleDrop"
-    >
-      <UploadIcon />
-      <p v-if="!isProcessing">{{ isDragging ? 'Drop image here' : 'Add an image' }}</p>
-      <p v-else>Processing...</p>
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        @change="handleFileChange"
-        style="display: none;"
-      />
-    </div>
-    
-    <!-- Preview area - show when image exists -->
-    <div 
-      v-if="displayImage" 
-      class="preview" 
-      @click="triggerFileInput"
-    >
-      <img :src="displayImage" alt="Preview"/>
-      <button @click="clearImage" type="button" title="Remove image">×</button>
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        @change="handleFileChange"
-        style="display: none;"
-      />
-    </div>
-    
-  </li>
-</template>
 
 <style scoped>
 .upload-container {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  position: relative;
 }
 
-.upload {
+.upload, .preview {
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-rg);
-  align-items: center;
-  justify-content: center;
-  aspect-ratio: 16 / 9;
   border: 1px dashed var(--border);
-  background-color: var(--bg);
   border-radius: var(--radius-md);
-  transition: all var(--transition-smooth);
   padding: var(--space-lg);
   min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background: var(--input-bg);
 }
 
-.upload:hover,
-.upload.dragging {
-  background: var(--card);
-  border-color: var(--focus);
-  border-style: solid;
+.upload:hover, .upload.dragging {
+  border-color: var(--primary);
+  background: var(--primary-light);
 }
 
 .upload.processing {
+  border-style: solid;
   opacity: 0.7;
-  cursor: wait;
+}
+
+.upload-icon {
+  font-size: 2rem;
+  margin-bottom: var(--space-sm);
 }
 
 .upload p {
-  font-family: 'mono';
-  text-transform: uppercase;
+  color: var(--text-secondary);
   font-size: var(--font-sm);
-  color: var(--details);
-  margin: 0;
   text-align: center;
-}
-
-.upload svg {
-  height: 2em;
-  width: 2em;
-  color: var(--details);
+  margin: 0;
 }
 
 .preview {
   position: relative;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: all var(--transition-smooth);
-  min-height: 120px;
-}
-
-.preview:hover {
-  border-color: var(--focus);
-  box-shadow: var(--shadow-md);
+  border-style: solid;
+  border-color: var(--success);
+  padding: 0;
 }
 
 .preview img {
-  height: 100%;
   width: 100%;
+  height: 100%;
+  max-height: 200px;
   object-fit: cover;
-  display: block;
+  border-radius: var(--radius-md);
 }
 
 .preview button {
-  padding: var(--space-xs) var(--space-sm);
-  color: white;
-  background: rgba(0, 0, 0, 0.7);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
   position: absolute;
-  right: var(--space-sm);
-  top: var(--space-sm);
-  font-size: var(--font-lg);
-  line-height: 1;
-  transition: all var(--transition-smooth);
+  top: 8px;
+  right: 8px;
   width: 24px;
   height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
 }
 
 .preview button:hover {
-  background: rgba(255, 0, 0, 0.8);
-  transform: scale(1.1);
+  background: #ff4444;
+  color: white;
+}
+
+.error {
+  color: var(--error);
+  font-size: var(--font-sm);
+  text-align: center;
+}
+
+.loading {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+label {
+  font-weight: 500;
+  color: var(--text);
+  font-size: var(--font-sm);
 }
 </style>

@@ -1,15 +1,32 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useProjectStore } from '@/stores/projects'
+import { useUserStore } from '@/stores/user'
 import { useAlertStore } from '@/stores/alert'
 import ProjectType from '@/components/project/ProjectType.vue'
 import ProjectBand from '@/components/project/ProjectBand.vue'
 import ProjectThemes from '@/components/project/ProjectThemes.vue'
 import ButtonMain from '../button/ButtonMain.vue'
 
+const props = defineProps({
+  userId: {
+    type: String,
+    default: null
+  },
+  userProfile: {
+    type: Object,
+    default: () => ({})
+  },
+  userStore: {
+    type: Object,
+    default: null
+  }
+})
+
 const router = useRouter()
-const projectStore = useProjectStore()
+
+// Use userStore from props (passed from parent) or import directly
+const userStore = props.userStore || useUserStore()
 const alertStore = useAlertStore()
 const emit = defineEmits(['project-created', 'cancel'])
 
@@ -71,25 +88,34 @@ async function handleCreateProject(data) {
   alertStore.showUpdating('Creating your project...')
   
   try {
-    const result = await projectStore.create(data.name, data.design?.theme, data.type)
+    // Create project via user store
+    const result = await userStore.createProject({
+      name: data.name,
+      description: data.description || '',
+      type: data.type,
+      design: data.design || {},
+      url_slug: data.url_slug || ''
+    })
     
     if (result.success) {
-      const projectId = result.data.id
+      const projectId = result.projectId || result.data?.id
       console.log('✅ Project created with ID:', projectId)
       
       // Apply fetched data if available
       if (projectId && data.fetchedData) {
-        const project = projectStore.projects.find(p => p.id === projectId)
+        const project = userStore.projects.find(p => p.id === projectId)
         if (project) {
           console.log('🔧 Applying fetched data to new project:', project.name)
           project.description = data.fetchedData.description || project.description
           
           if (data.fetchedData.releases?.length > 0) {
+            project.releases = project.releases || []
             project.releases.push(...data.fetchedData.releases)
             console.log('📀 Added releases:', data.fetchedData.releases.length)
           }
           
           if (data.fetchedData.socials?.length > 0) {
+            project.socials = project.socials || []
             project.socials.push(...data.fetchedData.socials)
             console.log('🔗 Added socials:', data.fetchedData.socials.length)
           }
@@ -174,6 +200,7 @@ function getCurrentStepComponent() {
       <component
         :is="getCurrentStepComponent()"
         :project-data="projectData"
+        :user-store="userStore"
         @project-type-selected="handleProjectTypeSelected"
         @project-data-updated="handleProjectDataUpdated"
         @continue-to-themes="handleContinueToThemes"

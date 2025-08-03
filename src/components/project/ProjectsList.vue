@@ -1,20 +1,28 @@
 <!-- ProjectsList: Secure project listing with optimized operations -->
 <script setup>
 import { ref, computed, onErrorCaptured } from 'vue'
-import { useProjectStore } from '@/stores/projects'
 import { useRouter } from 'vue-router'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 import ButtonMore from '@/components/button/ButtonMore.vue'
 import AccountStatus from '@/components/alert/AccountStatus.vue'
 import { formatRelativeTime } from '@/utils/time.js'
 
-const projectStore = useProjectStore()
+const props = defineProps({
+  projects: {
+    type: Array,
+    default: () => []
+  },
+  userStore: {
+    type: Object,
+    default: null
+  }
+})
+
 const router = useRouter()
 const isDeleting = ref(null)
 const operationError = ref(null)
 
-const projects = computed(() => projectStore.projects || [])
-const hasProjects = computed(() => projects.value.length > 0)
+const hasProjects = computed(() => props.projects.length > 0)
 
 onErrorCaptured((error, instance, info) => {
   operationError.value = `Operation failed: ${error.message}`
@@ -38,6 +46,7 @@ async function handleMoreAction(projectId, { action }) {
         await handleViewLive(projectId)
         break
       case 'analytics':
+        // TODO: Implement analytics
         break
       case 'duplicate':
         await duplicateProject(projectId)
@@ -52,50 +61,64 @@ async function handleMoreAction(projectId, { action }) {
 }
 
 async function handleViewLive(projectId) {
-  const project = projects.value.find(p => p.id === projectId)
+  const project = props.projects.find(p => p.id === projectId)
   if (!project) throw new Error('Project not found')
   
   if (project.settings?.url) {
-    window.open(`https://${project.settings.url}`, '_blank')
+    window.open(`https://${project.settings.url}.lands.dev`, '_blank')
   } else {
     throw new Error('No live URL configured')
   }
 }
 
 async function duplicateProject(id) {
-  const project = projects.value.find(p => p.id === id)
+  if (!props.userStore) {
+    throw new Error('User store not available')
+  }
+
+  const project = props.projects.find(p => p.id === id)
   if (!project) throw new Error('Project not found')
   
   const duplicateName = `${project.name} (Copy)`
-  const result = await projectStore.create(duplicateName, project.design?.theme, project.projectType)
   
-  if (!result.success) {
-    throw new Error(result.error || 'Duplication failed')
-  }
-  
-  // Copy project data securely
-  const newProject = projects.value.find(p => p.id === result.projectId)
-  if (newProject) {
-    Object.assign(newProject, {
+  try {
+    const result = await props.userStore.createProject({
+      name: duplicateName,
       description: project.description,
+      type: project.projectType || project.type,
+      design: { ...project.design },
+      // Copy content but reset settings
       links: [...(project.links || [])],
       socials: [...(project.socials || [])],
       posts: [...(project.posts || [])],
       releases: [...(project.releases || [])],
       shows: [...(project.shows || [])],
       merch: [...(project.merch || [])],
-      design: { ...project.design },
       settings: { 
         ...project.settings, 
         published: false,
         url: ''
       }
     })
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Duplication failed')
+    }
+    
+    console.log('✅ Project duplicated successfully')
+    
+  } catch (error) {
+    console.error('❌ Duplicate project error:', error)
+    throw error
   }
 }
 
 async function deleteProject(id) {
-  const project = projects.value.find(p => p.id === id)
+  if (!props.userStore) {
+    throw new Error('User store not available')
+  }
+
+  const project = props.projects.find(p => p.id === id)
   if (!project) throw new Error('Project not found')
   
   const confirmed = confirm(`Delete "${project.name}"? This cannot be undone.`)
@@ -104,10 +127,16 @@ async function deleteProject(id) {
   isDeleting.value = id
   
   try {
-    const result = await projectStore.deleteProject(id)
+    const result = await props.userStore.deleteProject(id)
     if (!result.success) {
       throw new Error(result.error || 'Deletion failed')
     }
+    
+    console.log('✅ Project deleted successfully')
+    
+  } catch (error) {
+    console.error('❌ Delete project error:', error)
+    throw error
   } finally {
     isDeleting.value = null
   }
@@ -124,8 +153,9 @@ const getPublicationStatus = (project) => project.settings?.published ? 'Publish
 
 const getProjectUrl = (project) => {
   if (project.settings?.customDomain) return project.settings.customDomain
-  if (project.url_slug) return `lands.app/${project.url_slug}`
-  return `lands.app/${project.name.toLowerCase().replace(/\s+/g, '-')}`
+  if (project.settings?.url) return `${project.settings.url}.lands.dev`
+  if (project.url_slug) return `${project.url_slug}.lands.dev`
+  return `${project.name.toLowerCase().replace(/\s+/g, '-')}.lands.dev`
 }
 </script>
 
@@ -252,4 +282,12 @@ li.project {
   }
 }
 
+li.empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--details);
+  font-family: 'mono';
+  text-transform: uppercase;
+  font-size: var(--font-sm);
+}
 </style>

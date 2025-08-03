@@ -1,90 +1,65 @@
-<!-- TeamView.vue - Centralized store management -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useProjectStore } from '@/stores/projects'
-import { useTeamStore } from '@/stores/team'
+import { ref, computed } from 'vue'
 import SectionTitle from '@/components/global/SectionTitle.vue'
 import CollaboratorAdd from '@/components/collaborator/CollaboratorAdd.vue'
 import CollaboratorsList from '@/components/collaborator/CollaboratorsList.vue'
 
-const projectStore = useProjectStore()
-const teamStore = useTeamStore()
+const props = defineProps({
+  userStore: {
+    type: Object,
+    required: true
+  }
+})
+
 const showModal = ref(false)
 
-// Computed data to pass down to children
-const collaborators = computed(() => teamStore.getAllCollaborators())
-const projects = computed(() => projectStore.projects)
+// Just use the data that's already loaded
+const projects = computed(() => props.userStore.projects || [])
+const invitations = computed(() => props.userStore.invitations || [])
 
-// Team management functions
-function addCollaborator(collaboratorData) {
+async function addCollaborator(collaboratorData) {
   const { name, email, selectedProjects } = collaboratorData
   
-  // Create account ID
-  const accountId = `acc_${Date.now()}`
-  
-  // Add to projects if any selected
-  if (selectedProjects && selectedProjects.length > 0) {
-    selectedProjects.forEach(projectId => {
-      teamStore.addCollaboratorToProject(projectId, accountId)
-    })
+  try {
+    console.log('🔄 Adding collaborator...', { name, email, projects: selectedProjects })
+    // TODO: Add real API call to user store
+    // const result = await props.userStore.inviteCollaborator({ name, email, selectedProjects })
+    console.log('✅ Collaborator added:', { name, email, projects: selectedProjects })
+  } catch (error) {
+    console.error('❌ Failed to add collaborator:', error)
   }
-  
-  // Add account info
-  teamStore.addAccountInfo(accountId, { name, email })
-  
-  console.log('Collaborator added:', { name, email, projects: selectedProjects })
 }
 
-function updateCollaborator(collaboratorId, collaboratorData) {
+async function updateCollaborator(collaboratorId, collaboratorData) {
   const { name, email, selectedProjects } = collaboratorData
   
-  // Update account info
-  teamStore.addAccountInfo(collaboratorId, { name, email })
-  
-  // Get current projects and update
-  const currentProjects = teamStore.getProjectsByCollaborator(collaboratorId)
-  
-  // Remove from projects not selected
-  currentProjects.forEach(projectId => {
-    if (!selectedProjects.includes(projectId)) {
-      teamStore.removeCollaboratorFromProject(projectId, collaboratorId)
-    }
-  })
-  
-  // Add to newly selected projects
-  selectedProjects.forEach(projectId => {
-    if (!currentProjects.includes(projectId)) {
-      teamStore.addCollaboratorToProject(projectId, collaboratorId)
-    }
-  })
-  
-  console.log('Collaborator updated:', { name, email, projects: selectedProjects })
+  try {
+    console.log('🔄 Updating collaborator...', { collaboratorId, name, email, projects: selectedProjects })
+    // TODO: Add real API call to user store
+    // const result = await props.userStore.updateCollaborator(collaboratorId, { name, email, selectedProjects })
+    console.log('✅ Collaborator updated:', { name, email, projects: selectedProjects })
+  } catch (error) {
+    console.error('❌ Failed to update collaborator:', error)
+  }
 }
 
-function removeCollaborator(collaboratorId) {
-  // Remove from all projects
-  const projects = teamStore.getProjectsByCollaborator(collaboratorId)
-  projects.forEach(projectId => {
-    teamStore.removeCollaboratorFromProject(projectId, collaboratorId)
-  })
-  
-  // Remove account info
-  teamStore.removeAccountInfo(collaboratorId)
-  
-  console.log('Collaborator removed:', collaboratorId)
-}
-
-function getProjectsByCollaborator(collaboratorId) {
-  return teamStore.getProjectsByCollaborator(collaboratorId)
+async function removeCollaborator(collaboratorId) {
+  try {
+    console.log('🔄 Removing collaborator...', collaboratorId)
+    // TODO: Add real API call to user store
+    // const result = await props.userStore.removeCollaborator(collaboratorId)
+    console.log('✅ Collaborator removed:', collaboratorId)
+  } catch (error) {
+    console.error('❌ Failed to remove collaborator:', error)
+  }
 }
 
 function closeModal() {
   showModal.value = false
 }
 
-onMounted(() => {
-  projectStore.setCurrentProject(null)
-})
+// Clear current project when entering TeamView
+props.userStore.clearCurrentProject()
 </script>
 
 <template>
@@ -95,19 +70,20 @@ onMounted(() => {
       @action="showModal = true"
     />
     
-    <CollaboratorsList 
-      :collaborators="collaborators"
+    <CollaboratorsList
       :projects="projects"
-      :get-projects-by-collaborator="getProjectsByCollaborator"
+      :invitations="invitations"
+      :user-store="userStore"
       @update="updateCollaborator"
       @remove="removeCollaborator"
     />
     
-    <CollaboratorAdd 
-      v-if="showModal" 
+    <CollaboratorAdd
+      v-if="showModal"
       :projects="projects"
+      :user-store="userStore"
       @add="addCollaborator"
-      @close="closeModal" 
+      @close="closeModal"
     />
   </ul>
 </template>

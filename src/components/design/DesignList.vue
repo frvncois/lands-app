@@ -21,7 +21,6 @@ const props = defineProps(['project'])
         description="Join thousands of creators"
         buttonLabel="Learn more"
         buttonStyle="light"
-        @click="openSignupModal"
     />
     </li>
   </ul>

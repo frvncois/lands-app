@@ -1,6 +1,5 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-
 import AuthHeader from './AuthHeader.vue'
 import AuthLogin from './AuthLogin.vue'
 import AuthJoin from './AuthJoin.vue'
@@ -8,6 +7,13 @@ import AuthLostPassword from './AuthLostPassword.vue'
 import AuthSetPassword from './AuthSetPassword.vue'
 import AuthCover from './AuthCover.vue'
 
+// Accept userStore as prop from App.vue
+const props = defineProps({
+  userStore: {
+    type: Object,
+    required: true
+  }
+})
 
 const showLogin = ref(true)
 const currentView = ref('login')
@@ -101,25 +107,29 @@ onUnmounted(() => {
       @toggle="toggleAuth"
     />
 
-    <!-- Main Content with Transitions -->
+    <!-- Pass userStore to all auth components -->
     <transition name="auth-fade" mode="out-in">
       <AuthLogin 
         v-if="currentView === 'login'" 
-        key="login" 
+        key="login"
+        :user-store="props.userStore"
         @go-to-lost-password="goToLostPassword"
       />
       <AuthJoin 
         v-else-if="currentView === 'join'" 
-        key="join" 
+        key="join"
+        :user-store="props.userStore"
       />
       <AuthLostPassword 
         v-else-if="currentView === 'lost-password'" 
-        key="lost-password" 
+        key="lost-password"
+        :user-store="props.userStore"
         @go-back-to-login="goBackToLogin"
       />
       <AuthSetPassword 
         v-else-if="currentView === 'set-password'" 
-        key="set-password" 
+        key="set-password"
+        :user-store="props.userStore"
         @go-back-to-login="goBackToLogin"
       />
     </transition>
@@ -133,6 +143,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Same styles as before */
 ul.auth {
   width: 33vw;
   background: var(--nav);
@@ -163,7 +174,6 @@ footer:hover p {
   opacity: 1;
 }
 
-/* Smooth transitions between auth components */
 .auth-fade-enter-active {
   transition: all var(--transition-smooth);
 }

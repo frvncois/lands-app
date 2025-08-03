@@ -1,6 +1,6 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
-import { useAccountStore } from '@/stores/account'
+import { useUserStore } from '@/stores/user'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectsIcon from '@/assets/icons/ProjectsIcon.vue'
 import IntegrationsIcon from '@/assets/icons/IntegrationsIcon.vue'
@@ -8,13 +8,38 @@ import TeamIcon from '@/assets/icons/TeamIcon.vue'
 import AccountIcon from '@/assets/icons/AccountIcon.vue'
 import LogoutIcon from '@/assets/icons/LogoutIcon.vue'
 
+const props = defineProps({
+  user: {
+    type: Object,
+    default: null
+  },
+  profile: {
+    type: Object,
+    default: null
+  },
+  projects: {
+    type: Array,
+    default: () => []
+  },
+  currentProject: {
+    type: Object,
+    default: null
+  },
+  userStore: {
+    type: Object,
+    default: null
+  }
+})
+
 const router = useRouter()
 const route = useRoute()
-const accountStore = useAccountStore()
+
+// Use userStore from props (passed from App.vue) or import directly
+const userStore = props.userStore || useUserStore()
 
 async function handleLogout() {
   try {
-    await accountStore.signOut()
+    await userStore.signOut()
   } catch (error) {
     console.error('Logout failed:', error)
     router.push('/')
