@@ -1,64 +1,95 @@
 <script setup>
-import { onMounted, onUnmounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import ListCard from '@/components/global/ListCard.vue'
 import ModalContent from '@/components/global/ModalContent.vue'
-import { useContentCrud } from '@/composables/useContentCrud.js'
+import { useAlertStore } from '@/stores/alert'
 
 const props = defineProps({
   project: {
     type: Object,
     required: true
   },
-  editingIndex: {
-    type: Number,
-    default: undefined
+  userStore: {
+    type: Object,
+    required: true
   }
 })
 
-const emit = defineEmits(['button-config', 'close-modal'])
+const emit = defineEmits(['button-config', 'close-modal', 'save-project'])
 
-// Use the generic CRUD composable for 'merch'
-const {
-  isEditing,
-  savedItems: savedMerch,
-  currentItem: currentMerch,
-  hasUnsavedChanges,
-  create,
-  save,
-  edit,
-  cancel,
-  markAsChanged,
-  reorder,
-  fixOrdering,
-  remove
-} = useContentCrud(props.project, 'merch', props.editingIndex)
+console.log('🛍️ ContentMerch mounted, project:', props.project?.name)
+
+// Import alert store
+const alertStore = useAlertStore()
+
+// DIRECT STORE ACCESS - Get the actual store project object
+const storeProject = computed(() => {
+  const projectId = props.project.id
+  return props.userStore.projects.find(p => p.id === projectId)
+})
+
+// Get merch array directly from store - REACTIVE ACCESS
+const projectMerch = computed(() => {
+  return storeProject.value?.merch || []
+})
+
+// Helper function to update merch in store
+function updateMerchInStore(newMerch) {
+  if (storeProject.value) {
+    storeProject.value.merch = newMerch
+    console.log('📝 STORE Project merch updated:', newMerch.length, 'items')
+  }
+}
+
+// UI state
+const isEditing = ref(false)
+const editingIndex = ref(-1)
+const currentMerch = ref(null)
 
 // Dynamic inputs configuration for merch
 const merchInputs = computed(() => {
   const baseInputs = [
     {
       type: 'upload',
-      field: 'img',
+      field: 'image',
       label: 'Cover',
       placeholder: 'Merch cover image'
     },
     {
       type: 'text',
-      field: 'title',
-      label: 'Title',
+      field: 'name',
+      label: 'Product Name',
       placeholder: 'Product name'
     },
     {
       type: 'textarea',
-      field: 'details',
-      label: 'Details',
+      field: 'description',
+      label: 'Description',
       placeholder: 'Product description, sizes, materials, etc...'
     },
     {
-      type: 'links',
-      field: 'links',
-      label: 'Links',
-      placeholder: 'Add purchase links, store info, etc.'
+      type: 'text',
+      field: 'price',
+      label: 'Price',
+      placeholder: 'e.g., 25.00'
+    },
+    {
+      type: 'text',
+      field: 'currency',
+      label: 'Currency',
+      placeholder: 'e.g., USD'
+    },
+    {
+      type: 'text',
+      field: 'shop_url',
+      label: 'Shop URL',
+      placeholder: 'Purchase link'
+    },
+    {
+      type: 'boolean',
+      field: 'in_stock',
+      label: 'In Stock',
+      details: 'Is this item currently available for purchase?'
     },
     {
       type: 'boolean',
@@ -95,117 +126,241 @@ const merchInputs = computed(() => {
   return baseInputs
 })
 
-// Button configuration management
+// Create new merch
+function handleCreate() {
+  const newMerch = {
+    id: `merch_${Date.now()}`,
+    name: '',
+    description: '',
+    price: 0,
+    currency: 'USD',
+    image: '',
+    shop_url: '',
+    in_stock: true,
+    sizes: [],
+    hidden: false,
+    protected: false,
+    requireEmail: false,
+    password: '',
+    status: 'public',
+    order: projectMerch.value.length + 1,
+    created_at: new Date().toISOString()
+  }
+  
+  currentMerch.value = newMerch
+  editingIndex.value = -1 // -1 for new items
+  isEditing.value = true
+  
+  console.log('✨ Creating new merch')
+  setupButtonConfig()
+}
+
+// Edit existing merch
+function handleEdit(index) {
+  if (projectMerch.value[index]) {
+    currentMerch.value = { ...projectMerch.value[index] } // Create copy
+    editingIndex.value = index
+    isEditing.value = true
+    
+    console.log('✏️ Editing merch at index:', index)
+    setupButtonConfig()
+  }
+}
+
+// Save merch
+function handleSave() {
+  if (!currentMerch.value) return
+  
+  const currentMerchArray = [...projectMerch.value] // Get current array
+  const merchTitle = currentMerch.value.name || 'Untitled Merch'
+  const isNewMerch = editingIndex.value === -1
+  
+  // Set merch status based on settings
+  if (currentMerch.value.hidden) {
+    currentMerch.value.status = 'hidden'
+  } else if (currentMerch.value.requireEmail) {
+    currentMerch.value.status = 'exclusive'
+  } else {
+    currentMerch.value.status = 'public'
+  }
+  
+  if (isNewMerch) {
+    // Adding new merch - ensure proper timestamps
+    currentMerch.value.created_at = currentMerch.value.created_at || new Date().toISOString()
+    currentMerchArray.push(currentMerch.value)
+    console.log('✅ New merch added to store')
+  } else {
+    // Updating existing merch - add updated timestamp
+    currentMerch.value.updated_at = new Date().toISOString()
+    currentMerchArray[editingIndex.value] = currentMerch.value
+    console.log('✅ Merch updated in store with updated_at timestamp')
+  }
+  
+  // Update store with new array
+  updateMerchInStore(currentMerchArray)
+  
+  // Reset editing state FIRST
+  isEditing.value = false
+  editingIndex.value = -1
+  currentMerch.value = null
+  
+  setupButtonConfig()
+  
+  // Show alerts AFTER state reset with delay to ensure DOM is updated
+  setTimeout(() => {
+    if (isNewMerch) {
+      alertStore.showSuccess(`Merch "${merchTitle}" created successfully`)
+    } else {
+      alertStore.showSuccess(`Merch "${merchTitle}" updated successfully`)
+    }
+  }, 100)
+}
+
+// Cancel editing
+function handleCancel() {
+  isEditing.value = false
+  editingIndex.value = -1
+  currentMerch.value = null
+  
+  console.log('❌ Cancelled merch editing')
+  setupButtonConfig()
+}
+
+// Delete merch (can be called from ListCard or ModalContent)
+function handleDelete(index) {
+  // If called from ModalContent during editing, use editingIndex
+  const deleteIndex = typeof index === 'number' ? index : editingIndex.value
+  
+  if (deleteIndex >= 0 && projectMerch.value[deleteIndex]) {
+    const currentMerchArray = [...projectMerch.value]
+    const deletedMerch = currentMerchArray[deleteIndex]
+    const merchTitle = deletedMerch.name || 'Untitled Merch'
+    
+    currentMerchArray.splice(deleteIndex, 1)
+    updateMerchInStore(currentMerchArray)
+    
+    console.log('🗑️ Merch deleted from store:', merchTitle)
+    
+    // Show success alert
+    alertStore.showSuccess(`Merch "${merchTitle}" deleted successfully`)
+    
+    // If we were editing this item, close the modal
+    if (isEditing.value && editingIndex.value === deleteIndex) {
+      isEditing.value = false
+      editingIndex.value = -1
+      currentMerch.value = null
+    }
+    
+    setupButtonConfig()
+  }
+}
+
+// Move merch up
+function handleMoveUp(index) {
+  if (index > 0) {
+    const currentMerchArray = [...projectMerch.value]
+    const temp = currentMerchArray[index]
+    currentMerchArray[index] = currentMerchArray[index - 1]
+    currentMerchArray[index - 1] = temp
+    
+    // Update order values
+    currentMerchArray[index].order = index + 1
+    currentMerchArray[index - 1].order = index
+    
+    updateMerchInStore(currentMerchArray)
+    console.log('⬆️ Merch moved up')
+  }
+}
+
+// Move merch down
+function handleMoveDown(index) {
+  if (index < projectMerch.value.length - 1) {
+    const currentMerchArray = [...projectMerch.value]
+    const temp = currentMerchArray[index]
+    currentMerchArray[index] = currentMerchArray[index + 1]
+    currentMerchArray[index + 1] = temp
+    
+    // Update order values
+    currentMerchArray[index].order = index + 1
+    currentMerchArray[index + 1].order = index + 2
+    
+    updateMerchInStore(currentMerchArray)
+    console.log('⬇️ Merch moved down')
+  }
+}
+
+// Track changes in modal
+function trackChanges() {
+  console.log('📝 Merch data changed')
+  setupButtonConfig()
+}
+
+// Handle modal close
+function handleClose() {
+  handleCancel()
+  emit('close-modal')
+}
+
+// Button configuration
 function setupButtonConfig() {
-  if (isEditing.value || hasUnsavedChanges.value) {
+  if (isEditing.value) {
     emit('button-config', {
-      title: 'Save',
+      title: editingIndex.value === -1 ? 'Save Merch' : 'Update Merch',
       action: handleSave,
       buttonStyle: 'light'
     })
   } else {
     emit('button-config', {
       title: 'Add Merch',
-      action: handleCreate
+      action: handleCreate,
+      buttonStyle: 'light'
     })
   }
+  
+  console.log('⚙️ Button config updated:', isEditing.value ? 'Save/Update' : 'Add')
 }
 
-function handleCreate() {
-  create()
-  setupButtonConfig()
-}
-
-function handleSave() {
-  if (save()) {
-    // Set merch status based on settings
-    if (currentMerch.value) {
-      if (currentMerch.value.hidden) {
-        currentMerch.value.status = 'hidden'
-      } else if (currentMerch.value.requireEmail) {
-        currentMerch.value.status = 'exclusive'
-      } else {
-        currentMerch.value.status = 'public'
-      }
-    }
-    setupButtonConfig()
-  }
-}
-
-function handleEdit(index) {
-  edit(index)
-  setupButtonConfig()
-}
-
-function handleCancel() {
-  cancel()
-  setupButtonConfig()
-}
-
-function trackChanges() {
-  markAsChanged()
-  setupButtonConfig()
-}
-
-function handleMoveUp(index) {
-  if (index > 0) {
-    reorder(index, index - 1)
-    console.log(`Moved merch up from position ${index + 1} to ${index}`)
-  }
-}
-
-function handleMoveDown(index) {
-  if (index < savedMerch.value.length - 1) {
-    reorder(index, index + 1)
-    console.log(`Moved merch down from position ${index + 1} to ${index + 2}`)
-  }
-}
-
-function handleDelete() {
-  if (confirm('Are you sure you want to delete this merch?')) {
-    const currentIndex = props.project.merch.findIndex(merch => merch === currentMerch.value)
-    if (currentIndex !== -1) {
-      remove(currentIndex)
-      setupButtonConfig()
-      console.log('Merch deleted')
-    }
-  }
-}
-
-// Lifecycle
 onMounted(() => {
-  // Fix any ordering issues on mount
-  fixOrdering()
   setupButtonConfig()
-})
-
-onUnmounted(() => {
-  if (hasUnsavedChanges.value) {
-    cancel() // Cleanup on unmount
-  }
+  console.log('🛍️ ContentMerch component mounted')
+  console.log('📊 Current merch count:', projectMerch.value.length)
 })
 </script>
 
 <template>
-    <ModalContent
-      v-if="isEditing && currentMerch"
-      :item="currentMerch"
-      :inputs="merchInputs"
-      @input="trackChanges"
-      @delete="handleDelete"
-    />
-    
+  <!-- Overview Mode: Show all merch -->
+  <ul v-if="!isEditing" class="items">
     <ListCard
-      v-else
-      :items="savedMerch"
-      content-type="merch"
-      title-field="title"
-      subtitle-field="details"
-      image-field="img"
-      empty-title="Untitled Merch"
-      :show-image="true"
+      v-for="(merch, index) in projectMerch"
+      :key="`merch-${merch.id || index}`"
+      :item="merch"
+      :index="index"
+      :items="projectMerch"
+      :contentType="'merch'"
+      :titleField="'name'"
+      :subtitleField="'description'"
+      :imageField="'image'"
       @edit="handleEdit"
       @move-up="handleMoveUp"
       @move-down="handleMoveDown"
+      @delete="handleDelete"
     />
+    
+    <li v-if="projectMerch.length === 0" class="empty">
+      <h3>No merch added yet</h3>
+      <p>Click "Add Merch" to get started</p>
+    </li>
+  </ul>
+
+  <!-- Edit Mode: Show form -->
+  <ModalContent
+    v-if="isEditing"
+    :item="currentMerch"
+    :inputs="merchInputs"
+    @input="trackChanges"
+    @save="handleSave"
+    @delete="() => handleDelete()"
+    @cancel="handleCancel"
+    @close="handleClose"
+  />
 </template>

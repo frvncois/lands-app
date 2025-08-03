@@ -116,21 +116,7 @@ async function saveProjectData() {
   }
 }
 
-// Content data validation
-function getContentData(contentId) {
-  if (!validProject.value || !contentId) return []
-  
-  const dataKey = contentComponents.find(c => c.id === contentId)?.dataKey
-  if (!dataKey) return null
-  
-  return projectData.value[dataKey] || []
-}
 
-// Get count of items for each content type
-function getContentCount(contentId) {
-  const data = getContentData(contentId)
-  return Array.isArray(data) ? data.length : 0
-}
 </script>
 
 <template>
