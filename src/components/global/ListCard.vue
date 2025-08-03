@@ -3,6 +3,14 @@ import ButtonMain from '@/components/button/ButtonMain.vue'
 import { formatRelativeTime } from '@/utils/time.js'
 
 const props = defineProps({
+  item: {
+    type: Object,
+    required: true
+  },
+  index: {
+    type: Number,
+    required: true
+  },
   items: {
     type: Array,
     required: true
@@ -34,106 +42,107 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'move-up', 'move-down'])
+const emit = defineEmits(['edit', 'move-up', 'move-down', 'delete'])
 
-function getFieldValue(item, field) {
-  return item[field] || ''
+function getFieldValue(field) {
+  return props.item[field] || ''
 }
 
-function handleEdit(index) {
-  emit('edit', index)
+function handleEdit() {
+  emit('edit', props.index)
 }
 
-function handleMoveUp(index) {
-  emit('move-up', index)
+function handleMoveUp() {
+  emit('move-up', props.index)
 }
 
-function handleMoveDown(index) {
-  emit('move-down', index)
+function handleMoveDown() {
+  emit('move-down', props.index)
+}
+
+function handleDelete() {
+  emit('delete', props.index)
 }
 </script>
 
 <template>
-  <ul v-if="items.length > 0" class="items">
-    <li 
-      v-for="(item, index) in items" 
-      :key="`${contentType}-${item.order}-${index}`" 
-      class="item"
-    >
-      <div v-if="showImage" class="cover">
-        <img 
-          v-if="getFieldValue(item, imageField)" 
-          :src="getFieldValue(item, imageField)" 
-          :alt="`${contentType} cover`" 
-          class="link-cover" 
-        />
+  <!-- FIXED: Render single item only, no v-for loop -->
+  <li class="item">
+    <div v-if="showImage" class="cover">
+      <img 
+        v-if="getFieldValue(imageField)" 
+        :src="getFieldValue(imageField)" 
+        :alt="`${contentType} cover`" 
+        class="link-cover" 
+      />
+    </div>
+    <div class="content">
+      <div>
+        <h3>{{ getFieldValue(titleField) || emptyTitle }}</h3>
+        <h4 v-if="getFieldValue(subtitleField)">
+          {{ getFieldValue(subtitleField) }}
+        </h4>
       </div>
-      <div class="content">
-        <div>
-          <h3>{{ getFieldValue(item, titleField) || emptyTitle }}</h3>
-          <h4 v-if="getFieldValue(item, subtitleField)">
-            {{ getFieldValue(item, subtitleField) }}
-          </h4>
-        </div>
-        <div class="actions">
-          <ButtonMain label="Edit" buttonStyle="light" @click="handleEdit(index)"/>
-        </div>
+      <div class="actions">
+        <ButtonMain label="Edit" buttonStyle="light" @click="handleEdit"/>
       </div>
-      <div class="details">
-        <div class="timestamps">
-          <label v-if="!item.updatedAt && item.createdAt">
-            Created {{ formatRelativeTime(item.createdAt) }}
-          </label>
-          <label v-if="item.updatedAt">
-            Updated {{ formatRelativeTime(item.updatedAt) }}
-          </label>
-        </div>
-        <div class="reorder-controls">
-          <button 
-            type="button"
-            @click="handleMoveUp(index)"
-            :disabled="index === 0"
-            class="reorder-btn"
-            title="Move up"
-          >
-            ↑
-          </button>
-          <button 
-            type="button"
-            @click="handleMoveDown(index)"
-            :disabled="index === items.length - 1"
-            class="reorder-btn"
-            title="Move down"
-          >
-            ↓
-          </button>
-        </div>
+    </div>
+    <div class="details">
+      <div class="timestamps">
+        <label v-if="item.updated_at">
+          Updated {{ formatRelativeTime(item.updated_at) }}
+        </label>
+        <label v-else-if="item.created_at">
+          Created {{ formatRelativeTime(item.created_at) }}
+        </label>
+        <label v-else>
+          Just created
+        </label>
       </div>
-    </li>
-  </ul>
-  
-  <li v-else class="empty">
-    <p>No {{ contentType }} added yet</p>
+      <div class="reorder-controls">
+        <button 
+          type="button"
+          @click="handleMoveUp"
+          :disabled="index === 0"
+          class="reorder-btn"
+          title="Move up"
+        >
+          ↑
+        </button>
+        <button 
+          type="button"
+          @click="handleMoveDown"
+          :disabled="index === items.length - 1"
+          class="reorder-btn"
+          title="Move down"
+        >
+          ↓
+        </button>
+      </div>
+    </div>
   </li>
 </template>
 
 <style scoped>
-
 li.item {
       display: flex;
       flex-direction: column;
       border-radius: var(--radius-md);
-      gap: var(--space-rg);
       border: 1px solid var(--border);
       background: var(--card);
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition-smooth);
       
       & .cover {
         aspect-ratio: 16 / 9;
         border-radius: var(--radius-rg);
         border: 1px solid var(--border);
-        margin: var(--space-rg) var(--space-rg) 0 var(--space-rg);
+        margin: var(--space-md) var(--space-md) 0 var(--space-md);
         overflow: hidden;
         position: relative;
+        &:empty {
+          display: none;
+        }
         
         > img {
           position: absolute;
@@ -147,12 +156,12 @@ li.item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 var(--space-rg);
+        padding: var(--space-md);
         
         > div {
           display: flex;
           flex-direction: column;
-          gap: var(--space-sm);
+          gap: var(--space-xs);
           
           > h4 {
             font-size: var(--font-sm);
@@ -210,6 +219,10 @@ li.item {
             }
           }
         }
+      }
+
+      &:hover {
+        border: 1px solid var(--focus);
       }
 }
 </style>

@@ -1,23 +1,21 @@
 <template>
-  <li class="upload-container">
+  <li class="upload">
     <label v-if="label">{{ label }}</label>
     
-    <!-- Upload area when no image -->
     <div 
       v-if="!hasImage && !isProcessing"
-      class="upload"
+      class="area"
       :class="{ dragging: isDragging }"
       @click="triggerFileInput"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
     >
-      <div class="upload-icon">📁</div>
       <p>{{ isDragging ? 'Drop image here' : 'Click to upload image' }}</p>
     </div>
     
     <!-- Processing state -->
-    <div v-if="isProcessing" class="upload processing">
+    <div v-if="isProcessing" class="processing">
       <div class="loading">Processing...</div>
     </div>
     
@@ -189,100 +187,62 @@ function handleDrop(event) {
 </script>
 
 <style scoped>
-.upload-container {
+li.upload {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-}
+  > .area {
+    cursor: pointer;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-md);
+    background: var(--input);
+    aspect-ratio: 16/9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-smooth);
 
-.upload, .preview {
-  cursor: pointer;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-  padding: var(--space-lg);
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  background: var(--input-bg);
-}
-
-.upload:hover, .upload.dragging {
-  border-color: var(--primary);
-  background: var(--primary-light);
-}
-
-.upload.processing {
-  border-style: solid;
-  opacity: 0.7;
-}
-
-.upload-icon {
-  font-size: 2rem;
-  margin-bottom: var(--space-sm);
-}
-
-.upload p {
-  color: var(--text-secondary);
-  font-size: var(--font-sm);
-  text-align: center;
-  margin: 0;
-}
-
-.preview {
-  position: relative;
-  border-style: solid;
-  border-color: var(--success);
-  padding: 0;
-}
-
-.preview img {
-  width: 100%;
-  height: 100%;
-  max-height: 200px;
-  object-fit: cover;
-  border-radius: var(--radius-md);
-}
-
-.preview button {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.9);
-  color: #333;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.preview button:hover {
-  background: #ff4444;
-  color: white;
-}
-
-.error {
-  color: var(--error);
-  font-size: var(--font-sm);
-  text-align: center;
-}
-
-.loading {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-}
-
-label {
-  font-weight: 500;
-  color: var(--text);
-  font-size: var(--font-sm);
+    > p {
+      font-family: 'mono';
+      font-size: var(--font-sm);
+      text-transform: uppercase;
+      color: var(--details);
+    transition: all var(--transition-smooth);
+    }
+    &:hover {
+      border: 1px solid var(--focus);
+      > p {
+        color: var(--light);
+      }
+    }
+  }
+  > .preview {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    aspect-ratio: 16/9;
+    position: relative;
+    overflow: hidden;
+    > button {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      z-index: 2;
+      right: var(--space-rg);
+      top: var(--space-rg);
+      height: var(--space-md);
+      width: var(--space-md);
+      background: var(--remove-border);
+    }
+    > img {
+      position: absolute;
+      height: 100%;
+      width: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+  }
 }
 </style>

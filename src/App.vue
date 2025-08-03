@@ -168,7 +168,7 @@ onMounted(async () => {
   right: 0;
   width: 350px;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(0, 0, 0, 0.455);
   color: #00ff00;
   font-family: 'Courier New', monospace;
   font-size: 11px;

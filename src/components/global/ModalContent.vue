@@ -20,7 +20,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['input', 'delete', 'save'])
+const emit = defineEmits(['input', 'delete', 'save', 'cancel'])
 
 // Component mapping
 const inputComponents = {
@@ -33,51 +33,45 @@ const inputComponents = {
   date: InputDate
 }
 
-// Create LOCAL reactive copies of the data
+// Local reactive data
 const localData = ref({})
 
-// Initialize local data when component mounts
+// Initialize local data on mount
 onMounted(() => {
-  console.log('🔄 ModalContent: Initializing local data from item:', props.item)
-  
-  // Create a local copy of all the data
   localData.value = { ...props.item }
-  
-  console.log('✅ ModalContent: Local data initialized:', localData.value)
+  console.log('📝 ModalContent: Initialized with item data')
 })
 
-// Watch for external changes to the item
+// Watch for external item changes
 watch(() => props.item, (newItem) => {
-  console.log('🔄 ModalContent: Item changed externally:', newItem)
   localData.value = { ...newItem }
 }, { deep: true })
 
-// Watch local data changes and emit them back to parent
+// Watch local changes and sync back to parent
 watch(localData, (newData) => {
-  console.log('📝 ModalContent: Local data changed:', newData)
-  
-  // Update the original item with our local changes
   Object.assign(props.item, newData)
-  
-  // Emit the input event to notify parent
   emit('input')
 }, { deep: true })
 
+// Field update handler
 function handleFieldUpdate(field, value) {
-  console.log(`📝 ModalContent: Field ${field} updated to:`, value)
   localData.value[field] = value
 }
 
+// Action handlers
 function handleSave() {
-  console.log('💾 ModalContent: Save button clicked')
   emit('save')
 }
 
 function handleDelete() {
-  console.log('🗑️ ModalContent: Delete button clicked')
   emit('delete')
 }
 
+function handleCancel() {
+  emit('cancel')
+}
+
+// Get component by type
 function getInputComponent(type) {
   return inputComponents[type] || InputNormal
 }
@@ -110,12 +104,10 @@ function getInputComponent(type) {
         buttonStyle="light"
       />
     </li>
-    </ul>
+  </ul>
 </template>
 
 <style scoped>
-
-
 ul.item {
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -125,16 +117,18 @@ ul.item {
   display: flex;
   flex-direction: column;
 }
+
 li.form {
   padding: var(--space-md);
   gap: var(--space-md);
   display: flex;
   flex-direction: column;
 }
+
 li.actions {
   display: flex;
   border-top: 1px solid var(--border);
-  padding: var(--space-rg);
+  padding: var(--space-md);
   background: var(--nav);
 }
 </style>

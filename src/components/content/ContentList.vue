@@ -134,7 +134,6 @@ function getContentCount(contentId) {
 </script>
 
 <template>
-  <!-- Overview - show all content types -->
   <ul class="list" v-if="currentView === 'overview' && validProject">
     <ul class="items">
       <label>Content</label>
@@ -150,9 +149,6 @@ function getContentCount(contentId) {
         <div class="content">
           <h3>{{ content.name }}</h3>
           <p>{{ content.description }}</p>
-          <span class="count" v-if="getContentCount(content.id) > 0">
-            {{ getContentCount(content.id) }} items
-          </span>
         </div>
         <div class="actions">
           <button>→</button>
@@ -177,14 +173,22 @@ function getContentCount(contentId) {
   </ul>
 
   <!-- Individual content type view -->
-  <ul class="content-view" v-else-if="currentView !== 'overview' && selectedContent && validProject">
-    <li class="header">
-      <button @click="goBackToOverview" class="back-button">← Back to Content</button>
-      <h2>{{ selectedContent.name }}</h2>
-      <p>{{ selectedContent.description }}</p>
+  <ul class="list" v-else-if="currentView !== 'overview' && selectedContent && validProject">
+    <li class="actions">  
+      <div class="title">
+        <button @click="goBackToOverview">←</button>
+        <h3>{{ selectedContent?.name }}</h3>
+      </div>
+      <div v-if="buttonConfig.title && buttonConfig.action" class="action">
+      <ButtonMain 
+        :label="buttonConfig.title"
+        :button-style="buttonConfig.buttonStyle"
+        @click="buttonConfig.action"
+      />
+      </div>
     </li>
     
-    <li class="content-component">
+
       <component 
         :is="getCurrentComponent()"
         :project="projectData"
@@ -193,16 +197,6 @@ function getContentCount(contentId) {
         @close-modal="handleCloseModal"
         @save-project="saveProjectData"
       />
-    </li>
-    
-    <!-- Action button if configured -->
-    <li v-if="buttonConfig.title && buttonConfig.action" class="actions">
-      <ButtonMain 
-        :label="buttonConfig.title"
-        :button-style="buttonConfig.buttonStyle"
-        @click="buttonConfig.action"
-      />
-    </li>
   </ul>
 
   <!-- Error state -->

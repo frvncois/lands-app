@@ -1,8 +1,7 @@
-// Fixed user.js store - Complete loadUserData function
+// User.js store with dummy data + localStorage persistence for changes
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { supabase } from '@/services/supabase.js'
-import { apiService } from '@/services/api.js'
 import { jwtDecode } from 'jwt-decode'
 
 export const useUserStore = defineStore('user', () => {
@@ -47,6 +46,105 @@ export const useUserStore = defineStore('user', () => {
   const isLoadingData = ref(false)
 
   // =====================================================
+  // LOCALSTORAGE PERSISTENCE HELPERS
+  // =====================================================
+
+  const STORAGE_KEYS = {
+    PROJECTS: 'user_store_projects',
+    PROFILE: 'user_store_profile',
+    STATS: 'user_store_stats'
+  }
+
+  // Save projects to localStorage
+  function saveProjectsToStorage() {
+    try {
+      const projectsData = JSON.stringify(projects.value)
+      localStorage.setItem(STORAGE_KEYS.PROJECTS, projectsData)
+    } catch (error) {
+      console.error('❌ Failed to save projects to localStorage:', error)
+    }
+  }
+
+  // Save profile to localStorage
+  function saveProfileToStorage() {
+    try {
+      const profileData = JSON.stringify(profile.value)
+      localStorage.setItem(STORAGE_KEYS.PROFILE, profileData)
+      console.log('💾 Profile saved to localStorage')
+    } catch (error) {
+      console.error('❌ Failed to save profile to localStorage:', error)
+    }
+  }
+
+  // Save stats to localStorage
+  function saveStatsToStorage() {
+    try {
+      const statsData = JSON.stringify(stats.value)
+      localStorage.setItem(STORAGE_KEYS.STATS, statsData)
+      console.log('💾 Stats saved to localStorage')
+    } catch (error) {
+      console.error('❌ Failed to save stats to localStorage:', error)
+    }
+  }
+
+  // Load projects from localStorage
+  function loadProjectsFromStorage() {
+    try {
+      const savedProjects = localStorage.getItem(STORAGE_KEYS.PROJECTS)
+      if (savedProjects) {
+        const parsedProjects = JSON.parse(savedProjects)
+        console.log('📂 Found saved projects in localStorage:', parsedProjects.length)
+        return parsedProjects
+      }
+    } catch (error) {
+      console.error('❌ Failed to load projects from localStorage:', error)
+    }
+    return null
+  }
+
+  // Load profile from localStorage
+  function loadProfileFromStorage() {
+    try {
+      const savedProfile = localStorage.getItem(STORAGE_KEYS.PROFILE)
+      if (savedProfile) {
+        const parsedProfile = JSON.parse(savedProfile)
+        console.log('📂 Found saved profile in localStorage')
+        return parsedProfile
+      }
+    } catch (error) {
+      console.error('❌ Failed to load profile from localStorage:', error)
+    }
+    return null
+  }
+
+  // Load stats from localStorage
+  function loadStatsFromStorage() {
+    try {
+      const savedStats = localStorage.getItem(STORAGE_KEYS.STATS)
+      if (savedStats) {
+        const parsedStats = JSON.parse(savedStats)
+        console.log('📂 Found saved stats in localStorage')
+        return parsedStats
+      }
+    } catch (error) {
+      console.error('❌ Failed to load stats from localStorage:', error)
+    }
+    return null
+  }
+
+  // Clear all localStorage data
+  function clearAllStorage() {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.PROJECTS)
+      localStorage.removeItem(STORAGE_KEYS.PROFILE)
+      localStorage.removeItem(STORAGE_KEYS.STATS)
+      console.log('🧹 Cleared all localStorage data')
+    } catch (error) {
+      console.error('❌ Failed to clear localStorage:', error)
+    }
+  }
+
+  // =====================================================
   // COMPUTED PROPERTIES
   // =====================================================
   
@@ -83,7 +181,275 @@ export const useUserStore = defineStore('user', () => {
   })
 
   // =====================================================
-  // DATA LOADING
+  // WATCHERS FOR AUTO-SAVE
+  // =====================================================
+
+  // Watch projects for changes and auto-save
+  watch(projects, () => {
+    if (projects.value.length > 0) {
+      saveProjectsToStorage()
+    }
+  }, { deep: true })
+
+  // Watch profile for changes and auto-save
+  watch(profile, () => {
+    if (profile.value.id) {
+      saveProfileToStorage()
+    }
+  }, { deep: true })
+
+  // Watch stats for changes and auto-save
+  watch(stats, () => {
+    if (stats.value.total_projects > 0) {
+      saveStatsToStorage()
+    }
+  }, { deep: true })
+
+  // =====================================================
+  // DUMMY DATA FUNCTION (WITH PERSISTENCE CHECK)
+  // =====================================================
+
+  function loadDummyData() {
+    console.log('🎭 Loading dummy data for debugging...')
+    
+    // Check if we have saved data first
+    const savedProjects = loadProjectsFromStorage()
+    const savedProfile = loadProfileFromStorage()
+    const savedStats = loadStatsFromStorage()
+
+    if (savedProjects && savedProfile && savedStats) {
+      console.log('🔄 Restoring data from localStorage instead of dummy data')
+      projects.value = savedProjects
+      profile.value = savedProfile
+      stats.value = savedStats
+      return
+    }
+
+    console.log('📝 No saved data found, loading fresh dummy data')
+    
+    // Set dummy profile
+    profile.value = {
+      id: 'user_123',
+      first_name: 'John',
+      last_name: 'Doe',
+      email: user.value?.email || 'john.doe@example.com',
+      marketing_emails: true,
+      created_at: '2024-01-15T10:30:00Z',
+      updated_at: '2024-08-01T14:22:00Z'
+    }
+
+    // Set dummy projects
+    const dummyProjects = [
+      {
+        id: 'proj_001',
+        name: 'My Music Portfolio',
+        description: 'A showcase of my latest music releases and upcoming shows',
+        location: 'Los Angeles, CA',
+        coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800',
+        url_slug: 'my-music-portfolio',
+        owner_id: 'user_123',
+        user_role: 'owner',
+        owner_name: 'John Doe',
+        owner_email: user.value?.email || 'john.doe@example.com',
+        created_at: '2024-06-15T09:00:00Z',
+        updated_at: '2024-08-02T16:45:00Z',
+        settings: {
+          theme: 'dark',
+          animations: true,
+          analytics: false
+        },
+        design: {
+          backgroundColor: '#1a1a1a',
+          primaryColor: '#ff6b6b',
+          secondaryColor: '#4ecdc4',
+          fontFamily: 'Inter',
+          layout: 'modern'
+        },
+        links: [
+          {
+            id: 'link_001',
+            title: 'Latest Album on Spotify',
+            url: 'https://open.spotify.com/album/example',
+            description: 'Check out my newest release',
+            icon: 'spotify',
+            order: 1,
+            created_at: '2024-07-01T12:00:00Z'
+          },
+          {
+            id: 'link_002',
+            title: 'YouTube Music Videos',
+            url: 'https://youtube.com/@johndoe',
+            description: 'Watch my latest music videos',
+            icon: 'youtube',
+            order: 2,
+            created_at: '2024-07-02T14:30:00Z'
+          }
+        ],
+        socials: [
+          {
+            id: 'social_001',
+            platform: 'instagram',
+            username: '@johndoemusic',
+            url: 'https://instagram.com/johndoemusic',
+            followers: 15420,
+            order: 1
+          },
+          {
+            id: 'social_002',
+            platform: 'twitter',
+            username: '@johndoemusic',
+            url: 'https://twitter.com/johndoemusic',
+            followers: 8931,
+            order: 2
+          }
+        ],
+        contacts: [
+          {
+            id: 'contact_001',
+            type: 'email',
+            title: 'Booking',
+            url: 'booking@johndoe.com',
+            primary: true
+          },
+          {
+            id: 'contact_002',
+            type: 'phone',
+            title: 'Management',
+            url: '+1 (555) 123-4567',
+            primary: false
+          }
+        ],
+        socialLinks: [
+          {
+            id: 'social_link_001',
+            title: 'Instagram',
+            url: 'https://instagram.com/johndoemusic'
+          },
+          {
+            id: 'social_link_002',
+            title: 'Twitter',
+            url: 'https://twitter.com/johndoemusic'
+          }
+        ],
+        posts: [
+          {
+            id: 'post_001',
+            title: 'New Single Drop Tomorrow!',
+            content: 'Excited to share my latest single with you all. Stay tuned!',
+            type: 'announcement',
+            published: true,
+            created_at: '2024-08-01T10:00:00Z',
+            updated_at: '2024-08-01T10:00:00Z'
+          }
+        ],
+        releases: [
+          {
+            id: 'release_001',
+            title: 'Midnight Dreams',
+            type: 'single',
+            release_date: '2024-07-15',
+            cover_image: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=400',
+            streaming_links: {
+              spotify: 'https://open.spotify.com/track/example1',
+              apple_music: 'https://music.apple.com/us/album/example1',
+              youtube: 'https://youtube.com/watch?v=example1'
+            },
+            description: 'A dreamy electronic track perfect for late night listening'
+          }
+        ],
+        shows: [
+          {
+            id: 'show_001',
+            venue: 'The Echoplex',
+            city: 'Los Angeles',
+            state: 'CA',
+            country: 'USA',
+            date: '2024-08-15',
+            time: '20:00',
+            ticket_url: 'https://ticketmaster.com/example1',
+            price_range: '$25-35',
+            status: 'on_sale'
+          }
+        ],
+        merch: [
+          {
+            id: 'merch_001',
+            name: 'Midnight Dreams T-Shirt',
+            description: 'Official tour merch - black t-shirt with album artwork',
+            price: 25.00,
+            currency: 'USD',
+            image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400',
+            sizes: ['S', 'M', 'L', 'XL'],
+            in_stock: true,
+            shop_url: 'https://johndoemusic.bandcamp.com/merch/tshirt1'
+          }
+        ]
+      },
+      {
+        id: 'proj_002',
+        name: 'Side Project Band',
+        description: 'Collaborative project with other local musicians',
+        location: 'Nashville, TN',
+        coverImage: 'https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=800',
+        url_slug: 'side-project-band',
+        owner_id: 'user_456',
+        user_role: 'collaborator',
+        owner_name: 'Jane Smith',
+        owner_email: 'jane.smith@example.com',
+        created_at: '2024-05-20T11:15:00Z',
+        updated_at: '2024-07-30T09:20:00Z',
+        settings: {
+          theme: 'light',
+          animations: false,
+          analytics: true
+        },
+        design: {
+          backgroundColor: '#ffffff',
+          primaryColor: '#2c3e50',
+          secondaryColor: '#e74c3c',
+          fontFamily: 'Roboto',
+          layout: 'classic'
+        },
+        links: [],
+        socials: [],
+        contacts: [],
+        socialLinks: [],
+        posts: [],
+        releases: [],
+        shows: [],
+        merch: []
+      }
+    ]
+
+    projects.value = dummyProjects
+    
+    // Set dummy invitations
+    invitations.value = [
+      {
+        id: 'inv_001',
+        project_id: 'proj_003',
+        project_name: 'Jazz Collective',
+        inviter_name: 'Mike Johnson',
+        inviter_email: 'mike@jazzgroup.com',
+        role: 'collaborator',
+        status: 'pending',
+        created_at: '2024-08-01T13:00:00Z'
+      }
+    ]
+
+    // Set dummy stats
+    stats.value = {
+      total_projects: 2,
+      owned_projects: 1,
+      collaborated_projects: 1,
+      pending_invitations: 1
+    }
+
+    console.log('✅ Fresh dummy data loaded and will be auto-saved')
+  }
+
+  // =====================================================
+  // DATA LOADING (MODIFIED FOR DUMMY DATA + PERSISTENCE)
   // =====================================================
 
   async function loadUserData() {
@@ -101,61 +467,16 @@ export const useUserStore = defineStore('user', () => {
     dataLoading.value = true
     
     try {
-      console.log('🔄 Loading user data...')
+      console.log('🔄 Loading user data (DUMMY MODE + PERSISTENCE)...')
       
-      const response = await apiService.getUserData()
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      if (response.success) {
-        // Set profile
-        profile.value = response.data.profile
-        
-        // ✅ FIXED: Complete project mapping including ALL fields
-        projects.value = response.data.projects.map(project => ({
-          // Basic project info
-          id: project.id,
-          name: project.name,
-          description: project.description,
-          location: project.location,
-          coverImage: project.coverImage,
-          url_slug: project.url_slug,
-          
-          // Ownership info
-          owner_id: project.owner_id,
-          user_role: project.user_role,
-          owner_name: project.owner_name,
-          owner_email: project.owner_email,
-          
-          // Timestamps
-          created_at: project.created_at,
-          updated_at: project.updated_at,
-          
-          // Settings
-          settings: project.settings || {},
-          
-          // ✅ CRITICAL: Include design object for themes
-          design: project.design || {},
-          
-          // ✅ CRITICAL: Include all content arrays
-          links: project.links || [],
-          socials: project.socials || [],
-          contacts: project.contacts || [],
-          socialLinks: project.socialLinks || [],
-          posts: project.posts || [],
-          releases: project.releases || [],
-          shows: project.shows || [],
-          merch: project.merch || []
-        }))
-        
-        // Set invitations and stats
-        invitations.value = response.data.invitations
-        stats.value = response.data.stats
-        
-        console.log(`✅ Data loaded: ${profile.value.email}, ${stats.value.total_projects} projects`)
-        
-        return { success: true, data: response.data }
-      } else {
-        throw new Error(response.error || 'Failed to load user data')
-      }
+      // Load dummy data (which checks for saved data first)
+      loadDummyData()
+      
+      return { success: true, data: { profile: profile.value, projects: projects.value, invitations: invitations.value, stats: stats.value } }
+      
     } catch (err) {
       console.error('❌ Failed to load user data:', err)
       error.value = err.message
@@ -167,7 +488,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // =====================================================
-  // AUTHENTICATION
+  // AUTHENTICATION (UNCHANGED)
   // =====================================================
 
   async function initialize() {
@@ -211,6 +532,7 @@ export const useUserStore = defineStore('user', () => {
       switch (event) {
         case 'SIGNED_OUT':
           await clearAllData()
+          clearAllStorage() // Clear localStorage on logout
           break
           
         case 'SIGNED_IN':
@@ -258,7 +580,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // =====================================================
-  // AUTH METHODS
+  // AUTH METHODS (UNCHANGED)
   // =====================================================
 
   async function signUp(email, password, metadata = {}) {
@@ -332,6 +654,7 @@ export const useUserStore = defineStore('user', () => {
     
     try {
       await supabase.auth.signOut()
+      clearAllStorage() // Clear localStorage on sign out
       await clearAllData()
       console.log('✅ Sign out successful')
       return { success: true }
@@ -358,21 +681,22 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // =====================================================
-  // PROFILE METHODS
+  // PROFILE METHODS (MODIFIED FOR DUMMY DATA)
   // =====================================================
 
   async function updateProfile(updates) {
     if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
     
     try {
-      const response = await apiService.updateProfile(updates)
+      console.log('🎭 Updating profile (DUMMY MODE + PERSISTENCE):', updates)
       
-      if (response.success) {
-        Object.assign(profile.value, response.data)
-        return { success: true, data: response.data }
-      } else {
-        throw new Error(response.error || 'Failed to update profile')
-      }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Update dummy data (will auto-save via watcher)
+      Object.assign(profile.value, updates)
+      
+      return { success: true, data: profile.value }
     } catch (err) {
       error.value = err.message
       return { success: false, error: err.message }
@@ -380,7 +704,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // =====================================================
-  // PROJECT METHODS
+  // PROJECT METHODS (MODIFIED FOR DUMMY DATA + PERSISTENCE)
   // =====================================================
 
   async function createProject(projectData) {
@@ -389,40 +713,51 @@ export const useUserStore = defineStore('user', () => {
     loading.value = true
     
     try {
-      const response = await apiService.createProject(projectData)
+      console.log('🎭 Creating project (DUMMY MODE + PERSISTENCE):', projectData)
       
-      if (response.success) {
-        const newProject = {
-          id: response.data.id,
-          name: response.data.name,
-          description: response.data.description,
-          url_slug: response.data.url_slug,
-          owner_id: response.data.owner_id,
-          user_role: 'owner',
-          owner_name: fullName.value,
-          owner_email: userEmail.value,
-          created_at: response.data.created_at,
-          updated_at: response.data.updated_at,
-          settings: response.data.settings || {},
-          design: response.data.design || {},
-          links: [],
-          socials: [],
-          contacts: [],
-          socialLinks: [],
-          posts: [],
-          releases: [],
-          shows: [],
-          merch: []
-        }
-        
-        projects.value.unshift(newProject)
-        stats.value.total_projects++
-        stats.value.owned_projects++
-        
-        return { success: true, data: newProject, projectId: newProject.id }
-      } else {
-        throw new Error(response.error || 'Failed to create project')
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      const newProject = {
+        id: `proj_${Date.now()}`,
+        name: projectData.name,
+        description: projectData.description || '',
+        location: '',
+        coverImage: '',
+        url_slug: projectData.name.toLowerCase().replace(/\s+/g, '-'),
+        owner_id: user.value.id,
+        user_role: 'owner',
+        owner_name: fullName.value,
+        owner_email: userEmail.value,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        settings: {
+          theme: 'dark',
+          animations: true,
+          analytics: false
+        },
+        design: {
+          backgroundColor: '#1a1a1a',
+          primaryColor: '#ff6b6b',
+          secondaryColor: '#4ecdc4',
+          fontFamily: 'Inter',
+          layout: 'modern'
+        },
+        links: [],
+        socials: [],
+        contacts: [],
+        socialLinks: [],
+        posts: [],
+        releases: [],
+        shows: [],
+        merch: []
       }
+      
+      projects.value.unshift(newProject)
+      stats.value.total_projects++
+      stats.value.owned_projects++
+      
+      return { success: true, data: newProject, projectId: newProject.id }
     } catch (err) {
       error.value = err.message
       return { success: false, error: err.message }
@@ -435,16 +770,26 @@ export const useUserStore = defineStore('user', () => {
     if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
     
     try {
-      const response = await apiService.updateProject(projectId, updates)
+      console.log('🎭 Updating project (DUMMY MODE + PERSISTENCE):', projectId, updates)
       
-      if (response.success) {
-        const index = projects.value.findIndex(p => p.id === projectId)
-        if (index !== -1) {
-          projects.value[index] = { ...projects.value[index], ...response.data }
-        }
-        return { success: true, data: response.data }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      const index = projects.value.findIndex(p => p.id === projectId)
+      if (index !== -1) {
+        // Deep merge to preserve reactivity (will auto-save via watcher)
+        const currentProject = projects.value[index]
+        Object.keys(updates).forEach(key => {
+          if (updates[key] !== undefined) {
+            currentProject[key] = updates[key]
+          }
+        })
+        currentProject.updated_at = new Date().toISOString()
+        
+        console.log('✅ Project updated in store and will auto-save:', currentProject.name)
+        return { success: true, data: currentProject }
       } else {
-        throw new Error(response.error || 'Failed to update project')
+        throw new Error('Project not found')
       }
     } catch (err) {
       error.value = err.message
@@ -456,34 +801,44 @@ export const useUserStore = defineStore('user', () => {
     if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
     
     try {
-      const response = await apiService.deleteProject(projectId)
+      console.log('🎭 Deleting project (DUMMY MODE + PERSISTENCE):', projectId)
       
-      if (response.success) {
-        const index = projects.value.findIndex(p => p.id === projectId)
-        if (index !== -1) {
-          const deletedProject = projects.value[index]
-          projects.value.splice(index, 1)
-          
-          stats.value.total_projects--
-          if (deletedProject.user_role === 'owner') {
-            stats.value.owned_projects--
-          } else {
-            stats.value.collaborated_projects--
-          }
-        }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const index = projects.value.findIndex(p => p.id === projectId)
+      if (index !== -1) {
+        const deletedProject = projects.value[index]
+        projects.value.splice(index, 1)
         
-        if (currentProjectId.value === projectId) {
-          currentProjectId.value = null
+        stats.value.total_projects--
+        if (deletedProject.user_role === 'owner') {
+          stats.value.owned_projects--
+        } else {
+          stats.value.collaborated_projects--
         }
-        
-        return { success: true }
-      } else {
-        throw new Error(response.error || 'Failed to delete project')
       }
+      
+      if (currentProjectId.value === projectId) {
+        currentProjectId.value = null
+      }
+      
+      return { success: true }
     } catch (err) {
       error.value = err.message
       return { success: false, error: err.message }
     }
+  }
+
+  // =====================================================
+  // RESET FUNCTION FOR DEBUGGING
+  // =====================================================
+
+  function resetToFreshDummyData() {
+    console.log('🔄 Resetting to fresh dummy data...')
+    clearAllStorage()
+    loadDummyData()
+    console.log('✅ Reset complete - fresh dummy data loaded')
   }
 
   // =====================================================
@@ -551,10 +906,20 @@ export const useUserStore = defineStore('user', () => {
     updateProject,
     deleteProject,
     setCurrentProject,
-    clearCurrentProject
+    clearCurrentProject,
+    
+    // Debug methods
+    resetToFreshDummyData
   }
 }, {
   persist: {
-    paths: ['currentProjectId']
+    paths: ['currentProjectId'],
+    storage: localStorage,
+    beforeRestore: (context) => {
+      console.log('🔄 Restoring persisted store data...')
+    },
+    afterRestore: (context) => {
+      console.log('✅ Store data restored from localStorage')
+    }
   }
 })
