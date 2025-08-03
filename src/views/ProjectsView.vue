@@ -1,4 +1,3 @@
-<!-- ProjectsView: Main projects dashboard with secure project management -->
 <script setup>
 import { ref, onMounted, watch, computed, onErrorCaptured } from 'vue'
 import { useRouter } from 'vue-router'
@@ -19,6 +18,7 @@ const isLoading = ref(true)
 const isAuthenticated = computed(() => accountStore.isAuthenticated)
 const projects = computed(() => projectStore.projects || [])
 const hasProjects = computed(() => projects.value.length > 0)
+
 onErrorCaptured((error, instance, info) => {
   componentError.value = `Projects error: ${error.message}`
   return false
@@ -50,6 +50,10 @@ function handleProjectCreated() {
 }
 
 onMounted(async () => {
+  // Clear current project when entering ProjectsView
+  projectStore.clearCurrentProject()
+  console.log('🧹 ProjectsView mounted, current project cleared')
+  
   if (!isAuthenticated.value) {
     router.push('/')
     return

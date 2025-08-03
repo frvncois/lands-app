@@ -9,7 +9,10 @@
   --modal: rgba(10, 10, 10, 0.75);
   --modal-border: rgba(52, 52, 52, 0.559);
 
+  --cta: rgba(36, 36, 36, 0.75);
+
   --card: rgba(45, 45, 45, 0.75);
+  --type: rgba(51, 51, 51, 0.75);
   --border: rgba(84, 84, 84, 0.5);
   --border-light: rgba(151, 151, 151, 0.5);
   --focus: rgba(100, 100, 100, 0.751);
@@ -83,6 +86,8 @@
   --radius-rg: 0.5em;
   --radius-md: 1em;
   --radius-lg: 1.5em;
+  --radius-xl: 5em;
+  --radius-2xl: 6.5em;
 
   /* Font */
   --font-xs: 0.65em;
@@ -127,7 +132,6 @@ main {
 header {
  display: flex;
  justify-content: space-between;
- 
  .logo {
    display: flex;
    gap: var(--space-md);

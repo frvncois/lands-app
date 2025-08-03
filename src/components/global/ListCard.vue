@@ -54,7 +54,7 @@ function handleMoveDown(index) {
 </script>
 
 <template>
-  <ul v-if="items.length > 0" class="list">
+  <ul v-if="items.length > 0" class="items">
     <li 
       v-for="(item, index) in items" 
       :key="`${contentType}-${item.order}-${index}`" 
@@ -112,17 +112,12 @@ function handleMoveDown(index) {
     </li>
   </ul>
   
-  <ul v-else class="empty">
+  <li v-else class="empty">
     <p>No {{ contentType }} added yet</p>
-  </ul>
+  </li>
 </template>
 
 <style scoped>
-ul.list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
 
 li.item {
       display: flex;
@@ -216,13 +211,5 @@ li.item {
           }
         }
       }
-    }
-
-ul.empty {
-  text-align: center;
-  padding: var(--space-lg);
-  color: var(--details);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
 }
 </style>

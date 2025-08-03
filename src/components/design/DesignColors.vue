@@ -4,7 +4,6 @@ import InputColor from '@/components/input/InputColor.vue'
 import ColorsIcon from '@/assets/icons/ColorsIcon.vue'
 
 const props = defineProps(['project'])
-
 const isExpanded = ref(false)
 
 function toggleExpand() {
@@ -13,7 +12,7 @@ function toggleExpand() {
 </script>
 
 <template>
-  <ul class="item">
+  <ul class="item" :class="{ expanded: isExpanded }">
     <li @click="toggleExpand">
       <div class="icon">
         <ColorsIcon/>
@@ -29,25 +28,23 @@ function toggleExpand() {
     
     <!-- Second LI - Expandable content -->
     <li v-if="isExpanded" class="expandable-content">
-      <div class="color-inputs">
+      <ul class="form">
         <InputColor
           label="Background Color"
           description="Main background color for your theme"
           v-model="project.design.backgroundColor"
         />
-        
         <InputColor
           label="Accent Color"
           description="Primary color for links and highlights"
           v-model="project.design.accentColor"
         />
-        
         <InputColor
           label="Text Color"
           description="Main text color for readability"
           v-model="project.design.textColor"
         />
-      </div>
+      </ul>
     </li>
   </ul>
 </template>
@@ -61,9 +58,21 @@ ul.item {
   border: 1px solid var(--border);
   transition: all var(--transition-smooth);
   background: var(--card);
-      &:hover {
-      background-color: var(--dark-hover);
-    }
+  box-shadow: var(--shadow-sm);
+
+  &:hover {
+      background: var(--dark-hover);
+      transform: scale(1.01);
+      border: 1px solid var(--focus);
+  }
+  
+  
+  &.expanded {
+    border-color: var(--active-border);
+    background-color:  var(--dark-hover);
+    box-shadow: var(--shadow-md);
+      transform: scale(1.01);
+  }
 
   li {
     display: grid;
@@ -71,8 +80,7 @@ ul.item {
     align-items: center;
     gap: var(--space-rg);
     cursor: pointer;
-
-
+    
     > .icon {
       display: flex;
       align-items: center;
@@ -95,7 +103,7 @@ ul.item {
       }
     }
 
-   > .actions {
+    > .actions {
       display: flex;
       justify-content: flex-end;
       margin-right: var(--space-md);
@@ -107,13 +115,10 @@ ul.item {
     }
     
     &:hover {
-      
       > .actions > button {
-        transform: translateX(0.25em);
+        transform: rotate(90deg);
       }
     }
-
-
   }
 
   /* Expandable content styling */
@@ -136,7 +141,7 @@ ul.item {
   align-items: center;
   justify-content: space-between;
   padding: 0.5em 0;
-
+  
   input[type="color"] {
     width: 3em;
     height: 2.5em;
@@ -145,12 +150,12 @@ ul.item {
     cursor: pointer;
     background: none;
     transition: all 0.2s ease;
-
+    
     &:hover {
       border-color: var(--focus);
       transform: scale(1.05);
     }
-
+    
     &:focus {
       outline: none;
       border-color: var(--focus);

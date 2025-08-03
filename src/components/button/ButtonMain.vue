@@ -31,6 +31,7 @@ const afterContent = computed(() => props.after ? `"${props.after}"` : '""')
 button {
   padding: var(--space-rg) var(--space-md);
   white-space: nowrap;
+  box-shadow: var(--shadow-md);
   transition:
     background var(--transition-smooth),
     box-shadow var(--transition-smooth);
@@ -43,6 +44,16 @@ button {
     background: var(--light);
     color: var(--dark);
     border: 1px solid var(--light);
+    
+    &:hover {
+      background: var(--light-hover);
+      box-shadow: var(--shadow-md-hover);
+    }
+  }
+  &.current {
+    background: var(--true);
+    color: var(--true-text);
+    border: 1px solid var(--true-border);
     
     &:hover {
       background: var(--light-hover);

@@ -1,53 +1,39 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useAccountStore } from '@/stores/account'
 
-const accountStore = useAccountStore()
 const emit = defineEmits(['project-type-selected'])
+
+const selectedType = ref(null)
 
 const projectTypes = [
   {
     id: 'music-artist',
     name: 'Music Artist',
-    description: 'Solo artist, band, or musical group',
-    icon: '🎤',
-    features: ['Releases & Albums', 'Show Dates', 'Merchandise', 'Fan Links']
+    description: 'Band, musician, or music artist',
+    icon: '🎵'
   },
   {
-    id: 'label',
-    name: 'Label',
-    description: 'Record label or music company',
-    icon: '🏷️',
-    features: ['Artist Roster', 'Label Releases', 'Distribution', 'Contacts']
+    id: 'business',
+    name: 'Business',
+    description: 'Company, startup, or business',
+    icon: '🏢'
   },
   {
-    id: 'promoter',
-    name: 'Promoter',
-    description: 'Event promoter or booking agency',
-    icon: '📢',
-    features: ['Event Portfolio', 'Artist Booking', 'Venue Network', 'Promotion']
+    id: 'portfolio',
+    name: 'Portfolio',
+    description: 'Personal portfolio or showcase',
+    icon: '👤'
   },
   {
-    id: 'venue',
-    name: 'Venue',
-    description: 'Concert hall, club, or event space',
-    icon: '🏛️',
-    features: ['Event Calendar', 'Capacity Info', 'Technical Specs', 'Booking']
-  },
-  {
-    id: 'festival',
-    name: 'Festival',
-    description: 'Music festival or multi-day event',
-    icon: '🎪',
-    features: ['Lineup & Stages', 'Ticketing', 'Schedule', 'Sponsors']
+    id: 'event',
+    name: 'Event',
+    description: 'Conference, meetup, or event',
+    icon: '📅'
   }
 ]
 
-const selectedType = ref(null)
-
-// Computed property for dynamic title based on account status AND project count
 const pageTitle = computed(() => {
-  return accountStore.status === 'NewAccount' && accountStore.userProjects.length === 0
+  return selectedType.value 
     ? 'Create a project' 
     : 'Create a new project'
 })
@@ -65,21 +51,19 @@ function selectType(type) {
       <p>Select a type of project</p>
     </li>
     <ul class="items">
-    <li
-      v-for="type in projectTypes"
-      :key="type.id"
-      class="item"
-      :class="{ selected: selectedType?.id === type.id }"
-      @click="selectType(type)"
-    >
-    
-      <div class="icon">{{ type.icon }}</div>
-      <div class="content">
-        <h3>{{ type.name }}</h3>
-        <p>{{ type.description }}</p>
-      </div>
-
-    </li>
+      <li
+        v-for="type in projectTypes"
+        :key="type.id"
+        class="item"
+        :class="{ active: selectedType?.id === type.id }"
+        @click="selectType(type)"
+      >
+        <div class="icon">{{ type.icon }}</div>
+        <div class="content">
+          <h3>{{ type.name }}</h3>
+          <p>{{ type.description }}</p>
+        </div>
+      </li>
     </ul>
   </ul>
 </template>
@@ -98,7 +82,7 @@ ul.form {
 
   li.item {
     display: grid;
-    grid-template-columns: 0.15fr 1fr 0.15fr;
+    grid-template-columns: 0.15fr 1fr;
     align-items: center;
     gap: var(--space-rg);
     cursor: pointer;
@@ -130,24 +114,32 @@ ul.form {
         text-transform: uppercase;
         transition: color var(--transition-smooth);
       }
-    
+    }
 
-  }
- &:hover {
+    &.active {
+      background: var(--active);
+      border-color: var(--active-border);
+
+      > .content > p {
+        color: var(--light);
+      }
+
+      &:hover {
+        background: var(--active);
+        border-color: var(--active-border);
+      }
+    }
+
+    &:hover {
       background: var(--dark-hover);
       transform: scale(1.01);
       border-color: var(--focus);
       box-shadow: var(--shadow-md);
-      
-      > .actions > button {
-        transform: translateX(0.25em);
-      }
 
       > .content > p {
         color: var(--light);
       }
     }
   }
-  
 }
 </style>

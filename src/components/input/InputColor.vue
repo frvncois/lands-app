@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 
 const props = defineProps({
   label: {
@@ -33,10 +33,12 @@ watch(() => props.modelValue, (newValue) => {
 
 function togglePicker() {
   isExpanded.value = !isExpanded.value
+  console.log('Toggle picker:', isExpanded.value) // Debug
 }
 
 function closePicker() {
   isExpanded.value = false
+  console.log('Close picker') // Debug
 }
 
 // Handle hex input changes
@@ -76,12 +78,14 @@ function handleColorPickerClick(event) {
 }
 
 function handleMouseDown(event) {
+  event.preventDefault()
   isDragging.value = true
   handleColorPickerClick(event)
 }
 
 function handleMouseMove(event) {
   if (isDragging.value) {
+    event.preventDefault()
     handleColorPickerClick(event)
   }
 }
@@ -104,125 +108,132 @@ function hslToHex(h, s, l) {
 
 // Close picker when clicking outside
 function handleClickOutside(event) {
-  if (!event.target.closest('.color-picker-container')) {
+  // Check if click is outside the entire color picker container
+  const pickerContainer = event.target.closest('.color-picker-container')
+  if (!pickerContainer) {
     closePicker()
   }
+}
+
+// Cleanup function
+function cleanup() {
+  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', handleMouseUp)
 }
 
 // Add/remove global click listener
 watch(isExpanded, (expanded) => {
   if (expanded) {
-    document.addEventListener('click', handleClickOutside)
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
+    // Add small delay to prevent immediate closing
+    setTimeout(() => {
+      document.addEventListener('click', handleClickOutside)
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    }, 100)
   } else {
-    document.removeEventListener('click', handleClickOutside)
-    document.removeEventListener('mousemove', handleMouseMove)
-    document.removeEventListener('mouseup', handleMouseUp)
+    cleanup()
   }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  cleanup()
 })
 </script>
 
 <template>
-  <div class="color-picker-container">
-    <div class="color-picker-header">
-      <div class="label-section">
+    <ul class="type" :class="{ expanded: isExpanded }">
+      <li class="header" @click.stop="togglePicker">
         <label>{{ label }}</label>
-        <p v-if="description">{{ description }}</p>
-      </div>
-      <div class="color-display">
         <span 
-          class="color-swatch" 
+          class="swatch" 
           :style="{ backgroundColor: currentColor }"
-          @click="togglePicker"
         ></span>
-      </div>
-    </div>
+      </li>
 
-    <!-- Expandable color picker -->
-    <div v-if="isExpanded" class="color-picker-content">
-      <!-- Color gradient map -->
-      <div 
-        ref="colorPicker"
-        class="color-gradient"
-        @mousedown="handleMouseDown"
-      >
-        <div class="hue-gradient"></div>
-        <div class="saturation-overlay"></div>
-      </div>
+      <!-- Expandable color picker -->
+      <li v-show="isExpanded" class="content">
+        <!-- Color gradient map -->
+        <div 
+          ref="colorPicker"
+          class="color-gradient"
+          @mousedown="handleMouseDown"
+          @click.stop
+        >
+          <div class="hue-gradient"></div>
+          <div class="saturation-overlay"></div>
+        </div>
 
-      <!-- Hex input -->
-      <div class="hex-input-container">
-        <label for="hex-input">HEX</label>
-        <input 
-          id="hex-input"
-          v-model="hexInput"
-          type="text"
-          placeholder="#ffffff"
-          @input="updateFromHex"
-          @blur="updateFromHex"
-        />
-      </div>
-    </div>
-  </div>
+        <!-- Hex input -->
+        <div class="hex-input-container">
+          <label for="hex-input">HEX</label>
+          <input 
+            id="hex-input"
+            v-model="hexInput"
+            type="text"
+            placeholder="#ffffff"
+            @input="updateFromHex"
+            @blur="updateFromHex"
+            @click.stop
+          />
+        </div>
+      </li>
+    </ul>
 </template>
 
 <style scoped>
 .color-picker-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
   position: relative;
 }
 
-.color-picker-header {
+.header {
   display: flex;
-  align-items: center;
+  flex-direction: row;
   justify-content: space-between;
-  gap: 1rem;
+  align-items: center;
+  cursor: pointer;
+  padding: var(--space-rg);
 }
 
-.label-section {
-  flex: 1;
+.type {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--type);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-smooth);
+  &:hover {
+    border: 1px solid var(--focus);
+  }
 }
 
-.label-section label {
-  display: block;
-  margin-bottom: 0.25rem;
+.type.expanded {
+  border-color: var(--focus);
+  box-shadow: var(--shadow-md);
 }
 
-.label-section p {
-    font-size: var(--font-sm);
-}
-
-.color-display {
+.swatch {
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: var(--transition-smooth);
   flex-shrink: 0;
 }
 
-.color-swatch {
-  display: block;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.5rem;
-  border: 2px solid var(--border);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
-}
-
-.color-swatch:hover {
-  border-color: var(--accent-color, #007acc);
+.swatch:hover {
+  border-color: var(--focus);
   transform: scale(1.05);
 }
 
-.color-picker-content {
+.content {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  gap: var(--space-rg);
+  padding: var(--space-rg);
+  border-top: 1px solid var(--border);
   animation: expandIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -230,10 +241,14 @@ watch(isExpanded, (expanded) => {
   position: relative;
   width: 100%;
   height: 120px;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-rg);
   cursor: crosshair;
   overflow: hidden;
   border: 1px solid var(--border);
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .hue-gradient {
@@ -270,58 +285,43 @@ watch(isExpanded, (expanded) => {
 .hex-input-container {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-sm);
 }
 
-.hex-input-container label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  min-width: 2rem;
-}
+
 
 .hex-input-container input {
   flex: 1;
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-sm) var(--space-rg);
   border: 1px solid var(--border);
-  border-radius: 0.375rem;
+  border-radius: var(--radius-rg);
   background: var(--bg);
-  color: var(--text-primary);
-  font-size: 0.875rem;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  transition: border-color 0.2s ease;
+  color: var(--light);
+  font-family: 'mono';
+  transition: border-color var(--transition-smooth);
 }
 
 .hex-input-container input:focus {
   outline: none;
-  border-color: var(--accent-color, #007acc);
+  border-color: var(--focus);
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.1);
 }
 
 .hex-input-container input::placeholder {
-  color: var(--text-secondary);
+  color: var(--details);
   opacity: 0.5;
 }
 
 @keyframes expandIn {
   from {
     opacity: 0;
-    transform: translateY(-10px) scale(0.95);
+    transform: translateY(-10px);
     max-height: 0;
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
     max-height: 300px;
   }
-}
-
-/* Prevent text selection while dragging */
-.color-gradient {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
 }
 </style>

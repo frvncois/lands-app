@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   project: {
@@ -9,6 +9,25 @@ const props = defineProps({
 })
 
 const activeTab = ref('home')
+
+// Watch for project changes and log them
+watch(() => props.project, (newProject) => {
+  console.log('🎨 ThemeMinimal: Project updated', {
+    id: newProject?.id,
+    name: newProject?.name,
+    hasCoverImage: !!newProject?.coverImage,
+    coverImageLength: newProject?.coverImage?.length || 0
+  })
+}, { deep: true })
+
+// Watch specifically for coverImage changes
+watch(() => props.project?.coverImage, (newCoverImage, oldCoverImage) => {
+  console.log('🖼️ ThemeMinimal: Cover image changed', {
+    old: oldCoverImage ? 'had image' : 'no image',
+    new: newCoverImage ? 'has image' : 'no image',
+    newLength: newCoverImage?.length || 0
+  })
+})
 
 // Computed styles using project design colors and fonts
 const themeStyles = computed(() => {
@@ -33,10 +52,21 @@ const navItems = [
   { id: 'contact', label: 'Contact' }
 ]
 
-// Computed data from project
-const projectTitle = computed(() => props.project?.name || 'Project Title')
+// Computed data from project - with explicit reactivity
+const projectTitle = computed(() => {
+  const title = props.project?.name || 'Project Title'
+  console.log('🏷️ ThemeMinimal: projectTitle computed:', title)
+  return title
+})
+
 const projectDescription = computed(() => props.project?.description || 'Project description goes here...')
-const projectCover = computed(() => props.project?.coverImage || '')
+
+const projectCover = computed(() => {
+  const cover = props.project?.coverImage || ''
+  console.log('🖼️ ThemeMinimal: projectCover computed:', cover ? 'has image' : 'no image')
+  return cover
+})
+
 const releases = computed(() => props.project?.releases || [])
 const shows = computed(() => props.project?.shows || [])
 const merch = computed(() => props.project?.merch || [])
@@ -59,7 +89,13 @@ function setActiveTab(tabId) {
     <header>
       <div class="cover">
         <img v-if="projectCover" :src="projectCover" :alt="projectTitle" />
-        <div v-else class="cover-placeholder">Basic details cover image</div>
+        <div v-else class="cover-placeholder">
+          Basic details cover image
+          <!-- Debug info -->
+          <small style="display: block; font-size: 10px; margin-top: 4px;">
+            Debug: {{ projectCover ? 'Has image' : 'No image' }}
+          </small>
+        </div>
       </div>
       <h1>{{ projectTitle }}</h1>
     </header>
@@ -222,17 +258,17 @@ function setActiveTab(tabId) {
 
 header {
   text-align: center;
-  padding: var(--spacing);
   border-bottom: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
 }
 
 .cover {
   width: 100%;
-  height: 200px;
+  height: 30vh;
   margin-bottom: var(--spacing);
-  border-radius: 8px;
   overflow: hidden;
-  background: #f5f5f5;
+  background: var(--dark);
 }
 
 .cover img {
@@ -245,6 +281,7 @@ header {
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #888;

@@ -63,8 +63,7 @@ const showDetails = computed(() => {
 </script>
 
 <template>
-  <ul class="form">
-    <!-- Dynamic Input Fields -->
+  <li class="form">
     <component
       v-for="input in inputs"
       :key="input.field"
@@ -76,8 +75,6 @@ const showDetails = computed(() => {
       :options="input.options"
       @input="handleInput"
     />
-    
-    <!-- Timestamps & Delete -->
     <div v-if="showDetails" class="details">
       <div class="timestamps">
         <label v-if="!item.updatedAt && item.createdAt">
@@ -101,15 +98,18 @@ const showDetails = computed(() => {
         />
       </div>
     </div>
-  </ul>
+  </li>
 </template>
 
 <style scoped>
-ul.form {
-  background: var(--card);
-  padding: var(--space-rg);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
-}
-</style>
+li.form {
+    padding: var(--space-rg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--card);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-rg);
+  }
+  </style>

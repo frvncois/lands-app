@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/projects'
+import { useAlertStore } from '@/stores/alert'
 import ProjectType from '@/components/project/ProjectType.vue'
 import ProjectBand from '@/components/project/ProjectBand.vue'
 import ProjectThemes from '@/components/project/ProjectThemes.vue'
@@ -9,6 +10,7 @@ import ButtonMain from '../button/ButtonMain.vue'
 
 const router = useRouter()
 const projectStore = useProjectStore()
+const alertStore = useAlertStore()
 const emit = defineEmits(['project-created', 'cancel'])
 
 const currentStep = ref(1)
@@ -23,17 +25,24 @@ const steps = [
   { id: 3, name: 'Layout Selection', component: 'ProjectThemes' }
 ]
 
-// Computed properties for navigation
-const canGoBack = computed(() => currentStep.value > 1)
+// Navigation computed properties
+const leftButtonText = computed(() => {
+  if (currentStep.value === 1) return 'Cancel'
+  return 'Go back'
+})
+
+const rightButtonText = computed(() => {
+  if (currentStep.value === 1) return 'Set your details →'
+  if (currentStep.value === 2) return 'Select a layout →'
+  if (currentStep.value === 3) return 'Create project'
+  return 'Next →'
+})
+
 const canGoForward = computed(() => {
   if (currentStep.value === 1) return selectedProjectType.value !== null
   if (currentStep.value === 2) return projectData.value.name?.trim().length > 0
+  if (currentStep.value === 3) return true // Can create project at themes step
   return false
-})
-
-const currentStepName = computed(() => {
-  const step = steps.find(s => s.id === currentStep.value)
-  return step ? step.name : 'Unknown Step'
 })
 
 function handleProjectTypeSelected(projectType) {
@@ -41,32 +50,27 @@ function handleProjectTypeSelected(projectType) {
   projectData.value.selectedType = projectType
   projectData.value.type = projectType.id
   console.log('🎯 Project type selected:', projectType.name)
-  currentStep.value = 2
 }
 
 function handleProjectDataUpdated(data) {
   projectData.value = { ...projectData.value, ...data }
-  if (currentStep.value === 2 && data.name?.trim().length > 0) {
-    // Data updated
-  }
 }
 
 function handleContinueToThemes(data) {
   console.log('📋 Continue to themes with data:', data)
-  // Just update our local project data - don't create project yet
   projectData.value = { ...projectData.value, ...data }
-  if (currentStep.value === 2) {
-    currentStep.value = 3
-  }
 }
+
 async function handleCreateProject(data) {
   console.log('🚀 Creating NEW project with data:', data)
   
   isCreating.value = true
   createError.value = null
   
+  // Show updating alert
+  alertStore.showUpdating('Creating your project...')
+  
   try {
-    // FIXED: Await the async project creation
     const result = await projectStore.create(data.name, data.design?.theme, data.type)
     
     if (result.success) {
@@ -95,42 +99,56 @@ async function handleCreateProject(data) {
         }
       }
       
-      // FIXED: Emit success but DON'T navigate automatically
-      // Let the parent component handle navigation
+      // Show success alert
+      alertStore.showSuccess('Project created successfully!')
+      
+      // Emit project created event
       emit('project-created', { projectId, project: result.data })
       
-      // FIXED: Don't navigate here - let SectionTitle handle it
-      console.log('✅ Project creation completed, modal will close')
+      // Navigate to the created project
+      router.push(`/projects/${projectId}`)
+      
+      console.log('✅ Project creation completed, navigating to project')
       
     } else {
-      // Handle creation failure
       createError.value = result.error || 'Failed to create project'
+      alertStore.showError(createError.value)
       console.error('❌ Project creation failed:', createError.value)
     }
   } catch (error) {
     createError.value = error.message || 'An unexpected error occurred'
+    alertStore.showError(createError.value)
     console.error('❌ Project creation error:', error)
   } finally {
     isCreating.value = false
   }
 }
 
-
-
-function goBack() {
-  if (currentStep.value > 1) {
+function handleLeftButtonClick() {
+  if (currentStep.value === 1) {
+    // Cancel and close modal
+    emit('cancel')
+  } else {
+    // Go back to previous step
     currentStep.value--
   }
 }
 
-function goForward() {
-  if (currentStep.value === 2 && canGoForward.value) {
-    handleContinueToThemes(projectData.value)
+function handleRightButtonClick() {
+  if (currentStep.value === 1) {
+    // Move to step 2 (Set your details)
+    currentStep.value = 2
+  } else if (currentStep.value === 2) {
+    // Move to step 3 (Select a layout)
+    currentStep.value = 3
+  } else if (currentStep.value === 3) {
+    // Create project
+    const finalProjectData = {
+      ...projectData.value,
+      design: projectData.value.design || {}
+    }
+    handleCreateProject(finalProjectData)
   }
-}
-
-function handleCancel() {
-  emit('cancel')
 }
 
 function getCurrentStepComponent() {
@@ -153,27 +171,34 @@ function getCurrentStepComponent() {
 <template>
   <ul class="modal">
     <li class="content">
-
-        <component
-          :is="getCurrentStepComponent()"
-          :project-data="projectData"
-          @project-type-selected="handleProjectTypeSelected"
-          @project-data-updated="handleProjectDataUpdated"
-          @continue-to-themes="handleContinueToThemes"
-          @create-project="handleCreateProject"
-        />
-        <ul>
-          <li class="actions">
-              <ButtonMain class="dark" label="Cancel" :disabled="isCreating" @click="emit('goBack')" />
-              <ButtonMain class="light" label="Next →" :disabled="isCreating" @click="emit('goForward')" />
-          </li>
-        </ul>
-
-      <!-- Navigation Footer -->
+      <component
+        :is="getCurrentStepComponent()"
+        :project-data="projectData"
+        @project-type-selected="handleProjectTypeSelected"
+        @project-data-updated="handleProjectDataUpdated"
+        @continue-to-themes="handleContinueToThemes"
+        @create-project="handleCreateProject"
+      />
+      
+      <ul>
+        <li class="actions">
+          <ButtonMain 
+            class="dark" 
+            :label="leftButtonText" 
+            :disabled="isCreating" 
+            @click="handleLeftButtonClick" 
+          />
+          <ButtonMain 
+            class="light" 
+            :label="rightButtonText" 
+            :disabled="isCreating || !canGoForward" 
+            @click="handleRightButtonClick" 
+          />
+        </li>
+      </ul>
 
       <!-- Loading State -->
-      <div v-if="isCreating" class="creating-overlay">
-        <p>Creating your project...</p>
+      <div v-if="isCreating" class="overlay">
       </div>
     </li>
   </ul>
@@ -199,5 +224,13 @@ function getCurrentStepComponent() {
   border-top: 1px solid var(--border);
   background: var(--nav);
   align-items: stretch;
+}
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
 }
 </style>

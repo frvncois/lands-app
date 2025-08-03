@@ -71,6 +71,7 @@ ul.item {
   border: 1px solid var(--border);
   transition: all var(--transition-smooth);
   background: var(--card);
+  box-shadow: var(--shadow-sm);
 
   &:hover {
     background-color: var(--dark-hover);

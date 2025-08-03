@@ -9,6 +9,7 @@ import ContentShows from '@/components/content/ContentShows.vue'
 import ContentMerch from '@/components/content/ContentMerch.vue'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 import IntegrationsList from '@/components/integrations/IntegrationsList.vue'
+import CTABasic from '@/components/global/CTABasic.vue'
 
 const props = defineProps({
   project: {
@@ -134,9 +135,22 @@ function getContentData(contentId) {
       :project="projectData" 
       v-if="validProject"
     />
+
+
+        <li>
+      <CTABasic 
+        title="Need a custom integration?" 
+        description="Join thousands of creators"
+        buttonLabel="Learn more"
+        buttonStyle="light"
+        @click="openSignupModal"
+    />
+    </li>
   </ul>
 
-  <ul class="form" v-else-if="currentView !== 'overview' && validProject">
+
+
+  <ul class="list" v-else-if="currentView !== 'overview' && validProject">
     <li class="actions">
       <div class="title">
         <button @click="goBackToOverview">←</button>
@@ -150,7 +164,6 @@ function getContentData(contentId) {
       />
     </li>
     
-    <li class="content">
       <component
         :is="getCurrentComponent()"
         :project="projectData"
@@ -158,7 +171,6 @@ function getContentData(contentId) {
         @close-modal="handleCloseModal"
         v-if="getCurrentComponent()"
       />
-    </li>
   </ul>
 
   <!-- Error state -->
@@ -169,21 +181,9 @@ function getContentData(contentId) {
 
 
 <style scoped>
-ul.form {
-  > li.actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-lg) 0;
-    > .title {
-      display: flex;
-      gap: var(--space-rg);
-    }
-  }
-}
 
 ul.list {
-  li.item {
+  & li.item {
     display: grid;
     grid-template-columns: 0.15fr 1fr 0.15fr;
     align-items: center;
@@ -244,5 +244,15 @@ ul.list {
       }
     }
   }
+  > li.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  > .title {
+    display: flex;
+    gap: var(--space-rg);
+  }
+  }
+
 }
 </style>

@@ -7,7 +7,7 @@ import SectionTitle from '@/components/global/SectionTitle.vue'
 import NavTab from '@/components/global/NavTab.vue'
 import ContentList from '@/components/content/ContentList.vue'
 import DesignList from '@/components/design/DesignList.vue'
-import SettingProject from '@/components/project/ProjectSetting.vue'
+import ProjectSetting from '@/components/project/ProjectSetting.vue'
 
 const route = useRoute()
 const projectStore = useProjectStore()
@@ -147,6 +147,8 @@ watch(
 // Cleanup on unmount
 onUnmounted(() => {
   clearTimeout(saveTimeout)
+  projectStore.clearCurrentProject()
+  console.log('🧹 EditorView unmounted, current project cleared')
 })
 </script>
 
@@ -180,7 +182,7 @@ onUnmounted(() => {
     </li>
 
     <li v-if="activeTab === 'settings'">
-      <SettingProject :project="project" />
+      <ProjectSetting :project="project" />
     </li>
   </ul>
 </template>

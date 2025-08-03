@@ -7,6 +7,7 @@ import { themes } from '@/components/theme/ThemeList.js'
 const projectStore = useProjectStore()
 const isSaving = ref(false)
 const isPublishing = ref(false)
+const viewMode = ref('mobile') // Add viewport toggle state
 
 // Get the selected theme component by looking up the theme ID
 const selectedThemeComponent = computed(() => {
@@ -36,6 +37,25 @@ const selectedTheme = computed(() => {
   
   const themeId = currentProject.design.themeId || currentProject.design.theme?.id
   return themes.find(t => t.id === themeId) || null
+})
+
+// Viewport toggle functions
+function setMobileView() {
+  viewMode.value = 'mobile'
+}
+
+function setDesktopView() {
+  viewMode.value = 'desktop'
+}
+
+// Computed aspect ratio based on view mode
+const aspectRatio = computed(() => {
+  return viewMode.value === 'mobile' ? '9 / 16' : '16 / 9'
+})
+
+// Computed background color from project
+const currentBackgroundColor = computed(() => {
+  return projectStore.currentProject?.design?.backgroundColor || '#ffffff'
 })
 
 async function saveProject() {
@@ -116,14 +136,16 @@ function clearLocalStorageDraft() {
     <!-- Show when a project is selected -->
     <template v-if="projectStore.currentProject">
       <li class="actions">
-        <div>
+        <div class="viewport-controls">
           <ButtonMain
-            label="mobile"
-            buttonStyle="light"
+            label="Mobile"
+            :buttonStyle="viewMode === 'mobile' ? 'dark' : 'light'"
+            @click="setMobileView"
           />
           <ButtonMain
-            label="desktop"
-            buttonStyle="light"
+            label="Desktop"
+            :buttonStyle="viewMode === 'desktop' ? 'dark' : 'light'"
+            @click="setDesktopView"
           />
         </div>
         <div class="save-publish">
@@ -142,12 +164,17 @@ function clearLocalStorageDraft() {
         </div>
       </li>
       
-      <li class="display" v-if="selectedThemeComponent">
-        <component 
-          :is="selectedThemeComponent" 
-          :project="projectStore.currentProject"
-          :preview="true"
-        />
+      <li class="display" :class="viewMode" v-if="selectedThemeComponent">
+        <div class="background-preview" :style="{ backgroundColor: currentBackgroundColor }"></div>
+        <div class="viewport" :style="{ aspectRatio }">
+          <div class="screen">
+            <component 
+              :is="selectedThemeComponent" 
+              :project="projectStore.currentProject"
+              :preview="true"
+            />
+          </div>
+        </div>
       </li>
       
       <li v-else class="no-theme">
@@ -172,15 +199,21 @@ function clearLocalStorageDraft() {
   display: flex;
   flex-direction: column;
   height: 100%;
+  gap: var(--space-lg);
 }
 
 .actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-md);
+  padding-bottom: var(--space-lg);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+}
+
+.viewport-controls {
+  display: flex;
+  gap: var(--space-sm);
 }
 
 .save-publish {
@@ -188,10 +221,95 @@ function clearLocalStorageDraft() {
   gap: var(--space-sm);
 }
 
+.background-preview {
+  border-radius: 100%;
+  filter: blur(10em);
+  width: 50vw;
+  margin: 10vh auto;
+  opacity: 0.025;
+  mix-blend-mode: screen;
+}
+
 .display {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: var(--space-lg);
+}
+
+.viewport {
+  width: 100%;
+  max-width: 800px;
+  overflow: hidden;
+  position: relative;
+}
+
+.background-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+}
+
+/* Desktop Browser Frame */
+.display.desktop .viewport {
+  max-width: 800px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.display.desktop .viewport::before {
+  content: '';
+  display: block;
+  height: 32px;
+  background: linear-gradient(to bottom, #f6f6f6, #e8e8e8);
+  border-bottom: 1px solid #ddd;
+  position: relative;
+}
+
+.display.desktop .viewport::after {
+  content: '●●●';
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 8px;
+  color: #ff5f57;
+  letter-spacing: 4px;
+  z-index: 10;
+}
+
+/* Mobile Phone Frame */
+.display.mobile .viewport {
+  max-width: 25vw;
+  border-radius: var(--radius-2xl);
+  padding: var(--space-md);
+  background: var(--dark);
+  position: relative;
+}
+
+/* Screen content area */
+.screen {
+  width: 100%;
+  height: 100%;
   overflow: auto;
-  background: white;
+  border: 1px solid var(--border);
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+/* Desktop Browser Frame */
+.display.desktop .screen {
+  height: calc(100% - 32px);
+}
+
+/* Mobile Phone Frame */
+.display.mobile .screen {
+  border-radius: var(--radius-xl);
 }
 
 .no-theme {

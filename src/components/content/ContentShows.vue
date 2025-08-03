@@ -193,8 +193,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ul class="form">
-    <!-- Edit Mode - Using Reusable ModalContent -->
     <ModalContent
       v-if="isEditing && currentShow"
       :item="currentShow"
@@ -202,8 +200,7 @@ onUnmounted(() => {
       @input="trackChanges"
       @delete="handleDelete"
     />
-    
-    <!-- List Mode - Using Reusable ListCard -->
+
     <ListCard
       v-else
       :items="savedShows"
@@ -217,13 +214,4 @@ onUnmounted(() => {
       @move-up="handleMoveUp"
       @move-down="handleMoveDown"
     />
-  </ul>
 </template>
-
-<style scoped>
-ul.form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-</style>

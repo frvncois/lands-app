@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@studio-freight/lenis": "^1.0.42",
     "@supabase/supabase-js": "^2.53.0",
     "express": "^5.1.0",
     "jwt-decode": "^4.0.0",

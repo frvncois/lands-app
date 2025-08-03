@@ -132,6 +132,7 @@ ul.list {
     border: 1px solid var(--border);
     transition: all var(--transition-smooth);
     background: var(--card);
+    box-shadow: var(--shadow-md);
 
     > .icon {
       display: flex;

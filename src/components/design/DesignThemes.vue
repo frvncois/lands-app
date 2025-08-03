@@ -57,6 +57,7 @@ ul.themes {
     aspect-ratio: 1;
     flex: 1;
     text-align: center;
+    box-shadow: var(--shadow-sm);
 
     .icon {
       border-radius: var(--radius-rg);
@@ -81,6 +82,7 @@ ul.themes {
     &:hover {
       background: var(--dark-hover);
       border-color: var(--focus);
+      box-shadow: var(--shadow-md);
     }
   }
 }
