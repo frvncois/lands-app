@@ -52,11 +52,11 @@ const projectLocation = computed({
   }
 })
 
-const projectCoverImage = computed({
-  get: () => storeProject.value?.coverImage || '',
+const projectcover_image = computed({
+  get: () => storeProject.value?.cover_image || '',
   set: (value) => {
     if (storeProject.value) {
-      storeProject.value.coverImage = value
+      storeProject.value.cover_image = value
     }
   }
 })
@@ -103,7 +103,7 @@ onMounted(() => {
     name: storeProject.value?.name,
     description: storeProject.value?.description,
     location: storeProject.value?.location,
-    coverImage: storeProject.value?.coverImage,
+    cover_image: storeProject.value?.cover_image,
     contacts: storeProject.value?.contacts?.length || 0,
     socialLinks: storeProject.value?.socialLinks?.length || 0
   })
@@ -120,7 +120,7 @@ onMounted(() => {
       />
       <InputUpload
         label="Cover Image"
-        v-model="projectCoverImage"
+        v-model="projectcover_image"
       />
     </ul>
     

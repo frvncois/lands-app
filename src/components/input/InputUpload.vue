@@ -50,7 +50,7 @@ const modelValue = defineModel()
 
 const props = defineProps({
   label: String,
-  field: String, // field name (img, coverImage, etc.)
+  field: String, // field name (img, cover_image, etc.)
   maxSize: {
     type: Number,
     default: 5 * 1024 * 1024 // 5MB

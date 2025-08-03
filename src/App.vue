@@ -164,6 +164,7 @@ onMounted(async () => {
 /* DEBUG PANEL STYLES */
 .debug-panel {
   position: fixed;
+  display: none;
   top: 0;
   right: 0;
   width: 350px;

@@ -281,13 +281,4 @@ li.project {
     position: relative;
   }
 }
-
-li.empty {
-  padding: var(--space-xl);
-  text-align: center;
-  color: var(--details);
-  font-family: 'mono';
-  text-transform: uppercase;
-  font-size: var(--font-sm);
-}
 </style>

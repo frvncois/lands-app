@@ -15,17 +15,17 @@ watch(() => props.project, (newProject) => {
   console.log('🎨 ThemeMinimal: Project updated', {
     id: newProject?.id,
     name: newProject?.name,
-    hasCoverImage: !!newProject?.coverImage,
-    coverImageLength: newProject?.coverImage?.length || 0
+    hascover_image: !!newProject?.cover_image,
+    cover_imageLength: newProject?.cover_image?.length || 0
   })
 }, { deep: true })
 
-// Watch specifically for coverImage changes
-watch(() => props.project?.coverImage, (newCoverImage, oldCoverImage) => {
+// Watch specifically for cover_image changes
+watch(() => props.project?.cover_image, (newcover_image, oldcover_image) => {
   console.log('🖼️ ThemeMinimal: Cover image changed', {
-    old: oldCoverImage ? 'had image' : 'no image',
-    new: newCoverImage ? 'has image' : 'no image',
-    newLength: newCoverImage?.length || 0
+    old: oldcover_image ? 'had image' : 'no image',
+    new: newcover_image ? 'has image' : 'no image',
+    newLength: newcover_image?.length || 0
   })
 })
 
@@ -62,7 +62,7 @@ const projectTitle = computed(() => {
 const projectDescription = computed(() => props.project?.description || 'Project description goes here...')
 
 const projectCover = computed(() => {
-  const cover = props.project?.coverImage || ''
+  const cover = props.project?.cover_image || ''
   console.log('🖼️ ThemeMinimal: projectCover computed:', cover ? 'has image' : 'no image')
   return cover
 })
