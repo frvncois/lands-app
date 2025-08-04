@@ -1,196 +1,3 @@
-<script setup>
-import { computed, ref } from 'vue'
-import ButtonMain from '@/components/button/ButtonMain.vue'
-import { useUserStore } from '@/stores/user'
-import { themes } from '@/components/theme/ThemeList.js'
-
-const props = defineProps({
-  userStore: {
-    type: Object,
-    default: null
-  }
-})
-
-// Use userStore from props (passed from App.vue) or import directly
-const userStore = props.userStore || useUserStore()
-
-const isSaving = ref(false)
-const isPublishing = ref(false)
-const viewMode = ref('mobile')
-
-// Check if there are unsaved changes in localStorage
-const hasUnsavedChanges = computed(() => {
-  const projectId = userStore.currentProject?.id
-  if (!projectId) return false
-  
-  try {
-    const key = `project_draft_${projectId}`
-    const savedData = localStorage.getItem(key)
-    return !!savedData
-  } catch (error) {
-    return false
-  }
-})
-
-const selectedThemeComponent = computed(() => {
-  const currentProject = userStore.currentProject
-  if (!currentProject?.design?.themeId && !currentProject?.design?.theme?.id) {
-    return null
-  }
-  
-  const themeId = currentProject.design.themeId || currentProject.design.theme?.id
-  if (!themeId) return null
-  
-  const theme = themes.find(t => t.id === themeId)
-  return theme?.component || null
-})
-
-function setMobileView() {
-  viewMode.value = 'mobile'
-}
-
-function setDesktopView() {
-  viewMode.value = 'desktop'
-}
-
-const aspectRatio = computed(() => {
-  return viewMode.value === 'mobile' ? '9 / 16' : '16 / 9'
-})
-
-const currentBackgroundColor = computed(() => {
-  return userStore.currentProject?.design?.backgroundColor || '#ffffff'
-})
-
-// CRITICAL: Save function that syncs localStorage to database
-async function saveProject() {
-  if (!userStore.currentProject) return
-  
-  isSaving.value = true
-  
-  try {
-    console.log('💾 Syncing project data to database...')
-    
-    // Get data from localStorage if it exists (WITHOUT images)
-    const projectId = userStore.currentProject.id
-    const key = `project_draft_${projectId}`
-    const localData = localStorage.getItem(key)
-    
-    // Start with current project data (which HAS images)
-    let dataToSave = { ...userStore.currentProject }
-    
-    if (localData) {
-      const parsedLocalData = JSON.parse(localData)
-      console.log('📂 Found localStorage data, merging WITHOUT overwriting images...')
-      
-      // Merge localStorage data but PRESERVE images from store
-      dataToSave = {
-        ...userStore.currentProject, // Keep images from store
-        
-        // Only merge non-image fields from localStorage
-        name: parsedLocalData.name || userStore.currentProject.name,
-        description: parsedLocalData.description || userStore.currentProject.description,
-        location: parsedLocalData.location || userStore.currentProject.location,
-        
-        // Merge content arrays but preserve images
-        links: mergeContentArrays(userStore.currentProject.links, parsedLocalData.links),
-        posts: mergeContentArrays(userStore.currentProject.posts, parsedLocalData.posts),
-        releases: mergeContentArrays(userStore.currentProject.releases, parsedLocalData.releases),
-        shows: mergeContentArrays(userStore.currentProject.shows, parsedLocalData.shows),
-        merch: mergeContentArrays(userStore.currentProject.merch, parsedLocalData.merch),
-        
-        // Remove draft metadata
-        lastSaved: undefined,
-        isDraft: undefined
-      }
-    }
-    
-    console.log('🔄 Final data to save:', dataToSave)
-    
-    // Save to database via user store
-    const result = await userStore.updateProject(projectId, dataToSave)
-    
-    if (result.success) {
-      console.log('✅ Project synced to database successfully')
-      
-      // Clear localStorage draft after successful save
-      try {
-        localStorage.removeItem(key)
-        console.log('🗑️ Cleared localStorage draft after successful save')
-      } catch (error) {
-        console.error('❌ Failed to clear localStorage:', error)
-      }
-      
-      // Update the store with the saved data
-      Object.assign(userStore.currentProject, dataToSave)
-      
-    } else {
-      console.error('❌ Failed to sync project:', result.error)
-      throw new Error(result.error || 'Failed to save project')
-    }
-  } catch (error) {
-    console.error('❌ Error syncing project:', error)
-    alert('Failed to save project. Please try again.')
-  } finally {
-    isSaving.value = false
-  }
-}
-
-// Helper function to merge content arrays while preserving images
-function mergeContentArrays(storeArray, localArray) {
-  if (!localArray || !Array.isArray(localArray)) return storeArray || []
-  if (!storeArray || !Array.isArray(storeArray)) return localArray
-  
-  return localArray.map(localItem => {
-    // Find matching item in store array
-    const storeItem = storeArray.find(item => 
-      item.order === localItem.order || 
-      item.createdAt === localItem.createdAt
-    )
-    
-    if (storeItem) {
-      // Merge local data but keep store image
-      return {
-        ...localItem,
-        img: storeItem.img || localItem.img || ''
-      }
-    }
-    
-    return localItem
-  })
-}
-
-async function publishProject() {
-  if (!userStore.currentProject) return
-  
-  isPublishing.value = true
-  
-  try {
-    console.log('📤 Publishing project...')
-    
-    // First save the project data
-    await saveProject()
-    
-    // Then publish to storage via user store
-    // TODO: Add publishProject method to user store
-    // const result = await userStore.publishProject(userStore.currentProject.id)
-    
-    // For now, simulate the publish action
-    console.log('✅ Project published successfully')
-    
-    // Update project published status
-    if (userStore.currentProject && !userStore.currentProject.settings?.published) {
-      userStore.currentProject.settings.published = true
-    }
-    
-  } catch (error) {
-    console.error('❌ Error publishing project:', error)
-    alert('Failed to publish project. Please try again.')
-  } finally {
-    isPublishing.value = false
-  }
-}
-</script>
-
 <template>
   <ul class="preview">
     <template v-if="userStore.currentProject">
@@ -257,6 +64,284 @@ async function publishProject() {
     </template>
   </ul>
 </template>
+
+<script setup>
+import { computed, ref, watch } from 'vue'
+import ButtonMain from '@/components/button/ButtonMain.vue'
+import { useUserStore } from '@/stores/user'
+import { themes } from '@/components/theme/ThemeList.js'
+
+const props = defineProps({
+  userStore: {
+    type: Object,
+    default: null
+  }
+})
+
+// Use userStore from props (passed from App.vue) or import directly
+const userStore = props.userStore || useUserStore()
+
+const isSaving = ref(false)
+const isPublishing = ref(false)
+const viewMode = ref('mobile')
+
+// State for tracking original project data to detect changes
+const originalProjectData = ref(null)
+
+// Initialize original data when project loads and track changes
+watch(() => userStore.currentProject, (newProject) => {
+  if (newProject) {
+    // Deep copy the original project data for comparison
+    originalProjectData.value = JSON.parse(JSON.stringify(newProject))
+    console.log('📋 Original project data initialized for change detection')
+  }
+}, { immediate: true })
+
+// Check if there are unsaved changes in localStorage
+const hasUnsavedChanges = computed(() => {
+  const projectId = userStore.currentProject?.id
+  if (!projectId) return false
+  
+  try {
+    const key = `project_draft_${projectId}`
+    const savedData = localStorage.getItem(key)
+    return !!savedData
+  } catch (error) {
+    return false
+  }
+})
+
+const selectedThemeComponent = computed(() => {
+  const currentProject = userStore.currentProject
+  if (!currentProject?.design?.themeId && !currentProject?.design?.theme?.id) {
+    return null
+  }
+  
+  const themeId = currentProject.design.themeId || currentProject.design.theme?.id
+  if (!themeId) return null
+  
+  const theme = themes.find(t => t.id === themeId)
+  return theme?.component || null
+})
+
+const currentBackgroundColor = computed(() => {
+  return userStore.currentProject?.design?.backgroundColor || '#ffffff'
+})
+
+const aspectRatio = computed(() => {
+  return viewMode.value === 'mobile' ? '9 / 16' : '16 / 9'
+})
+
+function setMobileView() {
+  viewMode.value = 'mobile'
+}
+
+function setDesktopView() {
+  viewMode.value = 'desktop'
+}
+
+// Function to detect changes between original and current data
+function detectChanges(original, current) {
+  const changes = {}
+  
+  if (!original || !current) return changes
+  
+  // Compare primitive values and objects
+  for (const key in current) {
+    if (current[key] !== original[key]) {
+      // Handle arrays and objects
+      if (Array.isArray(current[key]) && Array.isArray(original[key])) {
+        // For arrays, compare JSON strings to detect changes
+        if (JSON.stringify(current[key]) !== JSON.stringify(original[key])) {
+          changes[key] = current[key]
+        }
+      } else if (typeof current[key] === 'object' && current[key] !== null && 
+                 typeof original[key] === 'object' && original[key] !== null) {
+        // For nested objects, recursively detect changes
+        const nestedChanges = detectChanges(original[key], current[key])
+        if (Object.keys(nestedChanges).length > 0) {
+          changes[key] = current[key] // Send entire nested object if any field changed
+        }
+      } else {
+        // Primitive value changed
+        changes[key] = current[key]
+      }
+    }
+  }
+  
+  // Check for new keys in current that don't exist in original
+  for (const key in current) {
+    if (!(key in original)) {
+      changes[key] = current[key]
+    }
+  }
+  
+  return changes
+}
+
+// Helper function to merge content arrays while preserving images
+function mergeContentArrays(storeArray, localArray) {
+  if (!localArray || !Array.isArray(localArray)) return storeArray || []
+  if (!storeArray || !Array.isArray(storeArray)) return localArray
+  
+  return localArray.map(localItem => {
+    // Find matching item in store array
+    const storeItem = storeArray.find(item => 
+      item.order === localItem.order || 
+      item.createdAt === localItem.createdAt
+    )
+    
+    if (storeItem) {
+      // Merge local data but keep store image
+      return {
+        ...localItem,
+        img: storeItem.img || localItem.img || ''
+      }
+    }
+    
+    return localItem
+  })
+}
+
+// CRITICAL: Optimized save function that only updates changed data
+async function saveProject() {
+  if (!userStore.currentProject || !originalProjectData.value) return
+  
+  isSaving.value = true
+  
+  try {
+    console.log('💾 Detecting changes in project data...')
+    
+    // Get current project data (includes any localStorage changes)
+    let currentData = { ...userStore.currentProject }
+    
+    // Merge localStorage data if it exists
+    const projectId = userStore.currentProject.id
+    const key = `project_draft_${projectId}`
+    const localData = localStorage.getItem(key)
+    
+    if (localData) {
+      const parsedLocalData = JSON.parse(localData)
+      console.log('📂 Found localStorage data, merging WITHOUT overwriting images...')
+      
+      // Merge localStorage data but preserve images from store
+      currentData = {
+        ...userStore.currentProject, // Keep images from store
+        
+        // Only merge non-image fields from localStorage
+        name: parsedLocalData.name || userStore.currentProject.name,
+        description: parsedLocalData.description || userStore.currentProject.description,
+        location: parsedLocalData.location || userStore.currentProject.location,
+        
+        // Merge content arrays but preserve images
+        links: mergeContentArrays(userStore.currentProject.links, parsedLocalData.links),
+        posts: mergeContentArrays(userStore.currentProject.posts, parsedLocalData.posts),
+        releases: mergeContentArrays(userStore.currentProject.releases, parsedLocalData.releases),
+        shows: mergeContentArrays(userStore.currentProject.shows, parsedLocalData.shows),
+        merch: mergeContentArrays(userStore.currentProject.merch, parsedLocalData.merch),
+        
+        // Merge design and settings
+        design: { ...userStore.currentProject.design, ...parsedLocalData.design },
+        settings: { ...userStore.currentProject.settings, ...parsedLocalData.settings },
+        
+        // Remove draft metadata
+        lastSaved: undefined,
+        isDraft: undefined
+      }
+    }
+    
+    // Detect only the fields that have changed
+    const changes = detectChanges(originalProjectData.value, currentData)
+    
+    console.log('🔍 Detected changes:', Object.keys(changes))
+    console.log('🔄 Changes data:', changes)
+    
+    // Only proceed if there are actual changes
+    if (Object.keys(changes).length === 0) {
+      console.log('✅ No changes detected, skipping database update')
+      
+      // Still clear localStorage since there's nothing to save
+      try {
+        localStorage.removeItem(key)
+        console.log('🗑️ Cleared localStorage (no changes)')
+      } catch (error) {
+        console.error('❌ Failed to clear localStorage:', error)
+      }
+      
+      return { success: true, message: 'No changes to save' }
+    }
+    
+    // Add required metadata for database update
+    const updateData = {
+      ...changes,
+      updated_at: new Date().toISOString()
+    }
+    
+    console.log('🔄 Sending only changed data to database:', updateData)
+    
+    // Save only changed data to database via user store
+    const result = await userStore.updateProject(projectId, updateData)
+    
+    if (result.success) {
+      console.log('✅ Project changes synced to database successfully')
+      
+      // Update original data reference with new state
+      originalProjectData.value = JSON.parse(JSON.stringify(currentData))
+      
+      // Clear localStorage draft after successful save
+      try {
+        localStorage.removeItem(key)
+        console.log('🗑️ Cleared localStorage draft after successful save')
+      } catch (error) {
+        console.error('❌ Failed to clear localStorage:', error)
+      }
+      
+      // Update the store with the saved data
+      Object.assign(userStore.currentProject, currentData)
+      
+    } else {
+      console.error('❌ Failed to sync project changes:', result.error)
+      throw new Error(result.error || 'Failed to save project changes')
+    }
+  } catch (error) {
+    console.error('❌ Error syncing project changes:', error)
+    alert('Failed to save project changes. Please try again.')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function publishProject() {
+  if (!userStore.currentProject) return
+  
+  isPublishing.value = true
+  
+  try {
+    console.log('📤 Publishing project...')
+    
+    // First save the project data if there are changes
+    await saveProject()
+    
+    // Then publish to storage via user store
+    // TODO: Add publishProject method to user store
+    // const result = await userStore.publishProject(userStore.currentProject.id)
+    
+    // For now, simulate the publish action
+    console.log('✅ Project published successfully')
+    
+    // Update project published status
+    if (userStore.currentProject && !userStore.currentProject.settings?.published) {
+      userStore.currentProject.settings.published = true
+    }
+    
+  } catch (error) {
+    console.error('❌ Error publishing project:', error)
+    alert('Failed to publish project. Please try again.')
+  } finally {
+    isPublishing.value = false
+  }
+}
+</script>
 
 <style scoped>
 .preview {
