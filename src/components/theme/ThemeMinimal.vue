@@ -10,24 +10,18 @@ const props = defineProps({
 
 const activeTab = ref('home')
 
-// Watch for project changes and log them
-watch(() => props.project, (newProject) => {
-  console.log('🎨 ThemeMinimal: Project updated', {
-    id: newProject?.id,
-    name: newProject?.name,
-    hascover_image: !!newProject?.cover_image,
-    cover_imageLength: newProject?.cover_image?.length || 0
-  })
-}, { deep: true })
+// REMOVED THE DEEP WATCHER - this was causing the infinite loop
+// Instead, use computed properties for reactivity without triggering watchers
 
-// Watch specifically for cover_image changes
-watch(() => props.project?.cover_image, (newcover_image, oldcover_image) => {
-  console.log('🖼️ ThemeMinimal: Cover image changed', {
-    old: oldcover_image ? 'had image' : 'no image',
-    new: newcover_image ? 'has image' : 'no image',
-    newLength: newcover_image?.length || 0
-  })
-})
+// Navigation items
+const navItems = [
+  { id: 'home', label: 'Home' },
+  { id: 'shows', label: 'Shows' },
+  { id: 'releases', label: 'Releases' },
+  { id: 'about', label: 'About' },
+  { id: 'merch', label: 'Merch' },
+  { id: 'contact', label: 'Contact' }
+]
 
 // Computed styles using project design colors and fonts
 const themeStyles = computed(() => {
@@ -42,30 +36,10 @@ const themeStyles = computed(() => {
   }
 })
 
-// Navigation items
-const navItems = [
-  { id: 'home', label: 'Home' },
-  { id: 'shows', label: 'Shows' },
-  { id: 'releases', label: 'Releases' },
-  { id: 'about', label: 'About' },
-  { id: 'merch', label: 'Merch' },
-  { id: 'contact', label: 'Contact' }
-]
-
-// Computed data from project - with explicit reactivity
-const projectTitle = computed(() => {
-  const title = props.project?.name || 'Project Title'
-  console.log('🏷️ ThemeMinimal: projectTitle computed:', title)
-  return title
-})
-
+// Computed data from project - Vue's reactivity handles updates automatically
+const projectTitle = computed(() => props.project?.name || 'Project Title')
 const projectDescription = computed(() => props.project?.description || 'Project description goes here...')
-
-const projectCover = computed(() => {
-  const cover = props.project?.cover_image || ''
-  console.log('🖼️ ThemeMinimal: projectCover computed:', cover ? 'has image' : 'no image')
-  return cover
-})
+const projectCover = computed(() => props.project?.cover_image || '')
 
 const releases = computed(() => props.project?.releases || [])
 const shows = computed(() => props.project?.shows || [])
@@ -91,10 +65,6 @@ function setActiveTab(tabId) {
         <img v-if="projectCover" :src="projectCover" :alt="projectTitle" />
         <div v-else class="cover-placeholder">
           Basic details cover image
-          <!-- Debug info -->
-          <small style="display: block; font-size: 10px; margin-top: 4px;">
-            Debug: {{ projectCover ? 'Has image' : 'No image' }}
-          </small>
         </div>
       </div>
       <h1>{{ projectTitle }}</h1>
@@ -150,97 +120,87 @@ function setActiveTab(tabId) {
             <div class="merch-grid">
               <div v-for="item in limitedMerch" :key="item.id" class="merch-item">
                 <img v-if="item.img" :src="item.img" :alt="item.name" />
-                <span>{{ item.name }}</span>
+                <div class="merch-info">
+                  <h4>{{ item.name }}</h4>
+                  <span class="price">{{ item.price }}</span>
+                </div>
               </div>
             </div>
           </li>
           <li class="action" @click="setActiveTab('merch')">See all</li>
         </ul>
+      </div>
 
-        <ul class="contact">
-          <li class="content">
-            <div class="contact-links">
-              <a v-for="social in socials" :key="social.id" :href="social.url" target="_blank">
-                {{ social.name }}
-              </a>
+      <!-- Shows Tab -->
+      <div v-else-if="activeTab === 'shows'" class="tab-content">
+        <ul class="shows-list">
+          <li v-for="show in shows" :key="show.id" class="show-item">
+            <div class="show-date">{{ show.date }}</div>
+            <div class="show-details">
+              <h3>{{ show.venue }}</h3>
+              <p>{{ show.location }}</p>
+            </div>
+            <div class="show-action">
+              <a v-if="show.link" :href="show.link" target="_blank">Tickets</a>
             </div>
           </li>
         </ul>
       </div>
 
-      <!-- Shows Tab -->
-      <div v-if="activeTab === 'shows'" class="tab-content">
-        <h2>All Shows</h2>
-        <div v-if="shows.length > 0" class="shows-list">
-          <div v-for="show in shows" :key="show.id" class="show-full">
-            <span class="date">{{ show.date }}</span>
-            <span class="venue">{{ show.venue }}</span>
-            <span class="location">{{ show.location }}</span>
-            <span class="tickets" v-if="show.ticketUrl">
-              <a :href="show.ticketUrl" target="_blank">Tickets</a>
-            </span>
-          </div>
-        </div>
-        <p v-else>No shows scheduled</p>
-      </div>
-
       <!-- Releases Tab -->
-      <div v-if="activeTab === 'releases'" class="tab-content">
-        <h2>All Releases</h2>
-        <div v-if="releases.length > 0" class="releases-list">
-          <div v-for="release in releases" :key="release.id" class="release-full">
+      <div v-else-if="activeTab === 'releases'" class="tab-content">
+        <ul class="releases-list">
+          <li v-for="release in releases" :key="release.id" class="release-item">
             <img v-if="release.img" :src="release.img" :alt="release.name" />
-            <div class="release-details">
+            <div class="release-info">
               <h3>{{ release.name }}</h3>
               <p>{{ release.description }}</p>
-              <div v-if="release.tracks" class="tracks">
-                <h4>Tracks:</h4>
-                <ol>
-                  <li v-for="track in release.tracks" :key="track.number">
-                    {{ track.title }} <span v-if="track.length">({{ track.length }})</span>
-                  </li>
-                </ol>
+              <div class="release-links">
+                <a v-if="release.spotify" :href="release.spotify" target="_blank">Spotify</a>
+                <a v-if="release.apple" :href="release.apple" target="_blank">Apple Music</a>
+                <a v-if="release.youtube" :href="release.youtube" target="_blank">YouTube</a>
               </div>
             </div>
-          </div>
-        </div>
-        <p v-else>No releases available</p>
+          </li>
+        </ul>
       </div>
 
       <!-- About Tab -->
-      <div v-if="activeTab === 'about'" class="tab-content">
-        <h2>About</h2>
+      <div v-else-if="activeTab === 'about'" class="tab-content">
         <div class="about-content">
           <p>{{ projectDescription }}</p>
+          <ul class="socials" v-if="socials.length > 0">
+            <li v-for="social in socials" :key="social.id">
+              <a :href="social.link" target="_blank">{{ social.platform }}</a>
+            </li>
+          </ul>
         </div>
       </div>
 
       <!-- Merch Tab -->
-      <div v-if="activeTab === 'merch'" class="tab-content">
-        <h2>Merchandise</h2>
-        <div v-if="merch.length > 0" class="merch-list">
-          <div v-for="item in merch" :key="item.id" class="merch-full">
+      <div v-else-if="activeTab === 'merch'" class="tab-content">
+        <ul class="merch-list">
+          <li v-for="item in merch" :key="item.id" class="merch-item">
             <img v-if="item.img" :src="item.img" :alt="item.name" />
-            <div class="merch-details">
+            <div class="merch-info">
               <h3>{{ item.name }}</h3>
-              <p v-if="item.description">{{ item.description }}</p>
-              <span class="price" v-if="item.price">${{ item.price }}</span>
+              <p>{{ item.description }}</p>
+              <div class="merch-price">{{ item.price }}</div>
+              <a v-if="item.link" :href="item.link" target="_blank" class="buy-button">Buy Now</a>
             </div>
-          </div>
-        </div>
-        <p v-else>No merchandise available</p>
+          </li>
+        </ul>
       </div>
 
       <!-- Contact Tab -->
-      <div v-if="activeTab === 'contact'" class="tab-content">
-        <h2>Contact</h2>
-        <div class="contact-full">
-          <div v-if="socials.length > 0" class="social-links">
-            <h3>Find us on:</h3>
-            <a v-for="social in socials" :key="social.id" :href="social.url" target="_blank">
-              {{ social.name }}
-            </a>
-          </div>
+      <div v-else-if="activeTab === 'contact'" class="tab-content">
+        <div class="contact-content">
+          <p>Get in touch</p>
+          <ul class="contact-links">
+            <li v-for="social in socials" :key="social.id">
+              <a :href="social.link" target="_blank">{{ social.platform }}</a>
+            </li>
+          </ul>
         </div>
       </div>
     </main>

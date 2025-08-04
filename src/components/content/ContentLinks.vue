@@ -17,8 +17,6 @@ const props = defineProps({
 
 const emit = defineEmits(['button-config', 'close-modal', 'save-project'])
 
-
-// Import alert store
 const alertStore = useAlertStore()
 
 // DIRECT STORE ACCESS - Get the actual store project object
@@ -27,7 +25,17 @@ const storeProject = computed(() => {
   return props.userStore.projects.find(p => p.id === projectId)
 })
 
-// Get links array directly from store - REACTIVE ACCESS
+// FIXED: Safe initialization function (not in computed)
+function initializeContentArrays() {
+  if (!storeProject.value) return
+  
+  // Only initialize if the property truly doesn't exist
+  if (!storeProject.value.hasOwnProperty('links')) {
+    storeProject.value.links = []
+  }
+}
+
+// FIXED: Read-only computed for links (no mutations)
 const projectLinks = computed(() => {
   return storeProject.value?.links || []
 })
@@ -36,7 +44,6 @@ const projectLinks = computed(() => {
 function updateLinksInStore(newLinks) {
   if (storeProject.value) {
     storeProject.value.links = newLinks
-    console.log('📝 STORE Project links updated:', newLinks.length, 'items')
   }
 }
 
@@ -76,25 +83,23 @@ function handleCreate() {
     description: '',
     img: '',
     order: projectLinks.value.length + 1,
-    created_at: new Date().toISOString() // Use snake_case to match store format
+    created_at: new Date().toISOString()
   }
   
   currentLink.value = newLink
-  editingIndex.value = -1 // -1 for new items
+  editingIndex.value = -1
   isEditing.value = true
   
-  console.log('✨ Creating new link')
   setupButtonConfig()
 }
 
 // Edit existing link
 function handleEdit(index) {
   if (projectLinks.value[index]) {
-    currentLink.value = { ...projectLinks.value[index] } // Create copy
+    currentLink.value = { ...projectLinks.value[index] }
     editingIndex.value = index
     isEditing.value = true
     
-    console.log('✏️ Editing link at index:', index)
     setupButtonConfig()
   }
 }
@@ -103,21 +108,16 @@ function handleEdit(index) {
 function handleSave() {
   if (!currentLink.value) return
   
-  const currentLinks = [...projectLinks.value] // Get current array
+  const currentLinks = [...projectLinks.value]
   
   if (editingIndex.value === -1) {
-    // Adding new link - ensure proper timestamps
     currentLink.value.created_at = currentLink.value.created_at || new Date().toISOString()
     currentLinks.push(currentLink.value)
-    console.log('✅ New link added to store')
   } else {
-    // Updating existing link - add updated timestamp
     currentLink.value.updated_at = new Date().toISOString()
     currentLinks[editingIndex.value] = currentLink.value
-    console.log('✅ Link updated in store')
   }
   
-  // Update store with new array
   updateLinksInStore(currentLinks)
   
   // Reset editing state
@@ -134,13 +134,11 @@ function handleCancel() {
   editingIndex.value = -1
   currentLink.value = null
   
-  console.log('❌ Cancelled link editing')
   setupButtonConfig()
 }
 
-// Delete link (can be called from ListCard or ModalContent)
+// Delete link
 function handleDelete(index) {
-  // If called from ModalContent during editing, use editingIndex
   const deleteIndex = typeof index === 'number' ? index : editingIndex.value
   
   if (deleteIndex >= 0 && projectLinks.value[deleteIndex]) {
@@ -151,12 +149,8 @@ function handleDelete(index) {
     currentLinks.splice(deleteIndex, 1)
     updateLinksInStore(currentLinks)
     
-    console.log('🗑️ Link deleted from store:', linkTitle)
-    
-    // Show success alert
     alertStore.showSuccess(`Link "${linkTitle}" deleted successfully`)
     
-    // If we were editing this item, close the modal
     if (isEditing.value && editingIndex.value === deleteIndex) {
       isEditing.value = false
       editingIndex.value = -1
@@ -175,12 +169,10 @@ function handleMoveUp(index) {
     currentLinks[index] = currentLinks[index - 1]
     currentLinks[index - 1] = temp
     
-    // Update order values
     currentLinks[index].order = index + 1
     currentLinks[index - 1].order = index
     
     updateLinksInStore(currentLinks)
-    console.log('⬆️ Link moved up')
   }
 }
 
@@ -192,18 +184,15 @@ function handleMoveDown(index) {
     currentLinks[index] = currentLinks[index + 1]
     currentLinks[index + 1] = temp
     
-    // Update order values
     currentLinks[index].order = index + 1
     currentLinks[index + 1].order = index + 2
     
     updateLinksInStore(currentLinks)
-    console.log('⬇️ Link moved down')
   }
 }
 
 // Track changes in modal
 function trackChanges() {
-  console.log('📝 Link data changed')
   setupButtonConfig()
 }
 
@@ -228,14 +217,12 @@ function setupButtonConfig() {
       buttonStyle: 'light'
     })
   }
-  
-  console.log('⚙️ Button config updated:', isEditing.value ? 'Save/Update' : 'Add')
 }
 
 onMounted(() => {
+  // FIXED: Initialize arrays safely in onMounted
+  initializeContentArrays()
   setupButtonConfig()
-  console.log('🔗 ContentLinks component mounted')
-  console.log('📊 Current links count:', projectLinks.value.length)
 })
 </script>
 
@@ -272,5 +259,4 @@ onMounted(() => {
     @cancel="handleCancel"
     @close="handleClose"
   />
-
 </template>

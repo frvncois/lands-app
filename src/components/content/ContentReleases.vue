@@ -17,9 +17,6 @@ const props = defineProps({
 
 const emit = defineEmits(['button-config', 'close-modal', 'save-project'])
 
-console.log('🎵 ContentReleases mounted, project:', props.project?.name)
-
-// Import alert store
 const alertStore = useAlertStore()
 
 // DIRECT STORE ACCESS - Get the actual store project object
@@ -28,7 +25,17 @@ const storeProject = computed(() => {
   return props.userStore.projects.find(p => p.id === projectId)
 })
 
-// Get releases array directly from store - REACTIVE ACCESS
+// FIXED: Safe initialization function (not in computed)
+function initializeContentArrays() {
+  if (!storeProject.value) return
+  
+  // Only initialize if the property truly doesn't exist
+  if (!storeProject.value.hasOwnProperty('releases')) {
+    storeProject.value.releases = []
+  }
+}
+
+// FIXED: Read-only computed for releases (no mutations)
 const projectReleases = computed(() => {
   return storeProject.value?.releases || []
 })
@@ -37,7 +44,6 @@ const projectReleases = computed(() => {
 function updateReleasesInStore(newReleases) {
   if (storeProject.value) {
     storeProject.value.releases = newReleases
-    console.log('📝 STORE Project releases updated:', newReleases.length, 'items')
   }
 }
 
@@ -155,21 +161,19 @@ function handleCreate() {
   }
   
   currentRelease.value = newRelease
-  editingIndex.value = -1 // -1 for new items
+  editingIndex.value = -1
   isEditing.value = true
   
-  console.log('✨ Creating new release')
   setupButtonConfig()
 }
 
 // Edit existing release
 function handleEdit(index) {
   if (projectReleases.value[index]) {
-    currentRelease.value = { ...projectReleases.value[index] } // Create copy
+    currentRelease.value = { ...projectReleases.value[index] }
     editingIndex.value = index
     isEditing.value = true
     
-    console.log('✏️ Editing release at index:', index)
     setupButtonConfig()
   }
 }
@@ -178,7 +182,7 @@ function handleEdit(index) {
 function handleSave() {
   if (!currentRelease.value) return
   
-  const currentReleases = [...projectReleases.value] // Get current array
+  const currentReleases = [...projectReleases.value]
   const releaseTitle = currentRelease.value.title || 'Untitled Release'
   const isNewRelease = editingIndex.value === -1
   
@@ -192,28 +196,23 @@ function handleSave() {
   }
   
   if (isNewRelease) {
-    // Adding new release - ensure proper timestamps
     currentRelease.value.created_at = currentRelease.value.created_at || new Date().toISOString()
     currentReleases.push(currentRelease.value)
-    console.log('✅ New release added to store')
   } else {
-    // Updating existing release - add updated timestamp
     currentRelease.value.updated_at = new Date().toISOString()
     currentReleases[editingIndex.value] = currentRelease.value
-    console.log('✅ Release updated in store with updated_at timestamp')
   }
   
-  // Update store with new array
   updateReleasesInStore(currentReleases)
   
-  // Reset editing state FIRST
+  // Reset editing state
   isEditing.value = false
   editingIndex.value = -1
   currentRelease.value = null
   
   setupButtonConfig()
   
-  // Show alerts AFTER state reset with delay to ensure DOM is updated
+  // Show alerts after state reset
   setTimeout(() => {
     if (isNewRelease) {
       alertStore.showSuccess(`Release "${releaseTitle}" created successfully`)
@@ -229,13 +228,11 @@ function handleCancel() {
   editingIndex.value = -1
   currentRelease.value = null
   
-  console.log('❌ Cancelled release editing')
   setupButtonConfig()
 }
 
-// Delete release (can be called from ListCard or ModalContent)
+// Delete release
 function handleDelete(index) {
-  // If called from ModalContent during editing, use editingIndex
   const deleteIndex = typeof index === 'number' ? index : editingIndex.value
   
   if (deleteIndex >= 0 && projectReleases.value[deleteIndex]) {
@@ -246,12 +243,8 @@ function handleDelete(index) {
     currentReleases.splice(deleteIndex, 1)
     updateReleasesInStore(currentReleases)
     
-    console.log('🗑️ Release deleted from store:', releaseTitle)
-    
-    // Show success alert
     alertStore.showSuccess(`Release "${releaseTitle}" deleted successfully`)
     
-    // If we were editing this item, close the modal
     if (isEditing.value && editingIndex.value === deleteIndex) {
       isEditing.value = false
       editingIndex.value = -1
@@ -270,12 +263,10 @@ function handleMoveUp(index) {
     currentReleases[index] = currentReleases[index - 1]
     currentReleases[index - 1] = temp
     
-    // Update order values
     currentReleases[index].order = index + 1
     currentReleases[index - 1].order = index
     
     updateReleasesInStore(currentReleases)
-    console.log('⬆️ Release moved up')
   }
 }
 
@@ -287,18 +278,15 @@ function handleMoveDown(index) {
     currentReleases[index] = currentReleases[index + 1]
     currentReleases[index + 1] = temp
     
-    // Update order values
     currentReleases[index].order = index + 1
     currentReleases[index + 1].order = index + 2
     
     updateReleasesInStore(currentReleases)
-    console.log('⬇️ Release moved down')
   }
 }
 
 // Track changes in modal
 function trackChanges() {
-  console.log('📝 Release data changed')
   setupButtonConfig()
 }
 
@@ -323,14 +311,12 @@ function setupButtonConfig() {
       buttonStyle: 'light'
     })
   }
-  
-  console.log('⚙️ Button config updated:', isEditing.value ? 'Save/Update' : 'Add')
 }
 
 onMounted(() => {
+  // FIXED: Initialize arrays safely in onMounted
+  initializeContentArrays()
   setupButtonConfig()
-  console.log('🎵 ContentReleases component mounted')
-  console.log('📊 Current releases count:', projectReleases.value.length)
 })
 </script>
 
@@ -354,8 +340,7 @@ onMounted(() => {
     />
     
     <li v-if="projectReleases.length === 0" class="empty">
-      <h3>No releases added yet</h3>
-      <p>Click "Add Release" to get started</p>
+      <p>No releases added yet</p>
     </li>
   </ul>
 

@@ -360,8 +360,7 @@ onMounted(() => {
     />
     
     <li v-if="projectShows.length === 0" class="empty">
-      <h3>No shows added yet</h3>
-      <p>Click "Add Show" to get started</p>
+      <p>No shows added yet</p>
     </li>
   </ul>
 

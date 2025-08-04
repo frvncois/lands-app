@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import InputNormal from '@/components/input/InputNormal.vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
 import CollaboratorsList from '@/components/collaborator/CollaboratorsList.vue'
@@ -31,8 +31,8 @@ const isCheckingDomain = ref(false)
 // Get projects from user store for URL validation
 const allProjects = computed(() => props.userStore.projects || [])
 
-// Reactive project settings - ensure they exist
-const projectSettings = computed(() => {
+// FIXED: Safe initialization function (not in computed)
+function initializeProjectSettings() {
   if (!props.project.settings) {
     props.project.settings = {}
   }
@@ -47,13 +47,22 @@ const projectSettings = computed(() => {
     published: false
   }
   
+  let needsUpdate = false
   Object.keys(defaults).forEach(key => {
     if (!props.project.settings.hasOwnProperty(key)) {
       props.project.settings[key] = defaults[key]
+      needsUpdate = true
     }
   })
   
-  return props.project.settings
+  if (needsUpdate) {
+    console.log('⚙️ Project settings initialized with defaults')
+  }
+}
+
+// FIXED: Read-only computed for settings (no mutations)
+const projectSettings = computed(() => {
+  return props.project.settings || {}
 })
 
 // Computed URL status
@@ -175,13 +184,12 @@ async function saveProjectSettings() {
 }
 
 // Auto-save when settings change
+let saveTimeout = null
 watch(projectSettings, () => {
   // Debounce the save operation
   clearTimeout(saveTimeout)
   saveTimeout = setTimeout(saveProjectSettings, 1000)
 }, { deep: true })
-
-let saveTimeout = null
 
 // Status helper functions
 function getUrlStatusType() {
@@ -208,6 +216,23 @@ function getDomainStatusMessage() {
   if (!domainStatus.value.verified && domainValidation.value.isValid) return domainStatus.value.message
   return ''
 }
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).catch(err => {
+    console.error('Failed to copy:', err)
+  })
+}
+
+function verifyDomain() {
+  if (!projectSettings.value.customDomain) return
+  validateCustomDomain(projectSettings.value.customDomain)
+}
+
+// FIXED: Initialize on mount instead of in computed
+onMounted(() => {
+  initializeProjectSettings()
+  console.log('⚙️ ProjectSetting component initialized')
+})
 </script>
 
 <template>
@@ -294,6 +319,8 @@ function getDomainStatusMessage() {
     </ul>
   </ul>
 </template>
+
+<!-- Styles remain the same -->
 
 <style scoped>
 ul.list {

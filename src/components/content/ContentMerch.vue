@@ -17,9 +17,6 @@ const props = defineProps({
 
 const emit = defineEmits(['button-config', 'close-modal', 'save-project'])
 
-console.log('🛍️ ContentMerch mounted, project:', props.project?.name)
-
-// Import alert store
 const alertStore = useAlertStore()
 
 // DIRECT STORE ACCESS - Get the actual store project object
@@ -28,7 +25,17 @@ const storeProject = computed(() => {
   return props.userStore.projects.find(p => p.id === projectId)
 })
 
-// Get merch array directly from store - REACTIVE ACCESS
+// FIXED: Safe initialization function (not in computed)
+function initializeContentArrays() {
+  if (!storeProject.value) return
+  
+  // Only initialize if the property truly doesn't exist
+  if (!storeProject.value.hasOwnProperty('merch')) {
+    storeProject.value.merch = []
+  }
+}
+
+// FIXED: Read-only computed for merch (no mutations)
 const projectMerch = computed(() => {
   return storeProject.value?.merch || []
 })
@@ -37,7 +44,6 @@ const projectMerch = computed(() => {
 function updateMerchInStore(newMerch) {
   if (storeProject.value) {
     storeProject.value.merch = newMerch
-    console.log('📝 STORE Project merch updated:', newMerch.length, 'items')
   }
 }
 
@@ -148,21 +154,19 @@ function handleCreate() {
   }
   
   currentMerch.value = newMerch
-  editingIndex.value = -1 // -1 for new items
+  editingIndex.value = -1
   isEditing.value = true
   
-  console.log('✨ Creating new merch')
   setupButtonConfig()
 }
 
 // Edit existing merch
 function handleEdit(index) {
   if (projectMerch.value[index]) {
-    currentMerch.value = { ...projectMerch.value[index] } // Create copy
+    currentMerch.value = { ...projectMerch.value[index] }
     editingIndex.value = index
     isEditing.value = true
     
-    console.log('✏️ Editing merch at index:', index)
     setupButtonConfig()
   }
 }
@@ -171,7 +175,7 @@ function handleEdit(index) {
 function handleSave() {
   if (!currentMerch.value) return
   
-  const currentMerchArray = [...projectMerch.value] // Get current array
+  const currentMerchArray = [...projectMerch.value]
   const merchTitle = currentMerch.value.name || 'Untitled Merch'
   const isNewMerch = editingIndex.value === -1
   
@@ -185,28 +189,23 @@ function handleSave() {
   }
   
   if (isNewMerch) {
-    // Adding new merch - ensure proper timestamps
     currentMerch.value.created_at = currentMerch.value.created_at || new Date().toISOString()
     currentMerchArray.push(currentMerch.value)
-    console.log('✅ New merch added to store')
   } else {
-    // Updating existing merch - add updated timestamp
     currentMerch.value.updated_at = new Date().toISOString()
     currentMerchArray[editingIndex.value] = currentMerch.value
-    console.log('✅ Merch updated in store with updated_at timestamp')
   }
   
-  // Update store with new array
   updateMerchInStore(currentMerchArray)
   
-  // Reset editing state FIRST
+  // Reset editing state
   isEditing.value = false
   editingIndex.value = -1
   currentMerch.value = null
   
   setupButtonConfig()
   
-  // Show alerts AFTER state reset with delay to ensure DOM is updated
+  // Show alerts after state reset
   setTimeout(() => {
     if (isNewMerch) {
       alertStore.showSuccess(`Merch "${merchTitle}" created successfully`)
@@ -222,13 +221,11 @@ function handleCancel() {
   editingIndex.value = -1
   currentMerch.value = null
   
-  console.log('❌ Cancelled merch editing')
   setupButtonConfig()
 }
 
-// Delete merch (can be called from ListCard or ModalContent)
+// Delete merch
 function handleDelete(index) {
-  // If called from ModalContent during editing, use editingIndex
   const deleteIndex = typeof index === 'number' ? index : editingIndex.value
   
   if (deleteIndex >= 0 && projectMerch.value[deleteIndex]) {
@@ -239,12 +236,8 @@ function handleDelete(index) {
     currentMerchArray.splice(deleteIndex, 1)
     updateMerchInStore(currentMerchArray)
     
-    console.log('🗑️ Merch deleted from store:', merchTitle)
-    
-    // Show success alert
     alertStore.showSuccess(`Merch "${merchTitle}" deleted successfully`)
     
-    // If we were editing this item, close the modal
     if (isEditing.value && editingIndex.value === deleteIndex) {
       isEditing.value = false
       editingIndex.value = -1
@@ -263,12 +256,10 @@ function handleMoveUp(index) {
     currentMerchArray[index] = currentMerchArray[index - 1]
     currentMerchArray[index - 1] = temp
     
-    // Update order values
     currentMerchArray[index].order = index + 1
     currentMerchArray[index - 1].order = index
     
     updateMerchInStore(currentMerchArray)
-    console.log('⬆️ Merch moved up')
   }
 }
 
@@ -280,18 +271,15 @@ function handleMoveDown(index) {
     currentMerchArray[index] = currentMerchArray[index + 1]
     currentMerchArray[index + 1] = temp
     
-    // Update order values
     currentMerchArray[index].order = index + 1
     currentMerchArray[index + 1].order = index + 2
     
     updateMerchInStore(currentMerchArray)
-    console.log('⬇️ Merch moved down')
   }
 }
 
 // Track changes in modal
 function trackChanges() {
-  console.log('📝 Merch data changed')
   setupButtonConfig()
 }
 
@@ -316,14 +304,12 @@ function setupButtonConfig() {
       buttonStyle: 'light'
     })
   }
-  
-  console.log('⚙️ Button config updated:', isEditing.value ? 'Save/Update' : 'Add')
 }
 
 onMounted(() => {
+  // FIXED: Initialize arrays safely in onMounted
+  initializeContentArrays()
   setupButtonConfig()
-  console.log('🛍️ ContentMerch component mounted')
-  console.log('📊 Current merch count:', projectMerch.value.length)
 })
 </script>
 
@@ -347,8 +333,7 @@ onMounted(() => {
     />
     
     <li v-if="projectMerch.length === 0" class="empty">
-      <h3>No merch added yet</h3>
-      <p>Click "Add Merch" to get started</p>
+      <p>No merch added yet</p>
     </li>
   </ul>
 

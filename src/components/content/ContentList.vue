@@ -45,18 +45,12 @@ const validProject = computed(() => {
   return projectRef.value && typeof projectRef.value === 'object'
 })
 
+// FIXED: Optimized projectData computed - no unnecessary array creation
 const projectData = computed(() => {
   if (!validProject.value) return null
-  return {
-    ...projectRef.value,
-    // Ensure content arrays exist
-    links: projectRef.value.links || [],
-    socials: projectRef.value.socials || [],
-    posts: projectRef.value.posts || [],
-    releases: projectRef.value.releases || [],
-    shows: projectRef.value.shows || [],
-    merch: projectRef.value.merch || []
-  }
+  
+  // Return the project directly - child components will handle their own array initialization
+  return projectRef.value
 })
 
 // Content selection and navigation
@@ -66,16 +60,12 @@ function selectContent(content) {
   selectedContent.value = content
   currentView.value = content.id
   buttonConfig.value = { title: '', action: null }
-  
-  console.log('📝 Selected content:', content.name)
 }
 
 function goBackToOverview() {
   currentView.value = 'overview'
   selectedContent.value = null
   buttonConfig.value = { title: '', action: null }
-  
-  console.log('🔙 Returned to content overview')
 }
 
 function getCurrentComponent() {
@@ -92,8 +82,6 @@ function handleButtonConfig(config) {
     action: config.action || null,
     buttonStyle: config.buttonStyle || 'light'
   }
-  
-  console.log('⚙️ Button config updated:', config.title)
 }
 
 function handleCloseModal() {
@@ -105,9 +93,9 @@ async function saveProjectData() {
   if (!props.userStore || !validProject.value) return
   
   try {
-    const result = await props.userStore.updateProject(projectRef.value.id, projectData.value)
+    const result = await props.userStore.updateProject(projectRef.value.id, projectRef.value)
     if (result.success) {
-      console.log('✅ Project data auto-saved')
+      // Project auto-saved successfully
     } else {
       console.error('❌ Failed to save project:', result.error)
     }
@@ -115,8 +103,6 @@ async function saveProjectData() {
     console.error('❌ Error saving project:', error)
   }
 }
-
-
 </script>
 
 <template>
@@ -174,15 +160,14 @@ async function saveProjectData() {
       </div>
     </li>
     
-
-      <component 
-        :is="getCurrentComponent()"
-        :project="projectData"
-        :user-store="userStore"
-        @button-config="handleButtonConfig"
-        @close-modal="handleCloseModal"
-        @save-project="saveProjectData"
-      />
+    <component 
+      :is="getCurrentComponent()"
+      :project="projectData"
+      :user-store="userStore"
+      @button-config="handleButtonConfig"
+      @close-modal="handleCloseModal"
+      @save-project="saveProjectData"
+    />
   </ul>
 
   <!-- Error state -->
@@ -196,10 +181,7 @@ async function saveProjectData() {
   </div>
 </template>
 
-
-
 <style scoped>
-
 ul.list {
   & li.item {
     display: grid;
@@ -262,15 +244,16 @@ ul.list {
       }
     }
   }
+  
   > li.actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  > .title {
     display: flex;
-    gap: var(--space-rg);
+    align-items: center;
+    justify-content: space-between;
+    
+    > .title {
+      display: flex;
+      gap: var(--space-rg);
+    }
   }
-  }
-
 }
 </style>

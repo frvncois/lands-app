@@ -24,6 +24,30 @@ const storeProject = computed(() => {
   return props.userStore.projects.find(p => p.id === projectId)
 })
 
+// FIXED: Safe initialization function (separate from reactive chain)
+function initializeProjectArrays() {
+  if (!storeProject.value) return
+  
+  // Only initialize if they truly don't exist (not just empty arrays)
+  let needsUpdate = false
+  const updates = {}
+  
+  if (!storeProject.value.hasOwnProperty('contacts')) {
+    updates.contacts = []
+    needsUpdate = true
+  }
+  if (!storeProject.value.hasOwnProperty('socialLinks')) {
+    updates.socialLinks = []
+    needsUpdate = true
+  }
+  
+  // Apply all updates at once to minimize reactivity triggers
+  if (needsUpdate) {
+    Object.assign(storeProject.value, updates)
+    console.log('📄 ContentBasic: Arrays initialized safely', Object.keys(updates))
+  }
+}
+
 // Create computed refs that directly reference the store project
 const projectName = computed({
   get: () => storeProject.value?.name || '',
@@ -52,7 +76,7 @@ const projectLocation = computed({
   }
 })
 
-const projectcover_image = computed({
+const projectCoverImage = computed({
   get: () => storeProject.value?.cover_image || '',
   set: (value) => {
     if (storeProject.value) {
@@ -61,6 +85,7 @@ const projectcover_image = computed({
   }
 })
 
+// FIXED: Safe computed for arrays (no mutations, with fallbacks)
 const projectContacts = computed({
   get: () => storeProject.value?.contacts || [],
   set: (value) => {
@@ -79,7 +104,6 @@ const projectSocialLinks = computed({
   }
 })
 
-// No save button needed - just direct store binding
 function setupButtonConfig() {
   emit('button-config', {
     title: '',
@@ -88,14 +112,8 @@ function setupButtonConfig() {
 }
 
 onMounted(() => {
-  // Initialize arrays if they don't exist in the STORE project
-  if (storeProject.value && !storeProject.value.contacts) {
-    storeProject.value.contacts = []
-  }
-  if (storeProject.value && !storeProject.value.socialLinks) {
-    storeProject.value.socialLinks = []
-  }
-  
+  // FIXED: Initialize arrays safely, only once, with minimal reactivity impact
+  initializeProjectArrays()
   setupButtonConfig()
   
   console.log('📄 ContentBasic: DIRECT STORE binding ready')
@@ -115,50 +133,47 @@ onMounted(() => {
     <ul class="items">
       <InputNormal
         label="Project Title"
-        placeholder="Your project name"
+        details="This is the main title that will appear on your project page"
+        placeholder="Enter project title"
         v-model="projectName"
       />
-      <InputUpload
-        label="Cover Image"
-        v-model="projectcover_image"
-      />
-    </ul>
-    
-    <ul class="items">
+      
       <InputTextarea
-        label="Introduction"
+        label="Project Description"
+        details="A brief description of your project"
         placeholder="Describe your project..."
         v-model="projectDescription"
       />
+      
       <InputNormal
         label="Location"
-        placeholder="City, Country or Studio location"
+        details="Where is this project based?"
+        placeholder="City, Country"
         v-model="projectLocation"
       />
-    </ul>
-    
-    <ul class="items">
+      
+      <InputUpload
+        label="Cover Image"
+        details="Main image for your project"
+        placeholder="Upload cover image"
+        v-model="projectCoverImage"
+      />
+      
       <InputLinks
-        label="Contacts"
-        titlePlaceholder="Contact title"
-        urlPlaceholder="website, email or tel"
+        label="Contact Links"
+        details="Ways for people to contact you"
+        placeholder="Add contact methods"
         v-model="projectContacts"
       />
-    </ul>
-    
-    <ul class="items">
+      
       <InputLinks
         label="Social Links"
-        titlePlaceholder="Platform name"
-        urlPlaceholder="Profile URL or handle"
+        details="Your social media profiles"
+        placeholder="Add social links"
         v-model="projectSocialLinks"
       />
     </ul>
   </ul>
-  
-  <div v-else class="error-state">
-    <p>Project not found in store</p>
-  </div>
 </template>
 
 <style scoped>

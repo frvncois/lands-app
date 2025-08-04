@@ -17,9 +17,6 @@ const props = defineProps({
 
 const emit = defineEmits(['button-config', 'close-modal', 'save-project'])
 
-console.log('📝 ContentPosts mounted, project:', props.project?.name)
-
-// Import alert store
 const alertStore = useAlertStore()
 
 // DIRECT STORE ACCESS - Get the actual store project object
@@ -28,7 +25,17 @@ const storeProject = computed(() => {
   return props.userStore.projects.find(p => p.id === projectId)
 })
 
-// Get posts array directly from store - REACTIVE ACCESS
+// FIXED: Safe initialization function (not in computed)
+function initializeContentArrays() {
+  if (!storeProject.value) return
+  
+  // Only initialize if the property truly doesn't exist
+  if (!storeProject.value.hasOwnProperty('posts')) {
+    storeProject.value.posts = []
+  }
+}
+
+// FIXED: Read-only computed for posts (no mutations)
 const projectPosts = computed(() => {
   return storeProject.value?.posts || []
 })
@@ -37,7 +44,6 @@ const projectPosts = computed(() => {
 function updatePostsInStore(newPosts) {
   if (storeProject.value) {
     storeProject.value.posts = newPosts
-    console.log('📝 STORE Project posts updated:', newPosts.length, 'items')
   }
 }
 
@@ -120,21 +126,19 @@ function handleCreate() {
   }
   
   currentPost.value = newPost
-  editingIndex.value = -1 // -1 for new items
+  editingIndex.value = -1
   isEditing.value = true
   
-  console.log('✨ Creating new post')
   setupButtonConfig()
 }
 
 // Edit existing post
 function handleEdit(index) {
   if (projectPosts.value[index]) {
-    currentPost.value = { ...projectPosts.value[index] } // Create copy
+    currentPost.value = { ...projectPosts.value[index] }
     editingIndex.value = index
     isEditing.value = true
     
-    console.log('✏️ Editing post at index:', index)
     setupButtonConfig()
   }
 }
@@ -143,7 +147,7 @@ function handleEdit(index) {
 function handleSave() {
   if (!currentPost.value) return
   
-  const currentPosts = [...projectPosts.value] // Get current array
+  const currentPosts = [...projectPosts.value]
   const postTitle = currentPost.value.title || 'Untitled Post'
   const isNewPost = editingIndex.value === -1
   
@@ -157,28 +161,23 @@ function handleSave() {
   }
   
   if (isNewPost) {
-    // Adding new post - ensure proper timestamps
     currentPost.value.created_at = currentPost.value.created_at || new Date().toISOString()
     currentPosts.push(currentPost.value)
-    console.log('✅ New post added to store')
   } else {
-    // Updating existing post - add updated timestamp
     currentPost.value.updated_at = new Date().toISOString()
     currentPosts[editingIndex.value] = currentPost.value
-    console.log('✅ Post updated in store with updated_at timestamp')
   }
   
-  // Update store with new array
   updatePostsInStore(currentPosts)
   
-  // Reset editing state FIRST
+  // Reset editing state
   isEditing.value = false
   editingIndex.value = -1
   currentPost.value = null
   
   setupButtonConfig()
   
-  // Show alerts AFTER state reset with delay to ensure DOM is updated
+  // Show alerts after state reset
   setTimeout(() => {
     if (isNewPost) {
       alertStore.showSuccess(`Post "${postTitle}" created successfully`)
@@ -194,13 +193,11 @@ function handleCancel() {
   editingIndex.value = -1
   currentPost.value = null
   
-  console.log('❌ Cancelled post editing')
   setupButtonConfig()
 }
 
-// Delete post (can be called from ListCard or ModalContent)
+// Delete post
 function handleDelete(index) {
-  // If called from ModalContent during editing, use editingIndex
   const deleteIndex = typeof index === 'number' ? index : editingIndex.value
   
   if (deleteIndex >= 0 && projectPosts.value[deleteIndex]) {
@@ -211,12 +208,8 @@ function handleDelete(index) {
     currentPosts.splice(deleteIndex, 1)
     updatePostsInStore(currentPosts)
     
-    console.log('🗑️ Post deleted from store:', postTitle)
-    
-    // Show success alert
     alertStore.showSuccess(`Post "${postTitle}" deleted successfully`)
     
-    // If we were editing this item, close the modal
     if (isEditing.value && editingIndex.value === deleteIndex) {
       isEditing.value = false
       editingIndex.value = -1
@@ -235,12 +228,10 @@ function handleMoveUp(index) {
     currentPosts[index] = currentPosts[index - 1]
     currentPosts[index - 1] = temp
     
-    // Update order values
     currentPosts[index].order = index + 1
     currentPosts[index - 1].order = index
     
     updatePostsInStore(currentPosts)
-    console.log('⬆️ Post moved up')
   }
 }
 
@@ -252,18 +243,15 @@ function handleMoveDown(index) {
     currentPosts[index] = currentPosts[index + 1]
     currentPosts[index + 1] = temp
     
-    // Update order values
     currentPosts[index].order = index + 1
     currentPosts[index + 1].order = index + 2
     
     updatePostsInStore(currentPosts)
-    console.log('⬇️ Post moved down')
   }
 }
 
 // Track changes in modal
 function trackChanges() {
-  console.log('📝 Post data changed')
   setupButtonConfig()
 }
 
@@ -288,14 +276,12 @@ function setupButtonConfig() {
       buttonStyle: 'light'
     })
   }
-  
-  console.log('⚙️ Button config updated:', isEditing.value ? 'Save/Update' : 'Add')
 }
 
 onMounted(() => {
+  // FIXED: Initialize arrays safely in onMounted
+  initializeContentArrays()
   setupButtonConfig()
-  console.log('📝 ContentPosts component mounted')
-  console.log('📊 Current posts count:', projectPosts.value.length)
 })
 </script>
 
@@ -319,8 +305,7 @@ onMounted(() => {
     />
     
     <li v-if="projectPosts.length === 0" class="empty">
-      <h3>No posts added yet</h3>
-      <p>Click "Add Post" to get started</p>
+      <p>No posts added yet</p>
     </li>
   </ul>
 
