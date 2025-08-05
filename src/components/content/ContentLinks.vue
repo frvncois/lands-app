@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, computed, ref, provide } from 'vue' 
 import ListCard from '@/components/global/ListCard.vue'
 import ModalContent from '@/components/global/ModalContent.vue'
 import { useAlertStore } from '@/stores/alert'
@@ -14,6 +14,9 @@ const props = defineProps({
     required: true
   }
 })
+
+provide('projectId', props.project.id)
+
 
 const emit = defineEmits(['button-config', 'close-modal', 'save-project'])
 

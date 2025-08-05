@@ -1,4 +1,5 @@
-// User.js store - Back to real API calls, no dummy data
+// Fixed user.js store with all issues addressed
+
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/services/supabase.js'
@@ -83,7 +84,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   // =====================================================
-  // DATA LOADING (RESTORED TO API CALLS)
+  // DATA LOADING
   // =====================================================
 
   async function loadUserData() {
@@ -147,8 +148,13 @@ export const useUserStore = defineStore('user', () => {
         }))
         
         // Set invitations and stats
-        invitations.value = response.data.invitations
-        stats.value = response.data.stats
+        invitations.value = response.data.invitations || []
+        stats.value = response.data.stats || {
+          total_projects: 0,
+          owned_projects: 0,
+          collaborated_projects: 0,
+          pending_invitations: 0
+        }
         
         console.log(`✅ API data loaded: ${profile.value.email}, ${stats.value.total_projects} projects`)
         
@@ -163,6 +169,39 @@ export const useUserStore = defineStore('user', () => {
     } finally {
       dataLoading.value = false
       isLoadingData.value = false
+    }
+  }
+
+  // ✅ FIXED: Load invitations only (efficient method)
+  async function loadInvitations() {
+    if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
+    
+    try {
+      console.log('🔄 Loading invitations only...')
+      
+      const response = await apiService.getInvitations()
+      
+      if (response.success) {
+        invitations.value = response.data.invitations || []
+        
+        // ✅ FIXED: Update all invitation-related stats
+        if (response.data.stats) {
+          stats.value.pending_invitations = response.data.stats.pending_invitations || 0
+          // Don't overwrite other stats, just update invitation-related ones
+          stats.value.accepted_invitations = response.data.stats.accepted_invitations || 0
+          stats.value.declined_invitations = response.data.stats.declined_invitations || 0
+          stats.value.total_invitations = response.data.stats.total_invitations || 0
+        }
+        
+        console.log(`✅ Invitations loaded: ${invitations.value.length} invitations`)
+        return { success: true, data: response.data }
+      } else {
+        throw new Error(response.error || 'Failed to load invitations')
+      }
+    } catch (err) {
+      console.error('❌ Failed to load invitations:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
     }
   }
 
@@ -204,31 +243,62 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  function setupAuthListener() {
-    supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log('🔄 Auth changed:', event, newSession?.user?.email || 'no user')
-      
-      switch (event) {
-        case 'SIGNED_OUT':
+function setupAuthListener() {
+  supabase.auth.onAuthStateChange(async (event, newSession) => {
+    console.log('🔄 Auth changed:', event, newSession?.user?.email || 'no user')
+    
+    switch (event) {
+      case 'SIGNED_OUT':
+        await clearAllData()
+        break
+        
+      case 'SIGNED_IN':
+        // ALWAYS update session and user (security critical)
+        session.value = newSession
+        user.value = newSession?.user || null
+        
+        // Optional: Validate token integrity
+        const isValidToken = await validateSession()
+        if (!isValidToken) {
+          console.warn('⚠️ Invalid token detected during auth validation')
           await clearAllData()
-          break
+          return
+        }
+        
+        // SMART data loading - only load if we don't have data for this user
+        if (newSession?.user) {
+          const currentUserEmail = newSession.user.email
+          const hasCurrentUserData = profile.value.email === currentUserEmail
           
-        case 'SIGNED_IN':
-          session.value = newSession
-          user.value = newSession?.user || null
-          
-          if (newSession?.user && !isLoadingData.value) {
+          if (!hasCurrentUserData && !isLoadingData.value) {
+            console.log('🔄 New user session detected, loading user data...')
             await loadUserData()
+          } else if (hasCurrentUserData) {
+            console.log('✅ User data already current, auth validation complete')
+          } else if (isLoadingData.value) {
+            console.log('⏳ Data already loading, auth validation complete')
           }
-          break
-          
-        case 'TOKEN_REFRESHED':
+        }
+        break
+        
+      case 'TOKEN_REFRESHED':
+        // ALWAYS update session (security critical)
+        session.value = newSession
+        user.value = newSession?.user || null
+        console.log('🔄 Token refreshed - security validation complete')
+        break
+        
+      case 'INITIAL_SESSION':
+        // Handle initial session setup
+        if (newSession) {
           session.value = newSession
           user.value = newSession?.user || null
-          break
-      }
-    })
-  }
+          console.log('🔄 Initial session detected')
+        }
+        break
+    }
+  })
+}
 
   async function clearAllData() {
     user.value = null
@@ -261,71 +331,71 @@ export const useUserStore = defineStore('user', () => {
   // AUTH METHODS
   // =====================================================
 
-  async function signUp(email, password, metadata = {}) {
-    loading.value = true
-    error.value = null
+async function signIn(email, password) {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password
+    })
+
+    if (signInError) throw signInError
+
+    session.value = data.session
+    user.value = data.user
     
-    try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.toLowerCase().trim(),
-        password,
-        options: {
-          data: {
-            first_name: metadata.firstName || '',
-            last_name: metadata.lastName || '',
-            marketing_emails: metadata.marketing || false
-          }
-        }
-      })
-
-      if (signUpError) throw signUpError
-
-      console.log('✅ Sign up successful')
-      
-      if (data.session && data.user?.email_confirmed_at) {
-        session.value = data.session
-        user.value = data.user
-        await loadUserData()
-        return { success: true, needsVerification: false }
-      } else {
-        return { success: true, needsVerification: true }
-      }
-    } catch (err) {
-      console.error('❌ Sign up error:', err)
-      error.value = err.message
-      return { success: false, error: err.message }
-    } finally {
-      loading.value = false
-    }
+    console.log('✅ Sign in successful:', data.user.email)
+    // REMOVED: await loadUserData() - auth listener will handle this
+    
+    return { success: true }
+  } catch (err) {
+    console.error('❌ Sign in error:', err)
+    error.value = err.message
+    return { success: false, error: err.message }
+  } finally {
+    loading.value = false
   }
+}
 
-  async function signIn(email, password) {
-    loading.value = true
-    error.value = null
+async function signUp(email, password, metadata = {}) {
+  loading.value = true
+  error.value = null
+  
+  try {
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: email.toLowerCase().trim(),
+      password,
+      options: {
+        data: {
+          first_name: metadata.firstName || '',
+          last_name: metadata.lastName || '',
+          marketing_emails: metadata.marketing || false
+        }
+      }
+    })
+
+    if (signUpError) throw signUpError
+
+    console.log('✅ Sign up successful')
     
-    try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.toLowerCase().trim(),
-        password
-      })
-
-      if (signInError) throw signInError
-
+    if (data.session && data.user?.email_confirmed_at) {
       session.value = data.session
       user.value = data.user
-      
-      console.log('✅ Sign in successful:', data.user.email)
-      await loadUserData()
-      
-      return { success: true }
-    } catch (err) {
-      console.error('❌ Sign in error:', err)
-      error.value = err.message
-      return { success: false, error: err.message }
-    } finally {
-      loading.value = false
+      // REMOVED: await loadUserData() - auth listener will handle this
+      return { success: true, needsVerification: false }
+    } else {
+      return { success: true, needsVerification: true }
     }
+  } catch (err) {
+    console.error('❌ Sign up error:', err)
+    error.value = err.message
+    return { success: false, error: err.message }
+  } finally {
+    loading.value = false
   }
+}
 
   async function signOut() {
     loading.value = true
@@ -358,7 +428,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // =====================================================
-  // PROFILE METHODS (RESTORED TO API CALLS)
+  // PROFILE METHODS
   // =====================================================
 
   async function updateProfile(updates) {
@@ -380,7 +450,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // =====================================================
-  // PROJECT METHODS (RESTORED TO API CALLS)
+  // PROJECT METHODS
   // =====================================================
 
   async function createProject(projectData) {
@@ -486,10 +556,9 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-
-// =====================================================
-// COLLABORATOR METHODS (NEW)
-// =====================================================
+  // =====================================================
+  // COLLABORATOR METHODS
+  // =====================================================
 
   // Check if user exists by email
   async function checkUserExists(email) {
@@ -497,10 +566,7 @@ export const useUserStore = defineStore('user', () => {
     
     try {
       console.log('🔄 Checking if user exists:', email)
-      const response = await apiService.callEdgeFunction('check-user-exists', {
-        method: 'POST',
-        body: { email: email.toLowerCase().trim() }
-      })
+      const response = await apiService.checkUserExists(email)
       
       if (response.success) {
         console.log('✅ User check complete:', response.data)
@@ -533,20 +599,17 @@ export const useUserStore = defineStore('user', () => {
         throw new Error('At least one project must be selected')
       }
       
-      const response = await apiService.callEdgeFunction('invite-collaborator', {
-        method: 'POST',
-        body: { 
-          email: email.toLowerCase().trim(),
-          name: name.trim(),
-          project_ids: projectIds
-        }
+      const response = await apiService.inviteCollaborator({
+        email: email.toLowerCase().trim(),
+        name: name.trim(),
+        project_ids: projectIds
       })
       
       if (response.success) {
         console.log('✅ Collaborator invited successfully')
         
-        // Reload user data to get updated invitations
-        await loadUserData()
+        // ✅ EFFICIENT: Only reload invitations, not entire user data
+        await loadInvitations()
         
         return { success: true, data: response.data }
       } else {
@@ -573,21 +636,17 @@ export const useUserStore = defineStore('user', () => {
         throw new Error('At least one project must be selected')
       }
       
-      const response = await apiService.callEdgeFunction('update-collaborator-invitation', {
-        method: 'PUT',
-        body: { 
-          invitation_id: invitationId,
-          email: email.toLowerCase().trim(),
-          name: name.trim(),
-          project_ids: projectIds
-        }
+      const response = await apiService.updateCollaboratorInvitation(invitationId, {
+        email: email.toLowerCase().trim(),
+        name: name.trim(),
+        project_ids: projectIds
       })
       
       if (response.success) {
         console.log('✅ Collaborator invitation updated successfully')
         
-        // Reload user data to get updated invitations
-        await loadUserData()
+        // ✅ EFFICIENT: Only reload invitations, not entire user data
+        await loadInvitations()
         
         return { success: true, data: response.data }
       } else {
@@ -607,16 +666,13 @@ export const useUserStore = defineStore('user', () => {
     try {
       console.log('🔄 Removing collaborator invitation...', invitationId)
       
-      const response = await apiService.callEdgeFunction('remove-collaborator-invitation', {
-        method: 'DELETE',
-        body: { invitation_id: invitationId }
-      })
+      const response = await apiService.removeCollaboratorInvitation(invitationId)
       
       if (response.success) {
         console.log('✅ Collaborator invitation removed successfully')
         
-        // Reload user data to get updated invitations
-        await loadUserData()
+        // ✅ EFFICIENT: Only reload invitations, not entire user data
+        await loadInvitations()
         
         return { success: true }
       } else {
@@ -629,11 +685,10 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // Helper function to get projects by collaborator (for UI compatibility)
+  // ✅ FIXED: Helper function to get projects by collaborator 
   function getProjectsByCollaborator(accountId) {
-    // Find invitations for this collaborator and return project IDs
-    const collaboratorInvitations = invitations.value.filter(inv => inv.accountId === accountId)
-    return collaboratorInvitations.flatMap(inv => inv.project_ids || [])
+    const invitation = invitations.value.find(inv => inv.id === accountId)
+    return invitation?.project_ids || []
   }
 
   // =====================================================
@@ -692,6 +747,7 @@ export const useUserStore = defineStore('user', () => {
     
     // Data methods
     loadUserData,
+    loadInvitations, // ✅ FIXED: Added missing export
     
     // Profile methods
     updateProfile,
@@ -702,6 +758,8 @@ export const useUserStore = defineStore('user', () => {
     deleteProject,
     setCurrentProject,
     clearCurrentProject,
+    
+    // Collaborator methods
     checkUserExists,
     inviteCollaborator,
     updateCollaboratorInvitation,

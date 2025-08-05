@@ -1,6 +1,8 @@
 <script setup>
+import { computed } from 'vue'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 import { formatRelativeTime } from '@/utils/time.js'
+import { supabase } from '@/services/supabase.js'
 
 const props = defineProps({
   item: {
@@ -48,6 +50,31 @@ function getFieldValue(field) {
   return props.item[field] || ''
 }
 
+// ✅ NEW: Convert storage paths to public URLs
+const imageUrl = computed(() => {
+  const imagePath = getFieldValue(props.imageField)
+  
+  if (!imagePath) return ''
+  
+  // If it's already a full URL (http/https), return as-is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath
+  }
+  
+  // If it's a storage path (/projects/...), convert to public URL
+  if (imagePath.startsWith('/projects/')) {
+    const storagePath = imagePath.replace('/projects/', '')
+    const { data } = supabase.storage
+      .from('projects')
+      .getPublicUrl(storagePath)
+    
+    return data.publicUrl
+  }
+  
+  // If it's base64 or other format, return as-is
+  return imagePath
+})
+
 function handleEdit() {
   emit('edit', props.index)
 }
@@ -70,8 +97,8 @@ function handleDelete() {
   <li class="item">
     <div v-if="showImage" class="cover">
       <img 
-        v-if="getFieldValue(imageField)" 
-        :src="getFieldValue(imageField)" 
+        v-if="imageUrl" 
+        :src="imageUrl" 
         :alt="`${contentType} cover`" 
         class="link-cover" 
       />

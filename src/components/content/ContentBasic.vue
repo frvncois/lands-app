@@ -1,5 +1,7 @@
+// src/components/content/ContentBasic.vue - Updated script section
+
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, provide } from 'vue'
 import InputTextarea from '@/components/input/InputTextarea.vue'
 import InputNormal from '@/components/input/InputNormal.vue'
 import InputUpload from '@/components/input/InputUpload.vue'
@@ -17,6 +19,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['button-config', 'save-project'])
+
+// PROVIDE project ID for child components like InputUpload
+provide('projectId', props.project.id)
 
 // DIRECT STORE ACCESS - Get the actual store project object
 const storeProject = computed(() => {
@@ -125,9 +130,9 @@ onMounted(() => {
     contacts: storeProject.value?.contacts?.length || 0,
     socialLinks: storeProject.value?.socialLinks?.length || 0
   })
+  console.log('📄 ContentBasic: Provided projectId:', props.project.id)
 })
 </script>
-
 <template>
   <ul class="form" v-if="storeProject">
     <ul class="items">

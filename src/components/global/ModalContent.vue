@@ -1,5 +1,7 @@
+// src/components/global/ModalContent.vue - Add provide to script setup
+
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, provide, inject } from 'vue'
 import ButtonMain from '../button/ButtonMain.vue'
 import InputNormal from '@/components/input/InputNormal.vue'
 import InputUpload from '@/components/input/InputUpload.vue'
@@ -22,6 +24,12 @@ const props = defineProps({
 
 const emit = defineEmits(['input', 'delete', 'save', 'cancel'])
 
+// Try to get projectId from parent and provide it to children
+const projectId = inject('projectId', null)
+if (projectId) {
+  provide('projectId', projectId)
+}
+
 // Component mapping
 const inputComponents = {
   text: InputNormal,
@@ -40,6 +48,9 @@ const localData = ref({})
 onMounted(() => {
   localData.value = { ...props.item }
   console.log('📝 ModalContent: Initialized with item data')
+  if (projectId) {
+    console.log('📝 ModalContent: Provided projectId to children:', projectId)
+  }
 })
 
 // Watch for external item changes

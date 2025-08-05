@@ -17,7 +17,7 @@ const appState = computed(() => {
   console.log('🔄 Computing app state:', {
     loading: userStore.loading,
     isAuthenticated: userStore.isAuthenticated,
-    hasSession: !userStore.session,
+    hasSession: !!userStore.session, 
     user: userStore.user
   })
   

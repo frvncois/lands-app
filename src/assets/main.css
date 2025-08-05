@@ -36,11 +36,11 @@
 
   --warning: rgba(255, 200, 20, 0.5);
   --warning-border: rgb(250, 215, 25);
-  --warning-txt: rgb(245, 240, 205);
+  --warning-txt: rgb(232, 230, 210);
 
   --draft: rgba(247, 95, 13, 0.5);
-  --draft-border: rgb(240, 93, 40);
-  --draft-txt: rgb(255, 222, 201);
+  --draft-border: rgb(240, 92, 40);
+  --draft-txt: rgb(255, 222, 200);
 
   --remove: rgba(240, 50, 40, 0.5);
   --remove-hover: rgb(240, 50, 40);

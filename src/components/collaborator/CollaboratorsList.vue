@@ -1,4 +1,4 @@
-<!-- CollaboratorsList.vue - Props-based approach -->
+<!-- Fixed CollaboratorsList.vue - Show pending invitations -->
 <script setup>
 import { ref, computed } from 'vue'
 import CollaboratorEdit from '@/components/collaborator/CollaboratorEdit.vue'
@@ -60,6 +60,22 @@ function getInitials(collaborator) {
   return firstInitial + lastInitial
 }
 
+// ✅ NEW: Get status display for collaborator
+function getStatusDisplay(collaborator) {
+  const status = collaborator.status || 'pending'
+  
+  switch (status) {
+    case 'pending':
+      return { text: 'Pending', class: 'pending' }
+    case 'accepted':
+      return { text: 'Active', class: 'active' }
+    case 'declined':
+      return { text: 'Invitation', class: 'declined' }
+    default:
+      return { text: 'Unknown status', class: 'unknown' }
+  }
+}
+
 function editCollaborator(collaborator) {
   editingCollaborator.value = collaborator
   showEditModal.value = true
@@ -88,22 +104,29 @@ function closeEditModal() {
         {{ getInitials(collaborator) }}
       </div>
       <div class="content">
-        {{ collaborator.name }}
-        <p>{{ collaborator.email }}</p>
-        <p v-if="!projectId" class="projects">{{ getProjectNames(collaborator.accountId) }}</p>
-      </div>
-      <div class="actions">
-        <ButtonMain label="Edit" @click="editCollaborator(collaborator)"/>
+          <h3>{{ collaborator.name }}</h3>
+          <p>{{ collaborator.email }}</p>
+        </div>
+          
+        <div class="actions">
+          <label :class="getStatusDisplay(collaborator).class">
+            {{ getStatusDisplay(collaborator).text }}
+          </label>
+          <ButtonMain
+            label="Edit"
+            buttonStyle="light"
+            @click="editCollaborator(collaborator)"
+          />
       </div>
     </li>
+    
   </ul>
   
-  <ul class="list" v-else>
-    <li class="empty">
-      <p>No team members yet</p>
-    </li>
-  </ul>
+  <li v-else class="empty">
+    <p>No team members yet</p>
+  </li>
 
+  <!-- Edit Modal -->
   <CollaboratorEdit
     v-if="showEditModal && editingCollaborator"
     :collaborator="editingCollaborator"
@@ -158,18 +181,22 @@ ul.list {
         text-transform: uppercase;
         transition: all var(--transition-smooth);
       }
-
-      > p.projects {
-        color: var(--text-secondary);
-        text-transform: none;
-        font-family: inherit;
-      }
     }
 
     > .actions {
       display: flex;
       justify-content: flex-end;
-      margin-right: var(--space-md);
+      align-items: center;
+      gap: var(--space-md);
+      margin-right: var(--space-rg);
+
+      > label {
+        &.pending {
+          background: var(--warning);
+          color: var(--warning-txt);
+          border: 1px solid var(--warning-border);
+        }
+      }
     }
   }
 }

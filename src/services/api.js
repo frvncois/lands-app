@@ -239,58 +239,148 @@ class ApiService {
     }
   }
 
-// =====================================================
-// COLLABORATOR OPERATIONS (NEW)
-// =====================================================
+  // =====================================================
+  // COLLABORATOR OPERATIONS
+  // =====================================================
 
-// Check if user exists by email
-async checkUserExists(email) {
-  console.log('🔄 Checking user existence...', email)
-  return await this.callEdgeFunction('check-user-exists', {
-    method: 'POST',
-    body: { email: email.toLowerCase().trim() }
-  })
-}
+  // Get invitations only (without reloading entire user data)
+  async getInvitations() {
+    console.log('🔄 Fetching invitations only...')
+    return await this.callEdgeFunction('get-invitations')
+  }
 
-// Invite collaborator to projects
-async inviteCollaborator({ email, name, project_ids }) {
-  console.log('🔄 Inviting collaborator...', { email, name, project_ids })
-  return await this.callEdgeFunction('invite-collaborator', {
-    method: 'POST',
-    body: { 
-      email: email.toLowerCase().trim(),
-      name: name.trim(),
-      project_ids
-    }
-  })
-}
+  // Check if user exists by email
+  async checkUserExists(email) {
+    console.log('🔄 Checking user existence...', email)
+    return await this.callEdgeFunction('check-user-exists', {
+      method: 'POST',
+      body: { email: email.toLowerCase().trim() }
+    })
+  }
 
-// Update collaborator invitation
-async updateCollaboratorInvitation(invitation_id, { email, name, project_ids }) {
-  console.log('🔄 Updating collaborator invitation...', { invitation_id, email, name, project_ids })
-  return await this.callEdgeFunction('update-collaborator-invitation', {
-    method: 'PUT',
-    body: { 
-      invitation_id,
-      email: email.toLowerCase().trim(),
-      name: name.trim(),
-      project_ids
-    }
-  })
-}
+  // Invite collaborator to projects
+  async inviteCollaborator({ email, name, project_ids }) {
+    console.log('🔄 Inviting collaborator...', { email, name, project_ids })
+    return await this.callEdgeFunction('invite-collaborator', {
+      method: 'POST',
+      body: { 
+        email: email.toLowerCase().trim(),
+        name: name.trim(),
+        project_ids
+      }
+    })
+  }
 
-// Remove collaborator invitation
-async removeCollaboratorInvitation(invitation_id) {
-  console.log('🔄 Removing collaborator invitation...', invitation_id)
-  return await this.callEdgeFunction('remove-collaborator-invitation', {
-    method: 'DELETE',
-    body: { invitation_id }
-  })
-}
+  // Update collaborator invitation
+  async updateCollaboratorInvitation(invitation_id, { email, name, project_ids }) {
+    console.log('🔄 Updating collaborator invitation...', { invitation_id, email, name, project_ids })
+    return await this.callEdgeFunction('update-collaborator-invitation', {
+      method: 'PUT',
+      body: { 
+        invitation_id,
+        email: email.toLowerCase().trim(),
+        name: name.trim(),
+        project_ids
+      }
+    })
+  }
 
+  // Remove collaborator invitation
+  async removeCollaboratorInvitation(invitation_id) {
+    console.log('🔄 Removing collaborator invitation...', invitation_id)
+    return await this.callEdgeFunction('remove-collaborator-invitation', {
+      method: 'DELETE',
+      body: { invitation_id }
+    })
+  }
 
+  // =====================================================
+  // IMAGE MANAGEMENT OPERATIONS
+  // =====================================================
 
+  /**
+   * Upload image to temp folder via Edge function
+   * @param {Object} uploadData - Contains projectId, fieldName, imageData, fileName
+   */
+  async uploadImage(uploadData) {
+    console.log('🔄 Uploading image via Edge function...', uploadData.fileName)
+    return await this.callEdgeFunction('upload-image', {
+      method: 'POST',
+      body: uploadData
+    })
+  }
 
+  /**
+   * Get public URL for an image via Edge function
+   * @param {string} imagePath - The image path starting with /projects/
+   */
+  async getImageUrl(imagePath) {
+    console.log('🔄 Getting image URL via Edge function...', imagePath)
+    return await this.callEdgeFunction('get-image-url', {
+      method: 'POST',
+      body: { imagePath }
+    })
+  }
+
+  /**
+   * Delete a specific image via Edge function
+   * @param {string} imagePath - The image path to delete
+   */
+  async deleteImage(imagePath) {
+    console.log('🔄 Deleting image via Edge function...', imagePath)
+    return await this.callEdgeFunction('delete-image', {
+      method: 'DELETE',
+      body: { imagePath }
+    })
+  }
+
+  /**
+   * Process images when project is saved - move from temp to permanent folder
+   * @param {string} projectId - The project UUID
+   * @param {Object} projectData - The complete project data
+   */
+  async processProjectImages(projectId, projectData) {
+    console.log('🔄 Processing project images via Edge function...', projectId)
+    return await this.callEdgeFunction('process-project-images', {
+      method: 'POST',
+      body: {
+        projectId,
+        projectData
+      }
+    })
+  }
+
+  /**
+   * Clean up unused images in temp folder
+   * @param {string} projectId - The project UUID
+   * @param {Array} usedImagePaths - Array of image paths currently being used
+   */
+  async cleanTempImages(projectId, usedImagePaths = []) {
+    console.log('🔄 Cleaning temp images via Edge function...', projectId)
+    return await this.callEdgeFunction('clean-temp-images', {
+      method: 'POST',
+      body: {
+        projectId,
+        usedImagePaths
+      }
+    })
+  }
+
+  /**
+   * Clean up all images for a deleted project item
+   * @param {string} projectId - The project UUID
+   * @param {Object} itemData - The item data containing image references
+   */
+  async cleanupItemImages(projectId, itemData) {
+    console.log('🔄 Cleaning up item images via Edge function...', projectId)
+    return await this.callEdgeFunction('cleanup-item-images', {
+      method: 'POST',
+      body: {
+        projectId,
+        itemData
+      }
+    })
+  }
 }
 
 // Export singleton instance
@@ -303,5 +393,9 @@ export const {
   createProject,
   updateProject,
   deleteProject,
-  publishProject 
+  publishProject,
+  uploadImage,
+  deleteImage,
+  processProjectImages,
+  cleanupItemImages
 } = apiService

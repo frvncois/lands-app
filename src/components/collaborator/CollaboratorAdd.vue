@@ -1,7 +1,7 @@
-<!-- CollaboratorAdd.vue - Props-based approach with global alerts -->
-// CollaboratorAdd.vue - Updated script section only
+// Fixed CollaboratorAdd.vue - Remove email watcher, validate only on submit
+
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import InputAuth from '@/components/input/InputAuth.vue'
 import InputEmail from '@/components/input/InputEmail.vue'
 import InputBoolean from '@/components/input/InputBoolean.vue'
@@ -29,7 +29,7 @@ const lastName = ref('')
 const email = ref('')
 const selectedProjects = ref({})
 
-// Email validation and user check states
+// Email validation states
 const emailValidation = ref({
   isValid: false,
   isChecking: false,
@@ -54,22 +54,25 @@ function initializeProjectSelection() {
   })
 }
 
-// Watch email changes for real-time validation and user checking
-watch(email, async (newEmail) => {
-  if (!newEmail || !newEmail.includes('@')) {
-    emailValidation.value = {
-      isValid: false,
-      isChecking: false,
-      userExists: false,
-      existingUser: null,
-      message: ''
-    }
-    return
-  }
+// ❌ REMOVED: Email watcher that was making too many API calls
+// watch(email, async (newEmail) => { ... })
 
+// Simple form validation without API calls
+const canSubmit = computed(() => {
+  const hasValidEmail = email.value && email.value.includes('@') && email.value.includes('.')
+  const hasName = firstName.value.trim() && lastName.value.trim()
+  const hasSelectedProjects = Object.values(selectedProjects.value).some(selected => selected)
+  
+  return hasValidEmail && hasName && hasSelectedProjects && !isAdding.value
+})
+
+// ✅ FIXED: Only check email when user clicks "Add"
+async function checkEmailExists() {
+  const emailToCheck = email.value.toLowerCase().trim()
+  
   // Basic email format validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(newEmail)) {
+  if (!emailRegex.test(emailToCheck)) {
     emailValidation.value = {
       isValid: false,
       isChecking: false,
@@ -77,33 +80,26 @@ watch(email, async (newEmail) => {
       existingUser: null,
       message: 'Invalid email format'
     }
-    return
+    return false
   }
 
-  // Check if user exists in database
   emailValidation.value.isChecking = true
   
   try {
-    const result = await props.userStore.checkUserExists(newEmail)
+    console.log('🔍 Checking if user exists (on submit):', emailToCheck)
+    const result = await props.userStore.checkUserExists(emailToCheck)
     
     if (result.success) {
-      if (result.exists) {
-        emailValidation.value = {
-          isValid: true,
-          isChecking: false,
-          userExists: true,
-          existingUser: result.user,
-          message: `Will invite existing user: ${result.user.name || result.user.email}`
-        }
-      } else {
-        emailValidation.value = {
-          isValid: true,
-          isChecking: false,
-          userExists: false,
-          existingUser: null,
-          message: 'Will send invitation to create account'
-        }
+      emailValidation.value = {
+        isValid: true,
+        isChecking: false,
+        userExists: result.exists,
+        existingUser: result.user,
+        message: result.exists 
+          ? `Will invite existing user: ${result.user.name || result.user.email}`
+          : 'Will send invitation to create account'
       }
+      return true
     } else {
       emailValidation.value = {
         isValid: false,
@@ -112,6 +108,7 @@ watch(email, async (newEmail) => {
         existingUser: null,
         message: result.error || 'Could not verify email'
       }
+      return false
     }
   } catch (error) {
     console.error('Email check error:', error)
@@ -122,17 +119,9 @@ watch(email, async (newEmail) => {
       existingUser: null,
       message: 'Error checking email'
     }
+    return false
   }
-}, { debounce: 500 })
-
-// Form validation
-const canSubmit = computed(() => {
-  const hasValidEmail = emailValidation.value.isValid && !emailValidation.value.isChecking
-  const hasName = firstName.value.trim() && lastName.value.trim()
-  const hasSelectedProjects = Object.values(selectedProjects.value).some(selected => selected)
-  
-  return hasValidEmail && hasName && hasSelectedProjects && !isAdding.value
-})
+}
 
 async function addCollaborator() {
   if (!canSubmit.value) {
@@ -144,44 +133,44 @@ async function addCollaborator() {
   alertStore.clearAlert()
 
   try {
-    console.log('🔄 Adding collaborator...', {
+    // ✅ FIXED: Only check email when submitting
+    const emailIsValid = await checkEmailExists()
+    
+    if (!emailIsValid) {
+      alertStore.showError(emailValidation.value.message || 'Invalid email address')
+      return
+    }
+
+    console.log('🔄 Emitting collaborator data to parent...', {
       email: email.value,
       name: fullName.value,
       selectedProjects: selectedProjects.value,
       userExists: emailValidation.value.userExists
     })
 
-    const result = await props.userStore.inviteCollaborator({
+    // Emit the data to parent - parent will handle the API call
+    emit('add', {
       email: email.value,
       name: fullName.value,
       selectedProjects: selectedProjects.value
     })
 
-    if (result.success) {
-      const message = emailValidation.value.userExists 
-        ? `✅ Invitation sent to ${emailValidation.value.existingUser.name || email.value}`
-        : `✅ Invitation sent to ${email.value} (new user)`
-      
-      alertStore.showSuccess(message)
-      
-      // Emit the add event for parent component
-      emit('add', {
-        email: email.value,
-        name: fullName.value,
-        selectedProjects: selectedProjects.value
-      })
-      
-      // Reset form
-      firstName.value = ''
-      lastName.value = ''
-      email.value = ''
-      initializeProjectSelection()
-      
-      // Close modal
-      emit('close')
-    } else {
-      throw new Error(result.error || 'Failed to invite collaborator')
+    // Reset form
+    firstName.value = ''
+    lastName.value = ''
+    email.value = ''
+    emailValidation.value = {
+      isValid: false,
+      isChecking: false,
+      userExists: false,
+      existingUser: null,
+      message: ''
     }
+    initializeProjectSelection()
+    
+    // Close modal
+    emit('close')
+    
   } catch (error) {
     console.error('Add collaborator error:', error)
     alertStore.showError(error.message || 'Failed to add collaborator. Please try again.')
@@ -198,6 +187,8 @@ function handleCancel() {
 // Initialize on mount
 initializeProjectSelection()
 </script>
+
+
 
 
 <template>
