@@ -486,6 +486,156 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+
+// =====================================================
+// COLLABORATOR METHODS (NEW)
+// =====================================================
+
+  // Check if user exists by email
+  async function checkUserExists(email) {
+    if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
+    
+    try {
+      console.log('🔄 Checking if user exists:', email)
+      const response = await apiService.callEdgeFunction('check-user-exists', {
+        method: 'POST',
+        body: { email: email.toLowerCase().trim() }
+      })
+      
+      if (response.success) {
+        console.log('✅ User check complete:', response.data)
+        return { 
+          success: true, 
+          exists: response.data.exists,
+          user: response.data.user || null
+        }
+      } else {
+        throw new Error(response.error || 'Failed to check user existence')
+      }
+    } catch (err) {
+      console.error('❌ Failed to check user existence:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    }
+  }
+
+  // Invite collaborator to projects
+  async function inviteCollaborator({ email, name, selectedProjects }) {
+    if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
+    
+    try {
+      console.log('🔄 Inviting collaborator...', { email, name, projects: selectedProjects })
+      
+      // Prepare project IDs array
+      const projectIds = Object.keys(selectedProjects).filter(id => selectedProjects[id])
+      
+      if (projectIds.length === 0) {
+        throw new Error('At least one project must be selected')
+      }
+      
+      const response = await apiService.callEdgeFunction('invite-collaborator', {
+        method: 'POST',
+        body: { 
+          email: email.toLowerCase().trim(),
+          name: name.trim(),
+          project_ids: projectIds
+        }
+      })
+      
+      if (response.success) {
+        console.log('✅ Collaborator invited successfully')
+        
+        // Reload user data to get updated invitations
+        await loadUserData()
+        
+        return { success: true, data: response.data }
+      } else {
+        throw new Error(response.error || 'Failed to invite collaborator')
+      }
+    } catch (err) {
+      console.error('❌ Failed to invite collaborator:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    }
+  }
+
+  // Update collaborator invitation
+  async function updateCollaboratorInvitation(invitationId, { email, name, selectedProjects }) {
+    if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
+    
+    try {
+      console.log('🔄 Updating collaborator invitation...', { invitationId, email, name, projects: selectedProjects })
+      
+      // Prepare project IDs array
+      const projectIds = Object.keys(selectedProjects).filter(id => selectedProjects[id])
+      
+      if (projectIds.length === 0) {
+        throw new Error('At least one project must be selected')
+      }
+      
+      const response = await apiService.callEdgeFunction('update-collaborator-invitation', {
+        method: 'PUT',
+        body: { 
+          invitation_id: invitationId,
+          email: email.toLowerCase().trim(),
+          name: name.trim(),
+          project_ids: projectIds
+        }
+      })
+      
+      if (response.success) {
+        console.log('✅ Collaborator invitation updated successfully')
+        
+        // Reload user data to get updated invitations
+        await loadUserData()
+        
+        return { success: true, data: response.data }
+      } else {
+        throw new Error(response.error || 'Failed to update collaborator invitation')
+      }
+    } catch (err) {
+      console.error('❌ Failed to update collaborator invitation:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    }
+  }
+
+  // Remove collaborator invitation
+  async function removeCollaboratorInvitation(invitationId) {
+    if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
+    
+    try {
+      console.log('🔄 Removing collaborator invitation...', invitationId)
+      
+      const response = await apiService.callEdgeFunction('remove-collaborator-invitation', {
+        method: 'DELETE',
+        body: { invitation_id: invitationId }
+      })
+      
+      if (response.success) {
+        console.log('✅ Collaborator invitation removed successfully')
+        
+        // Reload user data to get updated invitations
+        await loadUserData()
+        
+        return { success: true }
+      } else {
+        throw new Error(response.error || 'Failed to remove collaborator invitation')
+      }
+    } catch (err) {
+      console.error('❌ Failed to remove collaborator invitation:', err)
+      error.value = err.message
+      return { success: false, error: err.message }
+    }
+  }
+
+  // Helper function to get projects by collaborator (for UI compatibility)
+  function getProjectsByCollaborator(accountId) {
+    // Find invitations for this collaborator and return project IDs
+    const collaboratorInvitations = invitations.value.filter(inv => inv.accountId === accountId)
+    return collaboratorInvitations.flatMap(inv => inv.project_ids || [])
+  }
+
   // =====================================================
   // PROJECT NAVIGATION
   // =====================================================
@@ -551,7 +701,12 @@ export const useUserStore = defineStore('user', () => {
     updateProject,
     deleteProject,
     setCurrentProject,
-    clearCurrentProject
+    clearCurrentProject,
+    checkUserExists,
+    inviteCollaborator,
+    updateCollaboratorInvitation,
+    removeCollaboratorInvitation,
+    getProjectsByCollaborator,
   }
 }, {
   persist: {

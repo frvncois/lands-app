@@ -311,11 +311,7 @@ onMounted(() => {
         :project="props.project"
         :user-store="userStore"
       />
-      
-      <CollaboratorsList 
-        :project="props.project"
-        :user-store="userStore"
-      />
+
     </ul>
   </ul>
 </template>

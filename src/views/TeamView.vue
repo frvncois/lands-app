@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import SectionTitle from '@/components/global/SectionTitle.vue'
 import CollaboratorAdd from '@/components/collaborator/CollaboratorAdd.vue'
 import CollaboratorsList from '@/components/collaborator/CollaboratorsList.vue'
+import { useAlertStore } from '@/stores/alert.js'
 
 const props = defineProps({
   userStore: {
@@ -11,46 +12,89 @@ const props = defineProps({
   }
 })
 
+const alertStore = useAlertStore()
 const showModal = ref(false)
 
-// Just use the data that's already loaded
+// Use the data that's already loaded
 const projects = computed(() => props.userStore.projects || [])
 const invitations = computed(() => props.userStore.invitations || [])
 
+// Transform invitations to collaborators format for compatibility
+const collaborators = computed(() => {
+  return invitations.value.map(invitation => ({
+    accountId: invitation.id,
+    name: invitation.name || `${invitation.first_name} ${invitation.last_name}`.trim(),
+    email: invitation.email,
+    // Add any other fields the component expects
+  }))
+})
+
+// Add collaborator - now using real API
 async function addCollaborator(collaboratorData) {
   const { name, email, selectedProjects } = collaboratorData
   
   try {
     console.log('🔄 Adding collaborator...', { name, email, projects: selectedProjects })
-    // TODO: Add real API call to user store
-    // const result = await props.userStore.inviteCollaborator({ name, email, selectedProjects })
-    console.log('✅ Collaborator added:', { name, email, projects: selectedProjects })
+    
+    const result = await props.userStore.inviteCollaborator({ 
+      email, 
+      name, 
+      selectedProjects 
+    })
+    
+    if (result.success) {
+      console.log('✅ Collaborator added successfully')
+      alertStore.showSuccess(`Collaborator ${name} invited successfully`)
+    } else {
+      throw new Error(result.error || 'Failed to add collaborator')
+    }
   } catch (error) {
     console.error('❌ Failed to add collaborator:', error)
+    alertStore.showError(error.message || 'Failed to add collaborator')
   }
 }
 
+// Update collaborator - now using real API
 async function updateCollaborator(collaboratorId, collaboratorData) {
   const { name, email, selectedProjects } = collaboratorData
   
   try {
     console.log('🔄 Updating collaborator...', { collaboratorId, name, email, projects: selectedProjects })
-    // TODO: Add real API call to user store
-    // const result = await props.userStore.updateCollaborator(collaboratorId, { name, email, selectedProjects })
-    console.log('✅ Collaborator updated:', { name, email, projects: selectedProjects })
+    
+    const result = await props.userStore.updateCollaboratorInvitation(collaboratorId, { 
+      email, 
+      name, 
+      selectedProjects 
+    })
+    
+    if (result.success) {
+      console.log('✅ Collaborator updated successfully')
+      alertStore.showSuccess(`Collaborator ${name} updated successfully`)
+    } else {
+      throw new Error(result.error || 'Failed to update collaborator')
+    }
   } catch (error) {
     console.error('❌ Failed to update collaborator:', error)
+    alertStore.showError(error.message || 'Failed to update collaborator')
   }
 }
 
+// Remove collaborator - now using real API  
 async function removeCollaborator(collaboratorId) {
   try {
     console.log('🔄 Removing collaborator...', collaboratorId)
-    // TODO: Add real API call to user store
-    // const result = await props.userStore.removeCollaborator(collaboratorId)
-    console.log('✅ Collaborator removed:', collaboratorId)
+    
+    const result = await props.userStore.removeCollaboratorInvitation(collaboratorId)
+    
+    if (result.success) {
+      console.log('✅ Collaborator removed successfully')
+      alertStore.showSuccess('Collaborator removed successfully')
+    } else {
+      throw new Error(result.error || 'Failed to remove collaborator')
+    }
   } catch (error) {
     console.error('❌ Failed to remove collaborator:', error)
+    alertStore.showError(error.message || 'Failed to remove collaborator')
   }
 }
 
@@ -72,8 +116,8 @@ props.userStore.clearCurrentProject()
     
     <CollaboratorsList
       :projects="projects"
-      :invitations="invitations"
-      :user-store="userStore"
+      :collaborators="collaborators"
+      :get-projects-by-collaborator="userStore.getProjectsByCollaborator"
       @update="updateCollaborator"
       @remove="removeCollaborator"
     />

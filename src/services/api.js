@@ -104,13 +104,13 @@ class ApiService {
     })
   }
 
-async publishProject(projectId) {
-  console.log('📤 Publishing project...', projectId)
-  return await this.callEdgeFunction('publish-project', {
-    method: 'POST',
-    body: { projectId }
-  })
-}
+  async publishProject(projectId) {
+    console.log('📤 Publishing project...', projectId)
+    return await this.callEdgeFunction('publish-project', {
+      method: 'POST',
+      body: { projectId }
+    })
+  }
   
   async deleteProject(projectId) {
     console.log('🔄 Deleting project...', projectId)
@@ -224,7 +224,6 @@ async publishProject(projectId) {
     }
   }
 
-
   // Helper for handling rate limits
   async withRateLimit(operation) {
     try {
@@ -239,6 +238,59 @@ async publishProject(projectId) {
       throw error
     }
   }
+
+// =====================================================
+// COLLABORATOR OPERATIONS (NEW)
+// =====================================================
+
+// Check if user exists by email
+async checkUserExists(email) {
+  console.log('🔄 Checking user existence...', email)
+  return await this.callEdgeFunction('check-user-exists', {
+    method: 'POST',
+    body: { email: email.toLowerCase().trim() }
+  })
+}
+
+// Invite collaborator to projects
+async inviteCollaborator({ email, name, project_ids }) {
+  console.log('🔄 Inviting collaborator...', { email, name, project_ids })
+  return await this.callEdgeFunction('invite-collaborator', {
+    method: 'POST',
+    body: { 
+      email: email.toLowerCase().trim(),
+      name: name.trim(),
+      project_ids
+    }
+  })
+}
+
+// Update collaborator invitation
+async updateCollaboratorInvitation(invitation_id, { email, name, project_ids }) {
+  console.log('🔄 Updating collaborator invitation...', { invitation_id, email, name, project_ids })
+  return await this.callEdgeFunction('update-collaborator-invitation', {
+    method: 'PUT',
+    body: { 
+      invitation_id,
+      email: email.toLowerCase().trim(),
+      name: name.trim(),
+      project_ids
+    }
+  })
+}
+
+// Remove collaborator invitation
+async removeCollaboratorInvitation(invitation_id) {
+  console.log('🔄 Removing collaborator invitation...', invitation_id)
+  return await this.callEdgeFunction('remove-collaborator-invitation', {
+    method: 'DELETE',
+    body: { invitation_id }
+  })
+}
+
+
+
+
 }
 
 // Export singleton instance
