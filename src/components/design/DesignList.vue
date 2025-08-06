@@ -25,40 +25,6 @@ const props = defineProps({
         :user-store="userStore"
       />
     </li>
-    
-    <li>
-      <label>Layout settings</label>
-    </li>
-    
-    <li>
-      <DesignColors 
-        :project="props.project" 
-        :user-store="userStore"
-      />
-    </li>
-    
-    <li>
-      <DesignFonts 
-        :project="props.project" 
-        :user-store="userStore"
-      />
-    </li>
-    
-    <li>
-      <DesignLayout 
-        :project="props.project" 
-        :user-store="userStore"
-      />
-    </li>
-    
-    <li>
-      <CTABasic 
-        title="Need a custom theme?" 
-        description="Join thousands of creators"
-        buttonLabel="Learn more"
-        buttonStyle="light"
-      />
-    </li>
   </ul>
 </template>
 

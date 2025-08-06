@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const stripeRoutes = require('./routes/stripe');
 const musicbrainzRoutes = require('./routes/musicbrainz'); // Add this line
+const llmRoutes = require('./routes/llm'); // Add this line
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,7 @@ app.use(express.json());
 // Routes
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/musicbrainz', musicbrainzRoutes); // Add this line
+app.use('/api/llm', llmRoutes); // Add this line
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -35,4 +37,5 @@ app.listen(PORT, () => {
   console.log('- STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? '✅ Set' : '❌ Missing');
   console.log('- STRIPE_WEBHOOK_SECRET:', process.env.STRIPE_WEBHOOK_SECRET ? '✅ Set' : '❌ Missing');
   console.log('🎵 MusicBrainz API available at: http://localhost:' + PORT + '/api/musicbrainz');
+  console.log('🤖 LLM API available at: http://localhost:' + PORT + '/api/llm'); // Add this line
 });

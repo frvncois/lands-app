@@ -556,6 +556,37 @@ async function signUp(email, password, metadata = {}) {
     }
   }
 
+  async function publishProject(projectId) {
+  if (!isAuthenticated.value) return { success: false, error: 'Not authenticated' }
+  
+  try {
+    console.log('📤 Publishing project via user store...', projectId)
+    
+    const response = await apiService.publishProject(projectId)
+    
+    if (response.success) {
+      // Update the published status in local projects array
+      const index = projects.value.findIndex(p => p.id === projectId)
+      if (index !== -1) {
+        projects.value[index].settings = {
+          ...projects.value[index].settings,
+          published: true,
+          publishedAt: response.data.publishedAt
+        }
+        console.log('✅ Project published status updated in store')
+      }
+      
+      return { success: true, data: response.data }
+    } else {
+      throw new Error(response.error || 'Failed to publish project')
+    }
+  } catch (err) {
+    console.error('❌ Failed to publish project:', err)
+    error.value = err.message
+    return { success: false, error: err.message }
+  }
+}
+
   // =====================================================
   // COLLABORATOR METHODS
   // =====================================================
@@ -756,6 +787,7 @@ async function signUp(email, password, metadata = {}) {
     createProject,
     updateProject,
     deleteProject,
+    publishProject,
     setCurrentProject,
     clearCurrentProject,
     

@@ -282,28 +282,6 @@ onMounted(() => {
       </div>
     </ul>
     
-    <!-- Privacy Settings -->
-    <ul class="items">
-      <InputBoolean
-        label="Password Protection"
-        description="Require a password to view this project"
-        v-model="projectSettings.protected"
-      />
-      
-      <InputNormal 
-        v-if="projectSettings.protected"
-        label="Password"
-        placeholder="Enter password"
-        type="password"
-        v-model="projectSettings.password"
-      />
-      
-      <InputBoolean
-        label="Require Email"
-        description="Collect visitor email addresses"
-        v-model="projectSettings.requireEmail"
-      />
-    </ul>
     
     <!-- Plan and Collaborators -->
     <ul class="items">
