@@ -1,70 +1,54 @@
 :root {
-  /* Colors */
+  /* Dark theme (default) colors */
   --bg: rgb(40, 40, 40);
   --dark: rgb(30, 30, 30);
   --nav: rgba(30, 30, 30, 0.75);
   --current: rgba(55, 55, 55, 0.75);
   --dark-hover: rgba(75, 75, 75, 0.25);
-
   --modal: rgba(10, 10, 10, 0.75);
   --modal-border: rgba(52, 52, 52, 0.559);
-
   --cta: rgba(36, 36, 36, 0.75);
-
   --card: rgba(45, 45, 45, 0.75);
   --type: rgba(51, 51, 51, 0.75);
   --border: rgba(84, 84, 84, 0.5);
   --border-light: rgba(151, 151, 151, 0.5);
   --focus: rgba(100, 100, 100, 0.751);
-
   --active: rgba(60, 60, 60, 0.75);
   --active-border: rgba(145, 145, 145, 0.75);
-  
   --inactive: rgba(165, 165, 165, 0.1);
-
   --details: rgb(110, 110, 110);
   --label: rgb(200, 200, 200);
-
   --light: rgb(224, 224, 224);
   --light-hover: rgb(255, 255, 255);
   --light-shadow-hover: rgba(200, 200, 200, 0.24);
   --light-disabled: rgb(180, 180, 180);
-
   --alert: rgba(240, 50, 40, 0.5);
   --alert-border: rgb(240, 50, 40);
   --alert-txt: rgb(255, 230, 228);
-
   --warning: rgba(255, 200, 20, 0.5);
   --warning-border: rgb(250, 215, 25);
   --warning-txt: rgb(232, 230, 210);
-
   --draft: rgba(247, 95, 13, 0.5);
   --draft-border: rgb(240, 92, 40);
   --draft-txt: rgb(255, 222, 200);
-
   --remove: rgba(240, 50, 40, 0.5);
   --remove-hover: rgb(240, 50, 40);
   --remove-border: rgb(240, 50, 40);
   --remove-txt: rgb(252, 216, 214);
-  
   --error: rgba(240, 50, 40, 0.5);
   --error-border: rgb(240, 50, 40);
   --error-txt: rgb(255, 230, 228);
-
   --success: rgb(30, 60, 30);
   --success-border: rgb(50, 200, 50);
   --success-txt: rgb(120, 210, 120);
-
   --info: rgba(80, 34, 215, 1);
   --info-border: rgb(140, 94, 232);
   --info-txt: rgb(224, 200, 250);
-
   --true: rgb(95, 15, 240);
   --true-border: rgb(134, 110, 158);
   --false: rgba(90, 90, 90, 0.25);
   --false-border: rgba(130, 130, 130, 0.5);
   --toggle: rgb(245, 245, 245);
-
   --input: rgba(40, 40, 40, 0.5);
   --input-txt: rgba(230, 230, 230, 0.75);
   --input-border: rgba(100, 100, 100, 0.5);
@@ -103,6 +87,41 @@
   
   /* Transitions */
   --transition-smooth: 0.33s cubic-bezier(0.4, 0, 0.2, 1);
+
+  [data-theme="light"] {
+  --bg: rgb(250, 250, 250);
+  --dark: rgb(255, 255, 255);
+  --nav: rgba(255, 255, 255, 0.95);
+  --current: rgba(230, 230, 230, 0.75);
+  --dark-hover: rgba(240, 240, 240, 0.75);
+  --modal: rgba(255, 255, 255, 0.95);
+  --modal-border: rgba(200, 200, 200, 0.5);
+  --cta: rgba(240, 240, 240, 0.75);
+  --card: rgba(255, 255, 255, 0.85);
+  --type: rgba(245, 245, 245, 0.75);
+  --border: rgba(200, 200, 200, 0.5);
+  --border-light: rgba(180, 180, 180, 0.5);
+  --focus: rgba(150, 150, 150, 0.751);
+  --active: rgba(220, 220, 220, 0.75);
+  --active-border: rgba(100, 100, 100, 0.75);
+  --inactive: rgba(50, 50, 50, 0.1);
+  --details: rgb(120, 120, 120);
+  --label: rgb(60, 60, 60);
+  --light: rgb(40, 40, 40);
+  --light-hover: rgb(20, 20, 20);
+  --light-shadow-hover: rgba(50, 50, 50, 0.24);
+  --light-disabled: rgb(100, 100, 100);
+  --input: rgba(245, 245, 245, 0.5);
+  --input-txt: rgba(40, 40, 40, 0.85);
+  --input-border: rgba(180, 180, 180, 0.5);
+  --input-focus: rgba(100, 100, 100, 0.5);
+  --input-focus-background: rgba(240, 240, 240, 0.5);
+  --input-hover: rgba(160, 160, 160, 0.5);
+  --toggle: rgb(40, 40, 40);
+  --shadow-sm: 0 0 0.25em 0em rgb(230, 230, 230);
+  --shadow-md: 0 0 0.5em 0em rgb(230, 230, 230);
+  --shadow-md-hover: 0 0 2em 0em rgb(215, 215, 215);
+}
 }
 
 @font-face {

@@ -35,23 +35,22 @@
         </div>
       </li>
       
-      <!-- Only show if we have an AI theme -->
-      <li class="display" :class="viewMode" v-if="aiThemeComponent">
+      <!-- Only show if we have a selected theme -->
+      <li class="display" :class="viewMode" v-if="selectedThemeComponent">
         <div class="background-preview" :style="{ backgroundColor: currentBackgroundColor }"></div>
         <div class="viewport" :style="{ aspectRatio }">
           <div class="screen">
-          <component 
-            :is="aiThemeComponent"
-            :project="userStore.currentProject"
-            :aiStyles="userStore.currentProject.design?.aiTheme?.code"
+            <component 
+              :is="selectedThemeComponent"
+              :project="userStore.currentProject"
             />
           </div>
         </div>
       </li>
       
       <li v-else class="no-theme">
-        <p>No theme generated yet.</p>
-        <p>Go to the Design tab and generate a custom AI theme!</p>
+        <p>No theme selected.</p>
+        <p>Go to the Design tab and select a theme!</p>
         
         <!-- Debug info -->
         <details class="debug-info">
@@ -73,9 +72,10 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, defineAsyncComponent } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ButtonMain from '@/components/button/ButtonMain.vue'
 import { useUserStore } from '@/stores/user'
+import { themes } from '@/components/theme/ThemeList.js'
 
 const props = defineProps({
   userStore: {
@@ -113,34 +113,21 @@ const hasUnsavedChanges = computed(() => {
   }
 })
 
-// Create AI theme component dynamically from generated code
-const aiThemeComponent = computed(() => {
-  const theme = userStore.currentProject?.design?.aiTheme
-  if (!theme?.code) return null
-
-  // Extract <style scoped> block
-  const styleMatch = theme.code.match(/<style scoped>([\s\S]*?)<\/style>/)
-  if (!styleMatch || !styleMatch[1]) return null
-
-  const scopedStyles = styleMatch[1]
-
-return defineAsyncComponent(() => {
-  return import('@/components/theme/ThemeMinimal.vue').then((module) => {
-    return {
-      ...module.default,
-      props: {
-        ...module.default.props,
-        aiStyles: {
-          type: String,
-          default: scopedStyles
-        }
-      }
-    }
-  })
+// Get the selected theme component from themes list
+const selectedThemeComponent = computed(() => {
+  const currentProject = userStore.currentProject
+  if (!currentProject?.design?.themeId && !currentProject?.design?.theme?.id) {
+    return null
+  }
+  
+  // Get theme ID from either themeId or theme.id
+  const themeId = currentProject.design.themeId || currentProject.design.theme?.id
+  if (!themeId) return null
+  
+  // Find the theme in the themes list
+  const theme = themes.find(t => t.id === themeId)
+  return theme?.component || null
 })
-})
-
-
 
 const currentBackgroundColor = computed(() => {
   return userStore.currentProject?.design?.backgroundColor || '#ffffff'
@@ -157,10 +144,9 @@ const debugInfo = computed(() => {
   
   return {
     themeId: currentProject?.design?.themeId,
-    hasAiTheme: !!currentProject?.design?.aiTheme,
-    aiThemeTitle: currentProject?.design?.aiTheme?.title,
-    hasAiThemeCode: !!currentProject?.design?.aiTheme?.code,
-    codePreview: currentProject?.design?.aiTheme?.code?.substring(0, 200) + '...'
+    themeObject: currentProject?.design?.theme,
+    hasSelectedTheme: !!selectedThemeComponent.value,
+    availableThemes: themes.map(t => ({ id: t.id, title: t.title }))
   }
 })
 
@@ -175,23 +161,170 @@ function setDesktopView() {
 
 // Save and publish functions
 async function saveProject() {
+  if (!userStore.currentProject || !originalProjectData.value) return
+  
   isSaving.value = true
+  
   try {
-    console.log('💾 Saving project...')
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    console.log('💾 Detecting changes in project data...')
+    
+    // Get current project data (includes any localStorage changes)
+    let currentData = { ...userStore.currentProject }
+    
+    // Merge localStorage data if it exists
+    const projectId = userStore.currentProject.id
+    const key = `project_draft_${projectId}`
+    const localData = localStorage.getItem(key)
+    
+    if (localData) {
+      const parsedLocalData = JSON.parse(localData)
+      console.log('📂 Found localStorage data, merging WITHOUT overwriting images...')
+      
+      // Merge localStorage data but preserve images from store
+      currentData = {
+        ...currentData,
+        ...parsedLocalData,
+        // Preserve content arrays with proper image handling
+        links: mergeContentArrays(currentData.links, parsedLocalData.links),
+        socials: mergeContentArrays(currentData.socials, parsedLocalData.socials),
+        contacts: mergeContentArrays(currentData.contacts, parsedLocalData.contacts),
+        posts: mergeContentArrays(currentData.posts, parsedLocalData.posts),
+        releases: mergeContentArrays(currentData.releases, parsedLocalData.releases),
+        shows: mergeContentArrays(currentData.shows, parsedLocalData.shows),
+        merch: mergeContentArrays(currentData.merch, parsedLocalData.merch)
+      }
+    }
+    
+    // Find only changed fields to optimize database calls
+    const changes = getChangedFields(originalProjectData.value, currentData)
+    
+    console.log('🔍 Detected changes:', Object.keys(changes))
+    
+    if (Object.keys(changes).length === 0) {
+      console.log('ℹ️ No changes detected, skipping database call')
+      
+      // Still clear localStorage since there's nothing to save
+      try {
+        localStorage.removeItem(key)
+        console.log('🗑️ Cleared localStorage (no changes)')
+      } catch (error) {
+        console.error('❌ Failed to clear localStorage:', error)
+      }
+      
+      return { success: true, message: 'No changes to save' }
+    }
+    
+    // Add required metadata for database update
+    const updateData = {
+      ...changes,
+      updated_at: new Date().toISOString()
+    }
+    
+    console.log('🔄 Sending only changed data to database:', updateData)
+    
+    // Save only changed data to database via user store
+    const result = await userStore.updateProject(projectId, updateData)
+    
+    if (result.success) {
+      console.log('✅ Project changes synced to database successfully')
+      
+      // Update original data reference with new state
+      originalProjectData.value = JSON.parse(JSON.stringify(currentData))
+      
+      // Clear localStorage draft after successful save
+      try {
+        localStorage.removeItem(key)
+        console.log('🗑️ Cleared localStorage draft after successful save')
+      } catch (error) {
+        console.error('❌ Failed to clear localStorage:', error)
+      }
+      
+      // Update the store with the saved data
+      Object.assign(userStore.currentProject, currentData)
+      
+    } else {
+      console.error('❌ Failed to sync project changes:', result.error)
+      throw new Error(result.error || 'Failed to save project changes')
+    }
+  } catch (error) {
+    console.error('❌ Error syncing project changes:', error)
+    alert('Failed to save project changes. Please try again.')
   } finally {
     isSaving.value = false
   }
 }
 
 async function publishProject() {
+  if (!userStore.currentProject) return
+  
   isPublishing.value = true
+  
   try {
-    console.log('🚀 Publishing project...')
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    console.log('📤 Publishing project...')
+    
+    // First save the project data if there are changes
+    await saveProject()
+    
+    // Then publish via user store
+    const result = await userStore.publishProject(userStore.currentProject.id)
+    
+    if (result.success) {
+      console.log('✅ Project published successfully')
+    } else {
+      throw new Error(result.error || 'Failed to publish project')
+    }
+    
+  } catch (error) {
+    console.error('❌ Error publishing project:', error)
+    alert('Failed to publish project. Please try again.')
   } finally {
     isPublishing.value = false
   }
+}
+
+// Helper function to compare objects and find changed fields
+function getChangedFields(original, current) {
+  const changes = {}
+  
+  // Compare all top-level properties
+  for (const key in current) {
+    if (JSON.stringify(original[key]) !== JSON.stringify(current[key])) {
+      changes[key] = current[key]
+    }
+  }
+  
+  // Check for deleted properties
+  for (const key in original) {
+    if (!(key in current)) {
+      changes[key] = current[key]
+    }
+  }
+  
+  return changes
+}
+
+// Helper function to merge content arrays while preserving images
+function mergeContentArrays(storeArray, localArray) {
+  if (!localArray || !Array.isArray(localArray)) return storeArray || []
+  if (!storeArray || !Array.isArray(storeArray)) return localArray
+  
+  return localArray.map(localItem => {
+    // Find matching item in store array
+    const storeItem = storeArray.find(item => 
+      item.order === localItem.order || 
+      item.createdAt === localItem.createdAt
+    )
+    
+    if (storeItem) {
+      // Merge local data but keep store image
+      return {
+        ...localItem,
+        img: storeItem.img || localItem.img || ''
+      }
+    }
+    
+    return localItem
+  })
 }
 </script>
 
@@ -240,13 +373,10 @@ async function publishProject() {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  padding: var(--space-lg);
 }
 
 .viewport {
   width: 100%;
-  max-width: 800px;
   overflow: hidden;
   position: relative;
 }
@@ -267,11 +397,7 @@ async function publishProject() {
 }
 
 /* Desktop Browser Frame */
-.display.desktop .viewport {
-  max-width: 800px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-}
+
 
 .display.desktop .viewport::before {
   content: '';
@@ -295,8 +421,7 @@ async function publishProject() {
 
 /* Mobile Phone Frame */
 .display.mobile .viewport {
-  max-width: 25vw;
-  border-radius: var(--radius-2xl);
+  max-width: 24vw;
   padding: var(--space-md);
   background: var(--dark);
   position: relative;
@@ -305,9 +430,8 @@ async function publishProject() {
 /* Screen content area */
 .screen {
   width: 100%;
-  height: 100%;
+  height: 90%;
   overflow: auto;
-  border: 1px solid var(--border);
   background: white;
   position: relative;
   z-index: 1;
@@ -318,10 +442,6 @@ async function publishProject() {
   height: calc(100% - 32px);
 }
 
-/* Mobile Phone Frame */
-.display.mobile .screen {
-  border-radius: var(--radius-xl);
-}
 
 .no-theme {
   flex: 1;

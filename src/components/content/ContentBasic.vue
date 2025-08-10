@@ -136,32 +136,29 @@ onMounted(() => {
 <template>
   <ul class="form" v-if="storeProject">
     <ul class="items">
+      <InputUpload
+        label="Cover Image"
+        details="Main image for your project"
+        placeholder="Upload cover image"
+        v-model="projectCoverImage"
+      />
+
       <InputNormal
-        label="Project Title"
-        details="This is the main title that will appear on your project page"
+        label="Project Name"
         placeholder="Enter project title"
         v-model="projectName"
       />
       
       <InputTextarea
-        label="Project Description"
-        details="A brief description of your project"
+        label="Biography"
         placeholder="Describe your project..."
         v-model="projectDescription"
       />
       
       <InputNormal
         label="Location"
-        details="Where is this project based?"
         placeholder="City, Country"
         v-model="projectLocation"
-      />
-      
-      <InputUpload
-        label="Cover Image"
-        details="Main image for your project"
-        placeholder="Upload cover image"
-        v-model="projectCoverImage"
       />
       
       <InputLinks

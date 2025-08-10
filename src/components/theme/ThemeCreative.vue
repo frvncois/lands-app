@@ -130,7 +130,6 @@ function toggleMenu() {
   <div class="minimal-theme theme-isolation" :style="themeStyles">
     <header>
       <nav>
-        <h1>{{ projectTitle }}</h1>
         <button class="burger-menu" @click="toggleMenu" :class="{ active: isMenuOpen }">
           <span></span>
           <span></span>
@@ -153,6 +152,8 @@ function toggleMenu() {
           Basic details cover image
         </div>
       </div>
+
+        <h1>{{ projectTitle }}</h1>
     </header>
 
     <main>
@@ -347,20 +348,22 @@ function toggleMenu() {
 header {
   display: flex;
   flex-direction: column;
+  text-align: center;
 }
 
 nav {
   position: relative;
   display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid black;
+  justify-content: flex-end;
   padding: 1em;
 }
 
 .cover {
-  width: 100%;
+  width: 75%;
   height: 50vh;
+  margin: auto;
   overflow: hidden;
+  border-radius: 10em;
 }
 
 .cover img {

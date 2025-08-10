@@ -139,7 +139,7 @@ li.form {
 li.actions {
   display: flex;
   border-top: 1px solid var(--border);
-  padding: var(--space-md);
+  padding: var(--space-rg);
   background: var(--nav);
 }
 </style>

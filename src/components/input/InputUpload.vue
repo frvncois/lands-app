@@ -16,12 +16,12 @@
     
     <!-- Processing state -->
     <div v-if="isProcessing" class="processing">
-      <div class="loading">Processing image...</div>
+      <p>Processing image...</p>
     </div>
     
     <!-- Preview when image exists -->
     <div v-if="hasImage && !isProcessing" class="preview" @click="triggerFileInput">
-      <img :src="displayUrl" alt="Preview"/>
+      <img :src="displayUrl"/>
       <button @click="clearImage" type="button" title="Remove image">×</button>
     </div>
     
@@ -257,7 +257,7 @@ li.upload {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  > .area {
+  > .area, .processing {
     cursor: pointer;
     border: 1px dashed var(--border);
     border-radius: var(--radius-md);
@@ -274,7 +274,7 @@ li.upload {
       font-size: var(--font-sm);
       text-transform: uppercase;
       color: var(--details);
-    transition: all var(--transition-smooth);
+      transition: all var(--transition-smooth);
     }
     &:hover {
       border: 1px solid var(--focus);
