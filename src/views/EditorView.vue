@@ -38,7 +38,7 @@ onBeforeUnmount(async () => {
 </script>
 
 <template>
-  <div class="flex h-full p-6 gap-6 background">
+  <div class="flex h-full">
     <EditorSidebar />
     <EditorPreview />
     <EditorInspector />

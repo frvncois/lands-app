@@ -5,6 +5,7 @@ import { useEditorStore } from '@/stores/editor'
 const props = defineProps<{
   modelValue: string | undefined
   placeholder?: string
+  swatchOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -203,8 +204,32 @@ function clearColor() {
 
 <template>
   <div class="relative">
-    <!-- Trigger Button -->
+    <!-- Swatch-only with HEX value -->
+    <div v-if="swatchOnly" class="flex items-center gap-2">
+      <!-- HEX value display -->
+      <span class="text-xxs font-mono text-muted-foreground uppercase">
+        {{ hasValue ? localValue.toUpperCase() : 'transparent' }}
+      </span>
+      <!-- Swatch-only Trigger Button -->
+      <button
+        ref="triggerRef"
+        type="button"
+        class="w-5 h-5 rounded border border-border hover:ring-2 hover:ring-primary/50 transition-all shrink-0"
+        :style="{ backgroundColor: hasValue ? displayColor : 'transparent' }"
+        @click="togglePopover"
+      >
+      <!-- Checkerboard pattern for transparent -->
+      <div
+        v-if="!hasValue"
+        class="w-full h-full rounded-md"
+        style="background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;"
+      />
+    </button>
+    </div>
+
+    <!-- Full Trigger Button -->
     <button
+      v-else-if="!swatchOnly"
       ref="triggerRef"
       type="button"
       class="flex items-center gap-2 w-full h-9 px-2 bg-secondary border border-border rounded-md hover:bg-secondary/80 transition-colors"

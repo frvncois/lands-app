@@ -1,9 +1,22 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useProjectsStore } from '@/stores/projects'
+import { planHasFeature } from '@/types/project'
+import PlanUpgrade from '@/components/modal/PlanUpgrade.vue'
+import { Button, Header } from '@/components/ui'
 
 const route = useRoute()
+const projectsStore = useProjectsStore()
 const projectId = computed(() => route.params.projectId as string)
+
+// Plan check
+const currentProject = computed(() => projectsStore.getProjectById(projectId.value))
+const canUseAnalytics = computed(() => {
+  if (!currentProject.value) return false
+  return planHasFeature(currentProject.value.plan, 'analytics')
+})
+const showUpgradeModal = ref(false)
 
 // Analytics data types
 interface AnalyticsData {
@@ -91,37 +104,81 @@ watch(projectId, () => {
 <template>
   <div class="flex-1 h-full overflow-y-auto bg-background">
     <div class="max-w-6xl mx-auto p-8">
-      <!-- Header -->
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h1 class="text-2xl text-foreground">Analytics</h1>
-          <p class="text-sm text-muted-foreground mt-1">Track your site's performance and visitor data.</p>
-        </div>
-        <div class="flex items-center gap-3">
-          <!-- Live indicator -->
-          <div class="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            <span class="text-xs font-medium text-green-600">{{ liveVisitors }} live</span>
+      <!-- Upgrade Wall for Free Plan -->
+      <div v-if="!canUseAnalytics" class="flex items-center justify-center py-20">
+        <div class="text-center max-w-md">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+            <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
           </div>
-          <!-- Period selector -->
-          <div class="flex items-center gap-1 p-1 bg-muted rounded-lg">
-            <button
-              v-for="period in periodOptions"
-              :key="period.value"
-              class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
-              :class="selectedPeriod === period.value
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'"
-              @click="selectedPeriod = period.value"
-            >
-              {{ period.label }}
-            </button>
+          <h3 class="text-xl font-semibold text-foreground mb-2">Unlock Analytics</h3>
+          <p class="text-sm text-muted-foreground mb-6">
+            Upgrade to Pro to access detailed analytics about your visitors, page views, traffic sources, and more.
+          </p>
+          <div class="space-y-3 text-left mb-6 p-4 bg-muted/50 rounded-lg">
+            <div class="flex items-center gap-2 text-sm text-foreground">
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Real-time visitor tracking
+            </div>
+            <div class="flex items-center gap-2 text-sm text-foreground">
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Page views and traffic trends
+            </div>
+            <div class="flex items-center gap-2 text-sm text-foreground">
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Top pages and referrer sources
+            </div>
+            <div class="flex items-center gap-2 text-sm text-foreground">
+              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Device and country breakdown
+            </div>
           </div>
+          <Button size="lg" @click="showUpgradeModal = true">
+            Upgrade to Pro - $6/month
+          </Button>
         </div>
       </div>
+
+      <!-- Analytics Content (Pro plan) -->
+      <template v-else>
+        <Header
+          title="Analytics"
+          description="Track your site's performance and visitor data."
+        >
+          <template #actions>
+            <!-- Live indicator -->
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span class="text-xs font-medium text-green-600">{{ liveVisitors }} live</span>
+            </div>
+            <!-- Period selector -->
+            <div class="flex items-center gap-1 p-1 bg-muted rounded-lg">
+              <button
+                v-for="period in periodOptions"
+                :key="period.value"
+                class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
+                :class="selectedPeriod === period.value
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'"
+                @click="selectedPeriod = period.value"
+              >
+                {{ period.label }}
+              </button>
+            </div>
+          </template>
+        </Header>
 
       <!-- Loading State -->
       <div v-if="isLoading" class="flex items-center justify-center py-20">
@@ -336,6 +393,13 @@ watch(projectId, () => {
           </div>
         </div>
       </template>
+      </template>
     </div>
+
+    <!-- Plan Upgrade Modal -->
+    <PlanUpgrade
+      v-model:open="showUpgradeModal"
+      :project-id="projectId"
+    />
   </div>
 </template>

@@ -1,57 +1,70 @@
 <script setup lang="ts">
-import type { Spacing } from '@/types/editor'
-import { spacingOptions } from '@/lib/editor-utils'
+import { computed } from 'vue'
+import type { Spacing, SpacingYX } from '@/types/editor'
+import { Slider } from '@/components/ui'
 
 const props = defineProps<{
-  modelValue: Spacing | undefined
+  modelValue: Spacing | SpacingYX | undefined
   labelY?: string
   labelX?: string
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: Spacing]
+  'update:modelValue': [value: SpacingYX]
 }>()
 
-function updateY(value: string) {
+// Helper to get Y value from either format
+const yValue = computed(() => {
+  if (!props.modelValue) return 0
+  if ('y' in props.modelValue) return parseInt(props.modelValue.y, 10) || 0
+  return parseInt(props.modelValue.top ?? '0', 10) || 0
+})
+
+// Helper to get X value from either format
+const xValue = computed(() => {
+  if (!props.modelValue) return 0
+  if ('x' in props.modelValue) return parseInt(props.modelValue.x, 10) || 0
+  return parseInt(props.modelValue.left ?? '0', 10) || 0
+})
+
+function updateY(value: number) {
   emit('update:modelValue', {
-    y: value,
-    x: props.modelValue?.x ?? '0',
+    y: String(value),
+    x: String(xValue.value),
   })
 }
 
-function updateX(value: string) {
+function updateX(value: number) {
   emit('update:modelValue', {
-    y: props.modelValue?.y ?? '0',
-    x: value,
+    y: String(yValue.value),
+    x: String(value),
   })
 }
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-2">
-    <div class="space-y-1">
-      <span class="text-xs text-muted-foreground">{{ labelY ?? 'T+B' }}</span>
-      <select
-        class="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground"
-        :value="modelValue?.y ?? '0'"
-        @change="updateY(($event.target as HTMLSelectElement).value)"
-      >
-        <option v-for="opt in spacingOptions" :key="opt.value" :value="opt.value">
-          {{ opt.label }}
-        </option>
-      </select>
+  <div class="space-y-3 px-3">
+    <div class="space-y-1.5">
+      <span class="text-xs text-muted-foreground">{{ labelY ?? 'Vertical (T+B)' }}</span>
+      <Slider
+        :model-value="yValue"
+        :min="0"
+        :max="96"
+        :step="4"
+        unit="px"
+        @update:model-value="updateY"
+      />
     </div>
-    <div class="space-y-1">
-      <span class="text-xs text-muted-foreground">{{ labelX ?? 'L+R' }}</span>
-      <select
-        class="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground"
-        :value="modelValue?.x ?? '0'"
-        @change="updateX(($event.target as HTMLSelectElement).value)"
-      >
-        <option v-for="opt in spacingOptions" :key="opt.value" :value="opt.value">
-          {{ opt.label }}
-        </option>
-      </select>
+    <div class="space-y-1.5">
+      <span class="text-xs text-muted-foreground">{{ labelX ?? 'Horizontal (L+R)' }}</span>
+      <Slider
+        :model-value="xValue"
+        :min="0"
+        :max="96"
+        :step="4"
+        unit="px"
+        @update:model-value="updateX"
+      />
     </div>
   </div>
 </template>

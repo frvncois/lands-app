@@ -10,6 +10,7 @@ import AnalyticsView from '@/views/AnalyticsView.vue'
 import IntegrationView from '@/views/IntegrationView.vue'
 import AccountView from '@/views/AccountView.vue'
 import InviteView from '@/views/InviteView.vue'
+import OAuthCallbackView from '@/views/OAuthCallbackView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -19,6 +20,13 @@ const router = createRouter({
       path: '/invite/:token',
       name: 'invite',
       component: InviteView,
+    },
+    // OAuth callback route (requires auth)
+    {
+      path: '/oauth/callback',
+      name: 'oauth-callback',
+      component: OAuthCallbackView,
+      meta: { requiresAuth: true },
     },
     // Auth routes (public)
     {

@@ -1,7 +1,86 @@
-import type { SectionBlock, PageSettings } from '@/types/editor'
+import type { SectionBlock, PageSettings, ProjectTranslations } from '@/types/editor'
 
 // Project Plan Types
-export type ProjectPlan = 'free' | 'pro' | 'business'
+export type ProjectPlan = 'free' | 'pro'
+
+// Plan Feature Keys
+export type PlanFeature =
+  | 'landsDomain'
+  | 'customDomain'
+  | 'noWatermark'
+  | 'analytics'
+  | 'integrations'
+  | 'collaborators'
+
+// Plan Definition
+export interface PlanDefinition {
+  id: ProjectPlan
+  name: string
+  price: number // Monthly price in USD, 0 for free
+  description: string
+  features: Record<PlanFeature, boolean>
+  featureLabels: string[] // Marketing-friendly feature list
+}
+
+// Plan Definitions
+export const PLAN_DEFINITIONS: Record<ProjectPlan, PlanDefinition> = {
+  free: {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    description: 'Get started with the basics',
+    features: {
+      landsDomain: true,
+      customDomain: false,
+      noWatermark: false,
+      analytics: false,
+      integrations: false,
+      collaborators: false,
+    },
+    featureLabels: [
+      'Lands subdomain (yoursite.lands.app)',
+      'Unlimited pages',
+      'Basic editor features',
+    ],
+  },
+  pro: {
+    id: 'pro',
+    name: 'Pro',
+    price: 6,
+    description: 'Everything you need to grow',
+    features: {
+      landsDomain: true,
+      customDomain: true,
+      noWatermark: true,
+      analytics: true,
+      integrations: true,
+      collaborators: true,
+    },
+    featureLabels: [
+      'Custom domain support',
+      'No Lands watermark',
+      'Full analytics dashboard',
+      'All integrations (email, payments, etc.)',
+      'Team collaboration',
+      'Priority support',
+    ],
+  },
+}
+
+// Helper to check if a plan has a specific feature
+export function planHasFeature(plan: ProjectPlan, feature: PlanFeature): boolean {
+  return PLAN_DEFINITIONS[plan]?.features[feature] ?? false
+}
+
+// Helper to get plan definition
+export function getPlanDefinition(plan: ProjectPlan): PlanDefinition {
+  return PLAN_DEFINITIONS[plan]
+}
+
+// Helper to check if upgrade is needed for a feature
+export function needsUpgradeForFeature(plan: ProjectPlan, feature: PlanFeature): boolean {
+  return !planHasFeature(plan, feature)
+}
 
 // Collaborator Types
 export type CollaboratorRole = 'admin' | 'editor'
@@ -47,6 +126,7 @@ export const COLLABORATOR_ROLE_INFO: Record<CollaboratorRole, { label: string; d
 export interface ProjectContent {
   blocks: SectionBlock[]
   pageSettings: PageSettings
+  translations?: ProjectTranslations
 }
 
 // Project (for list/dashboard views)
@@ -58,6 +138,7 @@ export interface Project {
   description?: string
   thumbnail?: string
   isPublished: boolean
+  publishedUrl?: string
   customDomain?: string
   plan: ProjectPlan
   createdAt: string

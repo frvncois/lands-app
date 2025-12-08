@@ -2,20 +2,23 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
+import { useUserStore } from '@/stores/user'
 import type { Project } from '@/types/project'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
 import ProjectDelete from '@/components/modal/ProjectDelete.vue'
+import { Button, Card, Badge, Skeleton, Spinner, Header, Dropdown } from '@/components/ui'
 
 const router = useRouter()
 const projectsStore = useProjectsStore()
+const userStore = useUserStore()
 
 const projects = computed(() => projectsStore.projects)
+const userName = computed(() => userStore.settings.profile?.name?.split(' ')[0] || 'there')
 const isLoading = computed(() => projectsStore.isLoading)
 
 const showNewProjectModal = ref(false)
 const showDeleteModal = ref(false)
 const projectToDelete = ref<Project | null>(null)
-const projectMenuOpen = ref<string | null>(null)
 const publishingProjectId = ref<string | null>(null)
 
 onMounted(() => {
@@ -48,13 +51,11 @@ function openAnalytics(projectId: string) {
 
 async function duplicateProject(project: Project) {
   await projectsStore.duplicateProject(project.id)
-  projectMenuOpen.value = null
 }
 
 function confirmDelete(project: Project) {
   projectToDelete.value = project
   showDeleteModal.value = true
-  projectMenuOpen.value = null
 }
 
 function handleDeleted() {
@@ -62,7 +63,6 @@ function handleDeleted() {
 }
 
 async function publishProject(project: Project) {
-  projectMenuOpen.value = null
   publishingProjectId.value = project.id
 
   // First fetch the project content if not already loaded
@@ -75,7 +75,6 @@ async function publishProject(project: Project) {
 }
 
 async function unpublishProject(project: Project) {
-  projectMenuOpen.value = null
   publishingProjectId.value = project.id
   await projectsStore.unpublishProject(project.id)
   publishingProjectId.value = null
@@ -87,11 +86,6 @@ function openPublishedSite(project: Project) {
   } else {
     window.open(`https://${project.slug}.lands.app`, '_blank')
   }
-  projectMenuOpen.value = null
-}
-
-function toggleMenu(projectId: string) {
-  projectMenuOpen.value = projectMenuOpen.value === projectId ? null : projectId
 }
 </script>
 
@@ -99,201 +93,159 @@ function toggleMenu(projectId: string) {
   <div class="flex-1 h-full overflow-y-auto bg-background">
     <div class="max-w-6xl mx-auto p-8">
       <!-- Header (hidden when no projects) -->
-      <div v-if="isLoading || projects.length > 0" class="flex items-center justify-between mb-10">
-        <div>
-          <h1 class="text-2xl text-foreground">Dashboard</h1>
-          <p class="text-sm text-muted-foreground mt-1">Manage and create your landing pages.</p>
-        </div>
-        <button
-          class="flex items-center gap-2 h-9 px-4 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-          @click="showNewProjectModal = true"
-        >
-          <i class="lni lni-plus text-sm"></i>
-          New Project
-        </button>
-      </div>
+      <Header
+        v-if="isLoading || projects.length > 0"
+        :title="`Welcome, ${userName}`"
+        description="Manage and create your landing pages."
+        button="New Project"
+        button-icon="lni-plus"
+        @button-click="showNewProjectModal = true"
+      />
 
-      <!-- Loading State -->
-      <div v-if="isLoading" class="flex items-center justify-center py-20">
-        <div class="flex items-center gap-3 text-muted-foreground">
-          <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span class="text-sm">Loading projects...</span>
-        </div>
+      <!-- Loading State (Skeleton) -->
+      <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card v-for="i in 6" :key="i" padded>
+          <Skeleton class="aspect-video rounded-xl mb-3" />
+          <div class="space-y-3">
+            <div class="space-y-2">
+              <Skeleton class="h-4 w-3/4" />
+              <Skeleton class="h-3 w-1/2" />
+            </div>
+            <div class="flex items-center gap-3">
+              <Skeleton class="h-5 w-16 rounded-full" />
+              <Skeleton class="h-3 w-20" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       <!-- Projects Grid -->
       <div v-else-if="projects.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div
+        <Card
           v-for="project in projects"
           :key="project.id"
-          class="group bg-card border border-border rounded-lg p-1 hover:border-muted-foreground/25 transition-colors"
+          class="group"
+          variant="ghost"
         >
           <!-- Thumbnail -->
-          <div
-            class="relative aspect-video bg-muted flex items-center rounded-md justify-center cursor-pointer"
+          <Card.Thumbnail
+            :src="project.thumbnail"
+            :alt="project.title"
+            aspect-ratio="4/3"
+            class="cursor-pointer"
             @click="editProject(project.id)"
           >
-            <img
-              v-if="project.thumbnail"
-              :src="project.thumbnail"
-              :alt="project.title"
-              class="w-full h-full object-cover"
-            />
-            <div v-else class="flex flex-col items-center gap-2 text-muted-foreground">
-              <i class="lni lni-photos text-3xl"></i>
-              <span class="text-xs">No preview</span>
-            </div>
-            <!-- Hover overlay -->
-            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center backdrop-blur-xs justify-center gap-3">
-              <button
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-white text-black text-xs font-medium rounded-md hover:bg-white/90 transition-colors"
-                @click.stop="editProject(project.id)"
-              >
-                <i class="lni lni-pencil-1 text-xs"></i>
-                Edit
-              </button>
-              <button
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 text-white text-xs font-medium rounded-md hover:bg-white/20 transition-colors"
-                @click.stop="openSettings(project.id)"
-              >
-                <i class="lni lni-gear-1 text-xs"></i>
-                Settings
-              </button>
-            </div>
-          </div>
+            <template #overlay>
+              <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center backdrop-blur-xs justify-center gap-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  @click.stop="editProject(project.id)"
+                >
+                  <i class="lni lni-pencil-1 text-xs"></i>
+                  Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="bg-white/10 text-white hover:bg-white/20"
+                  @click.stop="openSettings(project.id)"
+                >
+                  <i class="lni lni-gear-1 text-xs"></i>
+                  Settings
+                </Button>
+              </div>
+            </template>
+          </Card.Thumbnail>
 
-          <!-- Info -->
-          <div class="p-4">
+          <!-- Content -->
+          <Card.Content>
             <div class="flex items-start justify-between">
               <div class="flex-1 min-w-0">
-                <h3 class="text-sm font-medium text-foreground truncate">{{ project.title }}</h3>
-                <p class="text-xs text-muted-foreground mt-0.5">{{ project.slug }}.lands.app</p>
+                <h3 class="text-md font-medium text-foreground truncate">{{ project.title }}</h3>
+                <p class="text-xxs font-mono uppercase text-muted-foreground mt-0.5">{{ project.slug }}.lands.app</p>
               </div>
-              <div class="relative">
-                <button
-                  class="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-                  @click="toggleMenu(project.id)"
-                >
-                  <i class="lni lni-menu-meatballs-2 text-sm"></i>
-                </button>
-                <!-- Dropdown menu -->
-                <div
-                  v-if="projectMenuOpen === project.id"
-                  class="absolute right-0 top-full mt-1 w-40 bg-popover border border-border rounded-md shadow-lg z-10 py-1"
-                >
-                  <button
-                    class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
-                    @click="editProject(project.id)"
-                  >
-                    <i class="lni lni-pencil-1 text-xs"></i>
-                    Edit
-                  </button>
-                  <button
-                    class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
-                    @click="openSettings(project.id)"
-                  >
-                    <i class="lni lni-gear-1 text-xs"></i>
-                    Settings
-                  </button>
-                  <button
-                    class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
-                    @click="openAnalytics(project.id)"
-                  >
-                    <i class="lni lni-bar-chart-4 text-xs"></i>
-                    Analytics
-                  </button>
-                  <button
-                    class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
-                    @click="duplicateProject(project)"
-                  >
-                    <i class="lni lni-file-multiple text-xs"></i>
-                    Duplicate
-                  </button>
-                  <div class="my-1 border-t border-border"></div>
-                  <!-- Publish/Unpublish -->
-                  <button
-                    v-if="!project.isPublished"
-                    class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+
+              <!-- Dropdown Menu -->
+              <Dropdown icon="lni-menu-meatballs-1">
+                <Dropdown.Item icon="lni-pencil-1" @click="editProject(project.id)">
+                  Edit
+                </Dropdown.Item>
+                <Dropdown.Item icon="lni-gear-1" @click="openSettings(project.id)">
+                  Settings
+                </Dropdown.Item>
+                <Dropdown.Item icon="lni-bar-chart-4" @click="openAnalytics(project.id)">
+                  Analytics
+                </Dropdown.Item>
+                <Dropdown.Item icon="lni-file-multiple" @click="duplicateProject(project)">
+                  Duplicate
+                </Dropdown.Item>
+                <Dropdown.Divider />
+                <template v-if="!project.isPublished">
+                  <Dropdown.Item
+                    icon="lni-cloud-upload"
                     :disabled="publishingProjectId === project.id"
                     @click="publishProject(project)"
                   >
-                    <i class="lni lni-cloud-upload text-xs"></i>
                     {{ publishingProjectId === project.id ? 'Publishing...' : 'Publish' }}
-                  </button>
-                  <template v-else>
-                    <button
-                      class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
-                      @click="openPublishedSite(project)"
-                    >
-                      <i class="lni lni-link-1 text-xs"></i>
-                      View Site
-                    </button>
-                    <button
-                      class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-                      :disabled="publishingProjectId === project.id"
-                      @click="unpublishProject(project)"
-                    >
-                      <i class="lni lni-cloud-download text-xs"></i>
-                      {{ publishingProjectId === project.id ? 'Unpublishing...' : 'Unpublish' }}
-                    </button>
-                  </template>
-                  <div class="my-1 border-t border-border"></div>
-                  <button
-                    class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
-                    @click="confirmDelete(project)"
+                  </Dropdown.Item>
+                </template>
+                <template v-else>
+                  <Dropdown.Item icon="lni-link-1" @click="openPublishedSite(project)">
+                    View Site
+                  </Dropdown.Item>
+                  <Dropdown.Item
+                    icon="lni-cloud-download"
+                    :disabled="publishingProjectId === project.id"
+                    @click="unpublishProject(project)"
                   >
-                    <i class="lni lni-trash-3 text-xs"></i>
-                    Delete
-                  </button>
-                </div>
-              </div>
+                    {{ publishingProjectId === project.id ? 'Unpublishing...' : 'Unpublish' }}
+                  </Dropdown.Item>
+                </template>
+                <Dropdown.Divider />
+                <Dropdown.Item icon="lni-trash-3" destructive @click="confirmDelete(project)">
+                  Delete
+                </Dropdown.Item>
+              </Dropdown>
             </div>
 
-            <div class="flex items-center gap-3 mt-3">
+            <!-- Footer with badges -->
+            <div class="flex items-center justify-between gap-3 mt-3">
               <!-- Publishing indicator -->
-              <span
-                v-if="publishingProjectId === project.id"
-                class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary"
-              >
-                <svg class="w-2.5 h-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+              <Badge v-if="publishingProjectId === project.id" variant="secondary" size="sm">
+                <Spinner size="xs" />
                 Publishing...
-              </span>
+              </Badge>
               <!-- Published badge (clickable) -->
-              <button
+              <Badge
                 v-else-if="project.isPublished"
-                class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
+                variant="success"
+                size="xs"
+                dot
+                class="cursor-pointer hover:opacity-80"
                 @click="openPublishedSite(project)"
               >
-                <span class="w-1 h-1 rounded-full bg-green-500"></span>
                 Published
-              </button>
+              </Badge>
               <!-- Draft badge -->
-              <span
-                v-else
-                class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-muted text-muted-foreground"
-              >
-                <span class="w-1 h-1 rounded-full bg-muted-foreground"></span>
+              <Badge v-else variant="secondary" size="xs" dot>
                 Draft
-              </span>
+              </Badge>
               <span class="text-[10px] text-muted-foreground">Updated {{ formatDate(project.updatedAt) }}</span>
             </div>
-          </div>
-        </div>
+          </Card.Content>
+        </Card>
 
         <!-- New Project Card -->
-        <button
-          class="flex flex-col items-center justify-center aspect-[4/3] bg-card border-2 border-dashed border-border rounded-lg hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors"
-          @click="showNewProjectModal = true"
-        >
-          <i class="lni lni-plus text-3xl text-muted-foreground mb-2"></i>
-          <span class="text-sm font-medium text-muted-foreground">Create new project</span>
-        </button>
+        <Card variant="ghost" class="border-2 border-dashed border-border hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors">
+          <button
+            class="flex flex-col items-center justify-center w-full aspect-[4/3]"
+            @click="showNewProjectModal = true"
+          >
+            <i class="lni lni-plus text-3xl text-muted-foreground mb-2"></i>
+            <span class="text-sm font-medium text-muted-foreground">Create new project</span>
+          </button>
+        </Card>
       </div>
 
       <!-- Empty State -->
@@ -303,13 +255,10 @@ function toggleMenu(projectId: string) {
         </div>
         <h3 class="text-lg font-medium text-foreground mb-1">No projects yet</h3>
         <p class="text-sm text-muted-foreground mb-4">Create your first project to get started.</p>
-        <button
-          class="flex items-center gap-2 h-9 px-4 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
-          @click="showNewProjectModal = true"
-        >
+        <Button @click="showNewProjectModal = true">
           <i class="lni lni-plus text-sm"></i>
           Create Project
-        </button>
+        </Button>
       </div>
     </div>
 

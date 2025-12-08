@@ -11,7 +11,7 @@ const emit = defineEmits<{
 
 <template>
   <select
-    class="w-full px-2 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground"
+    class="min-w-24 px-2 py-1.5 text-sm bg-secondary border border-border rounded-md text-foreground"
     :value="modelValue"
     @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
   >

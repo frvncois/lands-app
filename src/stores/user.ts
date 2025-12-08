@@ -284,6 +284,36 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  async function changePassword(currentPassword: string, newPassword: string) {
+    if (!authUser.value?.email) {
+      throw new Error('No user logged in')
+    }
+
+    try {
+      // Verify current password by attempting to sign in
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: authUser.value.email,
+        password: currentPassword,
+      })
+
+      if (verifyError) {
+        throw new Error('Current password is incorrect')
+      }
+
+      // Update to new password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (updateError) throw updateError
+      toast.success('Password updated successfully')
+    } catch (e) {
+      console.error('Failed to change password:', e)
+      toast.error('Failed to change password', e instanceof Error ? e.message : 'Please try again')
+      throw e
+    }
+  }
+
   function resetSettings() {
     settings.value = getDefaultUserSettings()
     isAuthenticated.value = false
@@ -310,6 +340,7 @@ export const useUserStore = defineStore('user', () => {
     signInWithOAuth,
     resetPassword,
     updatePassword,
+    changePassword,
     resetSettings,
   }
 })

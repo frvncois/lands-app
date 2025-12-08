@@ -95,17 +95,17 @@ async function createProject() {
     >
       <!-- Backdrop -->
       <div
-        class="absolute inset-0 bg-black/50"
+        class="absolute inset-0 bg-black/50 backdrop-blur-md"
         @click="close"
       ></div>
 
       <!-- Modal -->
       <div
-        class="relative bg-card border border-border rounded-lg shadow-xl w-full p-6 transition-all duration-200"
+        class="relative bg-card border border-border rounded-4xl shadow-xl w-full p-10 space-y-10 transition-all duration-200"
         :class="step === 'usecase' ? 'max-w-3xl' : step === 'layout' ? 'max-w-4xl' : 'max-w-md'"
       >
         <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <button
               v-if="step !== 'usecase'"
@@ -117,7 +117,7 @@ async function createProject() {
               </svg>
             </button>
             <div>
-              <h2 class="text-lg font-semibold text-foreground">
+              <h2 class="text-4xl text-foreground">
                 {{ step === 'usecase' ? 'What are you building?' : step === 'layout' ? 'Choose a layout' : 'Name your project' }}
               </h2>
               <p class="text-sm text-muted-foreground">
@@ -136,7 +136,7 @@ async function createProject() {
         </div>
 
         <!-- Step 1: Use Case Selection -->
-        <div v-if="step === 'usecase'" class="space-y-4">
+        <div v-if="step === 'usecase'" class="space-y-10">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
               v-for="useCase in USE_CASES"
@@ -155,7 +155,7 @@ async function createProject() {
             </button>
           </div>
 
-          <div class="pt-4 border-t border-border">
+          <div>
             <button
               class="w-full flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               @click="skipToBlank"

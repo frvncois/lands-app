@@ -1,117 +1,224 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { sectionBlockLabels, blockItemLabels, getAllowedChildren, sectionBlockIcons, blockItemIcons, formFieldLabels, formFieldIcons, socialPlatformLabels, socialPlatformIcons } from '@/lib/editor-utils'
-import type { SectionBlockType, BlockItemType, SectionBlock, FormFieldType, FooterSocialLink } from '@/types/editor'
+import { Button, Combobox, Dropdown } from '@/components/ui'
+import type { ComboboxItem } from '@/components/ui/Combobox.vue'
+import {
+  sectionBlockLabels,
+  sectionBlockIcons,
+  blocksByCategory,
+  categoryLabels,
+  canHaveChildren,
+  formFieldBlockTypes,
+  formFieldBlockLabels,
+  socialPlatformLabels,
+  socialPlatformIcons,
+  presetTypes,
+  presetLabels,
+  presetIcons,
+  createPresetBlock,
+  isFormFieldBlock,
+  type PresetType,
+} from '@/lib/editor-utils'
+import type {
+  SectionBlockType,
+  SectionBlock,
+  SocialPlatform,
+  BlockCategory,
+  HeaderSettings,
+  FooterSettings,
+  FormFieldBlockType,
+} from '@/types/editor'
 
 const editorStore = useEditorStore()
 
 const showSectionDropdown = ref(false)
-const showChildDropdown = ref<string | null>(null)
+const sectionSearchQuery = ref('')
 const expandedBlocks = ref<Set<string>>(new Set())
-
-// Drag state
-const draggedNewSectionType = ref<SectionBlockType | null>(null)
-const draggedBlockIndex = ref<number | null>(null)
-const dragOverBlockIndex = ref<number | null>(null)
-const draggedChildInfo = ref<{ blockId: string; childIndex: number } | null>(null)
-const dragOverChildInfo = ref<{ blockId: string; childIndex: number } | null>(null)
-const draggedPostInfo = ref<{ blockId: string; postIndex: number } | null>(null)
-const dragOverPostInfo = ref<{ blockId: string; postIndex: number } | null>(null)
-const draggedLinkInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
-const dragOverLinkInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
-const draggedProductInfo = ref<{ blockId: string; productIndex: number } | null>(null)
-const dragOverProductInfo = ref<{ blockId: string; productIndex: number } | null>(null)
-const draggedFormFieldInfo = ref<{ blockId: string; fieldIndex: number } | null>(null)
-const dragOverFormFieldInfo = ref<{ blockId: string; fieldIndex: number } | null>(null)
-const draggedHeaderNavLinkInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
-const dragOverHeaderNavLinkInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
-const draggedFooterLinkInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
-const dragOverFooterLinkInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
-const draggedFooterSocialInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
-const dragOverFooterSocialInfo = ref<{ blockId: string; linkIndex: number } | null>(null)
 const showFormFieldDropdown = ref<string | null>(null)
 const showSocialDropdown = ref<string | null>(null)
 
-// Helper to check if block is a post section
-function isPostSection(block: SectionBlock): boolean {
-  return block.type === 'post'
-}
+// Drag state
+const draggedBlockIndex = ref<number | null>(null)
+const dragOverBlockIndex = ref<number | null>(null)
+const draggedItemInfo = ref<{ blockId: string; itemIndex: number } | null>(null)
+const dragOverItemInfo = ref<{ blockId: string; itemIndex: number } | null>(null)
+// Child drag state: track the actual block being dragged for cross-parent support
+const draggedChildInfo = ref<{ parentId: string; childIndex: number; blockId: string } | null>(null)
+const dragOverChildInfo = ref<{ parentId: string; childIndex: number } | null>(null)
 
-// Helper to check if block is a link section
-function isLinkSection(block: SectionBlock): boolean {
-  return block.type === 'link'
-}
+// Form field block types for dropdown (now uses block types instead of field types)
+// These are now child blocks of the form block
 
-// Helper to check if block is a product section
-function isProductSection(block: SectionBlock): boolean {
-  return block.type === 'product'
-}
+// Social platforms for dropdown
+const socialPlatforms: SocialPlatform[] = [
+  'twitter', 'instagram', 'facebook', 'linkedin', 'youtube', 'tiktok', 'github', 'discord',
+  'dribbble', 'behance', 'medium', 'threads',
+]
 
-// Helper to check if block has regular children (not post, link, or product sections)
-function hasRegularChildren(block: SectionBlock): boolean {
-  return !isPostSection(block) && !isLinkSection(block) && !isProductSection(block) && !isFormSection(block) && !isHeaderSection(block) && !isFooterSection(block)
-}
+// Categories for block selection (excluding header/footer which are auto-added)
+const categories: BlockCategory[] = ['layout', 'content']
 
-// Helper to check if block is a form section
-function isFormSection(block: SectionBlock): boolean {
-  return block.type === 'form'
-}
+// Search input ref for auto-focus
+const sectionSearchInputRef = ref<HTMLInputElement | null>(null)
 
-// Helper to check if block is a header section
-function isHeaderSection(block: SectionBlock): boolean {
-  return block.type === 'header'
-}
+// Filtered blocks by search query
+const filteredBlocksByCategory = computed(() => {
+  const query = sectionSearchQuery.value.toLowerCase().trim()
+  if (!query) return blocksByCategory
 
-// Helper to check if block is a footer section
-function isFooterSection(block: SectionBlock): boolean {
-  return block.type === 'footer'
-}
+  const result: Record<BlockCategory, SectionBlockType[]> = { layout: [], content: [] }
+  for (const category of categories) {
+    result[category] = (blocksByCategory[category] || []).filter(type =>
+      sectionBlockLabels[type].toLowerCase().includes(query)
+    )
+  }
+  return result
+})
 
-// Helper to check if block is protected (header/footer - can't delete, duplicate, or move)
+// Filtered presets by search query
+const filteredPresetTypes = computed(() => {
+  const query = sectionSearchQuery.value.toLowerCase().trim()
+  if (!query) return presetTypes
+  return presetTypes.filter(preset =>
+    presetLabels[preset].toLowerCase().includes(query)
+  )
+})
+
+// Check if there are any results
+const hasSearchResults = computed(() => {
+  return filteredBlocksByCategory.value.layout.length > 0 ||
+         filteredBlocksByCategory.value.content.length > 0 ||
+         filteredPresetTypes.value.length > 0
+})
+
+// Watch for dropdown open to focus search input
+watch(showSectionDropdown, async (isOpen) => {
+  if (isOpen) {
+    sectionSearchQuery.value = ''
+    await nextTick()
+    sectionSearchInputRef.value?.focus()
+  }
+})
+
+// Watch for selection changes and auto-expand parent blocks
+watch(() => editorStore.selectedBlockId, (blockId) => {
+  if (!blockId) return
+
+  // Expand all ancestors of the selected block
+  let currentId: string | null = blockId
+  while (currentId) {
+    const parent = editorStore.findParentBlock(currentId)
+    if (parent) {
+      expandedBlocks.value.add(parent.id)
+      currentId = parent.id
+    } else {
+      currentId = null
+    }
+  }
+
+  // Also expand the selected block itself if it can have children
+  const block = editorStore.findBlockById(blockId)
+  if (block && canHaveChildren(block.type)) {
+    expandedBlocks.value.add(blockId)
+  }
+}, { immediate: true })
+
+// Categories allowed for first-level child blocks (can include layout for nesting)
+const firstLevelChildCategories: BlockCategory[] = ['layout', 'content']
+
+// Categories allowed for deeply nested blocks (no more layout blocks)
+const deepNestedChildCategories: BlockCategory[] = ['content']
+
+// Combobox items for first-level child blocks (includes layout and presets)
+const firstLevelChildBlockItems = computed<ComboboxItem[]>(() => {
+  const items: ComboboxItem[] = []
+  // Add regular block categories
+  for (const category of firstLevelChildCategories) {
+    const types = blocksByCategory[category] || []
+    for (const type of types) {
+      items.push({
+        value: type,
+        label: sectionBlockLabels[type],
+        icon: sectionBlockIcons[type],
+        group: categoryLabels[category],
+      })
+    }
+  }
+  // Add List / Collection presets
+  for (const preset of presetTypes) {
+    items.push({
+      value: preset,
+      label: presetLabels[preset],
+      icon: presetIcons[preset],
+      group: 'List / Collection',
+    })
+  }
+  return items
+})
+
+// Combobox items for deeply nested child blocks (content/form only, no layout, plus presets)
+const deepNestedChildBlockItems = computed<ComboboxItem[]>(() => {
+  const items: ComboboxItem[] = []
+  // Add regular block categories (no layout blocks)
+  for (const category of deepNestedChildCategories) {
+    const types = blocksByCategory[category] || []
+    for (const type of types) {
+      items.push({
+        value: type,
+        label: sectionBlockLabels[type],
+        icon: sectionBlockIcons[type],
+        group: categoryLabels[category],
+      })
+    }
+  }
+  // Add List / Collection presets (presets are allowed at any level)
+  for (const preset of presetTypes) {
+    items.push({
+      value: preset,
+      label: presetLabels[preset],
+      icon: presetIcons[preset],
+      group: 'List / Collection',
+    })
+  }
+  return items
+})
+
+// Combobox items for form field blocks (only used when adding to form blocks)
+const formFieldBlockItems = computed<ComboboxItem[]>(() => {
+  return formFieldBlockTypes.map(type => ({
+    value: type,
+    label: formFieldBlockLabels[type] || sectionBlockLabels[type],
+    icon: sectionBlockIcons[type],
+    group: 'Form Fields',
+  }))
+})
+
+// Helper functions
 function isProtectedBlock(block: SectionBlock): boolean {
   return block.type === 'header' || block.type === 'footer'
 }
 
-// Section types available for adding (excluding header/footer which are auto-added)
-const sectionTypes: SectionBlockType[] = [
-  'hero',
-  'text',
-  'text-image',
-  'text-video',
-  'video',
-  'image',
-  'link',
-  'post',
-  'product',
-  'form',
-]
+function isBlockHidden(block: SectionBlock): boolean {
+  if (block.type === 'header') {
+    return (block.settings as HeaderSettings).isHidden ?? false
+  }
+  if (block.type === 'footer') {
+    return (block.settings as FooterSettings).isHidden ?? false
+  }
+  return false
+}
 
-// Form field types for dropdown
-const formFieldTypes: FormFieldType[] = [
-  'text',
-  'email',
-  'textarea',
-  'select',
-  'checkbox',
-  'radio',
-  'date',
-  'phone',
-  'number',
-  'file',
-]
-
-// Social platforms for dropdown
-const socialPlatforms: FooterSocialLink['platform'][] = [
-  'twitter',
-  'instagram',
-  'facebook',
-  'linkedin',
-  'youtube',
-  'tiktok',
-  'github',
-  'discord',
-]
+function toggleBlockVisibility(block: SectionBlock, event: MouseEvent) {
+  event.stopPropagation()
+  if (block.type === 'header') {
+    const settings = block.settings as HeaderSettings
+    editorStore.updateHeaderSettings(block.id, { isHidden: !settings.isHidden })
+  } else if (block.type === 'footer') {
+    const settings = block.settings as FooterSettings
+    editorStore.updateFooterSettings(block.id, { isHidden: !settings.isHidden })
+  }
+}
 
 function toggleBlockExpanded(blockId: string) {
   if (expandedBlocks.value.has(blockId)) {
@@ -129,14 +236,235 @@ function handleAddSection(type: SectionBlockType) {
   showSectionDropdown.value = false
 }
 
-function handleAddChild(blockId: string, type: BlockItemType) {
-  editorStore.addBlockItem(blockId, type)
-  showChildDropdown.value = null
+function handleAddPreset(presetType: PresetType) {
+  const block = createPresetBlock(presetType)
+  editorStore.addPresetBlock(block)
+  expandedBlocks.value.add(block.id)
+  showSectionDropdown.value = false
 }
 
-function handleDeleteChild(blockId: string, itemId: string, event: MouseEvent) {
+// Drag handlers for section type dropdown (for dragging to preview)
+function handleSectionTypeDragStart(type: SectionBlockType, event: DragEvent) {
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('application/x-section-type', type)
+    event.dataTransfer.setData('text/plain', type) // Fallback for some browsers
+    event.dataTransfer.effectAllowed = 'copy'
+  }
+  // Close dropdown after a brief delay to allow drag to initiate
+  setTimeout(() => {
+    showSectionDropdown.value = false
+  }, 100)
+}
+
+function handleSectionTypeDragEnd() {
+  showSectionDropdown.value = false
+}
+
+// Drag handlers for preset templates
+function handlePresetDragStart(presetType: PresetType, event: DragEvent) {
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('application/x-preset-type', presetType)
+    event.dataTransfer.setData('text/plain', presetType) // Fallback for some browsers
+    event.dataTransfer.effectAllowed = 'copy'
+  }
+  // Close dropdown after a brief delay to allow drag to initiate
+  setTimeout(() => {
+    showSectionDropdown.value = false
+  }, 100)
+}
+
+function handlePresetDragEnd() {
+  showSectionDropdown.value = false
+}
+
+// Refs for child block dropdowns
+const childBlockDropdownRefs = ref<Record<string, { close: () => void } | null>>({})
+
+// Check if a value is a preset type
+function isPresetType(value: string): value is PresetType {
+  return presetTypes.includes(value as PresetType)
+}
+
+// Add child block to a layout block (handles both regular blocks and presets)
+function handleAddChildBlock(parentId: string, value: string) {
+  // Check if it's a preset type
+  if (isPresetType(value)) {
+    const block = createPresetBlock(value)
+    editorStore.addPresetBlock(block, undefined, parentId)
+    editorStore.selectBlock(block.id)
+  } else {
+    // It's a regular block type
+    const block = editorStore.addBlock(value as SectionBlockType, undefined, parentId)
+    if (block) {
+      editorStore.selectBlock(block.id)
+    }
+  }
+  // Close the dropdown after selection
+  childBlockDropdownRefs.value[parentId]?.close()
+}
+
+// Check if a Grid block is a List/Collection (has Stack children)
+function isListCollectionGrid(block: SectionBlock): boolean {
+  if (block.type !== 'grid') return false
+  if (!block.children || block.children.length === 0) return false
+  // Check if first child is a Stack (List/Collection pattern)
+  const firstChild = block.children[0]
+  return firstChild ? firstChild.type === 'stack' : false
+}
+
+// Add a new list item by duplicating the first Stack child
+function handleAddListItem(gridId: string) {
+  const grid = editorStore.findBlockById(gridId)
+  if (!grid || !grid.children || grid.children.length === 0) return
+
+  // Find the first Stack child to use as template
+  const templateStack = grid.children.find(c => c.type === 'stack')
+  if (!templateStack) return
+
+  // Duplicate the template stack
+  const newItem = editorStore.duplicateBlock(templateStack.id)
+  if (newItem) {
+    // Update the name to reflect it's a new item
+    const itemNumber = grid.children.filter(c => c.type === 'stack').length
+    editorStore.updateBlockName(newItem.id, `Item ${itemNumber}`)
+    editorStore.selectBlock(newItem.id)
+    expandedBlocks.value.add(newItem.id)
+  }
+}
+
+// Check if a child block is inside a List/Collection (parent is Grid with Stack children)
+function isChildInsideListCollection(parentBlock: SectionBlock, child: SectionBlock): boolean {
+  // Check if parent is a Grid with Stack children (List/Collection pattern)
+  if (parentBlock.type === 'grid' && child.type === 'stack') {
+    return true
+  }
+  // Check if parent is a Stack inside a Grid (nested inside List/Collection)
+  if (parentBlock.type === 'stack') {
+    const grandparent = editorStore.findParentBlock(parentBlock.id)
+    if (grandparent && grandparent.type === 'grid') {
+      return true
+    }
+  }
+  return false
+}
+
+// Check if a child block is hidden
+function isChildBlockHidden(child: SectionBlock): boolean {
+  const settings = child.settings as Record<string, unknown>
+  return !!settings.isHidden
+}
+
+// Toggle visibility for child blocks
+function toggleChildVisibility(childId: string, event: MouseEvent) {
   event.stopPropagation()
-  editorStore.deleteBlockItem(blockId, itemId)
+  const child = editorStore.findBlockById(childId)
+  if (!child) return
+  const settings = child.settings as Record<string, unknown>
+  editorStore.updateBlockSettings(childId, { isHidden: !settings.isHidden })
+}
+
+// Check if a child block can be dragged (not inside List/Collection)
+function canDragChild(parentBlock: SectionBlock, child: SectionBlock): boolean {
+  return !isChildInsideListCollection(parentBlock, child)
+}
+
+// Child block drag handlers (for layout block children)
+function handleChildDragStart(parentId: string, childIndex: number, blockId: string, event: DragEvent) {
+  event.stopPropagation()
+  draggedChildInfo.value = { parentId, childIndex, blockId }
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function handleChildDragOver(parentId: string, childIndex: number, event: DragEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  if (!draggedChildInfo.value) return
+
+  // Don't allow dropping onto List/Collection grids (Grid with Stack children)
+  const targetParent = editorStore.findBlockById(parentId)
+  if (targetParent && isListCollectionGrid(targetParent)) return
+
+  // Allow drop if different position (same or different parent)
+  const isSameParent = draggedChildInfo.value.parentId === parentId
+  const isDifferentPosition = !isSameParent || draggedChildInfo.value.childIndex !== childIndex
+
+  if (isDifferentPosition) {
+    dragOverChildInfo.value = { parentId, childIndex }
+  }
+}
+
+function handleChildDragLeave() {
+  dragOverChildInfo.value = null
+}
+
+function handleChildDrop(parentId: string, childIndex: number) {
+  if (!draggedChildInfo.value) return
+
+  const isSameParent = draggedChildInfo.value.parentId === parentId
+
+  if (isSameParent) {
+    // Same parent: reorder within
+    if (draggedChildInfo.value.childIndex !== childIndex) {
+      editorStore.reorderBlocks(draggedChildInfo.value.childIndex, childIndex, parentId)
+    }
+  } else {
+    // Different parent: move to new parent
+    editorStore.moveBlockToParent(draggedChildInfo.value.blockId, parentId, childIndex)
+  }
+
+  draggedChildInfo.value = null
+  dragOverChildInfo.value = null
+}
+
+function handleChildDragEnd() {
+  draggedChildInfo.value = null
+  dragOverChildInfo.value = null
+}
+
+// Track if dragging over an empty parent container
+const dragOverEmptyParentId = ref<string | null>(null)
+
+// Handle drag over empty parent container
+function handleEmptyParentDragOver(parentId: string, event: DragEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  if (!draggedChildInfo.value) return
+
+  // Don't allow dropping onto List/Collection grids
+  const targetParent = editorStore.findBlockById(parentId)
+  if (targetParent && isListCollectionGrid(targetParent)) return
+
+  // Don't allow dropping onto own parent (already empty)
+  if (draggedChildInfo.value.parentId === parentId) return
+
+  dragOverEmptyParentId.value = parentId
+}
+
+function handleEmptyParentDragLeave() {
+  dragOverEmptyParentId.value = null
+}
+
+function handleEmptyParentDrop(parentId: string) {
+  if (!draggedChildInfo.value) return
+
+  // Move to this empty parent at index 0
+  editorStore.moveBlockToParent(draggedChildInfo.value.blockId, parentId, 0)
+
+  draggedChildInfo.value = null
+  dragOverChildInfo.value = null
+  dragOverEmptyParentId.value = null
+}
+
+function handleDuplicateChildBlock(childId: string, event: MouseEvent) {
+  event.stopPropagation()
+  editorStore.duplicateBlock(childId)
+}
+
+function handleDeleteChildBlock(childId: string, event: MouseEvent) {
+  event.stopPropagation()
+  editorStore.deleteBlock(childId)
 }
 
 function handleDeleteBlock(blockId: string, event: MouseEvent) {
@@ -153,39 +481,20 @@ function handleDuplicateBlock(blockId: string, event: MouseEvent) {
   }
 }
 
-function handleDuplicateChild(blockId: string, itemId: string, event: MouseEvent) {
-  event.stopPropagation()
-  editorStore.duplicateItem(blockId, itemId)
-}
-
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
   if (!target.closest('.dropdown-container')) {
     showSectionDropdown.value = false
-    showChildDropdown.value = null
+    showFormFieldDropdown.value = null
+    showSocialDropdown.value = null
   }
 }
 
 function handleSidebarClick(event: MouseEvent) {
   const target = event.target as HTMLElement
-  // Deselect if clicking on empty area (not on a block item)
   if (!target.closest('.block-item')) {
     editorStore.selectBlock(null)
   }
-}
-
-// New section drag handlers (from dropdown)
-function handleNewSectionDragStart(type: SectionBlockType, event: DragEvent) {
-  draggedNewSectionType.value = type
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'copy'
-    event.dataTransfer.setData('application/x-section-type', type)
-  }
-}
-
-function handleNewSectionDragEnd() {
-  draggedNewSectionType.value = null
-  showSectionDropdown.value = false
 }
 
 // Block drag handlers
@@ -193,7 +502,6 @@ function handleBlockDragStart(index: number, event: DragEvent) {
   draggedBlockIndex.value = index
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'block')
   }
 }
 
@@ -221,259 +529,54 @@ function handleBlockDragEnd() {
   dragOverBlockIndex.value = null
 }
 
-// Child drag handlers
-function handleChildDragStart(blockId: string, childIndex: number, event: DragEvent) {
+// Generic item drag handlers (for form fields, nav links, etc.)
+function handleItemDragStart(blockId: string, itemIndex: number, event: DragEvent) {
   event.stopPropagation()
-  draggedChildInfo.value = { blockId, childIndex }
+  draggedItemInfo.value = { blockId, itemIndex }
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'child')
   }
 }
 
-function handleChildDragOver(blockId: string, childIndex: number, event: DragEvent) {
+function handleItemDragOver(blockId: string, itemIndex: number, event: DragEvent) {
   event.preventDefault()
   event.stopPropagation()
-  if (
-    draggedChildInfo.value !== null &&
-    draggedChildInfo.value.blockId === blockId &&
-    draggedChildInfo.value.childIndex !== childIndex
-  ) {
-    dragOverChildInfo.value = { blockId, childIndex }
+  if (draggedItemInfo.value?.blockId === blockId && draggedItemInfo.value.itemIndex !== itemIndex) {
+    dragOverItemInfo.value = { blockId, itemIndex }
   }
 }
 
-function handleChildDragLeave() {
-  dragOverChildInfo.value = null
+function handleItemDragLeave() {
+  dragOverItemInfo.value = null
 }
 
-function handleChildDrop(blockId: string, childIndex: number) {
-  if (
-    draggedChildInfo.value !== null &&
-    draggedChildInfo.value.blockId === blockId &&
-    draggedChildInfo.value.childIndex !== childIndex
-  ) {
-    editorStore.reorderBlockItems(blockId, draggedChildInfo.value.childIndex, childIndex)
+function handleItemDrop(blockId: string, itemIndex: number, reorderFn: (blockId: string, from: number, to: number) => void) {
+  if (draggedItemInfo.value?.blockId === blockId && draggedItemInfo.value.itemIndex !== itemIndex) {
+    reorderFn(blockId, draggedItemInfo.value.itemIndex, itemIndex)
   }
-  draggedChildInfo.value = null
-  dragOverChildInfo.value = null
+  draggedItemInfo.value = null
+  dragOverItemInfo.value = null
 }
 
-function handleChildDragEnd() {
-  draggedChildInfo.value = null
-  dragOverChildInfo.value = null
+function handleItemDragEnd() {
+  draggedItemInfo.value = null
+  dragOverItemInfo.value = null
 }
 
-// Post item handlers
-function handleAddPost(blockId: string) {
-  editorStore.addPostItem(blockId)
-}
-
-function handleDeletePost(blockId: string, postId: string, event: MouseEvent) {
-  event.stopPropagation()
-  editorStore.deletePostItem(blockId, postId)
-}
-
-// Post drag handlers
-function handlePostDragStart(blockId: string, postIndex: number, event: DragEvent) {
-  event.stopPropagation()
-  draggedPostInfo.value = { blockId, postIndex }
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'post')
-  }
-}
-
-function handlePostDragOver(blockId: string, postIndex: number, event: DragEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-  if (
-    draggedPostInfo.value !== null &&
-    draggedPostInfo.value.blockId === blockId &&
-    draggedPostInfo.value.postIndex !== postIndex
-  ) {
-    dragOverPostInfo.value = { blockId, postIndex }
-  }
-}
-
-function handlePostDragLeave() {
-  dragOverPostInfo.value = null
-}
-
-function handlePostDrop(blockId: string, postIndex: number) {
-  if (
-    draggedPostInfo.value !== null &&
-    draggedPostInfo.value.blockId === blockId &&
-    draggedPostInfo.value.postIndex !== postIndex
-  ) {
-    editorStore.reorderPostItems(blockId, draggedPostInfo.value.postIndex, postIndex)
-  }
-  draggedPostInfo.value = null
-  dragOverPostInfo.value = null
-}
-
-function handlePostDragEnd() {
-  draggedPostInfo.value = null
-  dragOverPostInfo.value = null
-}
-
-// Link item handlers
-function handleAddLink(blockId: string) {
-  editorStore.addLinkItem(blockId)
-}
-
-function handleDeleteLink(blockId: string, linkId: string, event: MouseEvent) {
-  event.stopPropagation()
-  editorStore.deleteLinkItem(blockId, linkId)
-}
-
-// Link drag handlers
-function handleLinkDragStart(blockId: string, linkIndex: number, event: DragEvent) {
-  event.stopPropagation()
-  draggedLinkInfo.value = { blockId, linkIndex }
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'link')
-  }
-}
-
-function handleLinkDragOver(blockId: string, linkIndex: number, event: DragEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-  if (
-    draggedLinkInfo.value !== null &&
-    draggedLinkInfo.value.blockId === blockId &&
-    draggedLinkInfo.value.linkIndex !== linkIndex
-  ) {
-    dragOverLinkInfo.value = { blockId, linkIndex }
-  }
-}
-
-function handleLinkDragLeave() {
-  dragOverLinkInfo.value = null
-}
-
-function handleLinkDrop(blockId: string, linkIndex: number) {
-  if (
-    draggedLinkInfo.value !== null &&
-    draggedLinkInfo.value.blockId === blockId &&
-    draggedLinkInfo.value.linkIndex !== linkIndex
-  ) {
-    editorStore.reorderLinkItems(blockId, draggedLinkInfo.value.linkIndex, linkIndex)
-  }
-  draggedLinkInfo.value = null
-  dragOverLinkInfo.value = null
-}
-
-function handleLinkDragEnd() {
-  draggedLinkInfo.value = null
-  dragOverLinkInfo.value = null
-}
-
-// Product item handlers
-function handleAddProduct(blockId: string) {
-  editorStore.addProductItem(blockId)
-}
-
-function handleDeleteProduct(blockId: string, productId: string, event: MouseEvent) {
-  event.stopPropagation()
-  editorStore.deleteProductItem(blockId, productId)
-}
-
-// Product drag handlers
-function handleProductDragStart(blockId: string, productIndex: number, event: DragEvent) {
-  event.stopPropagation()
-  draggedProductInfo.value = { blockId, productIndex }
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'product')
-  }
-}
-
-function handleProductDragOver(blockId: string, productIndex: number, event: DragEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-  if (
-    draggedProductInfo.value !== null &&
-    draggedProductInfo.value.blockId === blockId &&
-    draggedProductInfo.value.productIndex !== productIndex
-  ) {
-    dragOverProductInfo.value = { blockId, productIndex }
-  }
-}
-
-function handleProductDragLeave() {
-  dragOverProductInfo.value = null
-}
-
-function handleProductDrop(blockId: string, productIndex: number) {
-  if (
-    draggedProductInfo.value !== null &&
-    draggedProductInfo.value.blockId === blockId &&
-    draggedProductInfo.value.productIndex !== productIndex
-  ) {
-    editorStore.reorderProductItems(blockId, draggedProductInfo.value.productIndex, productIndex)
-  }
-  draggedProductInfo.value = null
-  dragOverProductInfo.value = null
-}
-
-function handleProductDragEnd() {
-  draggedProductInfo.value = null
-  dragOverProductInfo.value = null
-}
-
-// Form field handlers
-function handleAddFormField(blockId: string, type: FormFieldType) {
-  editorStore.addFormField(blockId, type)
+// Form field block handlers (form fields are now child blocks)
+function handleAddFormFieldBlock(formBlockId: string, type: FormFieldBlockType) {
+  editorStore.addFormFieldBlock(formBlockId, type)
   showFormFieldDropdown.value = null
 }
 
-function handleDeleteFormField(blockId: string, fieldId: string, event: MouseEvent) {
+function handleDeleteFormFieldBlock(formBlockId: string, fieldBlockId: string, event: MouseEvent) {
   event.stopPropagation()
-  editorStore.deleteFormField(blockId, fieldId)
+  editorStore.deleteFormFieldBlock(formBlockId, fieldBlockId)
 }
 
-function handleFormFieldDragStart(blockId: string, fieldIndex: number, event: DragEvent) {
+function handleDuplicateFormFieldBlock(formBlockId: string, fieldBlockId: string, event: MouseEvent) {
   event.stopPropagation()
-  draggedFormFieldInfo.value = { blockId, fieldIndex }
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'formfield')
-  }
-}
-
-function handleFormFieldDragOver(blockId: string, fieldIndex: number, event: DragEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-  if (
-    draggedFormFieldInfo.value !== null &&
-    draggedFormFieldInfo.value.blockId === blockId &&
-    draggedFormFieldInfo.value.fieldIndex !== fieldIndex
-  ) {
-    dragOverFormFieldInfo.value = { blockId, fieldIndex }
-  }
-}
-
-function handleFormFieldDragLeave() {
-  dragOverFormFieldInfo.value = null
-}
-
-function handleFormFieldDrop(blockId: string, fieldIndex: number) {
-  if (
-    draggedFormFieldInfo.value !== null &&
-    draggedFormFieldInfo.value.blockId === blockId &&
-    draggedFormFieldInfo.value.fieldIndex !== fieldIndex
-  ) {
-    editorStore.reorderFormFields(blockId, draggedFormFieldInfo.value.fieldIndex, fieldIndex)
-  }
-  draggedFormFieldInfo.value = null
-  dragOverFormFieldInfo.value = null
-}
-
-function handleFormFieldDragEnd() {
-  draggedFormFieldInfo.value = null
-  dragOverFormFieldInfo.value = null
+  editorStore.duplicateFormFieldBlock(formBlockId, fieldBlockId)
 }
 
 // Header nav link handlers
@@ -486,46 +589,9 @@ function handleDeleteHeaderNavLink(blockId: string, linkId: string, event: Mouse
   editorStore.deleteHeaderNavLink(blockId, linkId)
 }
 
-function handleHeaderNavLinkDragStart(blockId: string, linkIndex: number, event: DragEvent) {
+function handleDuplicateHeaderNavLink(blockId: string, linkId: string, event: MouseEvent) {
   event.stopPropagation()
-  draggedHeaderNavLinkInfo.value = { blockId, linkIndex }
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'headernavlink')
-  }
-}
-
-function handleHeaderNavLinkDragOver(blockId: string, linkIndex: number, event: DragEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-  if (
-    draggedHeaderNavLinkInfo.value !== null &&
-    draggedHeaderNavLinkInfo.value.blockId === blockId &&
-    draggedHeaderNavLinkInfo.value.linkIndex !== linkIndex
-  ) {
-    dragOverHeaderNavLinkInfo.value = { blockId, linkIndex }
-  }
-}
-
-function handleHeaderNavLinkDragLeave() {
-  dragOverHeaderNavLinkInfo.value = null
-}
-
-function handleHeaderNavLinkDrop(blockId: string, linkIndex: number) {
-  if (
-    draggedHeaderNavLinkInfo.value !== null &&
-    draggedHeaderNavLinkInfo.value.blockId === blockId &&
-    draggedHeaderNavLinkInfo.value.linkIndex !== linkIndex
-  ) {
-    editorStore.reorderHeaderNavLinks(blockId, draggedHeaderNavLinkInfo.value.linkIndex, linkIndex)
-  }
-  draggedHeaderNavLinkInfo.value = null
-  dragOverHeaderNavLinkInfo.value = null
-}
-
-function handleHeaderNavLinkDragEnd() {
-  draggedHeaderNavLinkInfo.value = null
-  dragOverHeaderNavLinkInfo.value = null
+  editorStore.duplicateHeaderNavLink(blockId, linkId)
 }
 
 // Footer link handlers
@@ -538,50 +604,13 @@ function handleDeleteFooterLink(blockId: string, linkId: string, event: MouseEve
   editorStore.deleteFooterLink(blockId, linkId)
 }
 
-function handleFooterLinkDragStart(blockId: string, linkIndex: number, event: DragEvent) {
+function handleDuplicateFooterLink(blockId: string, linkId: string, event: MouseEvent) {
   event.stopPropagation()
-  draggedFooterLinkInfo.value = { blockId, linkIndex }
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'footerlink')
-  }
-}
-
-function handleFooterLinkDragOver(blockId: string, linkIndex: number, event: DragEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-  if (
-    draggedFooterLinkInfo.value !== null &&
-    draggedFooterLinkInfo.value.blockId === blockId &&
-    draggedFooterLinkInfo.value.linkIndex !== linkIndex
-  ) {
-    dragOverFooterLinkInfo.value = { blockId, linkIndex }
-  }
-}
-
-function handleFooterLinkDragLeave() {
-  dragOverFooterLinkInfo.value = null
-}
-
-function handleFooterLinkDrop(blockId: string, linkIndex: number) {
-  if (
-    draggedFooterLinkInfo.value !== null &&
-    draggedFooterLinkInfo.value.blockId === blockId &&
-    draggedFooterLinkInfo.value.linkIndex !== linkIndex
-  ) {
-    editorStore.reorderFooterLinks(blockId, draggedFooterLinkInfo.value.linkIndex, linkIndex)
-  }
-  draggedFooterLinkInfo.value = null
-  dragOverFooterLinkInfo.value = null
-}
-
-function handleFooterLinkDragEnd() {
-  draggedFooterLinkInfo.value = null
-  dragOverFooterLinkInfo.value = null
+  editorStore.duplicateFooterLink(blockId, linkId)
 }
 
 // Footer social link handlers
-function handleAddFooterSocialLink(blockId: string, platform: FooterSocialLink['platform']) {
+function handleAddFooterSocialLink(blockId: string, platform: SocialPlatform) {
   editorStore.addFooterSocialLink(blockId, platform)
   showSocialDropdown.value = null
 }
@@ -591,732 +620,995 @@ function handleDeleteFooterSocialLink(blockId: string, linkId: string, event: Mo
   editorStore.deleteFooterSocialLink(blockId, linkId)
 }
 
-function handleFooterSocialDragStart(blockId: string, linkIndex: number, event: DragEvent) {
+function handleDuplicateFooterSocialLink(blockId: string, linkId: string, event: MouseEvent) {
   event.stopPropagation()
-  draggedFooterSocialInfo.value = { blockId, linkIndex }
-  if (event.dataTransfer) {
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', 'footersocial')
-  }
+  editorStore.duplicateFooterSocialLink(blockId, linkId)
 }
 
-function handleFooterSocialDragOver(blockId: string, linkIndex: number, event: DragEvent) {
-  event.preventDefault()
+// Move item up/down handlers
+function handleMoveItemUp(blockId: string, itemIndex: number, reorderFn: (blockId: string, from: number, to: number) => void, event: MouseEvent) {
   event.stopPropagation()
-  if (
-    draggedFooterSocialInfo.value !== null &&
-    draggedFooterSocialInfo.value.blockId === blockId &&
-    draggedFooterSocialInfo.value.linkIndex !== linkIndex
-  ) {
-    dragOverFooterSocialInfo.value = { blockId, linkIndex }
+  if (itemIndex > 0) {
+    reorderFn(blockId, itemIndex, itemIndex - 1)
   }
 }
 
-function handleFooterSocialDragLeave() {
-  dragOverFooterSocialInfo.value = null
-}
-
-function handleFooterSocialDrop(blockId: string, linkIndex: number) {
-  if (
-    draggedFooterSocialInfo.value !== null &&
-    draggedFooterSocialInfo.value.blockId === blockId &&
-    draggedFooterSocialInfo.value.linkIndex !== linkIndex
-  ) {
-    editorStore.reorderFooterSocialLinks(blockId, draggedFooterSocialInfo.value.linkIndex, linkIndex)
+function handleMoveItemDown(blockId: string, itemIndex: number, itemsLength: number, reorderFn: (blockId: string, from: number, to: number) => void, event: MouseEvent) {
+  event.stopPropagation()
+  if (itemIndex < itemsLength - 1) {
+    reorderFn(blockId, itemIndex, itemIndex + 1)
   }
-  draggedFooterSocialInfo.value = null
-  dragOverFooterSocialInfo.value = null
 }
 
-function handleFooterSocialDragEnd() {
-  draggedFooterSocialInfo.value = null
-  dragOverFooterSocialInfo.value = null
+function handleMoveChildUp(parentId: string, childIndex: number, event: MouseEvent) {
+  event.stopPropagation()
+  if (childIndex > 0) {
+    editorStore.reorderBlocks(childIndex, childIndex - 1, parentId)
+  }
+}
+
+function handleMoveChildDown(parentId: string, childIndex: number, childrenLength: number, event: MouseEvent) {
+  event.stopPropagation()
+  if (childIndex < childrenLength - 1) {
+    editorStore.reorderBlocks(childIndex, childIndex + 1, parentId)
+  }
+}
+
+// Check if a block can have expandable items
+function canBlockExpand(block: SectionBlock): boolean {
+  // Header, footer, form blocks can always expand (they have nav links, links, fields)
+  if (block.type === 'header' || block.type === 'footer' || block.type === 'form') {
+    return true
+  }
+  // Layout blocks that can have children
+  if (canHaveChildren(block.type)) {
+    return true
+  }
+  return false
 }
 </script>
 
 <template>
   <aside
-    class="flex flex-col h-full bg-sidebar-background border rounded-xl transition-all duration-200"
-    :class="editorStore.isSidebarCollapsed ? 'w-10' : 'w-72'"
+    class="group/sidebar relative flex flex-col h-full bg-sidebar-background transition-[width] duration-300 ease-out"
+    :class="editorStore.isSidebarCollapsed ? 'w-16' : 'w-60'"
   >
+    <!-- Right border toggle handle -->
+    <div
+      class="absolute top-0 right-0 w-1 h-full cursor-ew-resize z-10 transition-colors hover:bg-primary/50 active:bg-primary"
+      :class="editorStore.isSidebarCollapsed ? 'bg-transparent group-hover/sidebar:bg-sidebar-border' : 'bg-sidebar-border group-hover/sidebar:bg-sidebar-foreground/20'"
+      @click="editorStore.toggleSidebar"
+    >
+      <div class="absolute top-1/2 -translate-y-1/2 -right-1.5 w-4 h-8 flex items-center justify-center opacity-0 group-hover/sidebar:opacity-100 transition-opacity pointer-events-none">
+        <div class="w-1 h-6 rounded-full bg-primary/50"></div>
+      </div>
+    </div>
+
     <!-- Collapsed state -->
-    <div v-if="editorStore.isSidebarCollapsed" class="flex flex-col items-center py-2 gap-1">
-      <button
-        class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        title="Expand sidebar"
-        @click="editorStore.toggleSidebar"
-      >
-        <i class="lni lni-angle-double-right text-sm"></i>
-      </button>
-      <div class="w-6 border-t border-border my-1"></div>
-      <!-- Section icons when collapsed -->
-      <button
+    <div v-if="editorStore.isSidebarCollapsed" class="flex flex-col items-center py-2 gap-1 pr-1">
+      <Button
         v-for="block in editorStore.blocks"
         :key="block.id"
-        class="p-1.5 rounded-md transition-colors"
-        :class="[
-          editorStore.selectedBlockId === block.id
-            ? 'bg-accent text-accent-foreground'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-        ]"
+        variant="outline"
+        size="icon"
+        class="h-6 w-6"
+        :class="editorStore.selectedBlockId === block.id ? 'bg-accent text-accent-foreground' : ''"
         :title="block.name"
         @click="editorStore.selectBlock(block.id)"
       >
         <i :class="['lni', sectionBlockIcons[block.type], 'text-sm']"></i>
-      </button>
+      </Button>
     </div>
 
     <!-- Expanded state -->
     <template v-else>
       <!-- Header -->
-      <div class="flex items-center justify-between h-12 px-4 border-b">
+      <div class="flex items-center justify-between h-12 px-4 mr-1 border-b border-sidebar-border">
         <h2 class="text-sm font-semibold text-foreground">Sections</h2>
-        <div class="flex items-center gap-1">
-          <div class="relative dropdown-container">
-            <button
-              class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="Add section"
-              @click="showSectionDropdown = !showSectionDropdown"
-            >
-              <i class="lni lni-plus text-sm"></i>
-            </button>
-            <!-- Section Dropdown -->
-            <Teleport to="body">
-              <div
-                v-if="(showSectionDropdown || showChildDropdown) && !draggedNewSectionType"
-                class="fixed inset-0 z-40"
-                @click="handleClickOutside"
-              />
-            </Teleport>
+        <div class="relative dropdown-container">
+          <Button
+            variant="outline"
+            size="icon"
+            title="Add section"
+            @click="showSectionDropdown = !showSectionDropdown"
+          >
+            <i class="lni lni-plus text-sm"></i>
+          </Button>
+          <!-- Section Dropdown -->
+          <Teleport to="body">
             <div
               v-if="showSectionDropdown"
-              class="absolute right-0 top-full mt-1 z-50 w-56 p-2 bg-popover border border-border rounded-md shadow-lg"
-            >
-              <div class="grid grid-cols-2 gap-1">
-                <button
-                  v-for="type in sectionTypes"
-                  :key="type"
-                  draggable="true"
-                  class="flex flex-col items-center gap-1 p-3 rounded-md text-popover-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
-                  :class="draggedNewSectionType === type ? 'opacity-50' : ''"
-                  @click="handleAddSection(type)"
-                  @dragstart="handleNewSectionDragStart(type, $event)"
-                  @dragend="handleNewSectionDragEnd"
-                >
-                  <i :class="['lni', sectionBlockIcons[type], 'text-lg text-muted-foreground']"></i>
-                  <span class="text-xs">{{ sectionBlockLabels[type] }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <button
-            class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            title="Collapse sidebar"
-            @click="editorStore.toggleSidebar"
-          >
-            <i class="lni lni-angle-double-left text-sm"></i>
-          </button>
-        </div>
-      </div>
-
-    <!-- Section blocks list -->
-    <div class="flex-1 overflow-y-auto p-2" @click="handleSidebarClick">
-      <!-- Empty state -->
-      <div
-        v-if="editorStore.blocks.length === 0"
-        class="flex flex-col items-center justify-center h-full text-center px-4"
-      >
-        <div class="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center mb-3">
-          <i class="lni lni-layers-1 text-xl text-muted-foreground"></i>
-        </div>
-        <p class="text-sm text-muted-foreground">No sections yet</p>
-        <p class="text-xs text-muted-foreground mt-1">Click + to add your first section</p>
-      </div>
-
-      <!-- Section block items -->
-      <div v-else class="space-y-1">
-        <div
-          v-for="(block, blockIndex) in editorStore.blocks"
-          :key="block.id"
-          class="block-item"
-          :draggable="!isProtectedBlock(block)"
-          @dragstart="!isProtectedBlock(block) && handleBlockDragStart(blockIndex, $event)"
-          @dragover="handleBlockDragOver(blockIndex, $event)"
-          @dragleave="handleBlockDragLeave"
-          @drop="handleBlockDrop(blockIndex)"
-          @dragend="handleBlockDragEnd"
-        >
-          <!-- Section block header -->
+              class="fixed inset-0 z-40"
+              @click="handleClickOutside"
+            />
+          </Teleport>
           <div
-            class="flex items-center gap-1 px-2 py-1.5 rounded-md text-sm transition-colors group"
-            :class="[
-              isProtectedBlock(block) ? 'cursor-pointer' : 'cursor-grab',
-              editorStore.selectedBlockId === block.id && !editorStore.selectedItemId
-                ? 'bg-accent text-accent-foreground'
-                : 'text-foreground hover:bg-accent/50',
-              draggedBlockIndex === blockIndex ? 'opacity-50' : '',
-              dragOverBlockIndex === blockIndex ? 'border-t-2 border-primary' : '',
-            ]"
-            @click="editorStore.selectBlock(block.id)"
+            v-if="showSectionDropdown"
+            class="absolute right-0 mt-5 -left-45 z-100 w-64 bg-popover backdrop-blur-sm border border-sidebar-border rounded-2xl shadow-lg max-h-[70vh] overflow-hidden flex flex-col"
           >
-            <!-- Drag handle (hidden for protected blocks) -->
-            <div v-if="!isProtectedBlock(block)" class="p-0.5 cursor-grab text-muted-foreground">
-              <i class="lni lni-menu-hamburger-1 text-sm"></i>
-            </div>
-            <!-- Lock icon for protected blocks -->
-            <div v-else class="p-0.5 text-muted-foreground/50">
-              <i class="lni lni-lock-1 text-sm"></i>
-            </div>
-
-            <!-- Expand/Collapse toggle -->
-            <button
-              class="p-0.5 rounded hover:bg-accent/50 transition-colors"
-              @click.stop="toggleBlockExpanded(block.id)"
-            >
-              <i
-                class="lni lni-chevron-down text-xs text-muted-foreground transition-transform"
-                :class="expandedBlocks.has(block.id) ? '' : '-rotate-90'"
-              ></i>
-            </button>
-
-            <i :class="['lni', sectionBlockIcons[block.type], 'text-xs text-muted-foreground']"></i>
-            <span class="flex-1 font-medium">{{ block.name }}</span>
-
-            <!-- Duplicate block button (hidden for protected blocks) -->
-            <button
-              v-if="!isProtectedBlock(block)"
-              class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-all"
-              title="Duplicate section"
-              @click="handleDuplicateBlock(block.id, $event)"
-            >
-              <i class="lni lni-file-multiple text-xs"></i>
-            </button>
-
-            <!-- Delete block button (hidden for protected blocks) -->
-            <button
-              v-if="!isProtectedBlock(block)"
-              class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-              title="Delete section"
-              @click="handleDeleteBlock(block.id, $event)"
-            >
-              <i class="lni lni-trash-3 text-xs"></i>
-            </button>
-          </div>
-
-          <!-- Children list (for regular sections) -->
-          <div v-if="expandedBlocks.has(block.id) && hasRegularChildren(block)" class="ml-6 mt-1 space-y-0.5">
-            <!-- Child items -->
-            <div
-              v-for="(child, childIndex) in block.children"
-              :key="child.id"
-              draggable="true"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
-              :class="[
-                editorStore.selectedBlockId === block.id && editorStore.selectedItemId === child.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                draggedChildInfo?.blockId === block.id && draggedChildInfo?.childIndex === childIndex
-                  ? 'opacity-50'
-                  : '',
-                dragOverChildInfo?.blockId === block.id && dragOverChildInfo?.childIndex === childIndex
-                  ? 'border-t-2 border-primary'
-                  : '',
-              ]"
-              @click="editorStore.selectBlock(block.id, child.id)"
-              @dragstart="handleChildDragStart(block.id, childIndex, $event)"
-              @dragover="handleChildDragOver(block.id, childIndex, $event)"
-              @dragleave="handleChildDragLeave"
-              @drop.stop="handleChildDrop(block.id, childIndex)"
-              @dragend="handleChildDragEnd"
-            >
-              <!-- Drag handle -->
-              <div class="cursor-grab text-muted-foreground">
-                <i class="lni lni-menu-hamburger-1 text-xs"></i>
+            <!-- Search input -->
+            <div class="p-2 border-b border-sidebar-border">
+              <div class="relative">
+                <i class="lni lni-search-1 absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground"></i>
+                <input
+                  ref="sectionSearchInputRef"
+                  v-model="sectionSearchQuery"
+                  type="text"
+                  placeholder="Search blocks..."
+                  class="w-full h-8 pl-7 pr-3 text-xs bg-secondary/50 border border-sidebar-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
               </div>
+            </div>
+            <!-- Scrollable content -->
+            <div class="flex-1 overflow-y-auto p-3">
+              <!-- No results message -->
+              <div v-if="!hasSearchResults" class="flex flex-col items-center justify-center py-8 text-center">
+                <i class="lni lni-search-1 text-2xl text-muted-foreground/50 mb-2"></i>
+                <p class="text-xs text-muted-foreground">No blocks found</p>
+              </div>
+              <template v-else>
+                <!-- Regular block categories -->
+                <template v-for="category in categories" :key="category">
+                  <div v-if="filteredBlocksByCategory[category].length > 0" class="flex flex-col items-start mb-3.5">
+                    <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
+                      {{ categoryLabels[category] }}
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 w-full">
+                      <button
+                        v-for="type in filteredBlocksByCategory[category]"
+                        :key="type"
+                        draggable="true"
+                        class="flex flex-col items-center gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
+                        @click="handleAddSection(type)"
+                        @dragstart="handleSectionTypeDragStart(type, $event)"
+                        @dragend="handleSectionTypeDragEnd"
+                      >
+                        <i :class="['lni', sectionBlockIcons[type], 'text-lg text-muted-foreground']"></i>
+                        <span class="text-[10px] text-center leading-tight">{{ sectionBlockLabels[type] }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
+                <!-- List / Collection templates -->
+                <div v-if="filteredPresetTypes.length > 0" class="flex flex-col items-start">
+                  <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
+                    List / Collection
+                  </div>
+                  <div class="grid grid-cols-2 gap-1 w-full">
+                    <button
+                      v-for="preset in filteredPresetTypes"
+                      :key="preset"
+                      draggable="true"
+                      class="flex flex-col items-center gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
+                      @click="handleAddPreset(preset)"
+                      @dragstart="handlePresetDragStart(preset, $event)"
+                      @dragend="handlePresetDragEnd"
+                    >
+                      <i :class="['lni', presetIcons[preset], 'text-lg text-muted-foreground']"></i>
+                      <span class="text-[10px] text-center leading-tight">{{ presetLabels[preset] }}</span>
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              <i :class="['lni', blockItemIcons[child.type], 'text-xs text-muted-foreground']"></i>
-              <span class="flex-1">{{ blockItemLabels[child.type] }}</span>
+      <!-- Section blocks list -->
+      <div class="flex-1 overflow-y-auto p-2" @click="handleSidebarClick">
+        <!-- Empty state -->
+        <div
+          v-if="editorStore.blocks.length === 0"
+          class="flex flex-col items-center justify-center h-full text-center px-4"
+        >
+          <div class="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center mb-3">
+            <i class="lni lni-layers-1 text-xl text-muted-foreground"></i>
+          </div>
+          <p class="text-sm text-muted-foreground">No sections yet</p>
+          <p class="text-xs text-muted-foreground mt-1">Click + to add your first section</p>
+        </div>
 
-              <!-- Duplicate child button -->
+        <!-- Section block items -->
+        <div v-else class="space-y-1">
+          <div
+            v-for="(block, blockIndex) in editorStore.blocks"
+            :key="block.id"
+            class="block-item"
+            :draggable="!isProtectedBlock(block)"
+            @dragstart="!isProtectedBlock(block) && handleBlockDragStart(blockIndex, $event)"
+            @dragover="handleBlockDragOver(blockIndex, $event)"
+            @dragleave="handleBlockDragLeave"
+            @drop="handleBlockDrop(blockIndex)"
+            @dragend="handleBlockDragEnd"
+          >
+            <!-- Section block header -->
+            <div
+              class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+              :class="[
+                isProtectedBlock(block) ? 'cursor-pointer' : 'cursor-grab',
+                editorStore.selectedBlockId === block.id && !editorStore.selectedItemId
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-foreground hover:bg-accent/50',
+                draggedBlockIndex === blockIndex ? 'opacity-50' : '',
+                dragOverBlockIndex === blockIndex ? 'border-t-2 border-primary' : '',
+              ]"
+              @click="editorStore.selectBlock(block.id)"
+            >
+
+
+              <!-- Expand/Collapse toggle (only for blocks that can expand) -->
               <button
-                class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-all"
-                title="Duplicate item"
-                @click="handleDuplicateChild(block.id, child.id, $event)"
+                v-if="canBlockExpand(block)"
+                class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
+                @click.stop="toggleBlockExpanded(block.id)"
               >
-                <i class="lni lni-file-multiple text-xs"></i>
+                <i
+                  class="lni lni-chevron-down text-[10px] text-muted-foreground transition-transform"
+                  :class="expandedBlocks.has(block.id) ? '' : '-rotate-90'"
+                ></i>
+              </button>
+              <!-- Spacer for blocks that can't expand -->
+              <div v-else class="w-4 shrink-0"></div>
+
+              <span class="flex-1 font-medium leading-4" :class="isBlockHidden(block) ? 'opacity-50' : ''">{{ block.name }}</span>
+
+              <!-- Visibility toggle for header/footer -->
+              <button
+                v-if="isProtectedBlock(block)"
+                class="w-5 h-5 flex items-center justify-center shrink-0 rounded opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-all"
+                :class="isBlockHidden(block) ? '!opacity-100 text-muted-foreground' : ''"
+                :title="isBlockHidden(block) ? 'Show section' : 'Hide section'"
+                @click="toggleBlockVisibility(block, $event)"
+              >
+                <span v-if="isBlockHidden(block)" class="relative inline-flex items-center justify-center w-3 h-3">
+                  <i class="lni lni-eye text-[10px] opacity-50"></i>
+                  <span class="absolute inset-0 flex items-center justify-center">
+                    <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
+                  </span>
+                </span>
+                <i v-else class="lni lni-eye text-[10px]"></i>
               </button>
 
-              <!-- Delete child button -->
+              <!-- Move up button -->
               <button
-                class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                title="Delete item"
-                @click="handleDeleteChild(block.id, child.id, $event)"
+                v-if="!isProtectedBlock(block)"
+                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                title="Move up"
+                @click.stop="editorStore.moveBlockUp(blockIndex)"
               >
-                <i class="lni lni-xmark text-xs"></i>
+                <i class="lni lni-chevron-up text-[10px]"></i>
+              </button>
+
+              <!-- Move down button -->
+              <button
+                v-if="!isProtectedBlock(block)"
+                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                title="Move down"
+                @click.stop="editorStore.moveBlockDown(blockIndex)"
+              >
+                <i class="lni lni-chevron-down text-[10px]"></i>
+              </button>
+
+              <!-- Duplicate block button -->
+              <button
+                v-if="!isProtectedBlock(block)"
+                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                title="Duplicate section"
+                @click="handleDuplicateBlock(block.id, $event)"
+              >
+                <i class="lni lni-layers-1 text-[10px]"></i>
+              </button>
+
+              <!-- Delete block button -->
+              <button
+                v-if="!isProtectedBlock(block)"
+                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                title="Delete section"
+                @click="handleDeleteBlock(block.id, $event)"
+              >
+                <i class="lni lni-trash-3 text-[10px]"></i>
               </button>
             </div>
 
-            <!-- Add child button -->
-            <div class="relative dropdown-container">
-              <button
-                class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-                @click.stop="showChildDropdown = showChildDropdown === block.id ? null : block.id"
-              >
-                <i class="lni lni-plus text-xs"></i>
-                Add item
-              </button>
-
-              <!-- Child dropdown -->
+            <!-- Expanded content: Header nav links -->
+            <div v-if="expandedBlocks.has(block.id) && block.type === 'header'" class="ml-6 mt-1 space-y-0.5">
               <div
-                v-if="showChildDropdown === block.id"
-                class="absolute left-0 top-full mt-1 z-50 w-40 py-1 bg-popover border border-border rounded-md shadow-lg"
-              >
-                <button
-                  v-for="childType in getAllowedChildren(block.type)"
-                  :key="childType"
-                  class="w-full flex items-center gap-2 px-3 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent transition-colors"
-                  @click="handleAddChild(block.id, childType)"
-                >
-                  <i :class="['lni', blockItemIcons[childType], 'text-xs text-muted-foreground']"></i>
-                  {{ blockItemLabels[childType] }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Post items list (for post sections) -->
-          <div v-if="expandedBlocks.has(block.id) && isPostSection(block) && block.postSettings" class="ml-6 mt-1 space-y-0.5">
-            <!-- Post items -->
-            <div
-              v-for="(post, postIndex) in block.postSettings.posts"
-              :key="post.id"
-              draggable="true"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
-              :class="[
-                editorStore.selectedBlockId === block.id && editorStore.selectedItemId === post.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                draggedPostInfo?.blockId === block.id && draggedPostInfo?.postIndex === postIndex
-                  ? 'opacity-50'
-                  : '',
-                dragOverPostInfo?.blockId === block.id && dragOverPostInfo?.postIndex === postIndex
-                  ? 'border-t-2 border-primary'
-                  : '',
-              ]"
-              @click="editorStore.selectBlock(block.id, post.id)"
-              @dragstart="handlePostDragStart(block.id, postIndex, $event)"
-              @dragover="handlePostDragOver(block.id, postIndex, $event)"
-              @dragleave="handlePostDragLeave"
-              @drop.stop="handlePostDrop(block.id, postIndex)"
-              @dragend="handlePostDragEnd"
-            >
-              <!-- Drag handle -->
-              <div class="cursor-grab text-muted-foreground">
-                <i class="lni lni-menu-hamburger-1 text-xs"></i>
-              </div>
-
-              <!-- Post icon -->
-              <i class="lni lni-text-format text-xs text-muted-foreground"></i>
-
-              <span class="flex-1 truncate">{{ post.heading || 'Untitled Post' }}</span>
-
-              <!-- Delete post button -->
-              <button
-                class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                title="Delete post"
-                @click="handleDeletePost(block.id, post.id, $event)"
-              >
-                <i class="lni lni-xmark text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Add post button -->
-            <button
-              class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              @click.stop="handleAddPost(block.id)"
-            >
-              <i class="lni lni-plus text-xs"></i>
-              Add post
-            </button>
-          </div>
-
-          <!-- Link items list (for link sections) -->
-          <div v-if="expandedBlocks.has(block.id) && isLinkSection(block) && block.linkSettings" class="ml-6 mt-1 space-y-0.5">
-            <!-- Link items -->
-            <div
-              v-for="(link, linkIndex) in block.linkSettings.links"
-              :key="link.id"
-              draggable="true"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
-              :class="[
-                editorStore.selectedBlockId === block.id && editorStore.selectedItemId === link.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                draggedLinkInfo?.blockId === block.id && draggedLinkInfo?.linkIndex === linkIndex
-                  ? 'opacity-50'
-                  : '',
-                dragOverLinkInfo?.blockId === block.id && dragOverLinkInfo?.linkIndex === linkIndex
-                  ? 'border-t-2 border-primary'
-                  : '',
-              ]"
-              @click="editorStore.selectBlock(block.id, link.id)"
-              @dragstart="handleLinkDragStart(block.id, linkIndex, $event)"
-              @dragover="handleLinkDragOver(block.id, linkIndex, $event)"
-              @dragleave="handleLinkDragLeave"
-              @drop.stop="handleLinkDrop(block.id, linkIndex)"
-              @dragend="handleLinkDragEnd"
-            >
-              <!-- Drag handle -->
-              <div class="cursor-grab text-muted-foreground">
-                <i class="lni lni-menu-hamburger-1 text-xs"></i>
-              </div>
-
-              <!-- Link icon -->
-              <i class="lni lni-link-2-angular-right text-xs text-muted-foreground"></i>
-
-              <span class="flex-1 truncate">{{ link.heading || 'Untitled Link' }}</span>
-
-              <!-- Delete link button -->
-              <button
-                class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                title="Delete link"
-                @click="handleDeleteLink(block.id, link.id, $event)"
-              >
-                <i class="lni lni-xmark text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Add link button -->
-            <button
-              class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              @click.stop="handleAddLink(block.id)"
-            >
-              <i class="lni lni-plus text-xs"></i>
-              Add link
-            </button>
-          </div>
-
-          <!-- Product items list (for product sections) -->
-          <div v-if="expandedBlocks.has(block.id) && isProductSection(block) && block.productSettings" class="ml-6 mt-1 space-y-0.5">
-            <!-- Product items -->
-            <div
-              v-for="(product, productIndex) in block.productSettings.products"
-              :key="product.id"
-              draggable="true"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
-              :class="[
-                editorStore.selectedBlockId === block.id && editorStore.selectedItemId === product.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                draggedProductInfo?.blockId === block.id && draggedProductInfo?.productIndex === productIndex
-                  ? 'opacity-50'
-                  : '',
-                dragOverProductInfo?.blockId === block.id && dragOverProductInfo?.productIndex === productIndex
-                  ? 'border-t-2 border-primary'
-                  : '',
-              ]"
-              @click="editorStore.selectBlock(block.id, product.id)"
-              @dragstart="handleProductDragStart(block.id, productIndex, $event)"
-              @dragover="handleProductDragOver(block.id, productIndex, $event)"
-              @dragleave="handleProductDragLeave"
-              @drop.stop="handleProductDrop(block.id, productIndex)"
-              @dragend="handleProductDragEnd"
-            >
-              <!-- Drag handle -->
-              <div class="cursor-grab text-muted-foreground">
-                <i class="lni lni-menu-hamburger-1 text-xs"></i>
-              </div>
-
-              <!-- Product icon -->
-              <i class="lni lni-cart-1 text-xs text-muted-foreground"></i>
-
-              <span class="flex-1 truncate">{{ product.heading || 'Untitled Product' }}</span>
-
-              <!-- Delete product button -->
-              <button
-                class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                title="Delete product"
-                @click="handleDeleteProduct(block.id, product.id, $event)"
-              >
-                <i class="lni lni-xmark text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Add product button -->
-            <button
-              class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              @click.stop="handleAddProduct(block.id)"
-            >
-              <i class="lni lni-plus text-xs"></i>
-              Add product
-            </button>
-          </div>
-
-          <!-- Form fields list (for form sections) -->
-          <div v-if="expandedBlocks.has(block.id) && isFormSection(block) && block.formSettings" class="ml-6 mt-1 space-y-0.5">
-            <!-- Form field items -->
-            <div
-              v-for="(field, fieldIndex) in block.formSettings.fields"
-              :key="field.id"
-              draggable="true"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
-              :class="[
-                editorStore.selectedBlockId === block.id && editorStore.selectedItemId === field.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                draggedFormFieldInfo?.blockId === block.id && draggedFormFieldInfo?.fieldIndex === fieldIndex
-                  ? 'opacity-50'
-                  : '',
-                dragOverFormFieldInfo?.blockId === block.id && dragOverFormFieldInfo?.fieldIndex === fieldIndex
-                  ? 'border-t-2 border-primary'
-                  : '',
-              ]"
-              @click="editorStore.selectBlock(block.id, field.id)"
-              @dragstart="handleFormFieldDragStart(block.id, fieldIndex, $event)"
-              @dragover="handleFormFieldDragOver(block.id, fieldIndex, $event)"
-              @dragleave="handleFormFieldDragLeave"
-              @drop.stop="handleFormFieldDrop(block.id, fieldIndex)"
-              @dragend="handleFormFieldDragEnd"
-            >
-              <!-- Drag handle -->
-              <div class="cursor-grab text-muted-foreground">
-                <i class="lni lni-menu-hamburger-1 text-xs"></i>
-              </div>
-
-              <!-- Field type icon -->
-              <i :class="['lni', formFieldIcons[field.type], 'text-xs text-muted-foreground']"></i>
-
-              <span class="flex-1 truncate">{{ field.label || formFieldLabels[field.type] }}</span>
-
-              <!-- Delete field button -->
-              <button
-                class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                title="Delete field"
-                @click="handleDeleteFormField(block.id, field.id, $event)"
-              >
-                <i class="lni lni-xmark text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Add field button with dropdown -->
-            <div class="relative">
-              <button
-                class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-                @click.stop="showFormFieldDropdown = showFormFieldDropdown === block.id ? null : block.id"
-              >
-                <i class="lni lni-plus text-xs"></i>
-                Add field
-                <i class="lni lni-chevron-down text-[10px] ml-auto"></i>
-              </button>
-              <!-- Dropdown -->
-              <div
-                v-if="showFormFieldDropdown === block.id"
-                class="absolute left-0 top-full mt-1 w-full bg-popover border border-border rounded-md shadow-lg z-10 py-1 max-h-48 overflow-y-auto"
-              >
-                <button
-                  v-for="fieldType in formFieldTypes"
-                  :key="fieldType"
-                  class="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
-                  @click.stop="handleAddFormField(block.id, fieldType)"
-                >
-                  <i :class="['lni', formFieldIcons[fieldType], 'text-muted-foreground']"></i>
-                  {{ formFieldLabels[fieldType] }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Header nav links list (for header sections) -->
-          <div v-if="expandedBlocks.has(block.id) && isHeaderSection(block) && block.headerSettings" class="ml-6 mt-1 space-y-0.5">
-            <!-- Nav link items -->
-            <div
-              v-for="(link, linkIndex) in block.headerSettings.navLinks"
-              :key="link.id"
-              draggable="true"
-              class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
-              :class="[
-                editorStore.selectedBlockId === block.id && editorStore.selectedItemId === link.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                draggedHeaderNavLinkInfo?.blockId === block.id && draggedHeaderNavLinkInfo?.linkIndex === linkIndex
-                  ? 'opacity-50'
-                  : '',
-                dragOverHeaderNavLinkInfo?.blockId === block.id && dragOverHeaderNavLinkInfo?.linkIndex === linkIndex
-                  ? 'border-t-2 border-primary'
-                  : '',
-              ]"
-              @click="editorStore.selectBlock(block.id, link.id)"
-              @dragstart="handleHeaderNavLinkDragStart(block.id, linkIndex, $event)"
-              @dragover="handleHeaderNavLinkDragOver(block.id, linkIndex, $event)"
-              @dragleave="handleHeaderNavLinkDragLeave"
-              @drop.stop="handleHeaderNavLinkDrop(block.id, linkIndex)"
-              @dragend="handleHeaderNavLinkDragEnd"
-            >
-              <!-- Drag handle -->
-              <div class="cursor-grab text-muted-foreground">
-                <i class="lni lni-menu-hamburger-1 text-xs"></i>
-              </div>
-
-              <!-- Link icon -->
-              <i class="lni lni-link-2-angular-right text-xs text-muted-foreground"></i>
-
-              <span class="flex-1 truncate">{{ link.label || 'Nav Link' }}</span>
-
-              <!-- Delete link button -->
-              <button
-                class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                title="Delete nav link"
-                @click="handleDeleteHeaderNavLink(block.id, link.id, $event)"
-              >
-                <i class="lni lni-xmark text-xs"></i>
-              </button>
-            </div>
-
-            <!-- Add nav link button -->
-            <button
-              class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              @click.stop="handleAddHeaderNavLink(block.id)"
-            >
-              <i class="lni lni-plus text-xs"></i>
-              Add nav link
-            </button>
-          </div>
-
-          <!-- Footer links and social links list (for footer sections) -->
-          <div v-if="expandedBlocks.has(block.id) && isFooterSection(block) && block.footerSettings" class="ml-6 mt-1 space-y-2">
-            <!-- Footer links section -->
-            <div class="space-y-0.5">
-              <div class="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Links</div>
-              <div
-                v-for="(link, linkIndex) in block.footerSettings.links"
+                v-for="(link, linkIndex) in (block.settings as HeaderSettings).navLinks"
                 :key="link.id"
                 draggable="true"
-                class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
+                class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs cursor-grab transition-colors group"
                 :class="[
                   editorStore.selectedBlockId === block.id && editorStore.selectedItemId === link.id
                     ? 'bg-accent text-accent-foreground'
                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                  draggedFooterLinkInfo?.blockId === block.id && draggedFooterLinkInfo?.linkIndex === linkIndex
-                    ? 'opacity-50'
-                    : '',
-                  dragOverFooterLinkInfo?.blockId === block.id && dragOverFooterLinkInfo?.linkIndex === linkIndex
-                    ? 'border-t-2 border-primary'
-                    : '',
+                  draggedItemInfo?.blockId === block.id && draggedItemInfo?.itemIndex === linkIndex ? 'opacity-50' : '',
+                  dragOverItemInfo?.blockId === block.id && dragOverItemInfo?.itemIndex === linkIndex ? 'border-t-2 border-primary' : '',
                 ]"
                 @click="editorStore.selectBlock(block.id, link.id)"
-                @dragstart="handleFooterLinkDragStart(block.id, linkIndex, $event)"
-                @dragover="handleFooterLinkDragOver(block.id, linkIndex, $event)"
-                @dragleave="handleFooterLinkDragLeave"
-                @drop.stop="handleFooterLinkDrop(block.id, linkIndex)"
-                @dragend="handleFooterLinkDragEnd"
+                @dragstart="handleItemDragStart(block.id, linkIndex, $event)"
+                @dragover="handleItemDragOver(block.id, linkIndex, $event)"
+                @dragleave="handleItemDragLeave"
+                @drop.stop="handleItemDrop(block.id, linkIndex, editorStore.reorderHeaderNavLinks)"
+                @dragend="handleItemDragEnd"
               >
-                <!-- Drag handle -->
-                <div class="cursor-grab text-muted-foreground">
-                  <i class="lni lni-menu-hamburger-1 text-xs"></i>
+                <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                  <i class="lni lni-link-2 text-xs text-muted-foreground"></i>
                 </div>
-
-                <!-- Link icon -->
-                <i class="lni lni-link-2-angular-right text-xs text-muted-foreground"></i>
-
-                <span class="flex-1 truncate">{{ link.label || 'Footer Link' }}</span>
-
-                <!-- Delete link button -->
+                <span class="flex-1 truncate leading-4">{{ link.label || 'Nav Link' }}</span>
                 <button
-                  class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                  title="Delete link"
-                  @click="handleDeleteFooterLink(block.id, link.id, $event)"
+                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                  title="Move up"
+                  @click="handleMoveItemUp(block.id, linkIndex, editorStore.reorderHeaderNavLinks, $event)"
                 >
-                  <i class="lni lni-xmark text-xs"></i>
+                  <i class="lni lni-chevron-up text-[10px]"></i>
+                </button>
+                <button
+                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                  title="Move down"
+                  @click="handleMoveItemDown(block.id, linkIndex, (block.settings as HeaderSettings).navLinks.length, editorStore.reorderHeaderNavLinks, $event)"
+                >
+                  <i class="lni lni-chevron-down text-[10px]"></i>
+                </button>
+                <button
+                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                  title="Duplicate nav link"
+                  @click="handleDuplicateHeaderNavLink(block.id, link.id, $event)"
+                >
+                  <i class="lni lni-layers-1 text-[10px]"></i>
+                </button>
+                <button
+                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                  title="Delete nav link"
+                  @click="handleDeleteHeaderNavLink(block.id, link.id, $event)"
+                >
+                  <i class="lni lni-xmark text-[10px]"></i>
                 </button>
               </div>
-
-              <!-- Add footer link button -->
-              <button
-                class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-                @click.stop="handleAddFooterLink(block.id)"
+              <Button
+                variant="ghost"
+                size="sm"
+                full-width
+                class="justify-start gap-1.5 text-muted-foreground"
+                @click.stop="handleAddHeaderNavLink(block.id)"
               >
                 <i class="lni lni-plus text-xs"></i>
-                Add link
-              </button>
+                Add nav link
+              </Button>
             </div>
 
-            <!-- Social links section -->
-            <div class="space-y-0.5">
-              <div class="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Social</div>
-              <div
-                v-for="(social, socialIndex) in block.footerSettings.socialLinks"
-                :key="social.id"
-                draggable="true"
-                class="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-grab transition-colors group"
-                :class="[
-                  editorStore.selectedBlockId === block.id && editorStore.selectedItemId === social.id
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                  draggedFooterSocialInfo?.blockId === block.id && draggedFooterSocialInfo?.linkIndex === socialIndex
-                    ? 'opacity-50'
-                    : '',
-                  dragOverFooterSocialInfo?.blockId === block.id && dragOverFooterSocialInfo?.linkIndex === socialIndex
-                    ? 'border-t-2 border-primary'
-                    : '',
-                ]"
-                @click="editorStore.selectBlock(block.id, social.id)"
-                @dragstart="handleFooterSocialDragStart(block.id, socialIndex, $event)"
-                @dragover="handleFooterSocialDragOver(block.id, socialIndex, $event)"
-                @dragleave="handleFooterSocialDragLeave"
-                @drop.stop="handleFooterSocialDrop(block.id, socialIndex)"
-                @dragend="handleFooterSocialDragEnd"
-              >
-                <!-- Drag handle -->
-                <div class="cursor-grab text-muted-foreground">
-                  <i class="lni lni-menu-hamburger-1 text-xs"></i>
-                </div>
-
-                <!-- Social icon -->
-                <i :class="['lni', socialPlatformIcons[social.platform], 'text-xs text-muted-foreground']"></i>
-
-                <span class="flex-1 truncate">{{ socialPlatformLabels[social.platform] }}</span>
-
-                <!-- Delete social button -->
-                <button
-                  class="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all"
-                  title="Delete social"
-                  @click="handleDeleteFooterSocialLink(block.id, social.id, $event)"
-                >
-                  <i class="lni lni-xmark text-xs"></i>
-                </button>
-              </div>
-
-              <!-- Add social button with dropdown -->
-              <div class="relative">
-                <button
-                  class="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-                  @click.stop="showSocialDropdown = showSocialDropdown === block.id ? null : block.id"
-                >
-                  <i class="lni lni-plus text-xs"></i>
-                  Add social
-                  <i class="lni lni-chevron-down text-[10px] ml-auto"></i>
-                </button>
-                <!-- Dropdown -->
+            <!-- Expanded content: Footer links and social -->
+            <div v-if="expandedBlocks.has(block.id) && block.type === 'footer'" class="ml-6 mt-1 space-y-2">
+              <!-- Footer links -->
+              <div class="space-y-0.5">
+                <div class="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Links</div>
                 <div
-                  v-if="showSocialDropdown === block.id"
-                  class="absolute left-0 top-full mt-1 w-full bg-popover border border-border rounded-md shadow-lg z-10 py-1 max-h-48 overflow-y-auto"
+                  v-for="(link, linkIndex) in (block.settings as FooterSettings).links"
+                  :key="link.id"
+                  draggable="true"
+                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs cursor-grab transition-colors group"
+                  :class="[
+                    editorStore.selectedBlockId === block.id && editorStore.selectedItemId === link.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                    draggedItemInfo?.blockId === block.id && draggedItemInfo?.itemIndex === linkIndex ? 'opacity-50' : '',
+                    dragOverItemInfo?.blockId === block.id && dragOverItemInfo?.itemIndex === linkIndex ? 'border-t-2 border-primary' : '',
+                  ]"
+                  @click="editorStore.selectBlock(block.id, link.id)"
+                  @dragstart="handleItemDragStart(block.id, linkIndex, $event)"
+                  @dragover="handleItemDragOver(block.id, linkIndex, $event)"
+                  @dragleave="handleItemDragLeave"
+                  @drop.stop="handleItemDrop(block.id, linkIndex, editorStore.reorderFooterLinks)"
+                  @dragend="handleItemDragEnd"
                 >
+                  <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                    <i class="lni lni-link-2 text-xs text-muted-foreground"></i>
+                  </div>
+                  <span class="flex-1 truncate leading-4">{{ link.label || 'Footer Link' }}</span>
                   <button
-                    v-for="platform in socialPlatforms"
-                    :key="platform"
-                    class="flex items-center gap-2 w-full px-2 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
-                    @click.stop="handleAddFooterSocialLink(block.id, platform)"
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                    title="Move up"
+                    @click="handleMoveItemUp(block.id, linkIndex, editorStore.reorderFooterLinks, $event)"
                   >
-                    <i :class="['lni', socialPlatformIcons[platform], 'text-muted-foreground']"></i>
-                    {{ socialPlatformLabels[platform] }}
+                    <i class="lni lni-chevron-up text-[10px]"></i>
+                  </button>
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                    title="Move down"
+                    @click="handleMoveItemDown(block.id, linkIndex, (block.settings as FooterSettings).links.length, editorStore.reorderFooterLinks, $event)"
+                  >
+                    <i class="lni lni-chevron-down text-[10px]"></i>
+                  </button>
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                    title="Duplicate link"
+                    @click="handleDuplicateFooterLink(block.id, link.id, $event)"
+                  >
+                    <i class="lni lni-layers-1 text-[10px]"></i>
+                  </button>
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                    title="Delete link"
+                    @click="handleDeleteFooterLink(block.id, link.id, $event)"
+                  >
+                    <i class="lni lni-xmark text-[10px]"></i>
                   </button>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  full-width
+                  class="justify-start gap-1.5 text-muted-foreground"
+                  @click.stop="handleAddFooterLink(block.id)"
+                >
+                  <i class="lni lni-plus text-xs"></i>
+                  Add link
+                </Button>
               </div>
+
+              <!-- Social links -->
+              <div class="space-y-0.5">
+                <div class="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Social</div>
+                <div
+                  v-for="(social, socialIndex) in (block.settings as FooterSettings).socialLinks"
+                  :key="social.id"
+                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs transition-colors group cursor-pointer"
+                  :class="[
+                    editorStore.selectedBlockId === block.id && editorStore.selectedItemId === social.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                  ]"
+                  @click="editorStore.selectBlock(block.id, social.id)"
+                >
+                  <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                    <i :class="['lni', socialPlatformIcons[social.platform], 'text-xs text-muted-foreground']"></i>
+                  </div>
+                  <span class="flex-1 truncate leading-4">{{ socialPlatformLabels[social.platform] }}</span>
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                    title="Move up"
+                    @click="handleMoveItemUp(block.id, socialIndex, editorStore.reorderFooterSocialLinks, $event)"
+                  >
+                    <i class="lni lni-chevron-up text-[10px]"></i>
+                  </button>
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                    title="Move down"
+                    @click="handleMoveItemDown(block.id, socialIndex, (block.settings as FooterSettings).socialLinks.length, editorStore.reorderFooterSocialLinks, $event)"
+                  >
+                    <i class="lni lni-chevron-down text-[10px]"></i>
+                  </button>
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                    title="Duplicate social"
+                    @click="handleDuplicateFooterSocialLink(block.id, social.id, $event)"
+                  >
+                    <i class="lni lni-layers-1 text-[10px]"></i>
+                  </button>
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                    title="Delete social"
+                    @click="handleDeleteFooterSocialLink(block.id, social.id, $event)"
+                  >
+                    <i class="lni lni-xmark text-[10px]"></i>
+                  </button>
+                </div>
+                <div class="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    full-width
+                    class="justify-start gap-1.5 text-muted-foreground"
+                    @click.stop="showSocialDropdown = showSocialDropdown === block.id ? null : block.id"
+                  >
+                    <i class="lni lni-plus text-xs"></i>
+                    <span class="flex-1 text-left">Add social</span>
+                    <i class="lni lni-chevron-down text-[10px]"></i>
+                  </Button>
+                  <div
+                    v-if="showSocialDropdown === block.id"
+                    class="absolute left-0 top-full mt-1 w-full bg-popover border border-sidebar-border rounded-md shadow-lg z-10 py-1 max-h-48 overflow-y-auto"
+                  >
+                    <button
+                      v-for="platform in socialPlatforms"
+                      :key="platform"
+                      class="flex items-center gap-1.5 w-full px-2 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
+                      @click.stop="handleAddFooterSocialLink(block.id, platform)"
+                    >
+                      <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                        <i :class="['lni', socialPlatformIcons[platform], 'text-muted-foreground']"></i>
+                      </div>
+                      <span class="leading-4">{{ socialPlatformLabels[platform] }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expanded content: Nested children (for layout blocks and form) -->
+            <div v-if="expandedBlocks.has(block.id) && canHaveChildren(block.type)" class="ml-6 mt-1 space-y-0.5">
+              <!-- Empty drop zone for dragging blocks to empty parents -->
+              <div
+                v-if="(!block.children || block.children.length === 0) && draggedChildInfo && !isListCollectionGrid(block)"
+                class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
+                :class="dragOverEmptyParentId === block.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
+                @dragover="handleEmptyParentDragOver(block.id, $event)"
+                @dragleave="handleEmptyParentDragLeave"
+                @drop.stop="handleEmptyParentDrop(block.id)"
+              >
+                <span class="text-xs text-muted-foreground">Drop here</span>
+              </div>
+              <div
+                v-for="(child, childIndex) in (block.children || [])"
+                :key="child.id"
+                class="block-item"
+              >
+                <!-- Child block row -->
+                <div
+                  :draggable="canDragChild(block, child)"
+                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                  :class="[
+                    canDragChild(block, child) ? 'cursor-grab' : 'cursor-pointer',
+                    editorStore.selectedBlockId === child.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                    draggedChildInfo?.blockId === child.id ? 'opacity-50' : '',
+                    dragOverChildInfo?.parentId === block.id && dragOverChildInfo?.childIndex === childIndex ? 'border-t-2 border-primary' : '',
+                  ]"
+                  @click="editorStore.selectBlock(child.id)"
+                  @dragstart="canDragChild(block, child) && handleChildDragStart(block.id, childIndex, child.id, $event)"
+                  @dragover="handleChildDragOver(block.id, childIndex, $event)"
+                  @dragleave="handleChildDragLeave"
+                  @drop.stop="handleChildDrop(block.id, childIndex)"
+                  @dragend="handleChildDragEnd"
+                >
+                  <!-- Expand/collapse toggle for nested layout blocks -->
+                  <button
+                    v-if="canBlockExpand(child)"
+                    class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
+                    @click.stop="toggleBlockExpanded(child.id)"
+                  >
+                    <i
+                      class="lni lni-chevron-down text-[10px] text-muted-foreground transition-transform"
+                      :class="expandedBlocks.has(child.id) ? '' : '-rotate-90'"
+                    ></i>
+                  </button>
+                  <div v-else class="w-4 h-4 shrink-0"></div>
+                  <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                    <i :class="['lni', sectionBlockIcons[child.type], 'text-xs text-muted-foreground']"></i>
+                  </div>
+                  <span class="flex-1 truncate leading-4" :class="isChildBlockHidden(child) ? 'opacity-50' : ''">{{ child.name }}</span>
+                  <!-- List/Collection item actions: eye, move up, move down -->
+                  <template v-if="isChildInsideListCollection(block, child)">
+                    <!-- Visibility toggle -->
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
+                      :class="isChildBlockHidden(child) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
+                      :title="isChildBlockHidden(child) ? 'Show item' : 'Hide item'"
+                      @click="toggleChildVisibility(child.id, $event)"
+                    >
+                      <span v-if="isChildBlockHidden(child)" class="relative inline-flex items-center justify-center w-3 h-3">
+                        <i class="lni lni-eye text-[10px] opacity-50"></i>
+                        <span class="absolute inset-0 flex items-center justify-center">
+                          <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
+                        </span>
+                      </span>
+                      <i v-else class="lni lni-eye text-[10px]"></i>
+                    </button>
+                    <!-- Move up button -->
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                      title="Move up"
+                      @click.stop="handleMoveChildUp(block.id, childIndex, $event)"
+                    >
+                      <i class="lni lni-chevron-up text-[10px]"></i>
+                    </button>
+                    <!-- Move down button -->
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                      title="Move down"
+                      @click.stop="handleMoveChildDown(block.id, childIndex, (block.children || []).length, $event)"
+                    >
+                      <i class="lni lni-chevron-down text-[10px]"></i>
+                    </button>
+                  </template>
+                  <!-- Regular block actions: move up, move down, duplicate, delete -->
+                  <template v-else>
+                    <!-- Move up button -->
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                      title="Move up"
+                      @click.stop="handleMoveChildUp(block.id, childIndex, $event)"
+                    >
+                      <i class="lni lni-chevron-up text-[10px]"></i>
+                    </button>
+                    <!-- Move down button -->
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                      title="Move down"
+                      @click.stop="handleMoveChildDown(block.id, childIndex, (block.children || []).length, $event)"
+                    >
+                      <i class="lni lni-chevron-down text-[10px]"></i>
+                    </button>
+                    <!-- Duplicate button -->
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                      title="Duplicate"
+                      @click.stop="handleDuplicateChildBlock(child.id, $event)"
+                    >
+                      <i class="lni lni-layers-1 text-[10px]"></i>
+                    </button>
+                    <!-- Delete button -->
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete"
+                      @click.stop="handleDeleteChildBlock(child.id, $event)"
+                    >
+                      <i class="lni lni-xmark text-[10px]"></i>
+                    </button>
+                  </template>
+                </div>
+                <!-- Nested children of this child (level 2 - grandchildren) -->
+                <div v-if="expandedBlocks.has(child.id) && canHaveChildren(child.type)" class="ml-6 mt-0.5 space-y-0.5">
+                  <!-- Empty drop zone for dragging blocks to empty parents -->
+                  <div
+                    v-if="(!child.children || child.children.length === 0) && draggedChildInfo && !isListCollectionGrid(child)"
+                    class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
+                    :class="dragOverEmptyParentId === child.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
+                    @dragover="handleEmptyParentDragOver(child.id, $event)"
+                    @dragleave="handleEmptyParentDragLeave"
+                    @drop.stop="handleEmptyParentDrop(child.id)"
+                  >
+                    <span class="text-xs text-muted-foreground">Drop here</span>
+                  </div>
+                  <div
+                    v-for="(grandchild, grandchildIndex) in (child.children || [])"
+                    :key="grandchild.id"
+                    class="block-item"
+                  >
+                    <!-- Grandchild block row -->
+                    <div
+                      :draggable="canDragChild(child, grandchild)"
+                      class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                      :class="[
+                        canDragChild(child, grandchild) ? 'cursor-grab' : 'cursor-pointer',
+                        editorStore.selectedBlockId === grandchild.id
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                        draggedChildInfo?.blockId === grandchild.id ? 'opacity-50' : '',
+                        dragOverChildInfo?.parentId === child.id && dragOverChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
+                      ]"
+                      @click="editorStore.selectBlock(grandchild.id)"
+                      @dragstart="canDragChild(child, grandchild) && handleChildDragStart(child.id, grandchildIndex, grandchild.id, $event)"
+                      @dragover="handleChildDragOver(child.id, grandchildIndex, $event)"
+                      @dragleave="handleChildDragLeave"
+                      @drop.stop="handleChildDrop(child.id, grandchildIndex)"
+                      @dragend="handleChildDragEnd"
+                    >
+                      <!-- Expand/collapse toggle for layout blocks at this level -->
+                      <button
+                        v-if="canHaveChildren(grandchild.type)"
+                        class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
+                        @click.stop="toggleBlockExpanded(grandchild.id)"
+                      >
+                        <i
+                          class="lni lni-chevron-down text-[10px] text-muted-foreground transition-transform"
+                          :class="expandedBlocks.has(grandchild.id) ? '' : '-rotate-90'"
+                        ></i>
+                      </button>
+                      <div v-else class="w-4 h-4 shrink-0"></div>
+                      <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                        <i :class="['lni', sectionBlockIcons[grandchild.type], 'text-xs text-muted-foreground']"></i>
+                      </div>
+                      <span class="flex-1 truncate leading-4" :class="isChildBlockHidden(grandchild) ? 'opacity-50' : ''">{{ grandchild.name }}</span>
+                      <!-- List/Collection item actions: eye, move up, move down -->
+                      <template v-if="isChildInsideListCollection(child, grandchild)">
+                        <!-- Visibility toggle -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
+                          :class="isChildBlockHidden(grandchild) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
+                          :title="isChildBlockHidden(grandchild) ? 'Show item' : 'Hide item'"
+                          @click="toggleChildVisibility(grandchild.id, $event)"
+                        >
+                          <span v-if="isChildBlockHidden(grandchild)" class="relative inline-flex items-center justify-center w-3 h-3">
+                            <i class="lni lni-eye text-[10px] opacity-50"></i>
+                            <span class="absolute inset-0 flex items-center justify-center">
+                              <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
+                            </span>
+                          </span>
+                          <i v-else class="lni lni-eye text-[10px]"></i>
+                        </button>
+                        <!-- Move up button -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                          title="Move up"
+                          @click.stop="handleMoveChildUp(child.id, grandchildIndex, $event)"
+                        >
+                          <i class="lni lni-chevron-up text-[10px]"></i>
+                        </button>
+                        <!-- Move down button -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                          title="Move down"
+                          @click.stop="handleMoveChildDown(child.id, grandchildIndex, (child.children || []).length, $event)"
+                        >
+                          <i class="lni lni-chevron-down text-[10px]"></i>
+                        </button>
+                      </template>
+                      <!-- Regular block actions: move up, move down, duplicate, delete -->
+                      <template v-else>
+                        <!-- Move up button -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                          title="Move up"
+                          @click.stop="handleMoveChildUp(child.id, grandchildIndex, $event)"
+                        >
+                          <i class="lni lni-chevron-up text-[10px]"></i>
+                        </button>
+                        <!-- Move down button -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                          title="Move down"
+                          @click.stop="handleMoveChildDown(child.id, grandchildIndex, (child.children || []).length, $event)"
+                        >
+                          <i class="lni lni-chevron-down text-[10px]"></i>
+                        </button>
+                        <!-- Duplicate button -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                          title="Duplicate"
+                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                        >
+                          <i class="lni lni-layers-1 text-[10px]"></i>
+                        </button>
+                        <!-- Delete button -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                          title="Delete"
+                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                        >
+                          <i class="lni lni-xmark text-[10px]"></i>
+                        </button>
+                      </template>
+                    </div>
+                    <!-- Level 3 children (great-grandchildren) - deepest level, no more layout blocks allowed -->
+                    <div v-if="expandedBlocks.has(grandchild.id) && canHaveChildren(grandchild.type)" class="ml-6 mt-0.5 space-y-0.5">
+                      <!-- Empty drop zone for dragging blocks to empty parents -->
+                      <div
+                        v-if="(!grandchild.children || grandchild.children.length === 0) && draggedChildInfo && !isListCollectionGrid(grandchild)"
+                        class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
+                        :class="dragOverEmptyParentId === grandchild.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
+                        @dragover="handleEmptyParentDragOver(grandchild.id, $event)"
+                        @dragleave="handleEmptyParentDragLeave"
+                        @drop.stop="handleEmptyParentDrop(grandchild.id)"
+                      >
+                        <span class="text-xs text-muted-foreground">Drop here</span>
+                      </div>
+                      <div
+                        v-for="(greatgrandchild, greatgrandchildIndex) in (grandchild.children || [])"
+                        :key="greatgrandchild.id"
+                        :draggable="canDragChild(grandchild, greatgrandchild)"
+                        class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                        :class="[
+                          canDragChild(grandchild, greatgrandchild) ? 'cursor-grab' : 'cursor-pointer',
+                          editorStore.selectedBlockId === greatgrandchild.id
+                            ? 'bg-accent text-accent-foreground'
+                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                          draggedChildInfo?.blockId === greatgrandchild.id ? 'opacity-50' : '',
+                          dragOverChildInfo?.parentId === grandchild.id && dragOverChildInfo?.childIndex === greatgrandchildIndex ? 'border-t-2 border-primary' : '',
+                        ]"
+                        @click="editorStore.selectBlock(greatgrandchild.id)"
+                        @dragstart="canDragChild(grandchild, greatgrandchild) && handleChildDragStart(grandchild.id, greatgrandchildIndex, greatgrandchild.id, $event)"
+                        @dragover="handleChildDragOver(grandchild.id, greatgrandchildIndex, $event)"
+                        @dragleave="handleChildDragLeave"
+                        @drop.stop="handleChildDrop(grandchild.id, greatgrandchildIndex)"
+                        @dragend="handleChildDragEnd"
+                      >
+                        <div class="w-4 h-4 shrink-0"></div>
+                        <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                          <i :class="['lni', sectionBlockIcons[greatgrandchild.type], 'text-xs text-muted-foreground']"></i>
+                        </div>
+                        <span class="flex-1 truncate leading-4" :class="isChildBlockHidden(greatgrandchild) ? 'opacity-50' : ''">{{ greatgrandchild.name }}</span>
+                        <!-- List/Collection item actions: eye, move up, move down -->
+                        <template v-if="isChildInsideListCollection(grandchild, greatgrandchild)">
+                          <!-- Visibility toggle -->
+                          <button
+                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
+                            :class="isChildBlockHidden(greatgrandchild) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
+                            :title="isChildBlockHidden(greatgrandchild) ? 'Show item' : 'Hide item'"
+                            @click="toggleChildVisibility(greatgrandchild.id, $event)"
+                          >
+                            <span v-if="isChildBlockHidden(greatgrandchild)" class="relative inline-flex items-center justify-center w-3 h-3">
+                              <i class="lni lni-eye text-[10px] opacity-50"></i>
+                              <span class="absolute inset-0 flex items-center justify-center">
+                                <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
+                              </span>
+                            </span>
+                            <i v-else class="lni lni-eye text-[10px]"></i>
+                          </button>
+                          <!-- Move up button -->
+                          <button
+                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                            title="Move up"
+                            @click.stop="handleMoveChildUp(grandchild.id, greatgrandchildIndex, $event)"
+                          >
+                            <i class="lni lni-chevron-up text-[10px]"></i>
+                          </button>
+                          <!-- Move down button -->
+                          <button
+                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                            title="Move down"
+                            @click.stop="handleMoveChildDown(grandchild.id, greatgrandchildIndex, (grandchild.children || []).length, $event)"
+                          >
+                            <i class="lni lni-chevron-down text-[10px]"></i>
+                          </button>
+                        </template>
+                        <!-- Regular block actions: move up, move down, duplicate, delete -->
+                        <template v-else>
+                          <!-- Move up button -->
+                          <button
+                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                            title="Move up"
+                            @click.stop="handleMoveChildUp(grandchild.id, greatgrandchildIndex, $event)"
+                          >
+                            <i class="lni lni-chevron-up text-[10px]"></i>
+                          </button>
+                          <!-- Move down button -->
+                          <button
+                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                            title="Move down"
+                            @click.stop="handleMoveChildDown(grandchild.id, greatgrandchildIndex, (grandchild.children || []).length, $event)"
+                          >
+                            <i class="lni lni-chevron-down text-[10px]"></i>
+                          </button>
+                          <!-- Duplicate button -->
+                          <button
+                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                            title="Duplicate"
+                            @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
+                          >
+                            <i class="lni lni-layers-1 text-[10px]"></i>
+                          </button>
+                          <!-- Delete button -->
+                          <button
+                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                            title="Delete"
+                            @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
+                          >
+                            <i class="lni lni-xmark text-[10px]"></i>
+                          </button>
+                        </template>
+                      </div>
+                      <!-- Add block to deepest level - NO layout blocks allowed -->
+                      <Dropdown
+                        :ref="(el: any) => childBlockDropdownRefs[grandchild.id] = el"
+                        align="left"
+                        width="w-56"
+                        :close-on-click="false"
+                      >
+                        <template #trigger="{ toggle }">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            full-width
+                            class="justify-start gap-1.5 text-muted-foreground"
+                            @click.stop="toggle"
+                          >
+                            <i class="lni lni-plus text-xs"></i>
+                            <span class="flex-1 text-left">Add block</span>
+                            <i class="lni lni-chevron-down text-[10px]"></i>
+                          </Button>
+                        </template>
+                        <Combobox
+                          :items="deepNestedChildBlockItems"
+                          search-placeholder="Search blocks..."
+                          empty-text="No blocks found"
+                          @select="handleAddChildBlock(grandchild.id, $event)"
+                        />
+                      </Dropdown>
+                    </div>
+                  </div>
+                  <!-- Add child to nested layout block - allows layout blocks -->
+                  <Dropdown
+                    :ref="(el: any) => childBlockDropdownRefs[child.id] = el"
+                    align="left"
+                    width="w-56"
+                    :close-on-click="false"
+                  >
+                    <template #trigger="{ toggle }">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        full-width
+                        class="justify-start gap-1.5 text-muted-foreground"
+                        @click.stop="toggle"
+                      >
+                        <i class="lni lni-plus text-xs"></i>
+                        <span class="flex-1 text-left">Add block</span>
+                        <i class="lni lni-chevron-down text-[10px]"></i>
+                      </Button>
+                    </template>
+                    <Combobox
+                      :items="deepNestedChildBlockItems"
+                      search-placeholder="Search blocks..."
+                      empty-text="No blocks found"
+                      @select="handleAddChildBlock(child.id, $event)"
+                    />
+                  </Dropdown>
+                </div>
+              </div>
+              <!-- Add child button - for List/Collection grids, just add a new item -->
+              <Button
+                v-if="isListCollectionGrid(block)"
+                variant="ghost"
+                size="xs"
+                full-width
+                class="justify-start gap-1.5 text-muted-foreground"
+                @click.stop="handleAddListItem(block.id)"
+              >
+                <i class="lni lni-plus text-xs"></i>
+                <span class="flex-1 text-left">Add item</span>
+              </Button>
+              <!-- Form blocks show form field options -->
+              <Dropdown
+                v-else-if="block.type === 'form'"
+                :ref="(el: any) => childBlockDropdownRefs[block.id] = el"
+                align="left"
+                width="w-56"
+                :close-on-click="false"
+              >
+                <template #trigger="{ toggle }">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    full-width
+                    class="justify-start gap-1.5 text-muted-foreground"
+                    @click.stop="toggle"
+                  >
+                    <i class="lni lni-plus text-xs"></i>
+                    <span class="flex-1 text-left">Add field</span>
+                    <i class="lni lni-chevron-down text-[10px]"></i>
+                  </Button>
+                </template>
+                <Combobox
+                  :items="formFieldBlockItems"
+                  search-placeholder="Search fields..."
+                  empty-text="No fields found"
+                  @select="handleAddFormFieldBlock(block.id, $event as FormFieldBlockType)"
+                />
+              </Dropdown>
+              <!-- Regular layout blocks show dropdown -->
+              <Dropdown
+                v-else
+                :ref="(el: any) => childBlockDropdownRefs[block.id] = el"
+                align="left"
+                width="w-56"
+                :close-on-click="false"
+              >
+                <template #trigger="{ toggle }">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    full-width
+                    class="justify-start gap-1.5 text-muted-foreground"
+                    @click.stop="toggle"
+                  >
+                    <i class="lni lni-plus text-xs"></i>
+                    <span class="flex-1 text-left">Add block</span>
+                    <i class="lni lni-chevron-down text-[10px]"></i>
+                  </Button>
+                </template>
+                <Combobox
+                  :items="firstLevelChildBlockItems"
+                  search-placeholder="Search blocks..."
+                  empty-text="No blocks found"
+                  @select="handleAddChildBlock(block.id, $event)"
+                />
+              </Dropdown>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </template>
   </aside>
 </template>

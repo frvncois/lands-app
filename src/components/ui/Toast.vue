@@ -69,18 +69,18 @@ function handleAction() {
 
 <template>
   <div
-    class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg border bg-card shadow-lg transition-all duration-300"
+    class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl border bg-card shadow-lg transition-all duration-300"
     :class="typeClasses"
     role="alert"
   >
-    <div class="p-4">
+    <div class="p-2">
       <div class="flex items-start gap-3">
         <!-- Icon -->
         <div class="shrink-0" :class="iconColor" v-html="iconMap[toast.type]" />
 
         <!-- Content -->
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-foreground">
+          <p class="text-sm text-foreground">
             {{ toast.title }}
           </p>
           <p v-if="toast.description" class="mt-1 text-sm text-muted-foreground">
@@ -89,7 +89,7 @@ function handleAction() {
           <!-- Action button -->
           <button
             v-if="toast.action"
-            class="mt-2 text-sm font-medium hover:underline"
+            class="mt-2 text-sm hover:underline"
             :class="iconColor"
             @click="handleAction"
           >

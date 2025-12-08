@@ -3,10 +3,34 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useProjectStore } from '@/stores/project'
 import { useProjectsStore } from '@/stores/projects'
-import type { ProjectPlan } from '@/types/project'
+import { PLAN_DEFINITIONS, planHasFeature, type ProjectPlan } from '@/types/project'
 import CollaboratorsSection from '@/components/settings/CollaboratorsSection.vue'
 import ProjectDelete from '@/components/modal/ProjectDelete.vue'
 import ProjectUnpublish from '@/components/modal/ProjectUnpublish.vue'
+import ProjectUpload from '@/components/modal/ProjectUpload.vue'
+import PlanUpgrade from '@/components/modal/PlanUpgrade.vue'
+import InviteCollaborator from '@/components/modal/InviteCollaborator.vue'
+import { Card, Button, Input, Textarea, FormField, Toggle, ToggleItem, Badge, Alert, Spinner, Header } from '@/components/ui'
+
+// Upload modal state
+const showOgImageUpload = ref(false)
+const showFaviconUpload = ref(false)
+
+function handleOgImageUploaded(url: string) {
+  projectStore.updateSEO({ ogImage: url })
+}
+
+function handleFaviconUploaded(url: string) {
+  projectStore.updateSEO({ favicon: url })
+}
+
+function removeOgImage() {
+  projectStore.updateSEO({ ogImage: '' })
+}
+
+function removeFavicon() {
+  projectStore.updateSEO({ favicon: '' })
+}
 
 const route = useRoute()
 const projectStore = useProjectStore()
@@ -16,6 +40,8 @@ const projectId = computed(() => route.params.projectId as string)
 
 const showDeleteModal = ref(false)
 const showUnpublishModal = ref(false)
+const showUpgradeModal = ref(false)
+const showInviteModal = ref(false)
 const isPublishing = ref(false)
 const isSettingUpAnalytics = ref(false)
 const passwordChanged = ref(false)
@@ -23,13 +49,18 @@ const savedPassword = ref('')
 const domainChanged = ref(false)
 const savedDomain = ref({ subdomain: '', customDomain: '' })
 
+// Plan helpers
+const currentPlan = computed(() => PLAN_DEFINITIONS[settings.value.plan])
+const canUseCustomDomain = computed(() => planHasFeature(settings.value.plan, 'customDomain'))
+const canUseAnalytics = computed(() => planHasFeature(settings.value.plan, 'analytics'))
+const canUseCollaborators = computed(() => planHasFeature(settings.value.plan, 'collaborators'))
+
 // Load project settings when projectId changes
 watch(
   projectId,
   async (newProjectId) => {
     if (newProjectId) {
       await projectStore.loadProject(newProjectId)
-      // Store the initial values
       savedPassword.value = projectStore.settings.publish.password || ''
       savedDomain.value = {
         subdomain: projectStore.settings.domain.subdomain || '',
@@ -42,35 +73,13 @@ watch(
   { immediate: true }
 )
 
-const plans: { id: ProjectPlan; name: string; price: string; features: string[] }[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: '$0',
-    features: ['1 project', 'Lands subdomain', 'Basic analytics', 'Community support'],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: '$12/mo',
-    features: ['Unlimited projects', 'Custom domain', 'Advanced analytics', 'Priority support', 'Remove branding'],
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: '$29/mo',
-    features: ['Everything in Pro', 'Team collaboration', 'Custom code injection', 'API access', 'Dedicated support'],
-  },
-]
 
 async function handlePublishToggle() {
   if (isPublishing.value) return
 
   if (settings.value.publish.isPublished) {
-    // Show confirmation modal for unpublishing
     showUnpublishModal.value = true
   } else {
-    // Publish directly
     await doPublish()
   }
 }
@@ -79,14 +88,12 @@ async function doPublish() {
   isPublishing.value = true
 
   try {
-    // Ensure content is loaded
     if (!projectsStore.getProjectContent(projectId.value)) {
       await projectsStore.fetchProjectContent(projectId.value)
     }
     await projectsStore.publishProject(projectId.value)
     projectStore.updatePublish({ isPublished: true, publishedAt: new Date().toISOString() })
 
-    // Reset changed flags and update saved values
     savedPassword.value = settings.value.publish.password || ''
     savedDomain.value = {
       subdomain: settings.value.domain.subdomain || '',
@@ -140,14 +147,12 @@ async function handlePasswordProtectionToggle() {
   const isCurrentlyProtected = settings.value.publish.visibility === 'password'
 
   if (isCurrentlyProtected) {
-    // Removing password protection - update local state and republish if published
     projectStore.updatePublish({ visibility: 'public', password: '' })
 
     if (settings.value.publish.isPublished) {
       await doPublish()
     }
   } else {
-    // Enabling password protection - just update local state (user will need to enter password and click Update)
     projectStore.updatePublish({ visibility: 'password' })
   }
 }
@@ -161,14 +166,11 @@ async function handleAnalyticsToggle() {
 
   try {
     if (isCurrentlyEnabled) {
-      // Disable analytics
       await projectStore.disableUmamiAnalytics()
     } else {
-      // Enable analytics - this creates the Umami site
       await projectStore.setupUmamiAnalytics()
     }
 
-    // Republish if already published to include/remove analytics script
     if (settings.value.publish.isPublished) {
       await doPublish()
     }
@@ -181,458 +183,437 @@ async function handleAnalyticsToggle() {
 <template>
   <div class="flex-1 h-full overflow-y-auto bg-background">
     <div class="max-w-6xl mx-auto p-8">
-      <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-2xl text-foreground">Project Settings</h1>
-        <p class="text-sm text-muted-foreground mt-1">Manage your project configuration and publishing options.</p>
-      </div>
+      <Header
+        title="Project Settings"
+        description="Manage your project configuration and publishing options."
+      />
 
-      <!-- Dashboard Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- General Card -->
-        <div class="bg-card border border-border rounded-lg">
-          <div class="px-5 py-4 border-b border-border">
-            <div class="flex items-center gap-6">
-              <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <h2 class="text-sm text-foreground">General</h2>
-            </div>
-          </div>
-          <div class="p-5 space-y-4">
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Project Title</label>
-              <input
-                type="text"
-                :value="settings.title"
-                class="w-full h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                placeholder="My Project"
-                @input="projectStore.updateTitle(($event.target as HTMLInputElement).value)"
-              />
-            </div>
+      <!-- Masonry Grid Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Left Column: General, Domain, SEO, Analytics, Collaborators -->
+        <div class="space-y-8">
+          <!-- General Card -->
+          <Card>
+            <Card.Header title="General" icon="lni-gear-1" />
+            <Card.Content class="space-y-4">
+              <FormField label="Project Title">
+                <Input
+                  :model-value="settings.title"
+                  placeholder="My Project"
+                  @update:model-value="projectStore.updateTitle($event as string)"
+                />
+              </FormField>
 
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Project Slug</label>
-              <div class="flex">
-                <span class="inline-flex items-center px-3 h-9 bg-muted border border-r-0 border-border rounded-l-md text-xs text-muted-foreground">
-                  lands.app/
-                </span>
-                <input
-                  type="text"
-                  :value="settings.slug"
-                  class="flex-1 h-9 px-3 bg-background border border-border rounded-r-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+              <FormField label="Project Slug">
+                <Input
+                  :model-value="settings.slug"
                   placeholder="my-project"
-                  @input="projectStore.updateSlug(($event.target as HTMLInputElement).value)"
+                  prefix="lands.app/"
+                  @update:model-value="projectStore.updateSlug($event as string)"
                 />
-              </div>
-            </div>
+              </FormField>
 
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Description</label>
-              <textarea
-                :value="settings.description"
-                rows="2"
-                class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background resize-none"
-                placeholder="A brief description..."
-                @input="projectStore.updateSettings({ description: ($event.target as HTMLTextAreaElement).value })"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Publishing Card -->
-        <div class="bg-card border border-border rounded-lg">
-          <div class="px-5 py-4 border-b border-border">
-            <div class="flex items-center gap-6">
-              <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h2 class="text-sm text-foreground">Publishing</h2>
-            </div>
-          </div>
-          <div class="p-5 space-y-4">
-            <div class="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-              <div>
-                <p class="text-sm font-medium text-foreground">Publish Status</p>
-                <p class="text-xs text-muted-foreground">
-                  {{ isPublishing ? (settings.publish.isPublished ? 'Unpublishing...' : 'Publishing...') : 'Make your project live' }}
-                </p>
-              </div>
-              <button
-                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-                :class="[
-                  settings.publish.isPublished ? 'bg-primary' : 'bg-input',
-                  isPublishing ? 'opacity-50 cursor-wait' : 'cursor-pointer'
-                ]"
-                :disabled="isPublishing"
-                @click="handlePublishToggle"
-              >
-                <span
-                  class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform"
-                  :class="settings.publish.isPublished ? 'translate-x-4' : 'translate-x-0.5'"
+              <FormField label="Description">
+                <Textarea
+                  :model-value="settings.description"
+                  placeholder="A brief description..."
+                  :rows="2"
+                  @update:model-value="projectStore.updateSettings({ description: $event })"
                 />
-              </button>
-            </div>
+              </FormField>
+            </Card.Content>
+          </Card>
 
-            <div class="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-              <div>
-                <p class="text-sm font-medium text-foreground">Password Protection</p>
-                <p class="text-xs text-muted-foreground">Require a password to view your site</p>
-              </div>
-              <button
-                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-                :class="[
-                  settings.publish.visibility === 'password' ? 'bg-primary' : 'bg-input',
-                  isPublishing ? 'opacity-50 cursor-wait' : 'cursor-pointer'
-                ]"
-                :disabled="isPublishing"
-                @click="handlePasswordProtectionToggle"
-              >
-                <span
-                  class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform"
-                  :class="settings.publish.visibility === 'password' ? 'translate-x-4' : 'translate-x-0.5'"
+          <!-- Domain Card -->
+          <Card>
+            <Card.Header title="Domain" icon="lni-globe-1" />
+            <Card.Content class="space-y-4">
+              <FormField label="Subdomain">
+                <Input
+                  :model-value="settings.domain.subdomain"
+                  placeholder="mysite"
+                  suffix=".lands.app"
+                  @update:model-value="handleSubdomainInput($event as string)"
                 />
-              </button>
-            </div>
+              </FormField>
 
-            <div v-if="settings.publish.visibility === 'password'" class="space-y-3">
               <div class="space-y-1.5">
-                <label class="text-xs font-medium text-muted-foreground">Password</label>
-                <input
-                  type="text"
-                  :value="settings.publish.password"
-                  class="w-full h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                  placeholder="Enter password"
-                  @input="handlePasswordInput(($event.target as HTMLInputElement).value)"
-                />
-              </div>
-
-              <div v-if="passwordChanged && settings.publish.isPublished" class="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
-                <div class="flex items-center gap-6">
-                  <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <p class="text-xs text-amber-600">Update your site to apply password protection</p>
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-medium text-muted-foreground">Custom Domain</label>
+                  <Badge v-if="!canUseCustomDomain" variant="secondary" size="xs">Pro</Badge>
                 </div>
+                <Input
+                  :model-value="settings.domain.customDomain"
+                  placeholder="www.example.com"
+                  :disabled="!canUseCustomDomain"
+                  @update:model-value="handleCustomDomainInput($event as string)"
+                />
                 <button
-                  class="h-7 px-3 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                  :disabled="isPublishing"
-                  @click="doPublish"
+                  v-if="!canUseCustomDomain"
+                  class="text-xs text-primary hover:underline"
+                  @click="showUpgradeModal = true"
                 >
-                  <svg v-if="isPublishing" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {{ isPublishing ? 'Updating...' : 'Update' }}
+                  Upgrade to Pro to use custom domains
                 </button>
               </div>
-            </div>
 
-            <div v-if="settings.publish.publishedAt" class="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Last published: {{ new Date(settings.publish.publishedAt).toLocaleDateString() }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Domain Card -->
-        <div class="bg-card border border-border rounded-lg">
-          <div class="px-5 py-4 border-b border-border">
-            <div class="flex items-center gap-6">
-              <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              <h2 class="text-sm text-foreground">Domain</h2>
-            </div>
-          </div>
-          <div class="p-5 space-y-4">
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Subdomain</label>
-              <div class="flex">
-                <input
-                  type="text"
-                  :value="settings.domain.subdomain"
-                  class="flex-1 h-9 px-3 bg-background border border-r-0 border-border rounded-l-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                  placeholder="mysite"
-                  @input="handleSubdomainInput(($event.target as HTMLInputElement).value)"
-                />
-                <span class="inline-flex items-center px-3 h-9 bg-muted border border-border rounded-r-md text-xs text-muted-foreground">
-                  .lands.app
-                </span>
+              <div v-if="settings.domain.customDomain && canUseCustomDomain" class="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                <Badge :variant="settings.domain.customDomainVerified ? 'success' : 'warning'" size="sm">
+                  {{ settings.domain.customDomainVerified ? 'Verified' : 'Pending' }}
+                </Badge>
+                <Button
+                  v-if="!settings.domain.customDomainVerified"
+                  variant="link"
+                  size="xs"
+                  class="ml-auto"
+                >
+                  Verify
+                </Button>
               </div>
-            </div>
 
-            <div class="space-y-1.5">
-              <div class="flex items-center justify-between">
-                <label class="text-xs font-medium text-muted-foreground">Custom Domain</label>
-                <span v-if="settings.plan === 'free'" class="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Pro</span>
-              </div>
-              <input
-                type="text"
-                :value="settings.domain.customDomain"
-                class="w-full h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="www.example.com"
-                :disabled="settings.plan === 'free'"
-                @input="handleCustomDomainInput(($event.target as HTMLInputElement).value)"
-              />
-            </div>
-
-            <div v-if="settings.domain.customDomain && settings.plan !== 'free'" class="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-              <span
-                class="flex items-center gap-1.5 text-xs font-medium"
-                :class="settings.domain.customDomainVerified ? 'text-green-600' : 'text-yellow-600'"
-              >
-                <span class="w-1.5 h-1.5 rounded-full" :class="settings.domain.customDomainVerified ? 'bg-green-600' : 'bg-yellow-600'" />
-                {{ settings.domain.customDomainVerified ? 'Verified' : 'Pending' }}
-              </span>
-              <button
-                v-if="!settings.domain.customDomainVerified"
-                class="ml-auto text-xs font-medium text-primary hover:underline"
-              >
-                Verify
-              </button>
-            </div>
-
-            <!-- Update alert for domain changes -->
-            <div v-if="domainChanged && settings.publish.isPublished" class="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
-              <div class="flex items-center gap-6">
-                <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <p class="text-xs text-amber-600">Update your site to apply domain changes</p>
-              </div>
-              <button
-                class="h-7 px-3 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                :disabled="isPublishing"
-                @click="doPublish"
-              >
-                <svg v-if="isPublishing" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                {{ isPublishing ? 'Updating...' : 'Update' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- SEO Card -->
-        <div class="bg-card border border-border rounded-lg">
-          <div class="px-5 py-4 border-b border-border">
-            <div class="flex items-center gap-6">
-              <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <h2 class="text-sm text-foreground">SEO</h2>
-            </div>
-          </div>
-          <div class="p-5 space-y-4">
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Meta Title</label>
-              <input
-                type="text"
-                :value="settings.seo.metaTitle"
-                class="w-full h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                placeholder="Page title for search engines"
-                @input="projectStore.updateSEO({ metaTitle: ($event.target as HTMLInputElement).value })"
-              />
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Meta Description</label>
-              <textarea
-                :value="settings.seo.metaDescription"
-                rows="2"
-                class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background resize-none"
-                placeholder="Brief description for search results..."
-                @input="projectStore.updateSEO({ metaDescription: ($event.target as HTMLTextAreaElement).value })"
-              />
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="text-xs font-medium text-muted-foreground">Keywords</label>
-              <input
-                type="text"
-                :value="settings.seo.keywords"
-                class="w-full h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                placeholder="keyword1, keyword2, keyword3"
-                @input="projectStore.updateSEO({ keywords: ($event.target as HTMLInputElement).value })"
-              />
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <label class="text-xs font-medium text-muted-foreground">OG Image</label>
-                <input
-                  type="text"
-                  :value="settings.seo.ogImage"
-                  class="w-full h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                  placeholder="https://..."
-                  @input="projectStore.updateSEO({ ogImage: ($event.target as HTMLInputElement).value })"
-                />
-              </div>
-              <div class="space-y-1.5">
-                <label class="text-xs font-medium text-muted-foreground">Favicon</label>
-                <input
-                  type="text"
-                  :value="settings.seo.favicon"
-                  class="w-full h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                  placeholder="https://..."
-                  @input="projectStore.updateSEO({ favicon: ($event.target as HTMLInputElement).value })"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Analytics Card -->
-        <div class="bg-card border border-border rounded-lg">
-          <div class="px-5 py-4 border-b border-border">
-            <div class="flex items-center gap-6">
-              <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <h2 class="text-sm text-foreground">Analytics</h2>
-            </div>
-          </div>
-          <div class="p-5 space-y-4">
-            <div class="flex items-center justify-between p-3 bg-muted/50 rounded-md">
-              <div>
-                <div class="flex items-center gap-6">
-                  <p class="text-sm font-medium text-foreground">Site Analytics</p>
-                  <span v-if="settings.plan === 'free'" class="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Pro</span>
+              <Alert v-if="domainChanged && settings.publish.isPublished" variant="warning">
+                <div class="flex items-center justify-between">
+                  <span>Update your site to apply domain changes</span>
+                  <Button size="xs" :loading="isPublishing" @click="doPublish">
+                    {{ isPublishing ? 'Updating...' : 'Update' }}
+                  </Button>
                 </div>
-                <p class="text-xs text-muted-foreground">
-                  {{ settings.plan === 'free' ? 'Upgrade to Pro to enable analytics' : 'Track visitors, page views, and more' }}
+              </Alert>
+            </Card.Content>
+          </Card>
+
+          <!-- Analytics Card -->
+          <Card>
+            <Card.Header title="Analytics" icon="lni-bar-chart-4" />
+            <Card.Content class="space-y-4">
+              <ToggleItem
+                :model-value="settings.analytics.umamiEnabled || false"
+                :disabled="isSettingUpAnalytics || !canUseAnalytics"
+                @update:model-value="handleAnalyticsToggle"
+              >
+                <template #label>
+                  <div class="flex items-center gap-2">
+                    <p class="text-sm font-medium text-foreground">Site Analytics</p>
+                    <Badge v-if="!canUseAnalytics" variant="secondary" size="xs">Pro</Badge>
+                  </div>
+                </template>
+                <template #description>
+                  <p class="text-xs text-muted-foreground">
+                    {{ !canUseAnalytics ? 'Upgrade to Pro to enable analytics' : 'Track visitors, page views, and more' }}
+                  </p>
+                </template>
+              </ToggleItem>
+
+              <button
+                v-if="!canUseAnalytics"
+                class="text-xs text-primary hover:underline"
+                @click="showUpgradeModal = true"
+              >
+                Upgrade to Pro to enable analytics
+              </button>
+
+              <div v-if="isSettingUpAnalytics" class="flex items-center gap-2 text-xs text-muted-foreground">
+                <Spinner size="xs" />
+                {{ settings.analytics.umamiEnabled ? 'Disabling analytics...' : 'Setting up analytics...' }}
+              </div>
+
+              <Alert v-if="settings.analytics.umamiEnabled && settings.analytics.umamiSiteId" variant="success">
+                Analytics is active and tracking visitors
+              </Alert>
+
+              <p v-if="canUseAnalytics" class="text-xs text-muted-foreground">
+                Privacy-focused analytics powered by Umami. No cookies, GDPR compliant.
+              </p>
+            </Card.Content>
+          </Card>
+
+          <!-- Collaborators Card -->
+          <Card>
+            <Card.Header title="Collaborators" icon="lni-user-multiple-4">
+              <template #action>
+                <div class="flex items-center gap-2">
+                  <Badge v-if="!canUseCollaborators" variant="secondary" size="xs">Pro</Badge>
+                  <Button
+                    v-if="canUseCollaborators"
+                    variant="outline"
+                    size="sm"
+                    @click="showInviteModal = true"
+                  >
+                    Invite
+                  </Button>
+                </div>
+              </template>
+            </Card.Header>
+            <Card.Content v-if="canUseCollaborators" :padded="false">
+              <CollaboratorsSection :project-id="projectId" />
+            </Card.Content>
+            <Card.Content v-else class="space-y-3">
+              <p class="text-xs text-muted-foreground">
+                Invite team members to collaborate on this project. Share editing access with colleagues and clients.
+              </p>
+              <button
+                class="text-xs text-primary hover:underline"
+                @click="showUpgradeModal = true"
+              >
+                Upgrade to Pro to invite collaborators
+              </button>
+            </Card.Content>
+          </Card>
+        </div>
+
+        <!-- Right Column: SEO, Publishing, Plan, Danger Zone -->
+        <div class="space-y-8">
+          <!-- SEO Card -->
+          <Card>
+            <Card.Header title="SEO" icon="lni-search-1" />
+            <Card.Content class="space-y-4">
+              <FormField label="Meta Title">
+                <Input
+                  :model-value="settings.seo.metaTitle"
+                  placeholder="Page title for search engines"
+                  @update:model-value="projectStore.updateSEO({ metaTitle: $event as string })"
+                />
+              </FormField>
+
+              <FormField label="Meta Description">
+                <Textarea
+                  :model-value="settings.seo.metaDescription"
+                  placeholder="Brief description for search results..."
+                  :rows="2"
+                  @update:model-value="projectStore.updateSEO({ metaDescription: $event })"
+                />
+              </FormField>
+
+              <FormField label="Keywords">
+                <Input
+                  :model-value="settings.seo.keywords"
+                  placeholder="keyword1, keyword2, keyword3"
+                  @update:model-value="projectStore.updateSEO({ keywords: $event as string })"
+                />
+              </FormField>
+
+              <div class="grid grid-cols-2 gap-3">
+                <FormField label="OG Image">
+                  <div class="space-y-2">
+                    <!-- Image preview -->
+                    <div
+                      v-if="settings.seo.ogImage"
+                      class="relative group rounded-md overflow-hidden border border-border"
+                    >
+                      <img
+                        :src="settings.seo.ogImage"
+                        alt="OG Image"
+                        class="w-full h-20 object-cover"
+                      />
+                      <!-- Overlay actions -->
+                      <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          class="w-7 h-7 bg-background/90 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-foreground hover:bg-background transition-colors"
+                          title="Replace image"
+                          @click="showOgImageUpload = true"
+                        >
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="w-7 h-7 bg-destructive/90 backdrop-blur-sm border border-destructive rounded-full flex items-center justify-center text-destructive-foreground hover:bg-destructive transition-colors"
+                          title="Remove image"
+                          @click="removeOgImage"
+                        >
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <!-- Upload button (when no image) -->
+                    <button
+                      v-else
+                      type="button"
+                      class="w-full h-20 border border-dashed border-border rounded-md flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                      @click="showOgImageUpload = true"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span class="text-xs">Upload OG Image</span>
+                    </button>
+                  </div>
+                </FormField>
+                <FormField label="Favicon">
+                  <div class="space-y-2">
+                    <!-- Image preview -->
+                    <div
+                      v-if="settings.seo.favicon"
+                      class="relative group rounded-md overflow-hidden border border-border"
+                    >
+                      <div class="w-full h-20 flex items-center justify-center bg-muted/50">
+                        <img
+                          :src="settings.seo.favicon"
+                          alt="Favicon"
+                          class="w-10 h-10 object-contain"
+                        />
+                      </div>
+                      <!-- Overlay actions -->
+                      <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          class="w-7 h-7 bg-background/90 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-foreground hover:bg-background transition-colors"
+                          title="Replace favicon"
+                          @click="showFaviconUpload = true"
+                        >
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="w-7 h-7 bg-destructive/90 backdrop-blur-sm border border-destructive rounded-full flex items-center justify-center text-destructive-foreground hover:bg-destructive transition-colors"
+                          title="Remove favicon"
+                          @click="removeFavicon"
+                        >
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <!-- Upload button (when no image) -->
+                    <button
+                      v-else
+                      type="button"
+                      class="w-full h-20 border border-dashed border-border rounded-md flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                      @click="showFaviconUpload = true"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span class="text-xs">Upload Favicon</span>
+                    </button>
+                  </div>
+                </FormField>
+              </div>
+            </Card.Content>
+          </Card>
+
+          <!-- Publishing Card -->
+          <Card>
+            <Card.Header title="Publishing" icon="lni-globe-1" />
+            <Card.Content class="space-y-4">
+              <ToggleItem
+                :model-value="settings.publish.isPublished"
+                label="Publish Status"
+                :description="isPublishing ? (settings.publish.isPublished ? 'Unpublishing...' : 'Publishing...') : 'Make your project live'"
+                :disabled="isPublishing"
+                @update:model-value="handlePublishToggle"
+              />
+
+              <ToggleItem
+                :model-value="settings.publish.visibility === 'password'"
+                label="Password Protection"
+                description="Require a password to view your site"
+                :disabled="isPublishing"
+                @update:model-value="handlePasswordProtectionToggle"
+              />
+
+              <div v-if="settings.publish.visibility === 'password'" class="space-y-3">
+                <FormField label="Password">
+                  <Input
+                    :model-value="settings.publish.password"
+                    placeholder="Enter password"
+                    @update:model-value="handlePasswordInput($event as string)"
+                  />
+                </FormField>
+
+                <Alert v-if="passwordChanged && settings.publish.isPublished" variant="warning">
+                  <div class="flex items-center justify-between">
+                    <span>Update your site to apply password protection</span>
+                    <Button size="xs" :loading="isPublishing" @click="doPublish">
+                      {{ isPublishing ? 'Updating...' : 'Update' }}
+                    </Button>
+                  </div>
+                </Alert>
+              </div>
+
+              <div v-if="settings.publish.publishedAt" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <i class="lni lni-calendar-days text-xs"></i>
+                Last published: {{ new Date(settings.publish.publishedAt).toLocaleDateString() }}
+              </div>
+            </Card.Content>
+          </Card>
+
+          <!-- Plan Card -->
+          <Card>
+            <Card.Header title="Plan" icon="lni-credit-card-multiple" />
+            <Card.Content class="space-y-4">
+              <!-- Current Plan Display -->
+              <div class="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-foreground">{{ currentPlan.name }}</span>
+                    <Badge v-if="settings.plan === 'pro'" variant="success" size="xs">Active</Badge>
+                  </div>
+                  <p class="text-xs text-muted-foreground mt-0.5">{{ currentPlan.description }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-lg font-semibold text-foreground">
+                    {{ currentPlan.price === 0 ? 'Free' : `$${currentPlan.price}` }}
+                  </p>
+                  <p v-if="currentPlan.price > 0" class="text-xs text-muted-foreground">/month</p>
+                </div>
+              </div>
+
+              <!-- Plan Features -->
+              <div class="space-y-2">
+                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your plan includes</p>
+                <div class="grid grid-cols-1 gap-1.5">
+                  <div
+                    v-for="label in currentPlan.featureLabels"
+                    :key="label"
+                    class="flex items-center gap-2 text-sm text-foreground"
+                  >
+                    <i class="lni lni-check text-sm text-green-500 shrink-0"></i>
+                    {{ label }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upgrade Button (only for free plan) -->
+              <div v-if="settings.plan === 'free'" class="pt-2">
+                <Button class="w-full" @click="showUpgradeModal = true">
+                  Upgrade to Pro - $6/month
+                </Button>
+                <p class="text-xs text-center text-muted-foreground mt-2">
+                  Unlock custom domains, analytics, integrations, and more
                 </p>
               </div>
-              <button
-                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-                :class="[
-                  settings.analytics.umamiEnabled ? 'bg-primary' : 'bg-input',
-                  (isSettingUpAnalytics || settings.plan === 'free') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                ]"
-                :disabled="isSettingUpAnalytics || settings.plan === 'free'"
-                @click="handleAnalyticsToggle"
-              >
-                <span
-                  class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform"
-                  :class="settings.analytics.umamiEnabled ? 'translate-x-4' : 'translate-x-0.5'"
-                />
-              </button>
-            </div>
 
-            <div v-if="isSettingUpAnalytics" class="flex items-center gap-2 text-xs text-muted-foreground">
-              <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              {{ settings.analytics.umamiEnabled ? 'Disabling analytics...' : 'Setting up analytics...' }}
-            </div>
-
-            <div v-if="settings.analytics.umamiEnabled && settings.analytics.umamiSiteId" class="p-3 bg-green-500/10 border border-green-500/20 rounded-md">
-              <div class="flex items-center gap-6">
-                <svg class="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p class="text-xs text-green-600">Analytics is active and tracking visitors</p>
+              <!-- Manage Subscription (for pro plan) -->
+              <div v-else class="pt-2">
+                <Button variant="outline" class="w-full">
+                  Manage Subscription
+                </Button>
               </div>
-            </div>
+            </Card.Content>
+          </Card>
 
-            <p v-if="settings.plan !== 'free'" class="text-xs text-muted-foreground">
-              Privacy-focused analytics powered by Umami. No cookies, GDPR compliant.
-            </p>
-          </div>
-        </div>
-
-        <!-- Collaborators Card -->
-        <div class="bg-card border border-border rounded-lg">
-          <div class="px-5 py-4 border-b border-border">
-            <div class="flex items-center gap-6">
-              <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <h2 class="text-sm text-foreground">Collaborators</h2>
-            </div>
-          </div>
-          <div class="p-5">
-            <CollaboratorsSection :project-id="projectId" />
-          </div>
-        </div>
-
-        <!-- Plan Card -->
-        <div class="bg-card border border-border rounded-lg">
-          <div class="px-5 py-4 border-b border-border">
-            <div class="flex items-center gap-6">
-              <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-              <h2 class="text-sm text-foreground">Plan</h2>
-            </div>
-          </div>
-          <div class="p-5">
-            <div class="grid grid-cols-3 gap-3">
-              <button
-                v-for="plan in plans"
-                :key="plan.id"
-                class="flex flex-col p-3 rounded-lg border-2 transition-all text-left"
-                :class="settings.plan === plan.id
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-muted-foreground/25'"
-                @click="projectStore.updatePlan(plan.id)"
-              >
-                <div class="flex items-center justify-between mb-1">
-                  <span class="text-sm font-medium text-foreground">{{ plan.name }}</span>
-                  <span
-                    v-if="settings.plan === plan.id"
-                    class="w-2 h-2 rounded-full bg-primary"
-                  />
-                </div>
-                <span class="text-lg font-semibold text-foreground mb-2">{{ plan.price }}</span>
-                <ul class="space-y-1">
-                  <li
-                    v-for="feature in plan.features.slice(0, 3)"
-                    :key="feature"
-                    class="flex items-center gap-1 text-[10px] text-muted-foreground"
-                  >
-                    <svg class="w-2.5 h-2.5 text-primary shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    {{ feature }}
-                  </li>
-                </ul>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Danger Zone - Full Width -->
-      <div class="mt-6 bg-card border border-destructive/30 rounded-lg">
-        <div class="px-5 py-4 border-b border-destructive/30">
-          <div class="flex items-center gap-6">
-            <svg class="w-4 h-4 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h2 class="text-sm font-medium text-destructive">Danger Zone</h2>
-          </div>
-        </div>
-        <div class="p-5">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-foreground">Delete Project</p>
-              <p class="text-xs text-muted-foreground">Permanently delete this project and all its data.</p>
-            </div>
-            <button
-              class="h-8 px-3 bg-destructive text-destructive-foreground text-xs font-medium rounded-md hover:bg-destructive/90 transition-colors"
-              @click="showDeleteModal = true"
-            >
-              Delete Project
-            </button>
-          </div>
+          <!-- Danger Zone Card -->
+          <Card variant="destructive">
+            <Card.Header :border-bottom="false">
+              <template #icon>
+                <i class="lni lni-xmark-circle text-sm" style="color: var(--color-destructive)"></i>
+              </template>
+              <h2 class="text-xs font-medium text-destructive">Danger Zone</h2>
+              <template #action>
+                <Button variant="destructive" size="sm" @click="showDeleteModal = true">
+                  Delete Project
+                </Button>
+              </template>
+            </Card.Header>
+          </Card>
         </div>
       </div>
     </div>
@@ -649,6 +630,32 @@ async function handleAnalyticsToggle() {
       v-model:open="showUnpublishModal"
       :project-title="settings.title"
       @confirm="handleUnpublishConfirm"
+    />
+
+    <!-- Plan Upgrade Modal -->
+    <PlanUpgrade
+      v-model:open="showUpgradeModal"
+      :project-id="projectId"
+    />
+
+    <!-- OG Image Upload Modal -->
+    <ProjectUpload
+      v-model:open="showOgImageUpload"
+      :project-id="projectId"
+      @uploaded="handleOgImageUploaded"
+    />
+
+    <!-- Favicon Upload Modal -->
+    <ProjectUpload
+      v-model:open="showFaviconUpload"
+      :project-id="projectId"
+      @uploaded="handleFaviconUploaded"
+    />
+
+    <!-- Invite Collaborator Modal -->
+    <InviteCollaborator
+      v-model:open="showInviteModal"
+      :project-id="projectId"
     />
   </div>
 </template>

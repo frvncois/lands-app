@@ -2,9 +2,80 @@
 import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import PreviewSection from '@/components/preview/PreviewSection.vue'
+import { createPresetBlock, type PresetType } from '@/lib/editor-utils'
 import type { SectionBlockType } from '@/types/editor'
+import ContextMenu from '@/components/ui/ContextMenu.vue'
+import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
+import BlockPicker from '@/components/builder/BlockPicker.vue'
 
 const editorStore = useEditorStore()
+
+// Context menu for viewport
+const viewportContextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
+const isBlockPickerOpen = ref(false)
+const blockPickerInsertIndex = ref<number | null>(null)
+
+// Handle right-click on viewport (not on a block)
+function handleViewportContextMenu(event: MouseEvent) {
+  // Only handle if clicking directly on the viewport/page container, not on blocks
+  const target = event.target as HTMLElement
+  const isOnBlock = target.closest('section[class*="cursor-pointer"]')
+
+  if (!isOnBlock) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    // Calculate insert index based on click position
+    const blocks = editorStore.blocks
+    const hasHeader = blocks[0]?.type === 'header'
+    const footerIndex = blocks.findIndex(b => b.type === 'footer')
+
+    // Default to after header (or start if no header)
+    let insertIndex = hasHeader ? 1 : 0
+
+    // If we have blocks, find where the click happened relative to them
+    if (blocks.length > 0) {
+      const clickY = event.clientY
+      const blockElements = document.querySelectorAll('[data-preview-block]')
+
+      for (let i = 0; i < blockElements.length; i++) {
+        const rect = blockElements[i].getBoundingClientRect()
+        if (clickY < rect.top + rect.height / 2) {
+          insertIndex = i
+          break
+        }
+        insertIndex = i + 1
+      }
+
+      // Clamp to valid range (after header, before footer)
+      const minIndex = hasHeader ? 1 : 0
+      const maxIndex = footerIndex !== -1 ? footerIndex : blocks.length
+      insertIndex = Math.max(minIndex, Math.min(insertIndex, maxIndex))
+    }
+
+    blockPickerInsertIndex.value = insertIndex
+    viewportContextMenuRef.value?.open(event)
+  }
+}
+
+function handleAddContent() {
+  isBlockPickerOpen.value = true
+}
+
+function handleBlockPickerSelectBlock(type: SectionBlockType) {
+  const block = editorStore.addBlock(type, blockPickerInsertIndex.value ?? undefined)
+  if (block) {
+    editorStore.selectBlock(block.id)
+  }
+  blockPickerInsertIndex.value = null
+}
+
+function handleBlockPickerSelectPreset(type: PresetType) {
+  const block = createPresetBlock(type)
+  editorStore.addPresetBlock(block, blockPickerInsertIndex.value ?? undefined)
+  editorStore.selectBlock(block.id)
+  blockPickerInsertIndex.value = null
+}
 
 // Drop zone state
 const isDragOver = ref(false)
@@ -84,18 +155,34 @@ function handlePreviewClick(event: MouseEvent) {
 // Drag and drop handlers for new sections
 let dragEnterCounter = 0
 
+// Check if the drag event contains a valid block or preset type (for new blocks)
+function isValidNewBlockDragType(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes('application/x-section-type') ||
+         event.dataTransfer?.types.includes('application/x-preset-type') || false
+}
+
+// Check if drag event contains block move data
+function isBlockMoveDragType(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes('application/x-block-move') || false
+}
+
+// Check if any valid drag type
+function isValidDragType(event: DragEvent): boolean {
+  return isValidNewBlockDragType(event) || isBlockMoveDragType(event)
+}
+
 function handleDragEnter(event: DragEvent) {
-  if (event.dataTransfer?.types.includes('application/x-section-type')) {
+  if (isValidDragType(event)) {
     dragEnterCounter++
     isDragOver.value = true
   }
 }
 
 function handleDragOver(event: DragEvent) {
-  if (event.dataTransfer?.types.includes('application/x-section-type')) {
+  if (isValidDragType(event)) {
     event.preventDefault()
     if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'copy'
+      event.dataTransfer.dropEffect = isBlockMoveDragType(event) ? 'move' : 'copy'
     }
   }
 }
@@ -112,10 +199,35 @@ function handleDrop(event: DragEvent) {
   event.preventDefault()
   dragEnterCounter = 0
   isDragOver.value = false
+  const index = dropTargetIndex.value
+  dropTargetIndex.value = null
+
+  // Check for block move first (moving existing block to root level)
+  const blockIdToMove = event.dataTransfer?.getData('application/x-block-move')
+  if (blockIdToMove) {
+    // Find current parent
+    const currentParent = editorStore.findParentBlock(blockIdToMove)
+    if (currentParent) {
+      // Moving from a parent to root level - use moveBlockToRoot
+      editorStore.moveBlockToRoot(blockIdToMove, index !== null ? index : undefined)
+      editorStore.selectBlock(blockIdToMove)
+    }
+    // If already at root, the reorder happens via section drag handlers
+    return
+  }
+
+  // Check for preset type
+  const presetType = event.dataTransfer?.getData('application/x-preset-type') as PresetType
+  if (presetType) {
+    const block = createPresetBlock(presetType)
+    editorStore.addPresetBlock(block, index !== null ? index : undefined)
+    editorStore.selectBlock(block.id)
+    return
+  }
+
+  // Otherwise check for section type
   const sectionType = event.dataTransfer?.getData('application/x-section-type') as SectionBlockType
   if (sectionType) {
-    const index = dropTargetIndex.value
-    dropTargetIndex.value = null
     const block = editorStore.addBlock(sectionType, index !== null ? index : undefined)
     if (block) {
       editorStore.selectBlock(block.id)
@@ -125,7 +237,7 @@ function handleDrop(event: DragEvent) {
 
 // Drop zone handlers for inserting between sections
 function handleSectionDragEnter(index: number, event: DragEvent) {
-  if (event.dataTransfer?.types.includes('application/x-section-type')) {
+  if (isValidDragType(event)) {
     const blocks = editorStore.blocks
 
     // Don't allow dropping before header (index 0 if header exists)
@@ -148,11 +260,11 @@ function handleSectionDragEnter(index: number, event: DragEvent) {
 }
 
 function handleDropZoneDragOver(event: DragEvent) {
-  if (event.dataTransfer?.types.includes('application/x-section-type')) {
+  if (isValidDragType(event)) {
     event.preventDefault()
     event.stopPropagation()
     if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'copy'
+      event.dataTransfer.dropEffect = isBlockMoveDragType(event) ? 'move' : 'copy'
     }
   }
 }
@@ -164,6 +276,37 @@ function handleSectionDrop(event: DragEvent) {
   isDragOver.value = false
   const index = dropTargetIndex.value
   dropTargetIndex.value = null
+
+  // Check for block move first (reordering or moving to root)
+  const blockIdToMove = event.dataTransfer?.getData('application/x-block-move')
+  if (blockIdToMove && index !== null) {
+    const currentParent = editorStore.findParentBlock(blockIdToMove)
+    if (currentParent) {
+      // Moving from a parent to root level
+      editorStore.moveBlockToRoot(blockIdToMove, index)
+    } else {
+      // Already at root - reorder
+      const currentIndex = editorStore.blocks.findIndex(b => b.id === blockIdToMove)
+      if (currentIndex !== -1 && currentIndex !== index) {
+        // Adjust target index if moving down (since we remove first)
+        const targetIndex = currentIndex < index ? index - 1 : index
+        editorStore.reorderBlocks(currentIndex, targetIndex)
+      }
+    }
+    editorStore.selectBlock(blockIdToMove)
+    return
+  }
+
+  // Check for preset type
+  const presetType = event.dataTransfer?.getData('application/x-preset-type') as PresetType
+  if (presetType && index !== null) {
+    const block = createPresetBlock(presetType)
+    editorStore.addPresetBlock(block, index)
+    editorStore.selectBlock(block.id)
+    return
+  }
+
+  // Otherwise check for section type
   const sectionType = event.dataTransfer?.getData('application/x-section-type') as SectionBlockType
   if (sectionType && index !== null) {
     const block = editorStore.addBlock(sectionType, index)
@@ -178,7 +321,7 @@ function handleSectionDrop(event: DragEvent) {
   <div class="flex-1 flex flex-col h-full overflow-hidden">
     <!-- Preview area -->
     <div
-      class="flex-1 overflow-auto p-6 transition-colors"
+      class="flex-1 overflow-auto transition-colors [&>*]:min-h-full"
       :class="isDragOver ? 'bg-primary/5' : ''"
       @click="handlePreviewClick"
       @dragenter="handleDragEnter"
@@ -188,14 +331,17 @@ function handleSectionDrop(event: DragEvent) {
     >
       <!-- Viewport container -->
       <div
-        class="mx-auto transition-all duration-300"
+        class="mx-auto h-full transition-all duration-300"
         :style="{ maxWidth: editorStore.viewportWidth }"
+        @click.self="editorStore.selectBlock(null)"
+        @contextmenu="handleViewportContextMenu"
       >
         <!-- Page container with settings applied -->
         <div
-          class="mx-auto bg-background rounded-lg shadow-lg min-h-full transition-all duration-300"
+          class="mx-auto bg-background h-full transition-all duration-300"
           :class="pageClasses"
           :style="pageStyles"
+          @click.self="editorStore.selectBlock(null)"
         >
           <!-- Empty state -->
           <div
@@ -212,13 +358,13 @@ function handleSectionDrop(event: DragEvent) {
           </div>
 
           <!-- Section blocks -->
-          <div v-else class="p-4 space-y-8">
+          <div v-else>
             <template v-for="(block, index) in editorStore.blocks" :key="block.id">
               <div class="relative">
                 <!-- Drop indicator line (positioned absolutely, no layout impact) -->
                 <div
                   v-if="isDragOver && dropTargetIndex === index"
-                  class="absolute -top-4 left-0 right-0 h-1 bg-primary rounded-full z-10"
+                  class="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full z-10"
                 />
 
                 <PreviewSection
@@ -241,5 +387,19 @@ function handleSectionDrop(event: DragEvent) {
         </div>
       </div>
     </div>
+
+    <!-- Viewport Context Menu -->
+    <ContextMenu ref="viewportContextMenuRef">
+      <ContextMenuItem icon="lni-plus" @click="handleAddContent">
+        Add content
+      </ContextMenuItem>
+    </ContextMenu>
+
+    <!-- Block Picker -->
+    <BlockPicker
+      v-model:open="isBlockPickerOpen"
+      @select-block="handleBlockPickerSelectBlock"
+      @select-preset="handleBlockPickerSelectPreset"
+    />
   </div>
 </template>

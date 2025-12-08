@@ -3,26 +3,74 @@ import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useProjectsStore } from '@/stores/projects'
 import { useRoute } from 'vue-router'
-import { blockItemLabels, sectionBlockLabels, sectionBlockIcons, blockItemIcons, formFieldLabels, formFieldIcons, socialPlatformLabels } from '@/lib/editor-utils'
-import { getAllThemes } from '@/lib/themes'
 import {
-  alignmentOptions,
-  orientationOptions,
-  aspectRatioOptions,
-  fontWeightOptions,
-  fontSizeOptions,
-  lineHeightOptions,
-  effectOptions,
-  postLayoutOptions,
-  linkLayoutOptions,
-  productLayoutOptions,
-  columnsOptions,
-  spacingOptions,
+  sectionBlockLabels,
+  sectionBlockIcons,
+  formFieldBlockLabels,
+  formInputTypeOptions,
+  socialPlatformLabels,
+  socialPlatformIcons,
   maxWidthOptions,
-  fontFamilyOptions,
+  blockHeightOptions,
+  alignmentOptions,
+  buttonVariantOptions,
+  buttonSizeOptions,
+  headingLevelOptions,
+  isFormFieldBlock,
+  generateId,
+  // Flexbox options
+  justifyContentOptions,
+  alignItemsOptions,
+  flexDirectionOptions,
+  flexWrapOptions,
+  justifyItemsOptions,
 } from '@/lib/editor-utils'
-import type { BlockItemStyles, SectionBlockStyles, PostSectionStyles, PostItem, LinkSectionStyles, LinkItem, ProductSectionStyles, ProductItem, PageSettings, FormField, FormSectionSettings, HeaderSectionSettings, HeaderNavLink, FooterSectionSettings, FooterLink, FooterSocialLink } from '@/types/editor'
-import { INTEGRATION_DEFINITIONS } from '@/types/project'
+import { getStylesForUseCase } from '@/lib/layouts'
+import {
+  getResponsiveStyles,
+  setViewportStyleOverrides,
+  hasViewportOverride,
+  getInheritedValue,
+} from '@/lib/style-utils'
+import type {
+  PageSettings,
+  HeaderSettings,
+  HeaderNavLink,
+  FooterSettings,
+  FooterLink,
+  FooterSocialLink,
+  FormSettings,
+  FormInputSettings,
+  FormTextareaSettings,
+  FormSelectSettings,
+  FormRadioSettings,
+  FormCheckboxSettings,
+  FormButtonSettings,
+  FormSelectOption,
+  HeadingSettings,
+  TextSettings,
+  ImageSettings,
+  ButtonSettings,
+  DividerSettings,
+  BaseBlockStyles,
+  CoreBlockStyles,
+  HeadingStyles,
+  TextStyles,
+  ImageStyles,
+  VideoSettings,
+  VideoStyles,
+  IconSettings,
+  IconStyles,
+  ContainerSettings,
+  ContainerStyles,
+  GridSettings,
+  GridStyles,
+  StackSettings,
+  StackStyles,
+  ButtonStyles,
+  AnimationSettings,
+  FreeformSettings,
+} from '@/types/editor'
 
 import InspectorSection from '@/components/inspector/InspectorSection.vue'
 import InspectorField from '@/components/inspector/InspectorField.vue'
@@ -30,265 +78,426 @@ import SegmentedControl from '@/components/inspector/SegmentedControl.vue'
 import SpacingInput from '@/components/inspector/SpacingInput.vue'
 import ColorInput from '@/components/inspector/ColorInput.vue'
 import SelectInput from '@/components/inspector/SelectInput.vue'
-import BorderInput from '@/components/inspector/BorderInput.vue'
+import SliderInput from '@/components/inspector/SliderInput.vue'
+import FontSizeSlider from '@/components/inspector/FontSizeSlider.vue'
 import TextInput from '@/components/inspector/TextInput.vue'
 import ImageInput from '@/components/inspector/ImageInput.vue'
 import ToggleInput from '@/components/inspector/ToggleInput.vue'
+import BorderInput from '@/components/inspector/BorderInput.vue'
+import AnimationSection from '@/components/inspector/AnimationSection.vue'
 
 const editorStore = useEditorStore()
 const projectsStore = useProjectsStore()
 const route = useRoute()
 
-// Get current project for integrations
-const currentProject = computed(() => {
-  const projectId = route.params.projectId as string
-  return projectsStore.projects.find(p => p.id === projectId)
-})
-
-// Get connected integrations for form integration selector
-const connectedIntegrations = computed(() => {
-  if (!currentProject.value?.integrations) return []
-  return currentProject.value.integrations
-    .filter(i => i.connected)
-    .map(i => ({
-      value: i.id,
-      label: INTEGRATION_DEFINITIONS[i.provider]?.name || i.provider,
-      provider: i.provider
-    }))
-})
-
 const selectedBlock = computed(() => editorStore.selectedBlock)
-const selectedItem = computed(() => editorStore.selectedItem)
-const selectedPostItem = computed(() => editorStore.selectedPostItem)
-const selectedLinkItem = computed(() => editorStore.selectedLinkItem)
-const selectedProductItem = computed(() => editorStore.selectedProductItem)
+const selectedItemId = computed(() => editorStore.selectedItemId)
 const pageSettings = computed(() => editorStore.pageSettings)
+const currentViewport = computed(() => editorStore.viewport)
 
-// Check if selected block is a post section
-const isPostSection = computed(() => selectedBlock.value?.type === 'post')
+// Get responsive styles for the current viewport (merged/cascaded)
+const responsiveStyles = computed((): CoreBlockStyles => {
+  if (!selectedBlock.value) return {}
+  return getResponsiveStyles(selectedBlock.value.styles as BaseBlockStyles, currentViewport.value)
+})
 
-// Check if selected block is a link section
-const isLinkSection = computed(() => selectedBlock.value?.type === 'link')
+// Check if selected block is inside a List/Collection (Grid > Stack pattern)
+const isInListCollection = computed(() => {
+  if (!selectedBlock.value) return false
+  return editorStore.isInsideListCollection(selectedBlock.value.id)
+})
 
-// Check if selected block is a product section
-const isProductSection = computed(() => selectedBlock.value?.type === 'product')
+// Check if selected block is a direct child of a Grid
+const isChildOfGrid = computed(() => {
+  if (!selectedBlock.value) return false
+  return editorStore.isDirectChildOfGrid(selectedBlock.value.id)
+})
 
-// Check if selected block is a form section
-const isFormSection = computed(() => selectedBlock.value?.type === 'form')
+// Get the parent grid's column count
+const parentGridColumns = computed(() => {
+  if (!selectedBlock.value) return null
+  return editorStore.getParentGridColumns(selectedBlock.value.id)
+})
 
-// Check if selected block is a header section
+// Get overwriteStyle setting from selected block
+const hasOverwriteStyle = computed(() => {
+  if (!selectedBlock.value) return false
+  const settings = selectedBlock.value.settings as Record<string, unknown>
+  return !!settings.overwriteStyle
+})
+
+// Breadcrumb item type
+interface BreadcrumbItem {
+  id: string | null
+  label: string
+  icon?: string
+}
+
+// Build breadcrumb path from root to selected block
+const breadcrumbPath = computed<BreadcrumbItem[]>(() => {
+  const path: BreadcrumbItem[] = [{ id: null, label: 'Page', icon: 'lni-home-2' }]
+
+  if (!selectedBlock.value) return path
+
+  // Build ancestry chain
+  const ancestors: BreadcrumbItem[] = []
+  let currentId: string | null = selectedBlock.value.id
+
+  while (currentId) {
+    const block = editorStore.findBlockById(currentId)
+    if (!block) break
+
+    ancestors.unshift({
+      id: block.id,
+      label: block.name || sectionBlockLabels[block.type],
+      icon: sectionBlockIcons[block.type]
+    })
+
+    const parent = editorStore.findParentBlock(currentId)
+    currentId = parent?.id || null
+  }
+
+  path.push(...ancestors)
+
+  // Add item if selected (form field, nav link, etc.)
+  if (selectedItemId.value && selectedBlock.value) {
+    const block = selectedBlock.value
+    const settings = block.settings as Record<string, unknown>
+
+    // Header nav link
+    if (block.type === 'header' && Array.isArray(settings.navLinks)) {
+      const link = (settings.navLinks as HeaderNavLink[]).find(l => l.id === selectedItemId.value)
+      if (link) {
+        path.push({ id: `item:${link.id}`, label: link.label || 'Nav Link', icon: 'lni-link-2' })
+      }
+    }
+
+    // Footer link
+    if (block.type === 'footer' && Array.isArray(settings.links)) {
+      const link = (settings.links as FooterLink[]).find(l => l.id === selectedItemId.value)
+      if (link) {
+        path.push({ id: `item:${link.id}`, label: link.label || 'Footer Link', icon: 'lni-link-2' })
+      }
+    }
+
+    // Footer social
+    if (block.type === 'footer' && Array.isArray(settings.socialLinks)) {
+      const social = (settings.socialLinks as FooterSocialLink[]).find(l => l.id === selectedItemId.value)
+      if (social) {
+        path.push({ id: `item:${social.id}`, label: socialPlatformLabels[social.platform], icon: socialPlatformIcons[social.platform] })
+      }
+    }
+
+    // Form field blocks are now child blocks, so they're handled by the parent block traversal above
+  }
+
+  return path
+})
+
+// Handle breadcrumb click navigation
+function handleBreadcrumbClick(item: BreadcrumbItem) {
+  if (item.id === null) {
+    // Click on Page - deselect everything
+    editorStore.selectBlock(null)
+  } else if (item.id.startsWith('item:')) {
+    // Item is already selected, do nothing
+  } else {
+    // Select the block
+    editorStore.selectBlock(item.id)
+  }
+}
+
+// Check section types
 const isHeaderSection = computed(() => selectedBlock.value?.type === 'header')
-
-// Check if selected block is a footer section
 const isFooterSection = computed(() => selectedBlock.value?.type === 'footer')
+const isFormSection = computed(() => selectedBlock.value?.type === 'form')
+const isFreeformSection = computed(() => selectedBlock.value?.type === 'freeform')
 
-// Check if we have a post item selected
-const hasSelectedPostItem = computed(() => isPostSection.value && selectedPostItem.value !== null)
-
-// Check if we have a link item selected
-const hasSelectedLinkItem = computed(() => isLinkSection.value && selectedLinkItem.value !== null)
-
-// Check if we have a product item selected
-const hasSelectedProductItem = computed(() => isProductSection.value && selectedProductItem.value !== null)
-
-// Check if we have a form field selected
-const selectedFormField = computed(() => editorStore.selectedFormField)
-const hasSelectedFormField = computed(() => isFormSection.value && selectedFormField.value !== null)
-
-// Check if we have a header nav link selected
-const selectedHeaderNavLink = computed(() => editorStore.selectedHeaderNavLink)
-const hasSelectedHeaderNavLink = computed(() => isHeaderSection.value && selectedHeaderNavLink.value !== null)
-
-// Check if we have a footer link selected
-const selectedFooterLink = computed(() => editorStore.selectedFooterLink)
-const hasSelectedFooterLink = computed(() => isFooterSection.value && selectedFooterLink.value !== null)
-
-// Check if we have a footer social link selected
-const selectedFooterSocialLink = computed(() => editorStore.selectedFooterSocialLink)
-const hasSelectedFooterSocialLink = computed(() => isFooterSection.value && selectedFooterSocialLink.value !== null)
-
-// Check if selected item is a text-based item
-const isTextItem = computed(() => {
-  if (!selectedItem.value) return false
-  return ['heading', 'subheading', 'text', 'button'].includes(selectedItem.value.type)
+// Get selected items from blocks
+const selectedHeaderNavLink = computed(() => {
+  if (!isHeaderSection.value || !selectedItemId.value) return null
+  const settings = selectedBlock.value?.settings as HeaderSettings
+  return settings.navLinks.find(l => l.id === selectedItemId.value)
 })
 
-// Check if selected item supports size options
-const hasSizeOptions = computed(() => {
-  if (!selectedItem.value) return false
-  return ['image', 'video'].includes(selectedItem.value.type)
+const selectedFooterLink = computed(() => {
+  if (!isFooterSection.value || !selectedItemId.value) return null
+  const settings = selectedBlock.value?.settings as FooterSettings
+  return settings.links.find(l => l.id === selectedItemId.value)
 })
 
-// Get post section styles
-const postStyles = computed(() => {
-  if (!isPostSection.value) return null
-  return selectedBlock.value?.styles as PostSectionStyles
+const selectedFooterSocialLink = computed(() => {
+  if (!isFooterSection.value || !selectedItemId.value) return null
+  const settings = selectedBlock.value?.settings as FooterSettings
+  return settings.socialLinks.find(l => l.id === selectedItemId.value)
 })
 
-// Get link section styles
-const linkStyles = computed(() => {
-  if (!isLinkSection.value) return null
-  return selectedBlock.value?.styles as LinkSectionStyles
+// Check if selected block is a form field block
+const isFormFieldSection = computed(() => {
+  return selectedBlock.value ? isFormFieldBlock(selectedBlock.value.type) : false
 })
 
-// Get product section styles
-const productStyles = computed(() => {
-  if (!isProductSection.value) return null
-  return selectedBlock.value?.styles as ProductSectionStyles
+// Layout styles
+const currentUseCase = computed(() => pageSettings.value.useCase)
+const currentLayoutId = computed(() => pageSettings.value.layoutId)
+
+const layoutStyles = computed(() => {
+  if (!currentUseCase.value) return []
+  return getStylesForUseCase(currentUseCase.value)
 })
 
-// Update section block styles
-function updateBlockStyle<K extends keyof SectionBlockStyles>(key: K, value: SectionBlockStyles[K]) {
-  if (!selectedBlock.value) return
-  editorStore.updateBlockStyles(selectedBlock.value.id, { [key]: value })
-}
+const hasLayoutStyles = computed(() => layoutStyles.value.length > 0)
 
-// Update post section styles
-function updatePostSectionStyle<K extends keyof PostSectionStyles>(key: K, value: PostSectionStyles[K]) {
-  if (!selectedBlock.value) return
-  editorStore.updateBlockStyles(selectedBlock.value.id, { [key]: value })
-}
-
-// Update post section settings (visibility toggles)
-function updatePostSectionSetting(key: string, value: boolean) {
-  if (!selectedBlock.value) return
-  editorStore.updatePostSectionSettings(selectedBlock.value.id, { [key]: value })
-}
-
-// Update link section styles
-function updateLinkSectionStyle<K extends keyof LinkSectionStyles>(key: K, value: LinkSectionStyles[K]) {
-  if (!selectedBlock.value) return
-  editorStore.updateBlockStyles(selectedBlock.value.id, { [key]: value })
-}
-
-// Update link section settings (visibility toggles)
-function updateLinkSectionSetting(key: string, value: boolean) {
-  if (!selectedBlock.value) return
-  editorStore.updateLinkSectionSettings(selectedBlock.value.id, { [key]: value })
-}
-
-// Update product section styles
-function updateProductSectionStyle<K extends keyof ProductSectionStyles>(key: K, value: ProductSectionStyles[K]) {
-  if (!selectedBlock.value) return
-  editorStore.updateBlockStyles(selectedBlock.value.id, { [key]: value })
-}
-
-// Update product section settings (visibility toggles)
-function updateProductSectionSetting(key: string, value: boolean) {
-  if (!selectedBlock.value) return
-  editorStore.updateProductSectionSettings(selectedBlock.value.id, { [key]: value })
-}
-
-// Update block item styles
-function updateItemStyle<K extends keyof BlockItemStyles>(key: K, value: BlockItemStyles[K]) {
-  if (!selectedBlock.value || !selectedItem.value) return
-  editorStore.updateBlockItemStyles(selectedBlock.value.id, selectedItem.value.id, { [key]: value })
-}
-
-// Update post item fields
-function updatePostItemField<K extends keyof PostItem>(key: K, value: PostItem[K]) {
-  if (!selectedBlock.value || !selectedPostItem.value) return
-  editorStore.updatePostItem(selectedBlock.value.id, selectedPostItem.value.id, { [key]: value })
-}
-
-// Update link item fields
-function updateLinkItemField<K extends keyof LinkItem>(key: K, value: LinkItem[K]) {
-  if (!selectedBlock.value || !selectedLinkItem.value) return
-  editorStore.updateLinkItem(selectedBlock.value.id, selectedLinkItem.value.id, { [key]: value })
-}
-
-// Update product item fields
-function updateProductItemField<K extends keyof ProductItem>(key: K, value: ProductItem[K]) {
-  if (!selectedBlock.value || !selectedProductItem.value) return
-  editorStore.updateProductItem(selectedBlock.value.id, selectedProductItem.value.id, { [key]: value })
-}
-
-// Update page settings
+// Update functions
 function updatePageSetting<K extends keyof PageSettings>(key: K, value: PageSettings[K]) {
   editorStore.updatePageSettings({ [key]: value })
 }
 
-// Update form section settings
-function updateFormSectionSetting<K extends keyof FormSectionSettings>(key: K, value: FormSectionSettings[K]) {
+function updateBlockSettings(settings: Record<string, unknown>) {
   if (!selectedBlock.value) return
-  editorStore.updateFormSectionSettings(selectedBlock.value.id, { [key]: value })
+  editorStore.updateBlockSettings(selectedBlock.value.id, settings)
 }
 
-// Update form field
-function updateFormFieldSetting<K extends keyof FormField>(key: K, value: FormField[K]) {
-  if (!selectedBlock.value || !selectedFormField.value) return
-  editorStore.updateFormField(selectedBlock.value.id, selectedFormField.value.id, { [key]: value })
-}
-
-// Update header settings
-function updateHeaderSetting<K extends keyof HeaderSectionSettings>(key: K, value: HeaderSectionSettings[K]) {
+function updateBlockStyles(styles: Record<string, unknown>) {
   if (!selectedBlock.value) return
-  editorStore.updateHeaderSettings(selectedBlock.value.id, { [key]: value })
+
+  // For core styles (padding, margin, background, border, shadow), apply viewport-aware update
+  const coreStyleKeys = ['padding', 'margin', 'backgroundColor', 'backgroundImage', 'backgroundPosition', 'backgroundSize', 'border', 'shadow']
+  const hasCoreStyles = Object.keys(styles).some(key => coreStyleKeys.includes(key))
+
+  if (hasCoreStyles && currentViewport.value !== 'desktop') {
+    // Update only the current viewport's overrides
+    const currentStyles = (selectedBlock.value.styles || {}) as BaseBlockStyles
+    const updatedStyles = setViewportStyleOverrides(currentStyles, currentViewport.value, styles as Partial<CoreBlockStyles>)
+    editorStore.updateBlockStyles(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true) // true = replace entire styles object
+  } else {
+    // Desktop or non-responsive styles (like animation) - update normally
+    editorStore.updateBlockStyles(selectedBlock.value.id, styles)
+  }
 }
 
-// Update header nav link
+// Toggle overwriteStyle directly on the block (doesn't sync with siblings)
+function toggleOverwriteStyle(value: boolean) {
+  if (!selectedBlock.value) return
+  const block = editorStore.findBlockById(selectedBlock.value.id)
+  if (block) {
+    (block.settings as Record<string, unknown>).overwriteStyle = value
+    editorStore.rebuildBlockIndex()
+  }
+}
+
 function updateHeaderNavLinkField<K extends keyof HeaderNavLink>(key: K, value: HeaderNavLink[K]) {
   if (!selectedBlock.value || !selectedHeaderNavLink.value) return
   editorStore.updateHeaderNavLink(selectedBlock.value.id, selectedHeaderNavLink.value.id, { [key]: value })
 }
 
-// Update footer settings
-function updateFooterSetting<K extends keyof FooterSectionSettings>(key: K, value: FooterSectionSettings[K]) {
-  if (!selectedBlock.value) return
-  editorStore.updateFooterSettings(selectedBlock.value.id, { [key]: value })
-}
-
-// Update footer link
 function updateFooterLinkField<K extends keyof FooterLink>(key: K, value: FooterLink[K]) {
   if (!selectedBlock.value || !selectedFooterLink.value) return
   editorStore.updateFooterLink(selectedBlock.value.id, selectedFooterLink.value.id, { [key]: value })
 }
 
-// Update footer social link
 function updateFooterSocialLinkField<K extends keyof FooterSocialLink>(key: K, value: FooterSocialLink[K]) {
   if (!selectedBlock.value || !selectedFooterSocialLink.value) return
   editorStore.updateFooterSocialLink(selectedBlock.value.id, selectedFooterSocialLink.value.id, { [key]: value })
 }
 
-// Layouts
-const layouts = getAllThemes()
-const showLayoutConfirm = ref<string | null>(null)
+// Form field blocks are now regular blocks, use updateBlockSettings to update them
 
-function handleLayoutClick(layoutId: string) {
-  // If there are existing blocks, show confirmation
-  if (editorStore.blocks.length > 0) {
-    showLayoutConfirm.value = layoutId
+function handleLayoutStyleClick(layoutId: string) {
+  editorStore.applyLayout(layoutId)
+}
+
+// Font family options
+const fontFamilyOptions = [
+  { value: 'Inter', label: 'Inter' },
+  { value: 'Roboto', label: 'Roboto' },
+  { value: 'Open Sans', label: 'Open Sans' },
+  { value: 'Lato', label: 'Lato' },
+  { value: 'Poppins', label: 'Poppins' },
+  { value: 'Montserrat', label: 'Montserrat' },
+  { value: 'system-ui', label: 'System' },
+]
+
+const sectionGapOptions = [
+  { value: '0', label: '0' },
+  { value: '16px', label: '16' },
+  { value: '24px', label: '24' },
+  { value: '32px', label: '32' },
+  { value: '48px', label: '48' },
+  { value: '64px', label: '64' },
+]
+
+// Hovered breadcrumb item for expand animation
+const hoveredBreadcrumbId = ref<string | null>(null)
+
+// ============================================
+// TRANSLATION-AWARE CONTENT HELPERS
+// ============================================
+
+// Get display value for translatable content fields
+function getTranslatableContent(field: 'content' | 'label' | 'attribution' | 'source' | 'submitLabel' | 'placeholder' | 'buttonLabel' | 'copyrightText' | 'ctaButtonLabel', fallback: string = ''): string {
+  if (!selectedBlock.value) return fallback
+
+  // If editing a translation, get from translations
+  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
+    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
+    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
+    if (blockTranslation && (blockTranslation as Record<string, unknown>)[field] !== undefined) {
+      return (blockTranslation as Record<string, unknown>)[field] as string
+    }
+  }
+
+  // Otherwise return source content
+  const settings = selectedBlock.value.settings as Record<string, unknown>
+  return (settings[field] as string) ?? fallback
+}
+
+// Update translatable content - routes to translation or source based on mode
+function updateTranslatableContent(field: 'content' | 'label' | 'attribution' | 'source' | 'submitLabel' | 'placeholder' | 'buttonLabel' | 'copyrightText' | 'ctaButtonLabel', value: string) {
+  if (!selectedBlock.value) return
+
+  if (editorStore.isEditingTranslation) {
+    // Update translation
+    editorStore.updateBlockTranslation(selectedBlock.value.id, field, value)
   } else {
-    applyLayout(layoutId)
+    // Update source content
+    updateBlockSettings({ [field]: value })
   }
 }
 
-function applyLayout(layoutId: string) {
-  editorStore.applyTheme(layoutId)
-  showLayoutConfirm.value = null
+// For header CTA button label
+function getHeaderCtaLabel(): string {
+  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return ''
+  const settings = selectedBlock.value.settings as HeaderSettings
+
+  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
+    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
+    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
+    if (blockTranslation?.ctaButtonLabel !== undefined) {
+      return blockTranslation.ctaButtonLabel
+    }
+  }
+
+  return settings.ctaButton?.label ?? ''
 }
 
-function cancelLayoutApply() {
-  showLayoutConfirm.value = null
+function updateHeaderCtaLabel(value: string) {
+  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return
+  const settings = selectedBlock.value.settings as HeaderSettings
+
+  if (editorStore.isEditingTranslation) {
+    editorStore.updateBlockTranslation(selectedBlock.value.id, 'ctaButtonLabel', value)
+  } else {
+    updateBlockSettings({ ctaButton: { ...settings.ctaButton, label: value } })
+  }
 }
+
+// For header nav link labels
+function getNavLinkLabel(linkId: string): string {
+  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return ''
+  const settings = selectedBlock.value.settings as HeaderSettings
+  const link = settings.navLinks.find(l => l.id === linkId)
+  if (!link) return ''
+
+  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
+    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
+    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
+    const translatedLink = blockTranslation?.navLinks?.find(l => l.id === linkId)
+    if (translatedLink?.label !== undefined) {
+      return translatedLink.label
+    }
+  }
+
+  return link.label
+}
+
+function updateNavLinkLabel(linkId: string, value: string) {
+  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return
+
+  if (editorStore.isEditingTranslation) {
+    editorStore.updateTranslatedNavLinkLabel(selectedBlock.value.id, linkId, value)
+  } else {
+    updateHeaderNavLinkField('label', value)
+  }
+}
+
+// For footer link labels
+function getFooterLinkLabel(linkId: string): string {
+  if (!selectedBlock.value || selectedBlock.value.type !== 'footer') return ''
+  const settings = selectedBlock.value.settings as FooterSettings
+  const link = settings.links.find(l => l.id === linkId)
+  if (!link) return ''
+
+  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
+    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
+    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
+    const translatedLink = blockTranslation?.footerLinks?.find(l => l.id === linkId)
+    if (translatedLink?.label !== undefined) {
+      return translatedLink.label
+    }
+  }
+
+  return link.label
+}
+
+function updateFooterLinkLabel(linkId: string, value: string) {
+  if (!selectedBlock.value || selectedBlock.value.type !== 'footer') return
+
+  if (editorStore.isEditingTranslation) {
+    editorStore.updateTranslatedFooterLinkLabel(selectedBlock.value.id, linkId, value)
+  } else {
+    updateFooterLinkField('label', value)
+  }
+}
+
+// ============================================
+// ANIMATION HELPERS
+// ============================================
+
+// Get animation settings from selected block
+const blockAnimation = computed(() => {
+  if (!selectedBlock.value) return undefined
+  return (selectedBlock.value.styles as BaseBlockStyles).animation
+})
+
+// Update animation settings
+function updateBlockAnimation(animation: AnimationSettings) {
+  if (!selectedBlock.value) return
+  updateBlockStyles({ animation })
+}
+
+// Trigger animation preview in the editor
+function handleAnimationPreview() {
+  if (!selectedBlock.value) return
+  editorStore.triggerAnimationPreview(selectedBlock.value.id)
+}
+
+// Check if block supports animation (exclude header/footer which are special)
+const blockSupportsAnimation = computed(() => {
+  if (!selectedBlock.value) return false
+  const type = selectedBlock.value.type
+  return type !== 'header' && type !== 'footer'
+})
 </script>
 
 <template>
   <aside
-    class="flex flex-col h-full bg-sidebar-background border rounded-xl transition-all duration-200"
-    :class="editorStore.isInspectorCollapsed ? 'w-10' : 'w-72'"
+    class="group/inspector relative flex flex-col h-full bg-sidebar-background transition-[width] duration-300 ease-out"
+    :class="editorStore.isInspectorCollapsed ? 'w-16' : 'w-65'"
   >
+    <!-- Left border toggle handle -->
+    <div
+      class="absolute top-0 left-0 w-1 h-full cursor-ew-resize z-10 transition-colors hover:bg-primary/50 active:bg-primary"
+      :class="editorStore.isInspectorCollapsed ? 'bg-transparent group-hover/inspector:bg-sidebar-border' : 'bg-sidebar-border group-hover/inspector:bg-sidebar-foreground/20'"
+      @click="editorStore.toggleInspector"
+    >
+      <div class="absolute top-1/2 -translate-y-1/2 -left-1.5 w-4 h-8 flex items-center justify-center opacity-0 group-hover/inspector:opacity-100 transition-opacity pointer-events-none">
+        <div class="w-1 h-6 rounded-full bg-primary/50"></div>
+      </div>
+    </div>
+
     <!-- Collapsed state -->
-    <div v-if="editorStore.isInspectorCollapsed" class="flex flex-col items-center py-2 gap-1">
-      <button
-        class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        title="Expand inspector"
-        @click="editorStore.toggleInspector"
-      >
-        <i class="lni lni-angle-double-left text-sm"></i>
-      </button>
-      <div class="w-6 border-t border-border my-1"></div>
-      <!-- Page icon -->
+    <div v-if="editorStore.isInspectorCollapsed" class="flex flex-col items-center py-2 gap-1 pl-1">
       <button
         class="p-1.5 rounded-md transition-colors"
         :class="[
@@ -301,7 +510,7 @@ function cancelLayoutApply() {
       >
         <i class="lni lni-home-2 text-sm"></i>
       </button>
-      <!-- Section icons -->
+      <div class="w-6 border-t border-sidebar-border my-1"></div>
       <button
         v-for="block in editorStore.blocks"
         :key="block.id"
@@ -320,846 +529,1426 @@ function cancelLayoutApply() {
 
     <!-- Expanded state -->
     <template v-else>
-      <!-- Header -->
-      <div class="flex items-center justify-between h-12 px-4 border-b border-border">
-        <h2 class="text-sm font-semibold text-foreground">
-          <template v-if="hasSelectedPostItem">
-            Post Item
+      <!-- Header with Breadcrumb -->
+      <div class="flex items-center h-12 px-3 border-b border-sidebar-border gap-2 ml-1">
+        <!-- Breadcrumb navigation -->
+        <nav class="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+          <template v-for="(item, index) in breadcrumbPath" :key="item.id ?? 'page'">
+            <!-- Separator -->
+            <i
+              v-if="index > 0"
+              class="lni lni-chevron-right text-[10px] text-muted-foreground/50 shrink-0"
+            ></i>
+            <!-- Previous items: icon only, expands on hover -->
+            <button
+              v-if="index < breadcrumbPath.length - 1"
+              class="flex items-center h-6 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 ease-out shrink-0 overflow-hidden"
+              :class="hoveredBreadcrumbId === (item.id ?? 'page') ? 'px-2 gap-1.5' : 'w-6 justify-center'"
+              :title="item.label"
+              @mouseenter="hoveredBreadcrumbId = item.id ?? 'page'"
+              @mouseleave="hoveredBreadcrumbId = null"
+              @click="handleBreadcrumbClick(item)"
+            >
+              <i v-if="item.icon" :class="['lni', item.icon, 'text-sm shrink-0']"></i>
+              <span
+                class="text-xs font-medium truncate max-w-24 transition-all duration-200 ease-out"
+                :class="hoveredBreadcrumbId === (item.id ?? 'page') ? 'opacity-100 w-auto' : 'opacity-0 w-0'"
+              >{{ item.label }}</span>
+            </button>
+            <!-- Current item: icon + label -->
+            <div
+              v-else
+              class="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold text-foreground bg-accent shrink-0"
+            >
+              <i v-if="item.icon" :class="['lni', item.icon, 'text-[10px]']"></i>
+              <span class="truncate max-w-32">{{ item.label }}</span>
+            </div>
           </template>
-          <template v-else-if="hasSelectedLinkItem">
-            Link Item
-          </template>
-          <template v-else-if="hasSelectedProductItem">
-            Product Item
-          </template>
-          <template v-else-if="hasSelectedFormField">
-            Form Field
-          </template>
-          <template v-else-if="hasSelectedHeaderNavLink">
-            Nav Link
-          </template>
-          <template v-else-if="hasSelectedFooterLink">
-            Footer Link
-          </template>
-          <template v-else-if="hasSelectedFooterSocialLink">
-            Social Link
-          </template>
-          <template v-else-if="selectedItem">
-            {{ blockItemLabels[selectedItem.type] }}
-          </template>
-          <template v-else-if="selectedBlock">
-            {{ sectionBlockLabels[selectedBlock.type] }}
-          </template>
-          <template v-else>
-            Page
-          </template>
-        </h2>
-        <button
-          class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-          title="Collapse inspector"
-          @click="editorStore.toggleInspector"
-        >
-          <i class="lni lni-angle-double-right text-sm"></i>
-        </button>
+        </nav>
       </div>
 
       <!-- Settings content -->
-    <div class="flex-1 overflow-y-auto">
-      <!-- Page Settings (when nothing selected) -->
-      <template v-if="!selectedBlock">
-        <!-- Layouts -->
-        <InspectorSection title="Layouts" icon="lni-layers-1">
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              v-for="layout in layouts"
-              :key="layout.id"
-              class="relative flex flex-col items-center p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-accent/50 transition-colors text-left"
-              @click="handleLayoutClick(layout.id)"
-            >
-              <!-- Layout preview -->
-              <div
-                class="w-full h-12 rounded-md mb-2 border border-border/50"
-                :style="{
-                  background: layout.preview?.startsWith('linear') ? layout.preview : layout.preview || '#ffffff',
-                }"
+      <div class="flex-1 overflow-y-auto">
+        <!-- Page Settings (when nothing selected) -->
+        <template v-if="!selectedBlock">
+          <!-- Layout Styles -->
+          <InspectorSection v-if="hasLayoutStyles" title="Layout Style" icon="lni-layers-1">
+            <div class="grid grid-cols-1 gap-2">
+              <button
+                v-for="layout in layoutStyles"
+                :key="layout.id"
+                class="relative flex items-center gap-3 p-2 rounded-lg border transition-colors text-left"
+                :class="currentLayoutId === layout.id
+                  ? 'border-primary bg-primary/5'
+                  : 'border-sidebar-border hover:border-primary/50 hover:bg-accent/50'"
+                @click="handleLayoutStyleClick(layout.id)"
+              >
+                <div
+                  class="w-10 h-10 shrink-0 rounded-md border border-sidebar-border/50"
+                  :style="{ backgroundColor: layout.pageSettings.backgroundColor }"
+                />
+                <div class="flex-1 min-w-0">
+                  <span class="text-xs font-medium text-foreground block truncate">{{ layout.name }}</span>
+                  <span class="text-[10px] text-muted-foreground block truncate">{{ layout.description }}</span>
+                </div>
+                <div v-if="currentLayoutId === layout.id" class="w-2 h-2 rounded-full bg-primary shrink-0"></div>
+              </button>
+            </div>
+          </InspectorSection>
+
+          <!-- Spacing -->
+          <InspectorSection title="Spacing" icon="lni-arrow-both-direction-horizontal-1">
+            <InspectorField label="Max Width" horizontal>
+              <SelectInput
+                :options="maxWidthOptions"
+                :model-value="pageSettings.maxWidth"
+                @update:model-value="updatePageSetting('maxWidth', $event)"
               />
-              <span class="text-xs font-medium text-foreground">{{ layout.name }}</span>
-              <span class="text-[10px] text-muted-foreground text-center line-clamp-1">{{ layout.description }}</span>
-            </button>
-          </div>
+            </InspectorField>
+            <InspectorField label="Padding">
+              <SpacingInput
+                :model-value="pageSettings.padding"
+                @update:model-value="updatePageSetting('padding', $event)"
+              />
+            </InspectorField>
+            <InspectorField label="Section Gap" horizontal>
+              <SelectInput
+                :options="sectionGapOptions"
+                :model-value="pageSettings.sectionGap"
+                @update:model-value="updatePageSetting('sectionGap', $event)"
+              />
+            </InspectorField>
+          </InspectorSection>
 
-          <!-- Confirmation dialog -->
-          <div
-            v-if="showLayoutConfirm"
-            class="mt-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg"
-          >
-            <p class="text-xs text-foreground mb-2">This will replace all current sections. Continue?</p>
-            <div class="flex gap-2">
-              <button
-                class="flex-1 px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 transition-colors"
-                @click="applyLayout(showLayoutConfirm)"
-              >
-                Apply
-              </button>
-              <button
-                class="flex-1 px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors"
-                @click="cancelLayoutApply"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </InspectorSection>
+          <!-- Typography -->
+          <InspectorSection title="Typography" icon="lni-text-format">
+            <InspectorField label="Font Family">
+              <SelectInput
+                :options="fontFamilyOptions"
+                :model-value="pageSettings.fontFamily"
+                @update:model-value="updatePageSetting('fontFamily', $event)"
+              />
+            </InspectorField>
+            <InspectorField label="Text Color" horizontal>
+              <ColorInput
+                :model-value="pageSettings.textColor"
+                swatch-only
+                @update:model-value="updatePageSetting('textColor', $event)"
+              />
+            </InspectorField>
+          </InspectorSection>
 
-        <!-- Spacing -->
-        <InspectorSection title="Spacing" icon="lni-arrow-both-direction-horizontal-1">
-          <InspectorField label="Max Width">
-            <SelectInput
-              :options="maxWidthOptions"
-              :model-value="pageSettings.maxWidth"
-              @update:model-value="updatePageSetting('maxWidth', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Padding">
-            <SpacingInput
-              :model-value="pageSettings.padding"
-              @update:model-value="updatePageSetting('padding', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Typography -->
-        <InspectorSection title="Typography" icon="lni-text-format">
-          <InspectorField label="Font Family">
-            <SelectInput
-              :options="fontFamilyOptions"
-              :model-value="pageSettings.fontFamily"
-              @update:model-value="updatePageSetting('fontFamily', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Text Color">
-            <ColorInput
-              :model-value="pageSettings.textColor"
-              @update:model-value="updatePageSetting('textColor', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Background -->
-        <InspectorSection title="Background" icon="lni-photos">
-          <InspectorField label="Color">
-            <ColorInput
-              :model-value="pageSettings.backgroundColor"
-              @update:model-value="updatePageSetting('backgroundColor', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Image URL">
-            <TextInput
-              :model-value="pageSettings.backgroundImage"
-              placeholder="https://..."
-              @update:model-value="updatePageSetting('backgroundImage', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Post Item Inspector -->
-      <template v-else-if="hasSelectedPostItem && selectedPostItem">
-        <!-- Content -->
-        <InspectorSection title="Content" icon="lni-text-format">
-          <InspectorField label="Heading">
-            <TextInput
-              :model-value="selectedPostItem.heading"
-              placeholder="Post heading"
-              @update:model-value="updatePostItemField('heading', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Text">
-            <TextInput
-              :model-value="selectedPostItem.text"
-              placeholder="Post description"
-              multiline
-              @update:model-value="updatePostItemField('text', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Image">
-            <ImageInput
-              :model-value="selectedPostItem.image"
-              placeholder="Upload image"
-              @update:model-value="updatePostItemField('image', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Button -->
-        <InspectorSection title="Button" icon="lni-pointer-1">
-          <InspectorField label="Title">
-            <TextInput
-              :model-value="selectedPostItem.buttonTitle"
-              placeholder="Button text"
-              @update:model-value="updatePostItemField('buttonTitle', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Link">
-            <TextInput
-              :model-value="selectedPostItem.buttonLink"
-              placeholder="https://..."
-              @update:model-value="updatePostItemField('buttonLink', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Link Item Inspector -->
-      <template v-else-if="hasSelectedLinkItem && selectedLinkItem">
-        <!-- Content -->
-        <InspectorSection title="Content" icon="lni-text-format">
-          <InspectorField label="Heading">
-            <TextInput
-              :model-value="selectedLinkItem.heading"
-              placeholder="Link title"
-              @update:model-value="updateLinkItemField('heading', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="URL">
-            <TextInput
-              :model-value="selectedLinkItem.url"
-              placeholder="https://..."
-              @update:model-value="updateLinkItemField('url', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Image">
-            <ImageInput
-              :model-value="selectedLinkItem.image"
-              placeholder="Upload image"
-              @update:model-value="updateLinkItemField('image', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Product Item Inspector -->
-      <template v-else-if="hasSelectedProductItem && selectedProductItem">
-        <!-- Content -->
-        <InspectorSection title="Content" icon="lni-text-format">
-          <InspectorField label="Heading">
-            <TextInput
-              :model-value="selectedProductItem.heading"
-              placeholder="Product name"
-              @update:model-value="updateProductItemField('heading', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Subtitle">
-            <TextInput
-              :model-value="selectedProductItem.subtitle"
-              placeholder="Product subtitle"
-              @update:model-value="updateProductItemField('subtitle', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Text">
-            <TextInput
-              :model-value="selectedProductItem.text"
-              placeholder="Product description"
-              multiline
-              @update:model-value="updateProductItemField('text', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Price">
-            <TextInput
-              :model-value="selectedProductItem.price"
-              placeholder="$0.00"
-              @update:model-value="updateProductItemField('price', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Image">
-            <ImageInput
-              :model-value="selectedProductItem.image"
-              placeholder="Upload image"
-              @update:model-value="updateProductItemField('image', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Button -->
-        <InspectorSection title="Button" icon="lni-pointer-1">
-          <InspectorField label="Title">
-            <TextInput
-              :model-value="selectedProductItem.buttonTitle"
-              placeholder="Button text"
-              @update:model-value="updateProductItemField('buttonTitle', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Link">
-            <TextInput
-              :model-value="selectedProductItem.buttonLink"
-              placeholder="https://..."
-              @update:model-value="updateProductItemField('buttonLink', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Form Field Inspector -->
-      <template v-else-if="hasSelectedFormField && selectedFormField">
-        <InspectorSection title="Field Settings" icon="lni-form">
-          <InspectorField label="Label">
-            <TextInput
-              :model-value="selectedFormField.label"
-              placeholder="Field label"
-              @update:model-value="updateFormFieldSetting('label', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Placeholder">
-            <TextInput
-              :model-value="selectedFormField.placeholder"
-              placeholder="Placeholder text"
-              @update:model-value="updateFormFieldSetting('placeholder', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Type">
-            <div class="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-md">
-              <i :class="['lni', formFieldIcons[selectedFormField.type], 'text-muted-foreground']"></i>
-              <span class="text-sm text-foreground">{{ formFieldLabels[selectedFormField.type] }}</span>
-            </div>
-          </InspectorField>
-          <div class="px-3">
-            <ToggleInput
-              :model-value="selectedFormField.required"
-              label="Required field"
-              @update:model-value="updateFormFieldSetting('required', $event)"
-            />
-          </div>
-        </InspectorSection>
-
-        <!-- Options for select/radio/checkbox -->
-        <InspectorSection
-          v-if="['select', 'radio', 'checkbox'].includes(selectedFormField.type)"
-          title="Options"
-          icon="lni-list-bulleted-1"
-        >
-          <div class="space-y-2">
-            <div
-              v-for="(option, index) in selectedFormField.options || []"
-              :key="index"
-              class="flex items-center gap-2"
-            >
+          <!-- Background -->
+          <InspectorSection title="Background" icon="lni-photos">
+            <InspectorField label="Color" horizontal>
+              <ColorInput
+                :model-value="pageSettings.backgroundColor"
+                swatch-only
+                @update:model-value="updatePageSetting('backgroundColor', $event)"
+              />
+            </InspectorField>
+            <InspectorField label="Image URL">
               <TextInput
-                :model-value="option"
-                placeholder="Option value"
-                class="flex-1"
-                @update:model-value="
-                  updateFormFieldSetting(
-                    'options',
-                    (selectedFormField.options || []).map((o, i) => (i === index ? $event : o))
-                  )
-                "
+                :model-value="pageSettings.backgroundImage"
+                placeholder="https://..."
+                @update:model-value="updatePageSetting('backgroundImage', $event)"
               />
-              <button
-                class="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
-                @click="
-                  updateFormFieldSetting(
-                    'options',
-                    (selectedFormField.options || []).filter((_, i) => i !== index)
-                  )
-                "
-              >
-                <i class="lni lni-xmark text-sm"></i>
-              </button>
-            </div>
-            <button
-              class="w-full flex items-center justify-center gap-1 py-2 text-sm text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:border-primary/50 transition-colors"
-              @click="
-                updateFormFieldSetting('options', [...(selectedFormField.options || []), `Option ${(selectedFormField.options?.length || 0) + 1}`])
-              "
-            >
-              <i class="lni lni-plus text-xs"></i>
-              Add option
-            </button>
-          </div>
-        </InspectorSection>
-      </template>
+            </InspectorField>
+          </InspectorSection>
+        </template>
 
-      <!-- Header Nav Link Inspector -->
-      <template v-else-if="hasSelectedHeaderNavLink && selectedHeaderNavLink">
-        <InspectorSection title="Navigation Link" icon="lni-link-1">
-          <InspectorField label="Label">
-            <TextInput
-              :model-value="selectedHeaderNavLink.label"
-              placeholder="Link text"
-              @update:model-value="updateHeaderNavLinkField('label', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="URL">
-            <TextInput
-              :model-value="selectedHeaderNavLink.url"
-              placeholder="https://..."
-              @update:model-value="updateHeaderNavLinkField('url', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Footer Link Inspector -->
-      <template v-else-if="hasSelectedFooterLink && selectedFooterLink">
-        <InspectorSection title="Footer Link" icon="lni-link-1">
-          <InspectorField label="Label">
-            <TextInput
-              :model-value="selectedFooterLink.label"
-              placeholder="Link text"
-              @update:model-value="updateFooterLinkField('label', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="URL">
-            <TextInput
-              :model-value="selectedFooterLink.url"
-              placeholder="https://..."
-              @update:model-value="updateFooterLinkField('url', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Footer Social Link Inspector -->
-      <template v-else-if="hasSelectedFooterSocialLink && selectedFooterSocialLink">
-        <InspectorSection title="Social Link" icon="lni-link-1">
-          <InspectorField label="Platform">
-            <div class="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-md">
-              <span class="text-sm text-foreground">{{ socialPlatformLabels[selectedFooterSocialLink.platform] || selectedFooterSocialLink.platform }}</span>
-            </div>
-          </InspectorField>
-          <InspectorField label="URL">
-            <TextInput
-              :model-value="selectedFooterSocialLink.url"
-              placeholder="https://..."
-              @update:model-value="updateFooterSocialLinkField('url', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Block Item Inspector -->
-      <template v-else-if="selectedItem">
-        <!-- Position -->
-        <InspectorSection title="Position" icon="lni-arrow-all-direction">
-          <InspectorField label="Align">
-            <SegmentedControl
-              :options="alignmentOptions"
-              :model-value="selectedItem.styles.align"
-              @update:model-value="updateItemStyle('align', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField label="Margin">
-            <SpacingInput
-              :model-value="selectedItem.styles.margin"
-              @update:model-value="updateItemStyle('margin', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Padding">
-            <SpacingInput
-              :model-value="selectedItem.styles.padding"
-              @update:model-value="updateItemStyle('padding', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Size (for image/video) -->
-        <InspectorSection v-if="hasSizeOptions" title="Size" icon="lni-expand-square-4">
-          <InspectorField label="Orientation">
-            <SegmentedControl
-              :options="orientationOptions"
-              :model-value="selectedItem.styles.orientation"
-              @update:model-value="updateItemStyle('orientation', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField label="Aspect Ratio">
-            <SelectInput
-              :options="aspectRatioOptions"
-              :model-value="selectedItem.styles.aspectRatio"
-              @update:model-value="updateItemStyle('aspectRatio', $event as any)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Text (for text-based items) -->
-        <InspectorSection v-if="isTextItem" title="Text" icon="lni-text-format">
-          <InspectorField label="Size">
-            <SelectInput
-              :options="fontSizeOptions"
-              :model-value="selectedItem.styles.fontSize"
-              @update:model-value="updateItemStyle('fontSize', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField label="Weight">
-            <SegmentedControl
-              :options="fontWeightOptions"
-              :model-value="selectedItem.styles.fontWeight"
-              @update:model-value="updateItemStyle('fontWeight', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField label="Line Height">
-            <SegmentedControl
-              :options="lineHeightOptions"
-              :model-value="selectedItem.styles.lineHeight"
-              @update:model-value="updateItemStyle('lineHeight', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField label="Align">
-            <SegmentedControl
-              :options="alignmentOptions"
-              :model-value="selectedItem.styles.textAlign"
-              @update:model-value="updateItemStyle('textAlign', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField label="Color">
-            <ColorInput
-              :model-value="selectedItem.styles.textColor"
-              @update:model-value="updateItemStyle('textColor', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Border -->
-        <InspectorSection title="Border" icon="lni-check-square-2">
-          <BorderInput
-            :model-value="selectedItem.styles.border"
-            @update:model-value="updateItemStyle('border', $event)"
-          />
-        </InspectorSection>
-
-        <!-- Background -->
-        <InspectorSection title="Background" icon="lni-photos">
-          <InspectorField label="Color">
-            <ColorInput
-              :model-value="selectedItem.styles.backgroundColor"
-              @update:model-value="updateItemStyle('backgroundColor', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Effect -->
-        <InspectorSection title="Effect" icon="lni-bolt-2">
-          <InspectorField label="Animation">
-            <SelectInput
-              :options="effectOptions"
-              :model-value="selectedItem.styles.effect"
-              @update:model-value="updateItemStyle('effect', $event as any)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-
-      <!-- Section Block Inspector -->
-      <template v-else-if="selectedBlock">
-        <!-- Post Section Layout (only for post sections) -->
-        <InspectorSection v-if="isPostSection && postStyles && selectedBlock.postSettings" title="Layout" icon="lni-layout-9">
-          <InspectorField label="Display">
-            <SegmentedControl
-              :options="postLayoutOptions"
-              :model-value="postStyles.layout"
-              @update:model-value="updatePostSectionStyle('layout', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField v-if="postStyles.layout !== 'list'" label="Columns">
-            <SegmentedControl
-              :options="columnsOptions"
-              :model-value="String(postStyles.columns || 3)"
-              @update:model-value="updatePostSectionStyle('columns', Number($event))"
-            />
-          </InspectorField>
-          <InspectorField label="Gap">
-            <SelectInput
-              :options="spacingOptions"
-              :model-value="postStyles.gap"
-              @update:model-value="updatePostSectionStyle('gap', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Post Section Visibility (only for post sections) -->
-        <InspectorSection v-if="isPostSection && selectedBlock.postSettings" title="Show Elements" icon="lni-check-square-2">
-          <div class="space-y-3">
-            <ToggleInput
-              :model-value="selectedBlock.postSettings.showImage"
-              label="Image"
-              @update:model-value="updatePostSectionSetting('showImage', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.postSettings.showHeading"
-              label="Heading"
-              @update:model-value="updatePostSectionSetting('showHeading', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.postSettings.showText"
-              label="Text"
-              @update:model-value="updatePostSectionSetting('showText', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.postSettings.showButton"
-              label="Button"
-              @update:model-value="updatePostSectionSetting('showButton', $event)"
-            />
-          </div>
-        </InspectorSection>
-
-        <!-- Link Section Layout (only for link sections) -->
-        <InspectorSection v-if="isLinkSection && linkStyles && selectedBlock.linkSettings" title="Layout" icon="lni-layout-9">
-          <InspectorField label="Display">
-            <SegmentedControl
-              :options="linkLayoutOptions"
-              :model-value="linkStyles.layout"
-              @update:model-value="updateLinkSectionStyle('layout', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField v-if="linkStyles.layout !== 'list'" label="Columns">
-            <SegmentedControl
-              :options="columnsOptions"
-              :model-value="String(linkStyles.columns || 3)"
-              @update:model-value="updateLinkSectionStyle('columns', Number($event))"
-            />
-          </InspectorField>
-          <InspectorField label="Gap">
-            <SelectInput
-              :options="spacingOptions"
-              :model-value="linkStyles.gap"
-              @update:model-value="updateLinkSectionStyle('gap', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Link Section Visibility (only for link sections) -->
-        <InspectorSection v-if="isLinkSection && selectedBlock.linkSettings" title="Show Elements" icon="lni-check-square-2">
-          <div class="space-y-3">
-            <ToggleInput
-              :model-value="selectedBlock.linkSettings.showImage"
-              label="Image"
-              @update:model-value="updateLinkSectionSetting('showImage', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.linkSettings.showHeading"
-              label="Heading"
-              @update:model-value="updateLinkSectionSetting('showHeading', $event)"
-            />
-          </div>
-        </InspectorSection>
-
-        <!-- Product Section Layout (only for product sections) -->
-        <InspectorSection v-if="isProductSection && productStyles && selectedBlock.productSettings" title="Layout" icon="lni-layout-9">
-          <InspectorField label="Display">
-            <SegmentedControl
-              :options="productLayoutOptions"
-              :model-value="productStyles.layout"
-              @update:model-value="updateProductSectionStyle('layout', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField v-if="productStyles.layout !== 'list'" label="Columns">
-            <SegmentedControl
-              :options="columnsOptions"
-              :model-value="String(productStyles.columns || 3)"
-              @update:model-value="updateProductSectionStyle('columns', Number($event))"
-            />
-          </InspectorField>
-          <InspectorField label="Gap">
-            <SelectInput
-              :options="spacingOptions"
-              :model-value="productStyles.gap"
-              @update:model-value="updateProductSectionStyle('gap', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Product Section Visibility (only for product sections) -->
-        <InspectorSection v-if="isProductSection && selectedBlock.productSettings" title="Show Elements" icon="lni-check-square-2">
-          <div class="space-y-3">
-            <ToggleInput
-              :model-value="selectedBlock.productSettings.showImage"
-              label="Image"
-              @update:model-value="updateProductSectionSetting('showImage', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.productSettings.showHeading"
-              label="Heading"
-              @update:model-value="updateProductSectionSetting('showHeading', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.productSettings.showSubtitle"
-              label="Subtitle"
-              @update:model-value="updateProductSectionSetting('showSubtitle', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.productSettings.showText"
-              label="Text"
-              @update:model-value="updateProductSectionSetting('showText', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.productSettings.showPrice"
-              label="Price"
-              @update:model-value="updateProductSectionSetting('showPrice', $event)"
-            />
-            <ToggleInput
-              :model-value="selectedBlock.productSettings.showButton"
-              label="Button"
-              @update:model-value="updateProductSectionSetting('showButton', $event)"
-            />
-          </div>
-        </InspectorSection>
-
-        <!-- Header Section Settings -->
-        <InspectorSection v-if="isHeaderSection && selectedBlock.headerSettings" title="Header Settings" icon="lni-layout-header">
-          <div class="space-y-3">
-            <ToggleInput
-              :model-value="!selectedBlock.headerSettings.isHidden"
-              label="Show header"
-              @update:model-value="updateHeaderSetting('isHidden', !$event)"
-            />
-          </div>
-        </InspectorSection>
-
-        <InspectorSection v-if="isHeaderSection && selectedBlock.headerSettings" title="Logo" icon="lni-image">
-          <InspectorField label="Image">
-            <ImageInput
-              :model-value="selectedBlock.headerSettings.logo"
-              placeholder="Upload logo"
-              @update:model-value="updateHeaderSetting('logo', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Alt Text">
-            <TextInput
-              :model-value="selectedBlock.headerSettings.logoAlt"
-              placeholder="Logo description"
-              @update:model-value="updateHeaderSetting('logoAlt', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <InspectorSection v-if="isHeaderSection && selectedBlock.headerSettings" title="CTA Button" icon="lni-pointer-1">
-          <div class="space-y-3">
-            <ToggleInput
-              :model-value="selectedBlock.headerSettings.ctaButton.show"
-              label="Show CTA button"
-              @update:model-value="updateHeaderSetting('ctaButton', { ...selectedBlock.headerSettings!.ctaButton, show: $event })"
-            />
-          </div>
-          <template v-if="selectedBlock.headerSettings.ctaButton.show">
+        <!-- Header Nav Link Inspector -->
+        <template v-else-if="selectedHeaderNavLink">
+          <InspectorSection title="Navigation Link" icon="lni-link-1">
             <InspectorField label="Label">
               <TextInput
-                :model-value="selectedBlock.headerSettings.ctaButton.label"
-                placeholder="Get Started"
-                @update:model-value="updateHeaderSetting('ctaButton', { ...selectedBlock.headerSettings!.ctaButton, label: $event })"
+                :model-value="getNavLinkLabel(selectedHeaderNavLink.id)"
+                placeholder="Link text"
+                @update:model-value="updateNavLinkLabel(selectedHeaderNavLink.id, $event)"
               />
             </InspectorField>
             <InspectorField label="URL">
               <TextInput
-                :model-value="selectedBlock.headerSettings.ctaButton.url"
+                :model-value="selectedHeaderNavLink.url"
                 placeholder="https://..."
-                @update:model-value="updateHeaderSetting('ctaButton', { ...selectedBlock.headerSettings!.ctaButton, url: $event })"
+                @update:model-value="updateHeaderNavLinkField('url', $event)"
               />
             </InspectorField>
+          </InspectorSection>
+        </template>
+
+        <!-- Footer Link Inspector -->
+        <template v-else-if="selectedFooterLink">
+          <InspectorSection title="Footer Link" icon="lni-link-1">
+            <InspectorField label="Label">
+              <TextInput
+                :model-value="getFooterLinkLabel(selectedFooterLink.id)"
+                placeholder="Link text"
+                @update:model-value="updateFooterLinkLabel(selectedFooterLink.id, $event)"
+              />
+            </InspectorField>
+            <InspectorField label="URL">
+              <TextInput
+                :model-value="selectedFooterLink.url"
+                placeholder="https://..."
+                @update:model-value="updateFooterLinkField('url', $event)"
+              />
+            </InspectorField>
+          </InspectorSection>
+        </template>
+
+        <!-- Footer Social Link Inspector -->
+        <template v-else-if="selectedFooterSocialLink">
+          <InspectorSection title="Social Link" icon="lni-link-1">
+            <InspectorField label="Platform">
+              <div class="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-md">
+                <span class="text-sm text-foreground">{{ socialPlatformLabels[selectedFooterSocialLink.platform] }}</span>
+              </div>
+            </InspectorField>
+            <InspectorField label="URL">
+              <TextInput
+                :model-value="selectedFooterSocialLink.url"
+                placeholder="https://..."
+                @update:model-value="updateFooterSocialLinkField('url', $event)"
+              />
+            </InspectorField>
+          </InspectorSection>
+        </template>
+
+        <!-- Form Field Block Inspectors -->
+        <!-- Form Input -->
+        <template v-else-if="selectedBlock?.type === 'form-input'">
+          <InspectorSection title="Input Settings" icon="lni-keyboard">
+            <InspectorField label="Label">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormInputSettings).label"
+                placeholder="Field label"
+                @update:model-value="updateBlockSettings({ label: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Input Type">
+              <SelectInput
+                :model-value="(selectedBlock.settings as FormInputSettings).inputType"
+                :options="formInputTypeOptions"
+                @update:model-value="updateBlockSettings({ inputType: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Placeholder">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormInputSettings).placeholder"
+                placeholder="Placeholder text"
+                @update:model-value="updateBlockSettings({ placeholder: $event })"
+              />
+            </InspectorField>
+            <div class="px-3">
+              <ToggleInput
+                :model-value="(selectedBlock.settings as FormInputSettings).required"
+                label="Required field"
+                @update:model-value="updateBlockSettings({ required: $event })"
+              />
+            </div>
+          </InspectorSection>
+        </template>
+
+        <!-- Form Textarea -->
+        <template v-else-if="selectedBlock?.type === 'form-textarea'">
+          <InspectorSection title="Textarea Settings" icon="lni-text-paragraph">
+            <InspectorField label="Label">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormTextareaSettings).label"
+                placeholder="Field label"
+                @update:model-value="updateBlockSettings({ label: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Placeholder">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormTextareaSettings).placeholder"
+                placeholder="Placeholder text"
+                @update:model-value="updateBlockSettings({ placeholder: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Rows">
+              <SliderInput
+                :model-value="(selectedBlock.settings as FormTextareaSettings).rows || 4"
+                :min="2"
+                :max="10"
+                @update:model-value="updateBlockSettings({ rows: $event })"
+              />
+            </InspectorField>
+            <div class="px-3">
+              <ToggleInput
+                :model-value="(selectedBlock.settings as FormTextareaSettings).required"
+                label="Required field"
+                @update:model-value="updateBlockSettings({ required: $event })"
+              />
+            </div>
+          </InspectorSection>
+        </template>
+
+        <!-- Form Select (Dropdown) -->
+        <template v-else-if="selectedBlock?.type === 'form-select'">
+          <InspectorSection title="Dropdown Settings" icon="lni-chevron-down-circle">
+            <InspectorField label="Label">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormSelectSettings).label"
+                placeholder="Field label"
+                @update:model-value="updateBlockSettings({ label: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Placeholder">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormSelectSettings).placeholder"
+                placeholder="Select an option..."
+                @update:model-value="updateBlockSettings({ placeholder: $event })"
+              />
+            </InspectorField>
+            <div class="px-3">
+              <ToggleInput
+                :model-value="(selectedBlock.settings as FormSelectSettings).required"
+                label="Required field"
+                @update:model-value="updateBlockSettings({ required: $event })"
+              />
+            </div>
+          </InspectorSection>
+          <InspectorSection title="Options" icon="lni-list-bulleted-1">
+            <div class="space-y-2">
+              <div
+                v-for="(option, index) in (selectedBlock.settings as FormSelectSettings).options || []"
+                :key="option.id"
+                class="flex items-center gap-2"
+              >
+                <TextInput
+                  :model-value="option.label"
+                  placeholder="Option label"
+                  class="flex-1"
+                  @update:model-value="updateBlockSettings({
+                    options: ((selectedBlock.settings as FormSelectSettings).options || []).map((o: FormSelectOption, i: number) =>
+                      i === index ? { ...o, label: $event, value: $event.toLowerCase().replace(/\s+/g, '_') } : o
+                    )
+                  })"
+                />
+                <button
+                  class="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                  @click="updateBlockSettings({
+                    options: ((selectedBlock.settings as FormSelectSettings).options || []).filter((_: FormSelectOption, i: number) => i !== index)
+                  })"
+                >
+                  <i class="lni lni-xmark text-sm"></i>
+                </button>
+              </div>
+              <button
+                class="w-full flex items-center justify-center gap-1 py-2 text-sm text-muted-foreground hover:text-foreground border border-dashed border-sidebar-border rounded-md hover:border-primary/50 transition-colors"
+                @click="updateBlockSettings({
+                  options: [
+                    ...((selectedBlock.settings as FormSelectSettings).options || []),
+                    { id: generateId(), label: `Option ${((selectedBlock.settings as FormSelectSettings).options?.length || 0) + 1}`, value: `option_${((selectedBlock.settings as FormSelectSettings).options?.length || 0) + 1}` }
+                  ]
+                })"
+              >
+                <i class="lni lni-plus text-xs"></i>
+                Add option
+              </button>
+            </div>
+          </InspectorSection>
+        </template>
+
+        <!-- Form Radio -->
+        <template v-else-if="selectedBlock?.type === 'form-radio'">
+          <InspectorSection title="Radio Settings" icon="lni-radio-button">
+            <InspectorField label="Label">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormRadioSettings).label"
+                placeholder="Field label"
+                @update:model-value="updateBlockSettings({ label: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Layout">
+              <SegmentedControl
+                :model-value="(selectedBlock.settings as FormRadioSettings).layout || 'vertical'"
+                :options="[{ value: 'vertical', label: 'Vertical' }, { value: 'horizontal', label: 'Horizontal' }]"
+                @update:model-value="updateBlockSettings({ layout: $event })"
+              />
+            </InspectorField>
+            <div class="px-3">
+              <ToggleInput
+                :model-value="(selectedBlock.settings as FormRadioSettings).required"
+                label="Required field"
+                @update:model-value="updateBlockSettings({ required: $event })"
+              />
+            </div>
+          </InspectorSection>
+          <InspectorSection title="Options" icon="lni-list-bulleted-1">
+            <div class="space-y-2">
+              <div
+                v-for="(option, index) in (selectedBlock.settings as FormRadioSettings).options || []"
+                :key="option.id"
+                class="flex items-center gap-2"
+              >
+                <TextInput
+                  :model-value="option.label"
+                  placeholder="Option label"
+                  class="flex-1"
+                  @update:model-value="updateBlockSettings({
+                    options: ((selectedBlock.settings as FormRadioSettings).options || []).map((o: FormSelectOption, i: number) =>
+                      i === index ? { ...o, label: $event, value: $event.toLowerCase().replace(/\s+/g, '_') } : o
+                    )
+                  })"
+                />
+                <button
+                  class="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                  @click="updateBlockSettings({
+                    options: ((selectedBlock.settings as FormRadioSettings).options || []).filter((_: FormSelectOption, i: number) => i !== index)
+                  })"
+                >
+                  <i class="lni lni-xmark text-sm"></i>
+                </button>
+              </div>
+              <button
+                class="w-full flex items-center justify-center gap-1 py-2 text-sm text-muted-foreground hover:text-foreground border border-dashed border-sidebar-border rounded-md hover:border-primary/50 transition-colors"
+                @click="updateBlockSettings({
+                  options: [
+                    ...((selectedBlock.settings as FormRadioSettings).options || []),
+                    { id: generateId(), label: `Option ${((selectedBlock.settings as FormRadioSettings).options?.length || 0) + 1}`, value: `option_${((selectedBlock.settings as FormRadioSettings).options?.length || 0) + 1}` }
+                  ]
+                })"
+              >
+                <i class="lni lni-plus text-xs"></i>
+                Add option
+              </button>
+            </div>
+          </InspectorSection>
+        </template>
+
+        <!-- Form Checkbox -->
+        <template v-else-if="selectedBlock?.type === 'form-checkbox'">
+          <InspectorSection title="Checkbox Settings" icon="lni-checkmark-square">
+            <InspectorField label="Label">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormCheckboxSettings).label"
+                placeholder="Field label"
+                @update:model-value="updateBlockSettings({ label: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Layout">
+              <SegmentedControl
+                :model-value="(selectedBlock.settings as FormCheckboxSettings).layout || 'vertical'"
+                :options="[{ value: 'vertical', label: 'Vertical' }, { value: 'horizontal', label: 'Horizontal' }]"
+                @update:model-value="updateBlockSettings({ layout: $event })"
+              />
+            </InspectorField>
+            <div class="px-3">
+              <ToggleInput
+                :model-value="(selectedBlock.settings as FormCheckboxSettings).required"
+                label="Required field"
+                @update:model-value="updateBlockSettings({ required: $event })"
+              />
+            </div>
+          </InspectorSection>
+          <InspectorSection title="Options" icon="lni-list-bulleted-1">
+            <div class="space-y-2">
+              <div
+                v-for="(option, index) in (selectedBlock.settings as FormCheckboxSettings).options || []"
+                :key="option.id"
+                class="flex items-center gap-2"
+              >
+                <TextInput
+                  :model-value="option.label"
+                  placeholder="Option label"
+                  class="flex-1"
+                  @update:model-value="updateBlockSettings({
+                    options: ((selectedBlock.settings as FormCheckboxSettings).options || []).map((o: FormSelectOption, i: number) =>
+                      i === index ? { ...o, label: $event, value: $event.toLowerCase().replace(/\s+/g, '_') } : o
+                    )
+                  })"
+                />
+                <button
+                  class="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                  @click="updateBlockSettings({
+                    options: ((selectedBlock.settings as FormCheckboxSettings).options || []).filter((_: FormSelectOption, i: number) => i !== index)
+                  })"
+                >
+                  <i class="lni lni-xmark text-sm"></i>
+                </button>
+              </div>
+              <button
+                class="w-full flex items-center justify-center gap-1 py-2 text-sm text-muted-foreground hover:text-foreground border border-dashed border-sidebar-border rounded-md hover:border-primary/50 transition-colors"
+                @click="updateBlockSettings({
+                  options: [
+                    ...((selectedBlock.settings as FormCheckboxSettings).options || []),
+                    { id: generateId(), label: `Option ${((selectedBlock.settings as FormCheckboxSettings).options?.length || 0) + 1}`, value: `option_${((selectedBlock.settings as FormCheckboxSettings).options?.length || 0) + 1}` }
+                  ]
+                })"
+              >
+                <i class="lni lni-plus text-xs"></i>
+                Add option
+              </button>
+            </div>
+          </InspectorSection>
+        </template>
+
+        <!-- Form Button -->
+        <template v-else-if="selectedBlock?.type === 'form-button'">
+          <InspectorSection title="Button Settings" icon="lni-arrow-right-circle">
+            <InspectorField label="Label">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormButtonSettings).label"
+                placeholder="Submit"
+                @update:model-value="updateBlockSettings({ label: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Variant">
+              <SegmentedControl
+                :model-value="(selectedBlock.settings as FormButtonSettings).variant || 'primary'"
+                :options="buttonVariantOptions"
+                @update:model-value="updateBlockSettings({ variant: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Size">
+              <SegmentedControl
+                :model-value="(selectedBlock.settings as FormButtonSettings).size || 'md'"
+                :options="buttonSizeOptions"
+                @update:model-value="updateBlockSettings({ size: $event })"
+              />
+            </InspectorField>
+            <div class="px-3">
+              <ToggleInput
+                :model-value="(selectedBlock.settings as FormButtonSettings).fullWidth ?? false"
+                label="Full width"
+                @update:model-value="updateBlockSettings({ fullWidth: $event })"
+              />
+            </div>
+          </InspectorSection>
+        </template>
+
+        <!-- Header Section Inspector -->
+        <template v-else-if="isHeaderSection && selectedBlock">
+          <InspectorSection title="Header Settings" icon="lni-navigation-up">
+            <div class="space-y-3 px-3">
+              <ToggleInput
+                :model-value="!(selectedBlock.settings as HeaderSettings).isHidden"
+                label="Show header"
+                @update:model-value="updateBlockSettings({ isHidden: !$event })"
+              />
+            </div>
+          </InspectorSection>
+
+          <InspectorSection title="Logo" icon="lni-image">
+            <InspectorField label="Image">
+              <ImageInput
+                :model-value="(selectedBlock.settings as HeaderSettings).logo"
+                placeholder="Upload logo"
+                @update:model-value="updateBlockSettings({ logo: $event })"
+              />
+            </InspectorField>
+            <InspectorField label="Alt Text">
+              <TextInput
+                :model-value="(selectedBlock.settings as HeaderSettings).logoAlt"
+                placeholder="Logo description"
+                @update:model-value="updateBlockSettings({ logoAlt: $event })"
+              />
+            </InspectorField>
+          </InspectorSection>
+
+          <InspectorSection title="CTA Button" icon="lni-pointer-1">
+            <div class="space-y-3 px-3">
+              <ToggleInput
+                :model-value="(selectedBlock.settings as HeaderSettings).ctaButton.show"
+                label="Show CTA button"
+                @update:model-value="updateBlockSettings({ ctaButton: { ...(selectedBlock.settings as HeaderSettings).ctaButton, show: $event } })"
+              />
+            </div>
+            <template v-if="(selectedBlock.settings as HeaderSettings).ctaButton.show">
+              <InspectorField label="Label">
+                <TextInput
+                  :model-value="getHeaderCtaLabel()"
+                  placeholder="Get Started"
+                  @update:model-value="updateHeaderCtaLabel($event)"
+                />
+              </InspectorField>
+              <InspectorField label="URL">
+                <TextInput
+                  :model-value="(selectedBlock.settings as HeaderSettings).ctaButton.url"
+                  placeholder="https://..."
+                  @update:model-value="updateBlockSettings({ ctaButton: { ...(selectedBlock.settings as HeaderSettings).ctaButton, url: $event } })"
+                />
+              </InspectorField>
+            </template>
+          </InspectorSection>
+        </template>
+
+        <!-- Footer Section Inspector -->
+        <template v-else-if="isFooterSection && selectedBlock">
+          <InspectorSection title="Footer Settings" icon="lni-navigation-down">
+            <div class="space-y-3 px-3">
+              <ToggleInput
+                :model-value="!(selectedBlock.settings as FooterSettings).isHidden"
+                label="Show footer"
+                @update:model-value="updateBlockSettings({ isHidden: !$event })"
+              />
+            </div>
+          </InspectorSection>
+
+          <InspectorSection title="Copyright" icon="lni-text-format">
+            <InspectorField label="Text">
+              <TextInput
+                :model-value="getTranslatableContent('copyrightText')"
+                placeholder="© 2024 Company Name"
+                @update:model-value="updateTranslatableContent('copyrightText', $event)"
+              />
+            </InspectorField>
+          </InspectorSection>
+        </template>
+
+        <!-- Form Section Inspector -->
+        <template v-else-if="isFormSection && selectedBlock">
+          <InspectorSection title="Form Settings" icon="lni-clipboard-data">
+            <InspectorField label="Submit Button">
+              <TextInput
+                :model-value="getTranslatableContent('submitLabel')"
+                placeholder="Submit"
+                @update:model-value="updateTranslatableContent('submitLabel', $event)"
+              />
+            </InspectorField>
+            <InspectorField label="Success Message">
+              <TextInput
+                :model-value="(selectedBlock.settings as FormSettings).successMessage"
+                placeholder="Thank you for your submission!"
+                multiline
+                @update:model-value="updateBlockSettings({ successMessage: $event })"
+              />
+            </InspectorField>
+          </InspectorSection>
+        </template>
+
+        <!-- Freeform Section Inspector -->
+        <template v-else-if="isFreeformSection && selectedBlock">
+          <InspectorSection title="Background" icon="lni-photos">
+            <InspectorField label="Type">
+              <SegmentedControl
+                :options="[
+                  { value: 'color', label: 'Color' },
+                  { value: 'image', label: 'Image' },
+                  { value: 'video', label: 'Video' },
+                ]"
+                :model-value="(selectedBlock.settings as FreeformSettings).backgroundType || 'color'"
+                @update:model-value="updateBlockSettings({ backgroundType: $event })"
+              />
+            </InspectorField>
+            <InspectorField v-if="(selectedBlock.settings as FreeformSettings).backgroundType === 'color' || !(selectedBlock.settings as FreeformSettings).backgroundType" label="Color" horizontal>
+              <ColorInput
+                :model-value="responsiveStyles.backgroundColor"
+                swatch-only
+                @update:model-value="updateBlockStyles({ backgroundColor: $event })"
+              />
+            </InspectorField>
+            <InspectorField v-else-if="(selectedBlock.settings as FreeformSettings).backgroundType === 'image'" label="Image">
+              <ImageInput
+                :model-value="(selectedBlock.settings as FreeformSettings).backgroundImage || ''"
+                placeholder="Upload background image"
+                @update:model-value="updateBlockSettings({ backgroundImage: $event })"
+              />
+            </InspectorField>
+            <InspectorField v-else label="Video URL">
+              <TextInput
+                :model-value="(selectedBlock.settings as FreeformSettings).backgroundVideo || ''"
+                placeholder="YouTube, Vimeo, or file URL"
+                @update:model-value="updateBlockSettings({ backgroundVideo: $event })"
+              />
+            </InspectorField>
+          </InspectorSection>
+
+          <InspectorSection title="Size" icon="lni-frame-3">
+            <InspectorField label="Min Height">
+              <SelectInput
+                :options="[
+                  { value: '100vh', label: 'Full Screen' },
+                  { value: '80vh', label: '80%' },
+                  { value: '60vh', label: '60%' },
+                  { value: '50vh', label: '50%' },
+                  { value: '400px', label: '400px' },
+                  { value: '500px', label: '500px' },
+                  { value: '600px', label: '600px' },
+                  { value: '800px', label: '800px' },
+                ]"
+                :model-value="(selectedBlock.settings as FreeformSettings).minHeight || '600px'"
+                @update:model-value="updateBlockSettings({ minHeight: $event })"
+              />
+            </InspectorField>
+          </InspectorSection>
+
+          <InspectorSection title="Info" icon="lni-information">
+            <div class="px-3 py-2 text-xs text-muted-foreground">
+              <p>Drag elements from the sidebar onto this canvas to position them freely.</p>
+              <p class="mt-2">Children can be repositioned by dragging them on the preview.</p>
+            </div>
+          </InspectorSection>
+        </template>
+
+        <!-- Generic Block Inspector -->
+        <template v-else-if="selectedBlock">
+          <!-- Heading Settings -->
+          <template v-if="selectedBlock.type === 'heading'">
+            <!-- Overwrite Style Toggle (only for blocks inside List/Collection) -->
+            <div v-if="isInListCollection" class="px-4 py-3 border-b border-sidebar-border">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <p class="text-xs font-medium text-foreground">Overwrite style</p>
+                  <p class="text-[10px] text-muted-foreground">Apply unique styles to this item only</p>
+                </div>
+                <ToggleInput
+                  :model-value="hasOverwriteStyle"
+                  @update:model-value="toggleOverwriteStyle"
+                />
+              </div>
+            </div>
+            <InspectorSection title="Content" icon="lni-text-format">
+              <InspectorField label="Text">
+                <TextInput
+                  :model-value="getTranslatableContent('content')"
+                  placeholder="Heading text"
+                  @update:model-value="updateTranslatableContent('content', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Level" horizontal>
+                <SegmentedControl
+                  :options="headingLevelOptions"
+                  :model-value="(selectedBlock.settings as HeadingSettings).level"
+                  @update:model-value="updateBlockSettings({ level: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Font Size" horizontal>
+                <FontSizeSlider
+                  :model-value="(selectedBlock.styles as HeadingStyles).fontSize || 'xl'"
+                  @update:model-value="updateBlockStyles({ fontSize: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Line Height" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as HeadingStyles).lineHeight || '1.5'"
+                  :min="1"
+                  :max="2.5"
+                  :step="0.1"
+                  @update:model-value="updateBlockStyles({ lineHeight: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Letter Spacing" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as HeadingStyles).letterSpacing || '0'"
+                  :min="-2"
+                  :max="8"
+                  :step="0.5"
+                  unit="px"
+                  @update:model-value="updateBlockStyles({ letterSpacing: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Alignment" horizontal>
+                <SegmentedControl
+                  :options="alignmentOptions"
+                  :model-value="(selectedBlock.styles as HeadingStyles).alignment || 'left'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ alignment: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Color" horizontal>
+                <ColorInput
+                  :model-value="(selectedBlock.styles as HeadingStyles).color"
+                  swatch-only
+                  @update:model-value="updateBlockStyles({ color: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
           </template>
-        </InspectorSection>
 
-        <!-- Footer Section Settings -->
-        <InspectorSection v-if="isFooterSection && selectedBlock.footerSettings" title="Footer Settings" icon="lni-layout-footer">
-          <div class="space-y-3">
-            <ToggleInput
-              :model-value="!selectedBlock.footerSettings.isHidden"
-              label="Show footer"
-              @update:model-value="updateFooterSetting('isHidden', !$event)"
-            />
-          </div>
-        </InspectorSection>
+          <!-- Text Settings -->
+          <template v-else-if="selectedBlock.type === 'text'">
+            <!-- Overwrite Style Toggle (only for blocks inside List/Collection) -->
+            <div v-if="isInListCollection" class="px-4 py-3 border-b border-sidebar-border">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <p class="text-xs font-medium text-foreground">Overwrite style</p>
+                  <p class="text-[10px] text-muted-foreground">Apply unique styles to this item only</p>
+                </div>
+                <ToggleInput
+                  :model-value="hasOverwriteStyle"
+                  @update:model-value="toggleOverwriteStyle"
+                />
+              </div>
+            </div>
+            <InspectorSection title="Content" icon="lni-text-paragraph">
+              <InspectorField label="Text">
+                <TextInput
+                  :model-value="getTranslatableContent('content')"
+                  placeholder="Enter your text..."
+                  multiline
+                  @update:model-value="updateTranslatableContent('content', $event)"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Font Size" horizontal>
+                <FontSizeSlider
+                  :model-value="(selectedBlock.styles as TextStyles).fontSize || 'base'"
+                  @update:model-value="updateBlockStyles({ fontSize: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Line Height" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as TextStyles).lineHeight || '1.5'"
+                  :min="1"
+                  :max="2.5"
+                  :step="0.1"
+                  @update:model-value="updateBlockStyles({ lineHeight: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Letter Spacing" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as TextStyles).letterSpacing || '0'"
+                  :min="-2"
+                  :max="8"
+                  :step="0.5"
+                  unit="px"
+                  @update:model-value="updateBlockStyles({ letterSpacing: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Alignment" horizontal>
+                <SegmentedControl
+                  :options="alignmentOptions"
+                  :model-value="(selectedBlock.styles as TextStyles).alignment || 'left'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ alignment: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
 
-        <InspectorSection v-if="isFooterSection && selectedBlock.footerSettings" title="Copyright" icon="lni-text-format">
-          <InspectorField label="Text">
-            <TextInput
-              :model-value="selectedBlock.footerSettings.copyrightText"
-              placeholder="© 2024 Company Name"
-              @update:model-value="updateFooterSetting('copyrightText', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
+          <!-- Image Settings -->
+          <template v-else-if="selectedBlock.type === 'image'">
+            <!-- Overwrite Style Toggle (only for blocks inside List/Collection) -->
+            <div v-if="isInListCollection" class="px-4 py-3 border-b border-sidebar-border">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <p class="text-xs font-medium text-foreground">Overwrite style</p>
+                  <p class="text-[10px] text-muted-foreground">Apply unique styles to this item only</p>
+                </div>
+                <ToggleInput
+                  :model-value="hasOverwriteStyle"
+                  @update:model-value="toggleOverwriteStyle"
+                />
+              </div>
+            </div>
+            <InspectorSection title="Image" icon="lni-photos">
+              <InspectorField label="Source">
+                <ImageInput
+                  :model-value="(selectedBlock.settings as ImageSettings).src"
+                  placeholder="Upload image"
+                  @update:model-value="updateBlockSettings({ src: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Alt Text">
+                <TextInput
+                  :model-value="(selectedBlock.settings as ImageSettings).alt"
+                  placeholder="Image description"
+                  @update:model-value="updateBlockSettings({ alt: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Border Radius" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as ImageStyles).borderRadius || '8'"
+                  :min="0"
+                  :max="48"
+                  :step="4"
+                  @update:model-value="updateBlockStyles({ borderRadius: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
 
-        <!-- Form Section Settings -->
-        <InspectorSection v-if="isFormSection && selectedBlock.formSettings" title="Form Settings" icon="lni-form">
-          <InspectorField label="Integration">
-            <SelectInput
-              :options="[
-                { value: '', label: 'No integration' },
-                ...connectedIntegrations
-              ]"
-              :model-value="selectedBlock.formSettings.integrationId || ''"
-              @update:model-value="updateFormSectionSetting('integrationId', $event || undefined)"
-            />
-          </InspectorField>
-          <InspectorField label="Submit Button">
-            <TextInput
-              :model-value="selectedBlock.formSettings.submitButtonText"
-              placeholder="Submit"
-              @update:model-value="updateFormSectionSetting('submitButtonText', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Success Message">
-            <TextInput
-              :model-value="selectedBlock.formSettings.successMessage"
-              placeholder="Thank you for your submission!"
-              multiline
-              @update:model-value="updateFormSectionSetting('successMessage', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
+          <!-- Video Settings -->
+          <template v-else-if="selectedBlock.type === 'video'">
+            <InspectorSection title="Video" icon="lni-video-alt">
+              <InspectorField label="Source URL">
+                <TextInput
+                  :model-value="(selectedBlock.settings as VideoSettings).src"
+                  placeholder="YouTube, Vimeo, or file URL"
+                  @update:model-value="updateBlockSettings({ src: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Thumbnail">
+                <ImageInput
+                  :model-value="(selectedBlock.settings as VideoSettings).thumbnail || ''"
+                  placeholder="Upload thumbnail"
+                  @update:model-value="updateBlockSettings({ thumbnail: $event })"
+                />
+              </InspectorField>
+              <div class="space-y-2 px-3">
+                <ToggleInput
+                  :model-value="(selectedBlock.settings as VideoSettings).autoplay ?? false"
+                  label="Autoplay"
+                  @update:model-value="updateBlockSettings({ autoplay: $event })"
+                />
+                <ToggleInput
+                  :model-value="(selectedBlock.settings as VideoSettings).loop ?? false"
+                  label="Loop"
+                  @update:model-value="updateBlockSettings({ loop: $event })"
+                />
+                <ToggleInput
+                  :model-value="(selectedBlock.settings as VideoSettings).muted ?? false"
+                  label="Muted"
+                  @update:model-value="updateBlockSettings({ muted: $event })"
+                />
+                <ToggleInput
+                  :model-value="(selectedBlock.settings as VideoSettings).controls ?? true"
+                  label="Show controls"
+                  @update:model-value="updateBlockSettings({ controls: $event })"
+                />
+              </div>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Aspect Ratio">
+                <SelectInput
+                  :options="[
+                    { value: '16:9', label: '16:9' },
+                    { value: '4:3', label: '4:3' },
+                    { value: '1:1', label: '1:1' },
+                    { value: '9:16', label: '9:16' },
+                    { value: 'auto', label: 'Auto' },
+                  ]"
+                  :model-value="(selectedBlock.styles as VideoStyles).aspectRatio || '16:9'"
+                  @update:model-value="updateBlockStyles({ aspectRatio: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
 
-        <!-- Position -->
-        <InspectorSection title="Position" icon="lni-arrow-all-direction">
-          <InspectorField label="Align">
-            <SegmentedControl
-              :options="alignmentOptions"
-              :model-value="selectedBlock.styles.align"
-              @update:model-value="updateBlockStyle('align', $event as any)"
-            />
-          </InspectorField>
-          <InspectorField label="Margin">
-            <SpacingInput
-              :model-value="selectedBlock.styles.margin"
-              @update:model-value="updateBlockStyle('margin', $event)"
-            />
-          </InspectorField>
-          <InspectorField label="Padding">
-            <SpacingInput
-              :model-value="selectedBlock.styles.padding"
-              @update:model-value="updateBlockStyle('padding', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
+          <!-- Button Settings -->
+          <template v-else-if="selectedBlock.type === 'button'">
+            <!-- Overwrite Style Toggle (only for blocks inside List/Collection) -->
+            <div v-if="isInListCollection" class="px-4 py-3 border-b border-sidebar-border">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <p class="text-xs font-medium text-foreground">Overwrite style</p>
+                  <p class="text-[10px] text-muted-foreground">Apply unique styles to this item only</p>
+                </div>
+                <ToggleInput
+                  :model-value="hasOverwriteStyle"
+                  @update:model-value="toggleOverwriteStyle"
+                />
+              </div>
+            </div>
+            <InspectorSection title="Button" icon="lni-power-button">
+              <InspectorField label="Label">
+                <TextInput
+                  :model-value="getTranslatableContent('label')"
+                  placeholder="Button text"
+                  @update:model-value="updateTranslatableContent('label', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="URL">
+                <TextInput
+                  :model-value="(selectedBlock.settings as ButtonSettings).url"
+                  placeholder="https://..."
+                  @update:model-value="updateBlockSettings({ url: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Variant" horizontal>
+                <SegmentedControl
+                  :options="buttonVariantOptions"
+                  :model-value="(selectedBlock.settings as ButtonSettings).variant"
+                  @update:model-value="updateBlockSettings({ variant: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Size" horizontal>
+                <SegmentedControl
+                  :options="buttonSizeOptions"
+                  :model-value="(selectedBlock.settings as ButtonSettings).size"
+                  @update:model-value="updateBlockSettings({ size: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Font Size" horizontal>
+                <FontSizeSlider
+                  :model-value="(selectedBlock.styles as ButtonStyles).fontSize || 'base'"
+                  @update:model-value="updateBlockStyles({ fontSize: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Line Height" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as ButtonStyles).lineHeight || '1.5'"
+                  :min="1"
+                  :max="2.5"
+                  :step="0.1"
+                  @update:model-value="updateBlockStyles({ lineHeight: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Letter Spacing" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as ButtonStyles).letterSpacing || '0'"
+                  :min="-2"
+                  :max="8"
+                  :step="0.5"
+                  unit="px"
+                  @update:model-value="updateBlockStyles({ letterSpacing: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
 
-        <!-- Border -->
-        <InspectorSection title="Border" icon="lni-check-square-2">
-          <BorderInput
-            :model-value="selectedBlock.styles.border"
-            @update:model-value="updateBlockStyle('border', $event)"
+          <!-- Divider Settings -->
+          <template v-else-if="selectedBlock.type === 'divider'">
+            <InspectorSection title="Divider" icon="lni-minus">
+              <InspectorField label="Style">
+                <SelectInput
+                  :options="[
+                    { value: 'line', label: 'Line' },
+                    { value: 'dashed', label: 'Dashed' },
+                    { value: 'dotted', label: 'Dotted' },
+                    { value: 'space', label: 'Space' },
+                  ]"
+                  :model-value="(selectedBlock.settings as DividerSettings).style || 'line'"
+                  @update:model-value="updateBlockSettings({ style: $event })"
+                />
+              </InspectorField>
+              <InspectorField v-if="(selectedBlock.settings as DividerSettings).style !== 'space'" label="Thickness" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as DividerSettings).thickness || '1'"
+                  :min="1"
+                  :max="8"
+                  :step="1"
+                  @update:model-value="updateBlockSettings({ thickness: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Width" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as DividerSettings).width || '100'"
+                  :min="10"
+                  :max="100"
+                  :step="5"
+                  unit="%"
+                  @update:model-value="updateBlockSettings({ width: $event })"
+                />
+              </InspectorField>
+              <InspectorField v-if="(selectedBlock.settings as DividerSettings).style !== 'space'" label="Color" horizontal>
+                <ColorInput
+                  :model-value="(selectedBlock.settings as DividerSettings).color"
+                  swatch-only
+                  @update:model-value="updateBlockSettings({ color: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
+
+          <!-- Icon Settings -->
+          <template v-else-if="selectedBlock.type === 'icon'">
+            <!-- Overwrite Style Toggle (only for blocks inside List/Collection) -->
+            <div v-if="isInListCollection" class="px-4 py-3 border-b border-sidebar-border">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <p class="text-xs font-medium text-foreground">Overwrite style</p>
+                  <p class="text-[10px] text-muted-foreground">Apply unique styles to this item only</p>
+                </div>
+                <ToggleInput
+                  :model-value="hasOverwriteStyle"
+                  @update:model-value="toggleOverwriteStyle"
+                />
+              </div>
+            </div>
+            <InspectorSection title="Icon" icon="lni-star">
+              <InspectorField label="Icon Name">
+                <TextInput
+                  :model-value="(selectedBlock.settings as IconSettings).icon"
+                  placeholder="lni-star"
+                  @update:model-value="updateBlockSettings({ icon: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Size" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as IconSettings).size || '24'"
+                  :min="12"
+                  :max="96"
+                  :step="4"
+                  unit="px"
+                  @update:model-value="updateBlockSettings({ size: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Link URL">
+                <TextInput
+                  :model-value="(selectedBlock.settings as IconSettings).linkUrl"
+                  placeholder="https://..."
+                  @update:model-value="updateBlockSettings({ linkUrl: $event })"
+                />
+              </InspectorField>
+              <div class="px-3">
+                <ToggleInput
+                  :model-value="(selectedBlock.settings as IconSettings).linkNewTab ?? false"
+                  label="Open in new tab"
+                  @update:model-value="updateBlockSettings({ linkNewTab: $event })"
+                />
+              </div>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Color" horizontal>
+                <ColorInput
+                  :model-value="(selectedBlock.styles as IconStyles).color"
+                  swatch-only
+                  @update:model-value="updateBlockStyles({ color: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
+
+          <!-- Container Settings -->
+          <template v-else-if="selectedBlock.type === 'container'">
+            <InspectorSection title="Container" icon="lni-layout-26">
+              <InspectorField label="Max Width" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as ContainerSettings).maxWidth || '1200'"
+                  :min="400"
+                  :max="1600"
+                  :step="100"
+                  unit="px"
+                  @update:model-value="updateBlockSettings({ maxWidth: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Height" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as ContainerSettings).height || '100'"
+                  :min="0"
+                  :max="100"
+                  :step="10"
+                  unit="%"
+                  @update:model-value="updateBlockSettings({ height: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Content Position" icon="lni-layout-3">
+              <InspectorField label="Direction" horizontal>
+                <SegmentedControl
+                  :options="[
+                    { value: 'column', label: 'Column', icon: 'lni-arrow-downward' },
+                    { value: 'row', label: 'Row', icon: 'lni-arrow-right' },
+                  ]"
+                  :model-value="(selectedBlock.styles as ContainerStyles).flexDirection || 'column'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ flexDirection: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Justify" horizontal>
+                <SegmentedControl
+                  :options="(selectedBlock.styles as ContainerStyles).flexDirection === 'row' ? [
+                    { value: 'flex-start', label: 'Left', icon: 'lni-shift-left' },
+                    { value: 'center', label: 'Center', icon: 'lni-align-text-center' },
+                    { value: 'flex-end', label: 'Right', icon: 'lni-shift-right' },
+                    { value: 'space-between', label: 'Between', icon: 'lni-arrow-both-direction-horizontal-1' },
+                  ] : [
+                    { value: 'flex-start', label: 'Top', icon: 'lni-arrow-upward' },
+                    { value: 'center', label: 'Center', icon: 'lni-minus' },
+                    { value: 'flex-end', label: 'Bottom', icon: 'lni-arrow-downward' },
+                    { value: 'space-between', label: 'Between', icon: 'lni-arrow-both-direction-vertical-1' },
+                  ]"
+                  :model-value="(selectedBlock.styles as ContainerStyles).justifyContent || 'flex-start'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ justifyContent: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Align" horizontal>
+                <SegmentedControl
+                  :options="(selectedBlock.styles as ContainerStyles).flexDirection === 'row' ? [
+                    { value: 'flex-start', label: 'Top', icon: 'lni-arrow-upward' },
+                    { value: 'center', label: 'Center', icon: 'lni-minus' },
+                    { value: 'flex-end', label: 'Bottom', icon: 'lni-arrow-downward' },
+                    { value: 'stretch', label: 'Stretch', icon: 'lni-arrow-both-direction-vertical-1' },
+                  ] : [
+                    { value: 'flex-start', label: 'Left', icon: 'lni-shift-left' },
+                    { value: 'center', label: 'Center', icon: 'lni-align-text-center' },
+                    { value: 'flex-end', label: 'Right', icon: 'lni-shift-right' },
+                    { value: 'stretch', label: 'Stretch', icon: 'lni-arrow-both-direction-horizontal-1' },
+                  ]"
+                  :model-value="(selectedBlock.styles as ContainerStyles).alignItems || 'stretch'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ alignItems: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Gap" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.styles as ContainerStyles).gap || '16'"
+                  :min="0"
+                  :max="64"
+                  :step="4"
+                  @update:model-value="updateBlockStyles({ gap: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Background" horizontal>
+                <ColorInput
+                  :model-value="(selectedBlock.styles as BaseBlockStyles).backgroundColor"
+                  swatch-only
+                  @update:model-value="updateBlockStyles({ backgroundColor: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
+
+          <!-- Grid Settings -->
+          <template v-else-if="selectedBlock.type === 'grid'">
+            <InspectorSection title="Grid" icon="lni-layout-9">
+              <InspectorField label="Columns" horizontal>
+                <SliderInput
+                  :model-value="String((selectedBlock.settings as GridSettings).columns || 2)"
+                  :min="1"
+                  :max="12"
+                  :step="1"
+                  unit=""
+                  @update:model-value="updateBlockSettings({ columns: Number($event), columnWidths: undefined })"
+                />
+              </InspectorField>
+              <!-- Column widths display -->
+              <div v-if="(selectedBlock.settings as GridSettings).columnWidths" class="px-3 py-2 text-xs text-muted-foreground">
+                <div class="flex items-center justify-between mb-1">
+                  <span>Column widths:</span>
+                  <button
+                    class="text-[10px] text-primary hover:underline"
+                    @click="updateBlockSettings({ columnWidths: undefined })"
+                  >Reset</button>
+                </div>
+                <div class="flex gap-1">
+                  <span
+                    v-for="(w, i) in (selectedBlock.settings as GridSettings).columnWidths"
+                    :key="i"
+                    class="px-1.5 py-0.5 bg-secondary rounded text-[10px]"
+                  >{{ w }}fr</span>
+                </div>
+              </div>
+              <InspectorField label="Gap" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as GridSettings).gap || '16'"
+                  :min="0"
+                  :max="48"
+                  :step="4"
+                  @update:model-value="updateBlockSettings({ gap: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Height" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as GridSettings).height || '100'"
+                  :min="0"
+                  :max="100"
+                  :step="10"
+                  unit="%"
+                  @update:model-value="updateBlockSettings({ height: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Content Position" icon="lni-layout-3">
+              <InspectorField label="Justify" horizontal>
+                <SegmentedControl
+                  :options="justifyItemsOptions"
+                  :model-value="(selectedBlock.styles as GridStyles).justifyItems || 'stretch'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ justifyItems: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Align" horizontal>
+                <SegmentedControl
+                  :options="alignItemsOptions"
+                  :model-value="(selectedBlock.styles as GridStyles).alignItems || 'stretch'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ alignItems: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Background" horizontal>
+                <ColorInput
+                  :model-value="(selectedBlock.styles as BaseBlockStyles).backgroundColor"
+                  swatch-only
+                  @update:model-value="updateBlockStyles({ backgroundColor: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
+
+          <!-- Stack Settings -->
+          <template v-else-if="selectedBlock.type === 'stack'">
+            <!-- Overwrite Style Toggle (only for blocks inside List/Collection) -->
+            <div v-if="isInListCollection" class="px-4 py-3 border-b border-sidebar-border">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <p class="text-xs font-medium text-foreground">Overwrite style</p>
+                  <p class="text-[10px] text-muted-foreground">Apply unique styles to this item only</p>
+                </div>
+                <ToggleInput
+                  :model-value="hasOverwriteStyle"
+                  @update:model-value="toggleOverwriteStyle"
+                />
+              </div>
+            </div>
+            <InspectorSection title="Stack" icon="lni-layers-1">
+              <InspectorField label="Direction" horizontal>
+                <SegmentedControl
+                  :options="[
+                    { value: 'vertical', label: 'Vertical', icon: 'lni-arrow-downward' },
+                    { value: 'horizontal', label: 'Horizontal', icon: 'lni-arrow-right' },
+                  ]"
+                  :model-value="(selectedBlock.settings as StackSettings).direction || 'vertical'"
+                  icon-only
+                  @update:model-value="updateBlockSettings({ direction: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Gap" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as StackSettings).gap || '16'"
+                  :min="0"
+                  :max="64"
+                  :step="4"
+                  @update:model-value="updateBlockSettings({ gap: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Height" horizontal>
+                <SliderInput
+                  :model-value="(selectedBlock.settings as StackSettings).height || '100'"
+                  :min="0"
+                  :max="100"
+                  :step="10"
+                  unit="%"
+                  @update:model-value="updateBlockSettings({ height: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Content Position" icon="lni-layout-3">
+              <InspectorField label="Justify" horizontal>
+                <SegmentedControl
+                  :options="justifyContentOptions"
+                  :model-value="(selectedBlock.styles as StackStyles).justifyContent || 'flex-start'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ justifyContent: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Align" horizontal>
+                <SegmentedControl
+                  :options="alignItemsOptions"
+                  :model-value="(selectedBlock.styles as StackStyles).alignItems || 'stretch'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ alignItems: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Wrap" horizontal>
+                <SegmentedControl
+                  :options="flexWrapOptions"
+                  :model-value="(selectedBlock.styles as StackStyles).flexWrap || 'nowrap'"
+                  icon-only
+                  @update:model-value="updateBlockStyles({ flexWrap: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Background" horizontal>
+                <ColorInput
+                  :model-value="(selectedBlock.styles as BaseBlockStyles).backgroundColor"
+                  swatch-only
+                  @update:model-value="updateBlockStyles({ backgroundColor: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
+
+          <!-- Generic Styles (for blocks without specific inspector) -->
+          <template v-else>
+            <InspectorSection title="Style" icon="lni-brush-2">
+              <InspectorField label="Background" horizontal>
+                <ColorInput
+                  :model-value="(selectedBlock.styles as BaseBlockStyles).backgroundColor"
+                  swatch-only
+                  @update:model-value="updateBlockStyles({ backgroundColor: $event })"
+                />
+              </InspectorField>
+            </InspectorSection>
+          </template>
+
+          <!-- Grid Placement Section (only for direct children of Grid) -->
+          <InspectorSection v-if="isChildOfGrid" title="Grid Placement" icon="lni-grid-3">
+            <InspectorField label="Column Span" horizontal>
+              <SliderInput
+                :model-value="String((selectedBlock.settings as Record<string, unknown>).gridColumnSpan || 1)"
+                :min="1"
+                :max="parentGridColumns || 4"
+                :step="1"
+                @update:model-value="updateBlockSettings({ gridColumnSpan: parseInt($event) })"
+              />
+            </InspectorField>
+            <InspectorField label="Row Span" horizontal>
+              <SliderInput
+                :model-value="String((selectedBlock.settings as Record<string, unknown>).gridRowSpan || 1)"
+                :min="1"
+                :max="6"
+                :step="1"
+                @update:model-value="updateBlockSettings({ gridRowSpan: parseInt($event) })"
+              />
+            </InspectorField>
+          </InspectorSection>
+
+          <!-- Spacing Section (common to all blocks) -->
+          <InspectorSection title="Spacing" icon="lni-arrow-both-direction-horizontal-1">
+            <InspectorField label="Padding Y" horizontal>
+              <SliderInput
+                :model-value="responsiveStyles.padding?.top || '0'"
+                :min="0"
+                :max="64"
+                :step="4"
+                @update:model-value="updateBlockStyles({ padding: { ...responsiveStyles.padding, top: $event, bottom: $event } })"
+              />
+            </InspectorField>
+            <InspectorField label="Padding X" horizontal>
+              <SliderInput
+                :model-value="responsiveStyles.padding?.left || '0'"
+                :min="0"
+                :max="64"
+                :step="4"
+                @update:model-value="updateBlockStyles({ padding: { ...responsiveStyles.padding, left: $event, right: $event } })"
+              />
+            </InspectorField>
+            <InspectorField label="Margin Y" horizontal>
+              <SliderInput
+                :model-value="responsiveStyles.margin?.top || '0'"
+                :min="0"
+                :max="64"
+                :step="4"
+                @update:model-value="updateBlockStyles({ margin: { ...responsiveStyles.margin, top: $event, bottom: $event } })"
+              />
+            </InspectorField>
+            <InspectorField label="Margin X" horizontal>
+              <SliderInput
+                :model-value="responsiveStyles.margin?.left || '0'"
+                :min="0"
+                :max="64"
+                :step="4"
+                @update:model-value="updateBlockStyles({ margin: { ...responsiveStyles.margin, left: $event, right: $event } })"
+              />
+            </InspectorField>
+          </InspectorSection>
+
+          <!-- Border Section (common to all blocks) -->
+          <InspectorSection title="Border" icon="lni-frame-3">
+            <BorderInput
+              :model-value="responsiveStyles.border"
+              @update:model-value="updateBlockStyles({ border: $event })"
+            />
+          </InspectorSection>
+
+          <!-- Animation Section (common to most blocks, not header/footer) -->
+          <AnimationSection
+            v-if="blockSupportsAnimation"
+            :model-value="blockAnimation"
+            @update:model-value="updateBlockAnimation"
+            @preview="handleAnimationPreview"
           />
-        </InspectorSection>
-
-        <!-- Background -->
-        <InspectorSection title="Background" icon="lni-photos">
-          <InspectorField label="Color">
-            <ColorInput
-              :model-value="selectedBlock.styles.backgroundColor"
-              @update:model-value="updateBlockStyle('backgroundColor', $event)"
-            />
-          </InspectorField>
-        </InspectorSection>
-
-        <!-- Effect -->
-        <InspectorSection title="Effect" icon="lni-bolt-2">
-          <InspectorField label="Animation">
-            <SelectInput
-              :options="effectOptions"
-              :model-value="selectedBlock.styles.effect"
-              @update:model-value="updateBlockStyle('effect', $event as any)"
-            />
-          </InspectorField>
-        </InspectorSection>
-      </template>
-    </div>
+        </template>
+      </div>
     </template>
   </aside>
 </template>

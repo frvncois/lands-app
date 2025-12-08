@@ -4,6 +4,7 @@ import ColorPicker from '@/components/ui/ColorPicker.vue'
 defineProps<{
   modelValue: string | undefined
   placeholder?: string
+  swatchOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -19,6 +20,7 @@ function handleUpdate(value: string) {
   <ColorPicker
     :model-value="modelValue"
     :placeholder="placeholder"
+    :swatch-only="swatchOnly"
     @update:model-value="handleUpdate"
   />
 </template>

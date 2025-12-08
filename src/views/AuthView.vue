@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
 import SignupForm from '@/components/auth/SignupForm.vue'
+import LandsLogo from '@/assets/LandsLogo.vue'
 
 type AuthMode = 'login' | 'signup'
 
@@ -15,11 +16,12 @@ function switchMode(newMode: AuthMode) {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="space-y-2 text-center">
-      <h1 class="text-2xl font-semibold tracking-tight text-foreground">
+    <div class="flex flex-col items-center text-center pb-3">
+      <LandsLogo class="w-8 h-8 mb-6" />
+      <h1 class="text-3xl tracking-tight text-foreground">
         {{ mode === 'login' ? 'Welcome back' : 'Create an account' }}
       </h1>
-      <p class="text-sm text-muted-foreground">
+      <p class="text-xs text-muted-foreground">
         {{ mode === 'login' ? 'Enter your credentials to sign in' : 'Enter your details to get started' }}
       </p>
     </div>
