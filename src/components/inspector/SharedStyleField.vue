@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { Icon } from '@/components/ui'
+import { Icon, Tooltip } from '@/components/ui'
 import InspectorField from './InspectorField.vue'
 import type { SectionBlockType, SharedStyle } from '@/types/editor'
 
@@ -72,11 +72,9 @@ function handleRemoveStyle() {
           @click="toggleDropdown"
         >
           <!-- Status indicator -->
-          <span
-            v-if="currentSharedStyle"
-            class="w-2 h-2 rounded-full bg-primary shrink-0"
-            title="Synced"
-          />
+          <Tooltip v-if="currentSharedStyle" text="Synced">
+            <span class="w-2 h-2 rounded-full bg-primary shrink-0" />
+          </Tooltip>
           <span
             v-else
             class="w-2 h-2 rounded-full bg-muted-foreground/30 shrink-0"
@@ -170,15 +168,15 @@ function handleRemoveStyle() {
       </div>
 
       <!-- Detach/Unlink button -->
-      <button
-        v-if="currentSharedStyle"
-        type="button"
-        class="p-1.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground shrink-0"
-        title="Detach from shared style"
-        @click="handleDetach"
-      >
-        <Icon name="app-unlink" :size="14" />
-      </button>
+      <Tooltip v-if="currentSharedStyle" text="Detach">
+        <button
+          type="button"
+          class="p-1.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground shrink-0"
+          @click="handleDetach"
+        >
+          <Icon name="app-unlink" :size="14" />
+        </button>
+      </Tooltip>
     </div>
   </InspectorField>
 </template>

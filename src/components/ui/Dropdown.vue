@@ -15,7 +15,7 @@ withDefaults(defineProps<Props>(), {
   icon: 'app-more',
   align: 'right',
   position: 'bottom',
-  width: 'w-48',
+  width: 'min-w-30',
   closeOnClick: true,
 })
 

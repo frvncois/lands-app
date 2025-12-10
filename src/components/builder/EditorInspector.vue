@@ -115,6 +115,7 @@ import ProjectFont from '@/components/modal/ProjectFont.vue'
 import ProductVariants from '@/components/modal/ProductVariants.vue'
 import SharedStyleCreate from '@/components/modal/SharedStyleCreate.vue'
 import Icon from '@/components/ui/Icon.vue'
+import Tooltip from '@/components/ui/Tooltip.vue'
 
 const editorStore = useEditorStore()
 const projectsStore = useProjectsStore()
@@ -681,10 +682,11 @@ const blockSupportsAnimation = computed(() => {
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         ]"
-        title="Page"
         @click="editorStore.selectBlock(null)"
       >
-        <Icon name="home-2" class="text-sm" />
+        <Tooltip text="Page" position="left">
+          <Icon name="home-2" class="text-sm" />
+        </Tooltip>
       </button>
       <div class="w-6 border-t border-sidebar-border my-1"></div>
       <button
@@ -696,10 +698,11 @@ const blockSupportsAnimation = computed(() => {
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         ]"
-        :title="block.name"
         @click="editorStore.selectBlock(block.id)"
       >
-        <Icon :name="sectionBlockIcons[block.type]" :size="14" />
+        <Tooltip :text="block.name" position="left">
+          <Icon :name="sectionBlockIcons[block.type]" :size="14" />
+        </Tooltip>
       </button>
     </div>
 
@@ -720,7 +723,6 @@ const blockSupportsAnimation = computed(() => {
               v-if="index < breadcrumbPath.length - 1"
               class="flex items-center h-6 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 ease-out shrink-0 overflow-hidden"
               :class="hoveredBreadcrumbId === (item.id ?? 'page') ? 'px-2 gap-1.5' : 'w-6 justify-center'"
-              :title="item.label"
               @mouseenter="hoveredBreadcrumbId = item.id ?? 'page'"
               @mouseleave="hoveredBreadcrumbId = null"
               @click="handleBreadcrumbClick(item)"
@@ -1916,39 +1918,42 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Style" horizontal>
                 <div class="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                    :class="(selectedBlock.styles as HeadingStyles).fontStyle === 'italic'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Italic"
-                    @click="updateBlockStyles({ fontStyle: (selectedBlock.styles as HeadingStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
-                  >
-                    <Icon name="italic" class="text-sm" />
-                  </button>
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                    :class="(selectedBlock.styles as HeadingStyles).textDecoration === 'underline'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Underline"
-                    @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as HeadingStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
-                  >
-                    <Icon name="underline" class="text-sm" />
-                  </button>
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                    :class="(selectedBlock.styles as HeadingStyles).textDecoration === 'line-through'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Strikethrough"
-                    @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as HeadingStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
-                  >
-                    <Icon name="strikethrough" class="text-sm" />
-                  </button>
+                  <Tooltip text="Italic">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors"
+                      :class="(selectedBlock.styles as HeadingStyles).fontStyle === 'italic'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ fontStyle: (selectedBlock.styles as HeadingStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
+                    >
+                      <Icon name="italic" class="text-sm" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Underline">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors"
+                      :class="(selectedBlock.styles as HeadingStyles).textDecoration === 'underline'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as HeadingStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
+                    >
+                      <Icon name="underline" class="text-sm" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Strikethrough">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors"
+                      :class="(selectedBlock.styles as HeadingStyles).textDecoration === 'line-through'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as HeadingStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
+                    >
+                      <Icon name="strikethrough" class="text-sm" />
+                    </button>
+                  </Tooltip>
                 </div>
               </InspectorField>
               <InspectorField label="Line Height" horizontal>
@@ -2036,39 +2041,42 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Style" horizontal>
                 <div class="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                    :class="(selectedBlock.styles as TextStyles).fontStyle === 'italic'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Italic"
-                    @click="updateBlockStyles({ fontStyle: (selectedBlock.styles as TextStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
-                  >
-                    <Icon name="italic" class="text-sm" />
-                  </button>
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                    :class="(selectedBlock.styles as TextStyles).textDecoration === 'underline'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Underline"
-                    @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as TextStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
-                  >
-                    <Icon name="underline" class="text-sm" />
-                  </button>
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                    :class="(selectedBlock.styles as TextStyles).textDecoration === 'line-through'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Strikethrough"
-                    @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as TextStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
-                  >
-                    <Icon name="strikethrough" class="text-sm" />
-                  </button>
+                  <Tooltip text="Italic">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors"
+                      :class="(selectedBlock.styles as TextStyles).fontStyle === 'italic'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ fontStyle: (selectedBlock.styles as TextStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
+                    >
+                      <Icon name="italic" class="text-sm" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Underline">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors"
+                      :class="(selectedBlock.styles as TextStyles).textDecoration === 'underline'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as TextStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
+                    >
+                      <Icon name="underline" class="text-sm" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Strikethrough">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors"
+                      :class="(selectedBlock.styles as TextStyles).textDecoration === 'line-through'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as TextStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
+                    >
+                      <Icon name="strikethrough" class="text-sm" />
+                    </button>
+                  </Tooltip>
                 </div>
               </InspectorField>
               <InspectorField label="Text Color" horizontal>
@@ -2917,50 +2925,54 @@ const blockSupportsAnimation = computed(() => {
             <InspectorSection title="Shadow" icon="layout-stack">
               <InspectorField label="Size" horizontal>
                 <div class="flex p-0.5 bg-secondary rounded-md">
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
-                    :class="!responsiveStyles.shadow?.enabled
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="None"
-                    @click="updateBlockStyles({ shadow: { enabled: false } })"
-                  >
-                    <Icon name="ban" class="text-xs" />
-                  </button>
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
-                    :class="responsiveStyles.shadow?.enabled && responsiveStyles.shadow?.blur === '8'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Small"
-                    @click="updateBlockStyles({ shadow: { enabled: true, x: '0', y: '2', blur: '8', color: responsiveStyles.shadow?.color || 'rgba(0,0,0,0.1)' } })"
-                  >
-                    S
-                  </button>
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
-                    :class="responsiveStyles.shadow?.enabled && responsiveStyles.shadow?.blur === '16'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Medium"
-                    @click="updateBlockStyles({ shadow: { enabled: true, x: '0', y: '4', blur: '16', color: responsiveStyles.shadow?.color || 'rgba(0,0,0,0.1)' } })"
-                  >
-                    M
-                  </button>
-                  <button
-                    type="button"
-                    class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
-                    :class="responsiveStyles.shadow?.enabled && responsiveStyles.shadow?.blur === '32'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'"
-                    title="Large"
-                    @click="updateBlockStyles({ shadow: { enabled: true, x: '0', y: '8', blur: '32', color: responsiveStyles.shadow?.color || 'rgba(0,0,0,0.15)' } })"
-                  >
-                    L
-                  </button>
+                  <Tooltip text="None">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
+                      :class="!responsiveStyles.shadow?.enabled
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ shadow: { enabled: false } })"
+                    >
+                      <Icon name="ban" class="text-xs" />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Small">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
+                      :class="responsiveStyles.shadow?.enabled && responsiveStyles.shadow?.blur === '8'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ shadow: { enabled: true, x: '0', y: '2', blur: '8', color: responsiveStyles.shadow?.color || 'rgba(0,0,0,0.1)' } })"
+                    >
+                      S
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Medium">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
+                      :class="responsiveStyles.shadow?.enabled && responsiveStyles.shadow?.blur === '16'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ shadow: { enabled: true, x: '0', y: '4', blur: '16', color: responsiveStyles.shadow?.color || 'rgba(0,0,0,0.1)' } })"
+                    >
+                      M
+                    </button>
+                  </Tooltip>
+                  <Tooltip text="Large">
+                    <button
+                      type="button"
+                      class="flex items-center justify-center w-7 h-7 rounded transition-colors text-[10px] font-semibold"
+                      :class="responsiveStyles.shadow?.enabled && responsiveStyles.shadow?.blur === '32'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="updateBlockStyles({ shadow: { enabled: true, x: '0', y: '8', blur: '32', color: responsiveStyles.shadow?.color || 'rgba(0,0,0,0.15)' } })"
+                    >
+                      L
+                    </button>
+                  </Tooltip>
                 </div>
               </InspectorField>
               <InspectorField v-if="responsiveStyles.shadow?.enabled" label="Color" horizontal>

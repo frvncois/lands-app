@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { Button, Combobox, Dropdown, DropdownItem, Icon } from '@/components/ui'
+import { Button, Combobox, Dropdown, DropdownItem, Icon, Tooltip } from '@/components/ui'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
@@ -858,18 +858,17 @@ function canBlockExpand(block: SectionBlock): boolean {
 
     <!-- Collapsed state -->
     <div v-if="editorStore.isSidebarCollapsed" class="flex flex-col items-center py-2 gap-1 pr-1">
-      <Button
-        v-for="block in editorStore.blocks"
-        :key="block.id"
-        variant="outline"
-        size="icon"
-        class="h-6 w-6"
-        :class="editorStore.selectedBlockId === block.id ? 'bg-accent text-accent-foreground' : ''"
-        :title="block.name"
-        @click="editorStore.selectBlock(block.id)"
-      >
-        <Icon :name="sectionBlockIcons[block.type]" :size="14" />
-      </Button>
+      <Tooltip v-for="block in editorStore.blocks" :key="block.id" :text="block.name" position="right">
+        <Button
+          variant="outline"
+          size="icon"
+          class="h-6 w-6"
+          :class="editorStore.selectedBlockId === block.id ? 'bg-accent text-accent-foreground' : ''"
+          @click="editorStore.selectBlock(block.id)"
+        >
+          <Icon :name="sectionBlockIcons[block.type]" :size="14" />
+        </Button>
+      </Tooltip>
     </div>
 
     <!-- Expanded state -->
@@ -878,14 +877,15 @@ function canBlockExpand(block: SectionBlock): boolean {
       <div class="flex items-center justify-between h-12 pl-3.5 pr-2.5 border-b border-sidebar-border">
         <h2 class="text-sm font-semibold text-foreground">Sections</h2>
         <div class="relative dropdown-container">
-          <Button
-            variant="ghost"
-            size="sm"
-            title="Add section"
-            @click="showSectionDropdown = !showSectionDropdown"
-          >
-            <Icon name="plus" class="text-sm" />
-          </Button>
+          <Tooltip text="Add section">
+            <Button
+              variant="ghost"
+              size="sm"
+              @click="showSectionDropdown = !showSectionDropdown"
+            >
+              <Icon name="plus" class="text-sm" />
+            </Button>
+          </Tooltip>
           <!-- Section Dropdown -->
           <Teleport to="body">
             <div
@@ -996,7 +996,7 @@ function canBlockExpand(block: SectionBlock): boolean {
           >
             <!-- Section block header -->
             <div
-              class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+              class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
               :class="[
                 isProtectedBlock(block) ? 'cursor-pointer' : 'cursor-grab',
                 editorStore.selectedBlockId === block.id && !editorStore.selectedItemId
@@ -1008,8 +1008,6 @@ function canBlockExpand(block: SectionBlock): boolean {
               @click="editorStore.selectBlock(block.id)"
               @contextmenu="handleBlockContextMenu(block.id, 'section', $event)"
             >
-
-
               <!-- Expand/Collapse toggle (only for blocks that can expand) -->
               <button
                 v-if="canBlockExpand(block)"
@@ -1021,46 +1019,54 @@ function canBlockExpand(block: SectionBlock): boolean {
               <!-- Spacer for blocks that can't expand -->
               <div v-else class="w-4 shrink-0"></div>
 
-              <span class="flex-1 font-medium leading-4" :class="isBlockHidden(block) ? 'opacity-50' : ''">{{ block.name }}</span>
+              <span class="flex-1 truncate font-medium leading-4" :class="isBlockHidden(block) ? 'opacity-50' : ''">{{ block.name }}</span>
 
               <!-- Shared style indicator -->
-              <span
-                v-if="block.sharedStyleId"
-                class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
-                title="Has shared style"
-              />
+              <Tooltip v-if="block.sharedStyleId" text="Has shared style">
+                <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+              </Tooltip>
 
-              <!-- Visibility toggle for header/footer -->
-              <button
-                v-if="isProtectedBlock(block)"
-                class="w-5 h-5 flex items-center justify-center shrink-0 rounded opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-foreground transition-all"
-                :class="isBlockHidden(block) ? '!opacity-100 text-muted-foreground' : ''"
-                :title="isBlockHidden(block) ? 'Show section' : 'Hide section'"
-                @click="toggleBlockVisibility(block, $event)"
+              <!-- Action buttons with fade background -->
+              <div
+                class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                :class="[
+                  editorStore.selectedBlockId === block.id && !editorStore.selectedItemId
+                    ? 'bg-gradient-to-r from-transparent to-accent'
+                    : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
+                ]"
               >
-                <Icon v-if="isBlockHidden(block)" name="app-hide" class="text-[10px] opacity-50" />
-                <Icon v-else name="app-show" :size="10" />
-              </button>
+                <!-- Visibility toggle for header/footer -->
+                <Tooltip v-if="isProtectedBlock(block)" :text="isBlockHidden(block) ? 'Show' : 'Hide'">
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded hover:bg-accent hover:text-foreground transition-all"
+                    :class="isBlockHidden(block) ? 'text-muted-foreground' : ''"
+                    @click.stop="toggleBlockVisibility(block, $event)"
+                  >
+                    <Icon v-if="isBlockHidden(block)" name="app-hide" class="text-[10px] opacity-50" />
+                    <Icon v-else name="app-show" :size="10" />
+                  </button>
+                </Tooltip>
 
-              <!-- Duplicate block button -->
-              <button
-                v-if="!isProtectedBlock(block)"
-                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                title="Duplicate section"
-                @click="handleDuplicateBlock(block.id, $event)"
-              >
-                <Icon name="layers-1" class="text-[10px]" />
-              </button>
+                <!-- Duplicate block button -->
+                <Tooltip v-if="!isProtectedBlock(block)" text="Duplicate">
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                    @click.stop="handleDuplicateBlock(block.id, $event)"
+                  >
+                    <Icon name="layers-1" class="text-[10px]" />
+                  </button>
+                </Tooltip>
 
-              <!-- Delete block button -->
-              <button
-                v-if="!isProtectedBlock(block)"
-                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                title="Delete section"
-                @click="handleDeleteBlock(block.id, $event)"
-              >
-                <Icon name="trash-3" class="text-[10px]" />
-              </button>
+                <!-- Delete block button -->
+                <Tooltip v-if="!isProtectedBlock(block)" text="Delete">
+                  <button
+                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                    @click.stop="handleDeleteBlock(block.id, $event)"
+                  >
+                    <Icon name="trash-3" class="text-[10px]" />
+                  </button>
+                </Tooltip>
+              </div>
             </div>
 
             <!-- Expanded content: Header children (Start, Middle, End stacks) -->
@@ -1099,7 +1105,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                     v-for="(grandchild, grandchildIndex) in (child.children || [])"
                     :key="grandchild.id"
                     draggable="true"
-                    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-grab transition-colors group"
+                    class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-grab transition-colors group"
                     :class="[
                       editorStore.selectedBlockId === grandchild.id
                         ? 'bg-accent text-accent-foreground'
@@ -1119,20 +1125,32 @@ function canBlockExpand(block: SectionBlock): boolean {
                       <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
                     </div>
                     <span class="flex-1 truncate leading-4">{{ grandchild.name }}</span>
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                      title="Duplicate"
-                      @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                    <!-- Action buttons with fade background -->
+                    <div
+                      class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      :class="[
+                        editorStore.selectedBlockId === grandchild.id
+                          ? 'bg-gradient-to-r from-transparent to-accent'
+                          : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
+                      ]"
                     >
-                      <Icon name="layers-1" class="text-[10px]" />
-                    </button>
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                      title="Delete"
-                      @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                    >
-                      <Icon name="xmark" class="text-[10px]" />
-                    </button>
+                      <Tooltip text="Duplicate">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                        >
+                          <Icon name="layers-1" class="text-[10px]" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip text="Delete">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                        >
+                          <Icon name="xmark" class="text-[10px]" />
+                        </button>
+                      </Tooltip>
+                    </div>
                   </div>
                   <!-- Add block to header stack -->
                   <Dropdown>
@@ -1197,7 +1215,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                     v-for="(grandchild, grandchildIndex) in (child.children || [])"
                     :key="grandchild.id"
                     draggable="true"
-                    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-grab transition-colors group"
+                    class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-grab transition-colors group"
                     :class="[
                       editorStore.selectedBlockId === grandchild.id
                         ? 'bg-accent text-accent-foreground'
@@ -1217,20 +1235,32 @@ function canBlockExpand(block: SectionBlock): boolean {
                       <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
                     </div>
                     <span class="flex-1 truncate leading-4">{{ grandchild.name }}</span>
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                      title="Duplicate"
-                      @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                    <!-- Action buttons with fade background -->
+                    <div
+                      class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      :class="[
+                        editorStore.selectedBlockId === grandchild.id
+                          ? 'bg-gradient-to-r from-transparent to-accent'
+                          : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
+                      ]"
                     >
-                      <Icon name="layers-1" class="text-[10px]" />
-                    </button>
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                      title="Delete"
-                      @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                    >
-                      <Icon name="xmark" class="text-[10px]" />
-                    </button>
+                      <Tooltip text="Duplicate">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                        >
+                          <Icon name="layers-1" class="text-[10px]" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip text="Delete">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                        >
+                          <Icon name="xmark" class="text-[10px]" />
+                        </button>
+                      </Tooltip>
+                    </div>
                   </div>
                   <!-- Add block to footer stack -->
                   <Dropdown>
@@ -1280,7 +1310,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                 <!-- Child block row -->
                 <div
                   :draggable="canDragChild(block, child)"
-                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                  class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
                   :class="[
                     canDragChild(block, child) ? 'cursor-grab' : 'cursor-pointer',
                     editorStore.selectedBlockId === child.id
@@ -1309,38 +1339,51 @@ function canBlockExpand(block: SectionBlock): boolean {
                     <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
                   </div>
                   <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(block, child) ? getStackDisplayName(child) : child.name }}</span>
-                  <span v-if="child.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
-                  <!-- List/Collection items (Stack items in Grid) and blocks inside them - only visibility toggle -->
-                  <template v-if="isPrebuiltListItem(block, child) || isBlockInsidePrebuiltListItem(block)">
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
-                      :class="isChildBlockHidden(child) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
-                      :title="isChildBlockHidden(child) ? 'Show' : 'Hide'"
-                      @click="toggleChildVisibility(child.id, $event)"
-                    >
-                      <Icon v-if="isChildBlockHidden(child)" name="app-hide" class="text-[10px] opacity-50" />
-                      <Icon v-else name="app-show" :size="10" />
-                    </button>
-                  </template>
-                  <!-- Regular block actions: duplicate, delete -->
-                  <template v-else>
-                    <!-- Duplicate button -->
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                      title="Duplicate"
-                      @click.stop="handleDuplicateChildBlock(child.id, $event)"
-                    >
-                      <Icon name="layers-1" class="text-[10px]" />
-                    </button>
-                    <!-- Delete button -->
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                      title="Delete"
-                      @click.stop="handleDeleteChildBlock(child.id, $event)"
-                    >
-                      <Icon name="xmark" class="text-[10px]" />
-                    </button>
-                  </template>
+                  <Tooltip v-if="child.sharedStyleId" text="Has shared style">
+                    <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                  </Tooltip>
+                  <!-- Action buttons with fade background -->
+                  <div
+                    class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    :class="[
+                      editorStore.selectedBlockId === child.id
+                        ? 'bg-gradient-to-r from-transparent to-accent'
+                        : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar',
+                      isChildBlockHidden(child) ? '!opacity-100' : ''
+                    ]"
+                  >
+                    <!-- List/Collection items (Stack items in Grid) and blocks inside them - only visibility toggle -->
+                    <template v-if="isPrebuiltListItem(block, child) || isBlockInsidePrebuiltListItem(block)">
+                      <Tooltip :text="isChildBlockHidden(child) ? 'Show' : 'Hide'">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground"
+                          @click.stop="toggleChildVisibility(child.id, $event)"
+                        >
+                          <Icon v-if="isChildBlockHidden(child)" name="app-hide" class="text-[10px] opacity-50" />
+                          <Icon v-else name="app-show" :size="10" />
+                        </button>
+                      </Tooltip>
+                    </template>
+                    <!-- Regular block actions: duplicate, delete -->
+                    <template v-else>
+                      <Tooltip text="Duplicate">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                          @click.stop="handleDuplicateChildBlock(child.id, $event)"
+                        >
+                          <Icon name="layers-1" class="text-[10px]" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip text="Delete">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                          @click.stop="handleDeleteChildBlock(child.id, $event)"
+                        >
+                          <Icon name="xmark" class="text-[10px]" />
+                        </button>
+                      </Tooltip>
+                    </template>
+                  </div>
                 </div>
                 <!-- Nested children of this child (level 2 - grandchildren) -->
                 <div v-if="expandedBlocks.has(child.id) && canHaveChildren(child.type)" class="ml-6 mt-0.5 space-y-0.5">
@@ -1363,7 +1406,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                     <!-- Grandchild block row -->
                     <div
                       :draggable="canDragChild(child, grandchild)"
-                      class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                      class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
                       :class="[
                         canDragChild(child, grandchild) ? 'cursor-grab' : 'cursor-pointer',
                         editorStore.selectedBlockId === grandchild.id
@@ -1392,57 +1435,70 @@ function canBlockExpand(block: SectionBlock): boolean {
                         <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
                       </div>
                       <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(child, grandchild) ? getStackDisplayName(grandchild) : grandchild.name }}</span>
-                      <span v-if="grandchild.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
-                      <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
-                      <template v-if="isPrebuiltListItem(child, grandchild)">
-                        <!-- Duplicate button for list items -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                          title="Duplicate"
-                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="layers-1" class="text-[10px]" />
-                        </button>
-                        <!-- Delete button for list items -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                          title="Delete"
-                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="xmark" class="text-[10px]" />
-                        </button>
-                      </template>
-                      <!-- Blocks inside list items - only visibility toggle -->
-                      <template v-else-if="isBlockInsidePrebuiltListItem(child)">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
-                          :class="isChildBlockHidden(grandchild) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
-                          :title="isChildBlockHidden(grandchild) ? 'Show' : 'Hide'"
-                          @click="toggleChildVisibility(grandchild.id, $event)"
-                        >
-                          <Icon v-if="isChildBlockHidden(grandchild)" name="app-hide" class="text-[10px] opacity-50" />
-                          <Icon v-else name="app-show" :size="10" />
-                        </button>
-                      </template>
-                      <!-- Regular block actions: duplicate, delete -->
-                      <template v-else>
-                        <!-- Duplicate button -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                          title="Duplicate"
-                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="layers-1" class="text-[10px]" />
-                        </button>
-                        <!-- Delete button -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                          title="Delete"
-                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="xmark" class="text-[10px]" />
-                        </button>
-                      </template>
+                      <Tooltip v-if="grandchild.sharedStyleId" text="Has shared style">
+                        <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                      </Tooltip>
+                      <!-- Action buttons with fade background -->
+                      <div
+                        class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        :class="[
+                          editorStore.selectedBlockId === grandchild.id
+                            ? 'bg-gradient-to-r from-transparent to-accent'
+                            : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar',
+                          isChildBlockHidden(grandchild) ? '!opacity-100' : ''
+                        ]"
+                      >
+                        <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
+                        <template v-if="isPrebuiltListItem(child, grandchild)">
+                          <Tooltip text="Duplicate">
+                            <button
+                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                              @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                            >
+                              <Icon name="layers-1" class="text-[10px]" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip text="Delete">
+                            <button
+                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                              @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                            >
+                              <Icon name="xmark" class="text-[10px]" />
+                            </button>
+                          </Tooltip>
+                        </template>
+                        <!-- Blocks inside list items - only visibility toggle -->
+                        <template v-else-if="isBlockInsidePrebuiltListItem(child)">
+                          <Tooltip :text="isChildBlockHidden(grandchild) ? 'Show' : 'Hide'">
+                            <button
+                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground"
+                              @click.stop="toggleChildVisibility(grandchild.id, $event)"
+                            >
+                              <Icon v-if="isChildBlockHidden(grandchild)" name="app-hide" class="text-[10px] opacity-50" />
+                              <Icon v-else name="app-show" :size="10" />
+                            </button>
+                          </Tooltip>
+                        </template>
+                        <!-- Regular block actions: duplicate, delete -->
+                        <template v-else>
+                          <Tooltip text="Duplicate">
+                            <button
+                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                              @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                            >
+                              <Icon name="layers-1" class="text-[10px]" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip text="Delete">
+                            <button
+                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                              @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                            >
+                              <Icon name="xmark" class="text-[10px]" />
+                            </button>
+                          </Tooltip>
+                        </template>
+                      </div>
                     </div>
                     <!-- Level 3 children (great-grandchildren) -->
                     <div v-if="expandedBlocks.has(grandchild.id) && canHaveChildren(grandchild.type)" class="ml-6 mt-0.5 space-y-0.5">
@@ -1465,7 +1521,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                           <!-- Great-grandchild block row -->
                           <div
                             :draggable="canDragChild(grandchild, greatgrandchild)"
-                            class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                            class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
                             :class="[
                               canDragChild(grandchild, greatgrandchild) ? 'cursor-grab' : 'cursor-pointer',
                               editorStore.selectedBlockId === greatgrandchild.id
@@ -1494,64 +1550,77 @@ function canBlockExpand(block: SectionBlock): boolean {
                               <Icon :name="sectionBlockIcons[greatgrandchild.type]" :size="12" class="text-muted-foreground" />
                             </div>
                             <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(grandchild, greatgrandchild) ? getStackDisplayName(greatgrandchild) : greatgrandchild.name }}</span>
-                            <span v-if="greatgrandchild.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
-                            <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
-                            <template v-if="isPrebuiltListItem(grandchild, greatgrandchild)">
-                              <!-- Duplicate button for list items -->
-                              <button
-                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                                title="Duplicate"
-                                @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
-                              >
-                                <Icon name="layers-1" class="text-[10px]" />
-                              </button>
-                              <!-- Delete button for list items -->
-                              <button
-                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                                title="Delete"
-                                @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
-                              >
-                                <Icon name="xmark" class="text-[10px]" />
-                              </button>
-                            </template>
-                            <!-- Blocks inside list items - only visibility toggle -->
-                            <template v-else-if="isBlockInsidePrebuiltListItem(grandchild)">
-                              <button
-                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
-                                :class="isChildBlockHidden(greatgrandchild) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
-                                :title="isChildBlockHidden(greatgrandchild) ? 'Show' : 'Hide'"
-                                @click="toggleChildVisibility(greatgrandchild.id, $event)"
-                              >
-                                <Icon v-if="isChildBlockHidden(greatgrandchild)" name="app-hide" class="text-[10px] opacity-50" />
-                                <Icon v-else name="app-show" :size="10" />
-                              </button>
-                            </template>
-                            <!-- Regular block actions: duplicate, delete -->
-                            <template v-else>
-                              <!-- Duplicate button -->
-                              <button
-                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                                title="Duplicate"
-                                @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
-                              >
-                                <Icon name="layers-1" class="text-[10px]" />
-                              </button>
-                              <!-- Delete button -->
-                              <button
-                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                                title="Delete"
-                                @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
-                              >
-                                <Icon name="xmark" class="text-[10px]" />
-                              </button>
-                            </template>
+                            <Tooltip v-if="greatgrandchild.sharedStyleId" text="Has shared style">
+                              <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                            </Tooltip>
+                            <!-- Action buttons with fade background -->
+                            <div
+                              class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              :class="[
+                                editorStore.selectedBlockId === greatgrandchild.id
+                                  ? 'bg-gradient-to-r from-transparent to-accent'
+                                  : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar',
+                                isChildBlockHidden(greatgrandchild) ? '!opacity-100' : ''
+                              ]"
+                            >
+                              <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
+                              <template v-if="isPrebuiltListItem(grandchild, greatgrandchild)">
+                                <Tooltip text="Duplicate">
+                                  <button
+                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                                    @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
+                                  >
+                                    <Icon name="layers-1" class="text-[10px]" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip text="Delete">
+                                  <button
+                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                                    @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
+                                  >
+                                    <Icon name="xmark" class="text-[10px]" />
+                                  </button>
+                                </Tooltip>
+                              </template>
+                              <!-- Blocks inside list items - only visibility toggle -->
+                              <template v-else-if="isBlockInsidePrebuiltListItem(grandchild)">
+                                <Tooltip :text="isChildBlockHidden(greatgrandchild) ? 'Show' : 'Hide'">
+                                  <button
+                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground"
+                                    @click.stop="toggleChildVisibility(greatgrandchild.id, $event)"
+                                  >
+                                    <Icon v-if="isChildBlockHidden(greatgrandchild)" name="app-hide" class="text-[10px] opacity-50" />
+                                    <Icon v-else name="app-show" :size="10" />
+                                  </button>
+                                </Tooltip>
+                              </template>
+                              <!-- Regular block actions: duplicate, delete -->
+                              <template v-else>
+                                <Tooltip text="Duplicate">
+                                  <button
+                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                                    @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
+                                  >
+                                    <Icon name="layers-1" class="text-[10px]" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip text="Delete">
+                                  <button
+                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                                    @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
+                                  >
+                                    <Icon name="xmark" class="text-[10px]" />
+                                  </button>
+                                </Tooltip>
+                              </template>
+                            </div>
                           </div>
                           <!-- Level 4 children - for layout blocks at greatgrandchild level (e.g., Stack inside Stack) -->
                           <div v-if="expandedBlocks.has(greatgrandchild.id) && canHaveChildren(greatgrandchild.type)" class="ml-6 mt-0.5 space-y-0.5">
                             <div
-                              v-for="(level4child, level4childIndex) in (greatgrandchild.children || [])"
+                              v-for="level4child in (greatgrandchild.children || [])"
                               :key="level4child.id"
-                              class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group cursor-pointer"
+                              class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group cursor-pointer"
                               :class="[
                                 editorStore.selectedBlockId === level4child.id
                                   ? 'bg-accent text-accent-foreground'
@@ -1564,23 +1633,35 @@ function canBlockExpand(block: SectionBlock): boolean {
                                 <Icon :name="sectionBlockIcons[level4child.type]" :size="12" class="text-muted-foreground" />
                               </div>
                               <span class="flex-1 truncate leading-4">{{ level4child.name }}</span>
-                              <span v-if="level4child.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
-                              <!-- Duplicate button -->
-                              <button
-                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                                title="Duplicate"
-                                @click.stop="handleDuplicateChildBlock(level4child.id, $event)"
+                              <Tooltip v-if="level4child.sharedStyleId" text="Has shared style">
+                                <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                              </Tooltip>
+                              <!-- Action buttons with fade background -->
+                              <div
+                                class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                :class="[
+                                  editorStore.selectedBlockId === level4child.id
+                                    ? 'bg-gradient-to-r from-transparent to-accent'
+                                    : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
+                                ]"
                               >
-                                <Icon name="layers-1" class="text-[10px]" />
-                              </button>
-                              <!-- Delete button -->
-                              <button
-                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                                title="Delete"
-                                @click.stop="handleDeleteChildBlock(level4child.id, $event)"
-                              >
-                                <Icon name="xmark" class="text-[10px]" />
-                              </button>
+                                <Tooltip text="Duplicate">
+                                  <button
+                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
+                                    @click.stop="handleDuplicateChildBlock(level4child.id, $event)"
+                                  >
+                                    <Icon name="layers-1" class="text-[10px]" />
+                                  </button>
+                                </Tooltip>
+                                <Tooltip text="Delete">
+                                  <button
+                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
+                                    @click.stop="handleDeleteChildBlock(level4child.id, $event)"
+                                  >
+                                    <Icon name="xmark" class="text-[10px]" />
+                                  </button>
+                                </Tooltip>
+                              </div>
                             </div>
                             <!-- Add block to level 4 layout block -->
                             <Dropdown

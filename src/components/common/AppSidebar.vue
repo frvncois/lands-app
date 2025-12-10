@@ -5,7 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useProjectsStore } from '@/stores/projects'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
-import { Card, Button, Badge, Avatar, Dropdown, Icon } from '@/components/ui'
+import { Card, Button, Badge, Avatar, Dropdown, Icon, Tooltip } from '@/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -219,7 +219,7 @@ function isNavActive(navName: string, projectId: string) {
           v-if="isCollapsed && expandedProjectId === project.id"
           class="flex flex-col items-center gap-1 py-1"
         >
-          <div v-for="nav in navItems" :key="nav.name" class="group relative">
+          <Tooltip v-for="nav in navItems" :key="nav.name" :text="nav.label" position="right">
             <router-link
               :to="{ name: nav.name, params: { projectId: project.id } }"
               class="flex items-center justify-center w-8 h-8 rounded-md transition-colors"
@@ -229,11 +229,7 @@ function isNavActive(navName: string, projectId: string) {
             >
               <Icon :name="nav.icon" :size="14" />
             </router-link>
-            <!-- Tooltip -->
-            <span class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-popover-foreground bg-popover border border-border rounded shadow-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-              {{ nav.label }}
-            </span>
-          </div>
+          </Tooltip>
         </div>
       </div>
 

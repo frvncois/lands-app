@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { Tooltip } from '@/components/ui'
 
 const props = defineProps<{
   targetElement: HTMLElement | null
@@ -144,61 +145,66 @@ onUnmounted(() => {
       @mousedown="handleMouseDown"
     >
       <!-- Bold -->
-      <button
-        type="button"
-        class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
-        :class="{ 'bg-secondary text-primary': selectionState.isBold }"
-        title="Bold"
-        @click="applyFormat('bold')"
-      >
-        <Icon name="bold" class="text-sm" />
-      </button>
+      <Tooltip text="Bold" position="bottom">
+        <button
+          type="button"
+          class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
+          :class="{ 'bg-secondary text-primary': selectionState.isBold }"
+          @click="applyFormat('bold')"
+        >
+          <Icon name="bold" class="text-sm" />
+        </button>
+      </Tooltip>
 
       <!-- Italic -->
-      <button
-        type="button"
-        class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
-        :class="{ 'bg-secondary text-primary': selectionState.isItalic }"
-        title="Italic"
-        @click="applyFormat('italic')"
-      >
-        <Icon name="italic" class="text-sm" />
-      </button>
+      <Tooltip text="Italic" position="bottom">
+        <button
+          type="button"
+          class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
+          :class="{ 'bg-secondary text-primary': selectionState.isItalic }"
+          @click="applyFormat('italic')"
+        >
+          <Icon name="italic" class="text-sm" />
+        </button>
+      </Tooltip>
 
       <!-- Underline -->
-      <button
-        type="button"
-        class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
-        :class="{ 'bg-secondary text-primary': selectionState.isUnderline }"
-        title="Underline"
-        @click="applyFormat('underline')"
-      >
-        <Icon name="underline" class="text-sm" />
-      </button>
+      <Tooltip text="Underline" position="bottom">
+        <button
+          type="button"
+          class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
+          :class="{ 'bg-secondary text-primary': selectionState.isUnderline }"
+          @click="applyFormat('underline')"
+        >
+          <Icon name="underline" class="text-sm" />
+        </button>
+      </Tooltip>
 
       <!-- Strikethrough -->
-      <button
-        type="button"
-        class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
-        :class="{ 'bg-secondary text-primary': selectionState.isStrikethrough }"
-        title="Strikethrough"
-        @click="applyFormat('strikeThrough')"
-      >
-        <Icon name="strikethrough" class="text-sm" />
-      </button>
+      <Tooltip text="Strikethrough" position="bottom">
+        <button
+          type="button"
+          class="w-8 h-8 flex items-center justify-center rounded hover:bg-secondary transition-colors"
+          :class="{ 'bg-secondary text-primary': selectionState.isStrikethrough }"
+          @click="applyFormat('strikeThrough')"
+        >
+          <Icon name="strikethrough" class="text-sm" />
+        </button>
+      </Tooltip>
 
       <!-- Divider -->
       <div class="w-px h-5 bg-border mx-1"></div>
 
       <!-- Span -->
-      <button
-        type="button"
-        class="h-8 px-2 flex items-center justify-center rounded hover:bg-secondary transition-colors text-xs font-medium"
-        title="Wrap in Span (for custom styling)"
-        @click="insertSpan"
-      >
-        <span class="opacity-60">&lt;</span>span<span class="opacity-60">&gt;</span>
-      </button>
+      <Tooltip text="Wrap in Span" position="bottom">
+        <button
+          type="button"
+          class="h-8 px-2 flex items-center justify-center rounded hover:bg-secondary transition-colors text-xs font-medium"
+          @click="insertSpan"
+        >
+          <span class="opacity-60">&lt;</span>span<span class="opacity-60">&gt;</span>
+        </button>
+      </Tooltip>
     </div>
   </Teleport>
 </template>

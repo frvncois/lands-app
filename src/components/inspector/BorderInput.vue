@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { BorderStyle } from '@/types/editor'
-import { Icon } from '@/components/ui'
+import { Icon, Tooltip } from '@/components/ui'
 import ColorInput from './ColorInput.vue'
 import SliderInput from './SliderInput.vue'
 import InspectorField from './InspectorField.vue'
@@ -17,11 +17,11 @@ const emit = defineEmits<{
 // Border sides
 type BorderSide = 'top' | 'right' | 'bottom' | 'left'
 
-const sides: { key: BorderSide; icon: string; label: string }[] = [
-  { key: 'top', icon: 'style-border-top', label: 'Top' },
-  { key: 'right', icon: 'style-border-right', label: 'Right' },
-  { key: 'bottom', icon: 'style-border-bottom', label: 'Bottom' },
-  { key: 'left', icon: 'style-border-left', label: 'Left' },
+const sides: { key: BorderSide; icon: string; tooltip: string }[] = [
+  { key: 'top', icon: 'style-border-top', tooltip: 'Top' },
+  { key: 'right', icon: 'style-border-right', tooltip: 'Right' },
+  { key: 'bottom', icon: 'style-border-bottom', tooltip: 'Bottom' },
+  { key: 'left', icon: 'style-border-left', tooltip: 'Left' },
 ]
 
 // Current width
@@ -106,19 +106,18 @@ function update(key: keyof BorderStyle, value: string) {
     <!-- Border Sides -->
     <InspectorField label="Sides" horizontal>
       <div class="flex p-0.5 bg-secondary rounded-md">
-        <button
-          v-for="side in sides"
-          :key="side.key"
-          type="button"
-          class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-          :class="isSideActive(side.key)
-            ? 'bg-background text-foreground shadow-sm'
-            : 'text-muted-foreground hover:text-foreground'"
-          :title="side.label"
-          @click="toggleSide(side.key)"
-        >
-          <Icon :name="side.icon" :size="12" />
-        </button>
+        <Tooltip v-for="side in sides" :key="side.key" :text="side.tooltip">
+          <button
+            type="button"
+            class="flex items-center justify-center w-7 h-7 rounded transition-colors"
+            :class="isSideActive(side.key)
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'"
+            @click="toggleSide(side.key)"
+          >
+            <Icon :name="side.icon" :size="12" />
+          </button>
+        </Tooltip>
       </div>
     </InspectorField>
 
