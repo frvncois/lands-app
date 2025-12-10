@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '@/components/ui/Icon.vue'
+
 defineProps<{
   options: readonly { value: string; label?: string; icon?: string }[]
   modelValue: string | undefined
@@ -25,7 +27,7 @@ const emit = defineEmits<{
       :title="option.label"
       @click="emit('update:modelValue', option.value)"
     >
-      <i v-if="option.icon" :class="['lni', option.icon, iconOnly ? 'text-xs' : 'text-xs mr-1']"></i>
+      <Icon v-if="option.icon" :name="option.icon" :size="12" :class="iconOnly ? '' : 'mr-1'" />
       <span v-if="!iconOnly && option.label">{{ option.label }}</span>
     </button>
   </div>

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
+import type { Json } from '@/lib/supabase/types'
 import type { Project, ProjectIntegration, IntegrationProvider, ProjectContent, Collaborator, CollaboratorInvite, CollaboratorRole } from '@/types/project'
 import { getDefaultPageSettings } from '@/lib/editor-utils'
 import { useUserStore } from '@/stores/user'
@@ -73,7 +74,7 @@ export const useProjectsStore = defineStore('projects', () => {
       title: row.title,
       slug: row.slug,
       description: row.description || undefined,
-      thumbnailUrl: row.thumbnail_url || undefined,
+      thumbnail: row.thumbnail_url || undefined,
       isPublished: row.is_published,
       publishedUrl: row.published_url || undefined,
       customDomain: row.custom_domain || undefined,
@@ -153,8 +154,8 @@ export const useProjectsStore = defineStore('projects', () => {
       // Insert default content
       const { error: contentError } = await supabase.from('project_content').insert({
         project_id: data.id,
-        blocks: defaultContent.blocks,
-        page_settings: defaultContent.pageSettings,
+        blocks: defaultContent.blocks as unknown as Json,
+        page_settings: defaultContent.pageSettings as unknown as Json,
       })
 
       if (contentError) {
@@ -183,14 +184,15 @@ export const useProjectsStore = defineStore('projects', () => {
     if (index === -1) return false
 
     // Store previous state for rollback
-    const previousProject = { ...projects.value[index] }
+    const previousProject = { ...projects.value[index] } as Project
 
     // Optimistic update
+    const current = projects.value[index]
     projects.value[index] = {
-      ...projects.value[index],
+      ...current,
       ...updates,
       updatedAt: new Date().toISOString(),
-    }
+    } as Project
 
     try {
       const { error: updateError } = await supabase
@@ -199,7 +201,7 @@ export const useProjectsStore = defineStore('projects', () => {
           title: updates.title,
           slug: updates.slug,
           description: updates.description,
-          thumbnail_url: updates.thumbnailUrl,
+          thumbnail_url: updates.thumbnail,
           is_published: updates.isPublished,
           published_url: updates.publishedUrl,
           custom_domain: updates.customDomain,
@@ -212,7 +214,7 @@ export const useProjectsStore = defineStore('projects', () => {
       return true
     } catch (e) {
       // Rollback on error
-      projects.value[index] = previousProject
+      projects.value[index] = previousProject as Project
       error.value = e instanceof Error ? e.message : 'Failed to update project'
       toast.error('Failed to update project')
       return false
@@ -222,7 +224,7 @@ export const useProjectsStore = defineStore('projects', () => {
   async function deleteProject(id: string): Promise<boolean> {
     // Store previous state for rollback
     const projectIndex = projects.value.findIndex(p => p.id === id)
-    const previousProject = projectIndex !== -1 ? { ...projects.value[projectIndex] } : null
+    const previousProject = projectIndex !== -1 ? { ...projects.value[projectIndex] } as Project : null
     const previousContent = projectContents.value.get(id)
     const previousIntegrations = integrations.value.filter(i => i.projectId === id)
     const previousCollaborators = collaborators.value.filter(c => c.projectId === id)
@@ -274,8 +276,8 @@ export const useProjectsStore = defineStore('projects', () => {
 
       if (data) {
         const content: ProjectContent = {
-          blocks: data.blocks as ProjectContent['blocks'],
-          pageSettings: data.page_settings as ProjectContent['pageSettings'],
+          blocks: data.blocks as unknown as ProjectContent['blocks'],
+          pageSettings: data.page_settings as unknown as ProjectContent['pageSettings'],
         }
         projectContents.value.set(projectId, content)
         return content
@@ -298,17 +300,18 @@ export const useProjectsStore = defineStore('projects', () => {
     // Store previous state for rollback
     const previousContent = projectContents.value.get(projectId)
     const projectIndex = projects.value.findIndex(p => p.id === projectId)
-    const previousProject = projectIndex !== -1 ? { ...projects.value[projectIndex] } : null
+    const previousProject = projectIndex !== -1 ? { ...projects.value[projectIndex] } as Project : null
 
     // Optimistic update
     const contentSnapshot: ProjectContent = JSON.parse(JSON.stringify(content))
     projectContents.value.set(projectId, contentSnapshot)
 
     if (projectIndex !== -1) {
+      const current = projects.value[projectIndex]
       projects.value[projectIndex] = {
-        ...projects.value[projectIndex],
+        ...current,
         updatedAt: new Date().toISOString(),
-      }
+      } as Project
     }
 
     try {
@@ -317,8 +320,8 @@ export const useProjectsStore = defineStore('projects', () => {
         .upsert(
           {
             project_id: projectId,
-            blocks: content.blocks,
-            page_settings: content.pageSettings,
+            blocks: content.blocks as unknown as Json,
+            page_settings: content.pageSettings as unknown as Json,
             updated_at: new Date().toISOString(),
           },
           {
@@ -386,8 +389,8 @@ export const useProjectsStore = defineStore('projects', () => {
 
       await supabase.from('project_content').insert({
         project_id: data.id,
-        blocks: newContent.blocks,
-        page_settings: newContent.pageSettings,
+        blocks: newContent.blocks as unknown as Json,
+        page_settings: newContent.pageSettings as unknown as Json,
       })
 
       const newProject = mapDbToProject(data)
@@ -813,11 +816,12 @@ export const useProjectsStore = defineStore('projects', () => {
 
     // Optimistic update
     if (projectIndex !== -1) {
+      const current = projects.value[projectIndex]
       projects.value[projectIndex] = {
-        ...projects.value[projectIndex],
+        ...current,
         isPublished: true,
         publishedUrl: `https://${project.slug}.lands.app`,
-      }
+      } as Project
     }
 
     try {
@@ -836,11 +840,12 @@ export const useProjectsStore = defineStore('projects', () => {
     } catch (e) {
       // Rollback on error
       if (projectIndex !== -1) {
+        const current = projects.value[projectIndex]
         projects.value[projectIndex] = {
-          ...projects.value[projectIndex],
+          ...current,
           isPublished: previousIsPublished,
           publishedUrl: previousPublishedUrl,
-        }
+        } as Project
       }
       error.value = e instanceof Error ? e.message : 'Failed to publish project'
       toast.error('Failed to publish', error.value)
@@ -862,11 +867,12 @@ export const useProjectsStore = defineStore('projects', () => {
 
     // Optimistic update
     if (projectIndex !== -1) {
+      const current = projects.value[projectIndex]
       projects.value[projectIndex] = {
-        ...projects.value[projectIndex],
+        ...current,
         isPublished: false,
         publishedUrl: undefined,
-      }
+      } as Project
     }
 
     try {
@@ -885,11 +891,12 @@ export const useProjectsStore = defineStore('projects', () => {
     } catch (e) {
       // Rollback on error
       if (projectIndex !== -1) {
+        const current = projects.value[projectIndex]
         projects.value[projectIndex] = {
-          ...projects.value[projectIndex],
+          ...current,
           isPublished: previousIsPublished,
           publishedUrl: previousPublishedUrl,
-        }
+        } as Project
       }
       error.value = e instanceof Error ? e.message : 'Failed to unpublish project'
       toast.error('Failed to unpublish', error.value)

@@ -67,16 +67,17 @@ function triggerFileInput() {
 
 function handleFileSelect(event: Event) {
   const input = event.target as HTMLInputElement
-  if (input.files?.length) {
-    validateAndSetFile(input.files[0])
+  const file = input.files?.[0]
+  if (file) {
+    validateAndSetFile(file)
   }
 }
 
 function handleDrop(event: DragEvent) {
   isDragging.value = false
-  const files = event.dataTransfer?.files
-  if (files?.length) {
-    validateAndSetFile(files[0])
+  const file = event.dataTransfer?.files?.[0]
+  if (file) {
+    validateAndSetFile(file)
   }
 }
 

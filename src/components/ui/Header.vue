@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Button from './Button.vue'
+import Icon from './Icon.vue'
 
 interface Props {
   title: string
@@ -24,7 +25,7 @@ const emit = defineEmits<{
     <div v-if="$slots.actions || button" class="flex items-center gap-3">
       <slot name="actions">
         <Button v-if="button" size="md" @click="emit('buttonClick')">
-          <i v-if="buttonIcon" :class="['lni', buttonIcon, 'text-sm']"></i>
+          <Icon v-if="buttonIcon" :name="buttonIcon" :size="14" />
           {{ button }}
         </Button>
       </slot>

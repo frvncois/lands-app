@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type BadgeVariant = 'default' | 'secondary' | 'success' | 'warning' | 'error' | 'info' | 'outline'
+type BadgeVariant = 'default' | 'secondary' | 'draft' | 'success' | 'warning' | 'error' | 'info' | 'outline'
 type BadgeSize = 'xs' | 'sm' | 'md'
 
 interface Props {
@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<Props>(), {
 const variantClasses: Record<BadgeVariant, string> = {
   default: 'bg-primary text-primary-foreground',
   secondary: 'bg-slate-500/10 text-slate-600 border border-slate-500/20',
+  draft: 'bg-orange-500/10 text-orange-600 border border-orange-500/20',
   success: 'bg-green-500/10 text-green-600 border border-green-500/20',
   warning: 'bg-amber-500/10 text-amber-600 border border-amber-500/20',
   error: 'bg-destructive/10 text-destructive border border-destructive/20',
@@ -35,6 +36,7 @@ const sizeClasses: Record<BadgeSize, string> = {
 const dotColors: Record<BadgeVariant, string> = {
   default: 'bg-primary-foreground',
   secondary: 'bg-slate-500',
+  draft: 'bg-orange-500',
   success: 'bg-green-500',
   warning: 'bg-amber-500',
   error: 'bg-destructive',

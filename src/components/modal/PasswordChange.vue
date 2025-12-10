@@ -32,7 +32,7 @@ function close() {
 }
 
 async function handleChangePassword() {
-  if (!passwordRequirementsRef.value?.isValid) {
+  if (!passwordRequirementsRef.value?.allMet) {
     passwordError.value = 'Please meet all password requirements'
     return
   }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from './Icon.vue'
+
 interface Props {
   icon?: string
   destructive?: boolean
@@ -20,14 +22,14 @@ const emit = defineEmits<{
     :class="[
       'w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer',
       destructive
-        ? 'text-destructive hover:bg-destructive/10'
-        : 'text-foreground hover:bg-muted/25',
+        ? 'text-destructive hover:bg-destructive/25'
+        : 'text-foreground hover:bg-accent/75',
       disabled ? 'opacity-50 cursor-not-allowed' : '',
     ]"
     :disabled="disabled"
     @click="emit('click')"
   >
-    <i v-if="icon" :class="['lni', icon, 'text-sm']"></i>
+    <Icon v-if="icon" :name="icon" :size="14" />
     <slot />
   </button>
 </template>

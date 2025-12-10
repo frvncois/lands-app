@@ -13,8 +13,8 @@ withDefaults(defineProps<Props>(), {
 <template>
   <div
     :class="[
-      borderTop ? 'border-t border-border' : '',
-      padded ? 'p-5' : '',
+      borderTop ? 'border-t border-border/25' : '',
+      padded ? 'p-3.5' : '',
     ]"
   >
     <slot />

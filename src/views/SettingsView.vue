@@ -178,6 +178,10 @@ async function handleAnalyticsToggle() {
     isSettingUpAnalytics.value = false
   }
 }
+
+async function handleSaveSettings() {
+  await projectStore.saveToDatabase()
+}
 </script>
 
 <template>
@@ -186,7 +190,17 @@ async function handleAnalyticsToggle() {
       <Header
         title="Project Settings"
         description="Manage your project configuration and publishing options."
-      />
+      >
+        <template #actions>
+          <Button
+            :disabled="!projectStore.hasUnsavedChanges"
+            :loading="projectStore.isSaving"
+            @click="handleSaveSettings"
+          >
+            Save
+          </Button>
+        </template>
+      </Header>
 
       <!-- Masonry Grid Layout -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -365,7 +379,7 @@ async function handleAnalyticsToggle() {
         <div class="space-y-8">
           <!-- SEO Card -->
           <Card>
-            <Card.Header title="SEO" icon="lni-search-1" />
+            <Card.Header title="SEO" icon="app-seo" />
             <Card.Content class="space-y-4">
               <FormField label="Meta Title">
                 <Input
@@ -539,7 +553,7 @@ async function handleAnalyticsToggle() {
               </div>
 
               <div v-if="settings.publish.publishedAt" class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <i class="lni lni-calendar-days text-xs"></i>
+                <Icon name="calendar-days" class="text-xs" />
                 Last published: {{ new Date(settings.publish.publishedAt).toLocaleDateString() }}
               </div>
             </Card.Content>
@@ -568,15 +582,112 @@ async function handleAnalyticsToggle() {
 
               <!-- Plan Features -->
               <div class="space-y-2">
-                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your plan includes</p>
-                <div class="grid grid-cols-1 gap-1.5">
+                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Plan includes</p>
+                <div class="grid grid-cols-1 gap-2">
+                  <!-- Lands Subdomain - always included -->
+                  <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+                    <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                      <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    Lands subdomain (yoursite.lands.app)
+                  </div>
+
+                  <!-- Custom Domain -->
                   <div
-                    v-for="label in currentPlan.featureLabels"
-                    :key="label"
-                    class="flex items-center gap-2 text-sm text-foreground"
+                    class="flex items-center gap-3 text-sm rounded-2xl p-3.5"
+                    :class="planHasFeature(settings.plan, 'customDomain') ? 'text-foreground bg-muted/50' : 'text-muted-foreground bg-muted/20 opacity-60'"
                   >
-                    <i class="lni lni-check text-sm text-green-500 shrink-0"></i>
-                    {{ label }}
+                    <div
+                      class="rounded-full p-1"
+                      :class="planHasFeature(settings.plan, 'customDomain') ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted border border-border'"
+                    >
+                      <svg class="w-4 h-4" :class="planHasFeature(settings.plan, 'customDomain') ? 'text-green-500' : 'text-muted-foreground'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    Custom domain support
+                  </div>
+
+                  <!-- No Watermark -->
+                  <div
+                    class="flex items-center gap-3 text-sm rounded-2xl p-3.5"
+                    :class="planHasFeature(settings.plan, 'noWatermark') ? 'text-foreground bg-muted/50' : 'text-muted-foreground bg-muted/20 opacity-60'"
+                  >
+                    <div
+                      class="rounded-full p-1"
+                      :class="planHasFeature(settings.plan, 'noWatermark') ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted border border-border'"
+                    >
+                      <svg class="w-4 h-4" :class="planHasFeature(settings.plan, 'noWatermark') ? 'text-green-500' : 'text-muted-foreground'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    No Lands watermark
+                  </div>
+
+                  <!-- Analytics -->
+                  <div
+                    class="flex items-center gap-3 text-sm rounded-2xl p-3.5"
+                    :class="planHasFeature(settings.plan, 'analytics') ? 'text-foreground bg-muted/50' : 'text-muted-foreground bg-muted/20 opacity-60'"
+                  >
+                    <div
+                      class="rounded-full p-1"
+                      :class="planHasFeature(settings.plan, 'analytics') ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted border border-border'"
+                    >
+                      <svg class="w-4 h-4" :class="planHasFeature(settings.plan, 'analytics') ? 'text-green-500' : 'text-muted-foreground'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    Full analytics dashboard
+                  </div>
+
+                  <!-- Integrations -->
+                  <div
+                    class="flex items-center gap-3 text-sm rounded-2xl p-3.5"
+                    :class="planHasFeature(settings.plan, 'integrations') ? 'text-foreground bg-muted/50' : 'text-muted-foreground bg-muted/20 opacity-60'"
+                  >
+                    <div
+                      class="rounded-full p-1"
+                      :class="planHasFeature(settings.plan, 'integrations') ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted border border-border'"
+                    >
+                      <svg class="w-4 h-4" :class="planHasFeature(settings.plan, 'integrations') ? 'text-green-500' : 'text-muted-foreground'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    All integrations (email, payments, etc.)
+                  </div>
+
+                  <!-- Collaborators -->
+                  <div
+                    class="flex items-center gap-3 text-sm rounded-2xl p-3.5"
+                    :class="planHasFeature(settings.plan, 'collaborators') ? 'text-foreground bg-muted/50' : 'text-muted-foreground bg-muted/20 opacity-60'"
+                  >
+                    <div
+                      class="rounded-full p-1"
+                      :class="planHasFeature(settings.plan, 'collaborators') ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted border border-border'"
+                    >
+                      <svg class="w-4 h-4" :class="planHasFeature(settings.plan, 'collaborators') ? 'text-green-500' : 'text-muted-foreground'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    Team collaboration
+                  </div>
+
+                  <!-- Custom Fonts -->
+                  <div
+                    class="flex items-center gap-3 text-sm rounded-2xl p-3.5"
+                    :class="planHasFeature(settings.plan, 'customFonts') ? 'text-foreground bg-muted/50' : 'text-muted-foreground bg-muted/20 opacity-60'"
+                  >
+                    <div
+                      class="rounded-full p-1"
+                      :class="planHasFeature(settings.plan, 'customFonts') ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted border border-border'"
+                    >
+                      <svg class="w-4 h-4" :class="planHasFeature(settings.plan, 'customFonts') ? 'text-green-500' : 'text-muted-foreground'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    Custom Google Fonts
                   </div>
                 </div>
               </div>
@@ -586,9 +697,6 @@ async function handleAnalyticsToggle() {
                 <Button class="w-full" @click="showUpgradeModal = true">
                   Upgrade to Pro - $6/month
                 </Button>
-                <p class="text-xs text-center text-muted-foreground mt-2">
-                  Unlock custom domains, analytics, integrations, and more
-                </p>
               </div>
 
               <!-- Manage Subscription (for pro plan) -->
@@ -604,7 +712,7 @@ async function handleAnalyticsToggle() {
           <Card variant="destructive">
             <Card.Header :border-bottom="false">
               <template #icon>
-                <i class="lni lni-xmark-circle text-sm" style="color: var(--color-destructive)"></i>
+                <Icon name="xmark-circle" class="text-sm" />
               </template>
               <h2 class="text-xs font-medium text-destructive">Danger Zone</h2>
               <template #action>

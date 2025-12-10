@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { planHasFeature } from '@/types/project'
 import PlanUpgrade from '@/components/modal/PlanUpgrade.vue'
-import { Button, Header } from '@/components/ui'
+import { Button, Header, Icon } from '@/components/ui'
 
 const route = useRoute()
 const projectsStore = useProjectsStore()
@@ -108,41 +108,47 @@ watch(projectId, () => {
       <div v-if="!canUseAnalytics" class="flex items-center justify-center py-20">
         <div class="text-center max-w-md">
           <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-            <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+            <Icon name="app-analytics" :size="32" class="text-primary" />
           </div>
           <h3 class="text-xl font-semibold text-foreground mb-2">Unlock Analytics</h3>
           <p class="text-sm text-muted-foreground mb-6">
             Upgrade to Pro to access detailed analytics about your visitors, page views, traffic sources, and more.
           </p>
-          <div class="space-y-3 text-left mb-6 p-4 bg-muted/50 rounded-lg">
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+          <div class="space-y-3 text-left mb-6">
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Real-time visitor tracking
             </div>
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Page views and traffic trends
             </div>
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Top pages and referrer sources
             </div>
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Device and country breakdown
             </div>
           </div>
-          <Button size="lg" @click="showUpgradeModal = true">
+          <Button size="sm" @click="showUpgradeModal = true">
             Upgrade to Pro - $6/month
           </Button>
         </div>

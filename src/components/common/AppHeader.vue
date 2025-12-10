@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useEditorStore } from '@/stores/editor'
 import { useUserStore } from '@/stores/user'
-import { Button, Badge, Command, Dropdown } from '@/components/ui'
+import { Button, Badge, Command, Dropdown, Icon } from '@/components/ui'
 import ProjectTranslate from '@/components/modal/ProjectTranslate.vue'
 import { getLanguageByCode } from '@/lib/languages'
 import type { LanguageCode } from '@/types/editor'
@@ -23,10 +23,10 @@ const showTranslateModal = ref(false)
 const currentLanguageDisplay = computed(() => {
   if (!editorStore.currentLanguage) {
     const defaultLang = getLanguageByCode(editorStore.translations.defaultLanguage)
-    return defaultLang ? `${defaultLang.flag} Default (${defaultLang.name})` : 'Default'
+    return defaultLang ? `Default (${defaultLang.name})` : 'Default'
   }
   const lang = getLanguageByCode(editorStore.currentLanguage)
-  return lang ? `${lang.flag} ${lang.name}` : editorStore.currentLanguage
+  return lang ? lang.name : editorStore.currentLanguage
 })
 
 function handleLanguageChange(langCode: LanguageCode | null) {
@@ -57,27 +57,37 @@ const routeTitle = computed(() => {
   }
 })
 
+// Command item type
+interface CommandItem {
+  id: string
+  label: string
+  icon: string
+  group: string
+  shortcut?: string[]
+  action: () => void | Promise<unknown>
+}
+
 // Command items
 const commandItems = computed(() => {
-  const items = [
+  const items: CommandItem[] = [
     // Navigation
-    { id: 'dashboard', label: 'Go to Dashboard', icon: 'lni-home-2', group: 'Navigation', action: () => router.push({ name: 'dashboard' }) },
-    { id: 'account', label: 'Account Settings', icon: 'lni-user-4', group: 'Navigation', action: () => router.push({ name: 'account' }) },
+    { id: 'dashboard', label: 'Go to Dashboard', icon: 'app-dashboard', group: 'Navigation', action: () => router.push({ name: 'dashboard' }) },
+    { id: 'account', label: 'Account Settings', icon: 'app-user', group: 'Navigation', action: () => router.push({ name: 'account' }) },
   ]
 
   // Add project-specific commands if in project context
   if (currentProject.value) {
     items.push(
-      { id: 'editor', label: 'Open Editor', icon: 'lni-pencil-1', group: 'Project', shortcut: ['E'], action: () => router.push({ name: 'editor', params: { projectId: projectId.value } }) },
-      { id: 'settings', label: 'Project Settings', icon: 'lni-gear-1', group: 'Project', shortcut: ['S'], action: () => router.push({ name: 'settings', params: { projectId: projectId.value } }) },
-      { id: 'analytics', label: 'View Analytics', icon: 'lni-bar-chart-4', group: 'Project', shortcut: ['A'], action: () => router.push({ name: 'analytics', params: { projectId: projectId.value } }) },
-      { id: 'integrations', label: 'Integrations', icon: 'lni-link-2-angular-right', group: 'Project', action: () => router.push({ name: 'integration', params: { projectId: projectId.value } }) },
+      { id: 'editor', label: 'Open Editor', icon: 'app-editor', group: 'Project', shortcut: ['E'], action: () => router.push({ name: 'editor', params: { projectId: projectId.value } }) },
+      { id: 'settings', label: 'Project Settings', icon: 'app-settings', group: 'Project', shortcut: ['S'], action: () => router.push({ name: 'settings', params: { projectId: projectId.value } }) },
+      { id: 'analytics', label: 'View Analytics', icon: 'app-analytics', group: 'Project', shortcut: ['A'], action: () => router.push({ name: 'analytics', params: { projectId: projectId.value } }) },
+      { id: 'integrations', label: 'Integrations', icon: 'app-integration', group: 'Project', action: () => router.push({ name: 'integration', params: { projectId: projectId.value } }) },
     )
 
     // Actions
     items.push(
-      { id: 'preview', label: 'Preview Site', icon: 'lni-eye', group: 'Actions', shortcut: ['P'], action: handlePreview },
-      { id: 'publish', label: currentProject.value.isPublished ? 'Update Site' : 'Publish Site', icon: 'lni-upload-1', group: 'Actions', action: handlePublish },
+      { id: 'preview', label: 'Preview Site', icon: 'app-show', group: 'Actions', shortcut: ['P'], action: handlePreview },
+      { id: 'publish', label: currentProject.value.isPublished ? 'Update Site' : 'Publish Site', icon: 'app-publish', group: 'Actions', action: handlePublish },
     )
   }
 
@@ -87,7 +97,7 @@ const commandItems = computed(() => {
       items.push({
         id: `project-${project.id}`,
         label: project.title,
-        icon: 'lni-folder-1',
+        icon: 'app-editor',
         group: 'Projects',
         action: () => router.push({ name: 'editor', params: { projectId: project.id } }),
       })
@@ -175,7 +185,7 @@ function handleCommandSelect(item: any) {
           :to="{ name: 'dashboard' }"
           class="flex items-center gap-2 text-foreground hover:text-foreground transition-colors"
         >
-          <i class="lni lni-home-2 text-lg"></i>
+          <Icon name="app-dashboard" :size="18" />
         </router-link>
 
         <!-- Separator -->
@@ -194,7 +204,7 @@ function handleCommandSelect(item: any) {
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-foreground truncate leading-none">{{ currentProject.title }}</p>
               </div>
-              <i class="lni lni-chevron-down text-xs mr-1.5 text-muted-foreground"></i>
+              <Icon name="chevron-down" class="text-xs mr-1.5 text-muted-foreground" />
             </button>
           </template>
 
@@ -218,64 +228,87 @@ function handleCommandSelect(item: any) {
           </div>
 
           <!-- Actions -->
-          <Dropdown.Item icon="lni-gear-1" @click="router.push({ name: 'settings', params: { projectId } })">
+          <Dropdown.Item icon="app-settings" @click="router.push({ name: 'settings', params: { projectId } })">
             Project Settings
           </Dropdown.Item>
-          <Dropdown.Item icon="lni-clipboard" @click="router.push({ name: 'settings', params: { projectId } })">
+          <Dropdown.Item icon="app-duplicate" @click="router.push({ name: 'settings', params: { projectId } })">
             Duplicate Project
           </Dropdown.Item>
         </Dropdown>
       </div>
 
-      <!-- Center: Viewport Toggle + Language Selector (Editor only) -->
-      <div v-if="isEditorRoute" class="absolute left-1/2 -translate-x-1/2 flex items-center gap-3">
+      <!-- Center: Undo/Redo + Viewport Toggle + Language Selector (Editor only) -->
+      <div v-if="isEditorRoute" class="absolute left-1/2 -translate-x-1/2 flex items-center gap-6">
+        <!-- Undo/Redo Buttons -->
+        <div class="flex items-center gap-1">
+          <button
+            class="p-1.5 rounded-md transition-colors"
+            :class="editorStore.canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
+            :disabled="!editorStore.canUndo"
+            title="Undo"
+            @click="editorStore.undo()"
+          >
+            <Icon name="app-undo" class="text-sm" />
+          </button>
+          <button
+            class="p-1.5 rounded-md transition-colors"
+            :class="editorStore.canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
+            :disabled="!editorStore.canRedo"
+            title="Redo"
+            @click="editorStore.redo()"
+          >
+            <Icon name="app-redo" class="text-sm" />
+          </button>
+        </div>
+
+        <div class="h-5 w-px bg-border"></div>
+
         <!-- Viewport Toggle -->
         <div class="flex items-center gap-1 p-1 rounded-lg bg-secondary">
           <button
             class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-            :class="editorStore.viewport === 'desktop' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            :class="editorStore.viewport === 'desktop' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
             @click="editorStore.setViewport('desktop')"
           >
             Desktop
           </button>
           <button
             class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-            :class="editorStore.viewport === 'tablet' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            :class="editorStore.viewport === 'tablet' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
             @click="editorStore.setViewport('tablet')"
           >
             Tablet
           </button>
           <button
             class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-            :class="editorStore.viewport === 'mobile' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+            :class="editorStore.viewport === 'mobile' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
             @click="editorStore.setViewport('mobile')"
           >
             Mobile
           </button>
         </div>
 
+        <div class="h-5 w-px bg-border"></div>
+
         <!-- Language Selector -->
         <Dropdown>
           <template #trigger="{ toggle }">
             <button
-              class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+              class="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
               @click="toggle"
             >
-              <i class="lni lni-globe-1 text-sm"></i>
+              <Icon name="globe-1" class="text-sm" />
               <span>{{ currentLanguageDisplay }}</span>
-              <i class="lni lni-chevron-down text-[10px] text-muted-foreground"></i>
+              <Icon name="chevron-down" class="text-[10px] text-muted-foreground" />
             </button>
           </template>
 
           <!-- Default language option -->
           <Dropdown.Item
-            :icon="editorStore.currentLanguage === null ? 'lni-checkmark' : ''"
+            :icon="editorStore.currentLanguage === null ? 'checkmark' : ''"
             @click="handleLanguageChange(null)"
           >
-            <span class="flex items-center gap-2">
-              <span>{{ getLanguageByCode(editorStore.translations.defaultLanguage)?.flag }}</span>
-              <span>Default ({{ getLanguageByCode(editorStore.translations.defaultLanguage)?.name }})</span>
-            </span>
+            <span>Default ({{ getLanguageByCode(editorStore.translations.defaultLanguage)?.name }})</span>
           </Dropdown.Item>
 
           <!-- Translation languages -->
@@ -284,44 +317,48 @@ function handleCommandSelect(item: any) {
             <Dropdown.Item
               v-for="langCode in editorStore.availableTranslations"
               :key="langCode"
-              :icon="editorStore.currentLanguage === langCode ? 'lni-checkmark' : ''"
+              :icon="editorStore.currentLanguage === langCode ? 'checkmark' : ''"
               @click="handleLanguageChange(langCode)"
             >
-              <span class="flex items-center gap-2">
-                <span>{{ getLanguageByCode(langCode)?.flag }}</span>
-                <span>{{ getLanguageByCode(langCode)?.name }}</span>
-              </span>
+              <span>{{ getLanguageByCode(langCode)?.name }}</span>
             </Dropdown.Item>
           </template>
 
           <!-- Translation settings option -->
           <Dropdown.Divider />
-          <Dropdown.Item icon="lni-cog-1" @click="showTranslateModal = true">
+          <Dropdown.Item icon="app-settings" @click="showTranslateModal = true">
             Translation settings
           </Dropdown.Item>
         </Dropdown>
       </div>
 
-      <!-- Right: Save Status + Preview + Publish -->
+      <!-- Right: Save Status + Collaborator Reload + Preview + Publish -->
       <div class="flex items-center gap-3">
-        <!-- Save Status & Button -->
-        <button
-          class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors"
-          :class="editorStore.hasUnsavedChanges ? 'hover:bg-muted cursor-pointer' : 'cursor-default'"
+        <!-- Collaborator Changes Alert -->
+        <Button
+          v-if="editorStore.hasCollaboratorChanges"
+          variant="outline"
+          size="sm"
+          class="text-amber-600 border-amber-300 hover:bg-amber-50"
+          @click="editorStore.reloadProjectContent()"
+        >
+          <Icon name="app-undo" class="text-xs" />
+          Reload
+        </Button>
+
+        <!-- Save Button -->
+        <Button
+          variant="outline"
+          size="sm"
           :disabled="editorStore.isSaving || !editorStore.hasUnsavedChanges"
           @click="handleSave"
         >
-          <span
-            class="w-1.5 h-1.5 rounded-full"
-            :class="saveStatusDotClass"
-          ></span>
-          <span class="text-xs text-muted-foreground">{{ saveStatus }}</span>
-        </button>
-
-        <Button variant="outline" size="sm" @click="handlePreview">
-          <i class="lni lni-eye text-xs"></i>
-          Preview
+          <Icon name="app-save" class="text-xs" />
+          <span v-if="editorStore.isSaving">Saving...</span>
+          <span v-else-if="editorStore.hasUnsavedChanges">Save</span>
+          <span v-else>Saved</span>
         </Button>
+
         <Button size="sm" :loading="isPublishing" @click="handlePublish">
           {{ isPublishing ? 'Publishing...' : (currentProject?.isPublished ? 'Update' : 'Publish') }}
         </Button>
@@ -335,9 +372,9 @@ function handleCommandSelect(item: any) {
         <!-- Dashboard Link -->
         <router-link
           :to="{ name: 'dashboard' }"
-          class="flex items-center gap-6 text-muted-foreground hover:text-foreground transition-colors"
+          class="flex items-center gap-6 text-foreground transition-colors"
         >
-          <i class="lni lni-home-2 text-lg"></i>
+          <Icon name="app-dashboard" :size="18" />
           <span class="text-sm">Dashboard</span>
         </router-link>
 
@@ -351,7 +388,7 @@ function handleCommandSelect(item: any) {
       <!-- Right: Command Trigger -->
       <div class="flex items-center gap-3">
         <Button variant="outline" size="sm" @click="showCommand = true">
-          <i class="lni lni-search-1 text-xs"></i>
+          <Icon name="search-1" class="text-xs" />
           <span class="hidden sm:inline">Search...</span>
           <kbd class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
             <span>⌘</span><span>K</span>

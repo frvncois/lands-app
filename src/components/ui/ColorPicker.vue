@@ -204,27 +204,35 @@ function clearColor() {
 
 <template>
   <div class="relative">
-    <!-- Swatch-only with HEX value -->
+    <!-- Swatch-only with HEX input -->
     <div v-if="swatchOnly" class="flex items-center gap-2">
-      <!-- HEX value display -->
-      <span class="text-xxs font-mono text-muted-foreground uppercase">
-        {{ hasValue ? localValue.toUpperCase() : 'transparent' }}
-      </span>
+      <!-- HEX value input -->
+      <input
+        type="text"
+        :value="hasValue ? localValue.toUpperCase() : ''"
+        placeholder="transparent"
+        class="w-20 h-6 px-1.5 text-xxs font-mono text-muted-foreground bg-transparent border-none focus:outline-none focus:ring-0 uppercase placeholder:normal-case"
+        maxlength="7"
+        @input="handleHexInput"
+        @blur="handleHexBlur"
+        @keydown="handleHexKeydown"
+      />
       <!-- Swatch-only Trigger Button -->
       <button
         ref="triggerRef"
         type="button"
-        class="w-5 h-5 rounded border border-border hover:ring-2 hover:ring-primary/50 transition-all shrink-0"
+        class="relative w-5 h-5 rounded border border-border hover:ring-2 hover:ring-primary/50 transition-all shrink-0 overflow-hidden"
         :style="{ backgroundColor: hasValue ? displayColor : 'transparent' }"
         @click="togglePopover"
       >
-      <!-- Checkerboard pattern for transparent -->
-      <div
-        v-if="!hasValue"
-        class="w-full h-full rounded-md"
-        style="background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;"
-      />
-    </button>
+        <!-- Diagonal line for transparent -->
+        <div
+          v-if="!hasValue"
+          class="absolute inset-0 flex items-center justify-center"
+        >
+          <div class="w-[141%] h-px bg-muted-foreground rotate-45" />
+        </div>
+      </button>
     </div>
 
     <!-- Full Trigger Button -->
@@ -237,15 +245,16 @@ function clearColor() {
     >
       <!-- Color preview swatch -->
       <div
-        class="w-6 h-6 rounded border border-border shrink-0"
+        class="relative w-6 h-6 rounded border border-border shrink-0 overflow-hidden"
         :style="{ backgroundColor: hasValue ? displayColor : 'transparent' }"
       >
-        <!-- Checkerboard pattern for transparent -->
+        <!-- Diagonal line for transparent -->
         <div
           v-if="!hasValue"
-          class="w-full h-full rounded"
-          style="background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;"
-        />
+          class="absolute inset-0 flex items-center justify-center"
+        >
+          <div class="w-[141%] h-px bg-muted-foreground rotate-45" />
+        </div>
       </div>
 
       <!-- Value display -->

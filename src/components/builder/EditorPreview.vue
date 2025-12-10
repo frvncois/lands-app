@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import PreviewSection from '@/components/preview/PreviewSection.vue'
 import { createPresetBlock, type PresetType } from '@/lib/editor-utils'
@@ -9,6 +9,96 @@ import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import BlockPicker from '@/components/builder/BlockPicker.vue'
 
 const editorStore = useEditorStore()
+
+// Custom font loading
+const loadedFontStyleElement = ref<HTMLStyleElement | null>(null)
+
+function loadCustomFonts() {
+  const customFonts = editorStore.pageSettings.customFonts || []
+
+  // Remove existing style element if any
+  if (loadedFontStyleElement.value) {
+    loadedFontStyleElement.value.remove()
+    loadedFontStyleElement.value = null
+  }
+
+  if (customFonts.length === 0) return
+
+  // Create @font-face rules for each custom font
+  const fontFaceRules = customFonts.map((font: { name: string; url: string }) => {
+    return `@font-face {
+      font-family: '${font.name}';
+      src: url('${font.url}');
+      font-display: swap;
+    }`
+  }).join('\n')
+
+  // Create and inject style element
+  const styleEl = document.createElement('style')
+  styleEl.textContent = fontFaceRules
+  document.head.appendChild(styleEl)
+  loadedFontStyleElement.value = styleEl
+}
+
+// Google Fonts loading
+const loadedGoogleFontsLink = ref<HTMLLinkElement | null>(null)
+
+function loadGoogleFonts() {
+  const googleFonts = editorStore.pageSettings.googleFonts || []
+
+  // Remove existing link element if any
+  if (loadedGoogleFontsLink.value) {
+    loadedGoogleFontsLink.value.remove()
+    loadedGoogleFontsLink.value = null
+  }
+
+  if (googleFonts.length === 0) return
+
+  // Build Google Fonts URL with all selected fonts
+  const fontFamilies = googleFonts.map((font: { family: string }) => {
+    const encoded = encodeURIComponent(font.family)
+    return `family=${encoded}:wght@400;500;600;700`
+  }).join('&')
+
+  const url = `https://fonts.googleapis.com/css2?${fontFamilies}&display=swap`
+
+  // Create and inject link element
+  const linkEl = document.createElement('link')
+  linkEl.rel = 'stylesheet'
+  linkEl.href = url
+  document.head.appendChild(linkEl)
+  loadedGoogleFontsLink.value = linkEl
+}
+
+// Watch for custom font changes
+watch(
+  () => editorStore.pageSettings.customFonts,
+  () => loadCustomFonts(),
+  { deep: true }
+)
+
+// Watch for Google font changes
+watch(
+  () => editorStore.pageSettings.googleFonts,
+  () => loadGoogleFonts(),
+  { deep: true }
+)
+
+// Load fonts on mount
+onMounted(() => {
+  loadCustomFonts()
+  loadGoogleFonts()
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (loadedFontStyleElement.value) {
+    loadedFontStyleElement.value.remove()
+  }
+  if (loadedGoogleFontsLink.value) {
+    loadedGoogleFontsLink.value.remove()
+  }
+})
 
 // Context menu for viewport
 const viewportContextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
@@ -28,7 +118,7 @@ function handleViewportContextMenu(event: MouseEvent) {
     // Calculate insert index based on click position
     const blocks = editorStore.blocks
     const hasHeader = blocks[0]?.type === 'header'
-    const footerIndex = blocks.findIndex(b => b.type === 'footer')
+    const footerIndex = blocks.findIndex((b: { type: string }) => b.type === 'footer')
 
     // Default to after header (or start if no header)
     let insertIndex = hasHeader ? 1 : 0
@@ -39,7 +129,9 @@ function handleViewportContextMenu(event: MouseEvent) {
       const blockElements = document.querySelectorAll('[data-preview-block]')
 
       for (let i = 0; i < blockElements.length; i++) {
-        const rect = blockElements[i].getBoundingClientRect()
+        const el = blockElements[i]
+        if (!el) continue
+        const rect = el.getBoundingClientRect()
         if (clickY < rect.top + rect.height / 2) {
           insertIndex = i
           break
@@ -72,8 +164,10 @@ function handleBlockPickerSelectBlock(type: SectionBlockType) {
 
 function handleBlockPickerSelectPreset(type: PresetType) {
   const block = createPresetBlock(type)
-  editorStore.addPresetBlock(block, blockPickerInsertIndex.value ?? undefined)
-  editorStore.selectBlock(block.id)
+  const inserted = editorStore.addPresetBlock(block, blockPickerInsertIndex.value ?? undefined)
+  if (inserted) {
+    editorStore.selectBlock(inserted.id)
+  }
   blockPickerInsertIndex.value = null
 }
 
@@ -108,41 +202,23 @@ const pageStyles = computed(() => {
     styles.color = settings.textColor
   }
 
-  // Padding
-  if (settings.padding) {
-    if (settings.padding.y && settings.padding.y !== '0') {
-      styles.paddingTop = `${settings.padding.y}px`
-      styles.paddingBottom = `${settings.padding.y}px`
-    }
-    if (settings.padding.x && settings.padding.x !== '0') {
-      styles.paddingLeft = `${settings.padding.x}px`
-      styles.paddingRight = `${settings.padding.x}px`
-    }
+  // Font family
+  if (settings.fontFamily) {
+    styles.fontFamily = settings.fontFamily
   }
 
+  // Base font size
+  if (settings.baseFontSize) {
+    styles.fontSize = `${settings.baseFontSize}px`
+  }
+
+  // Page container has NO padding/margin - blocks handle their own spacing
   return styles
 })
 
-// Page classes for font family
+// Page classes (kept for potential future use)
 const pageClasses = computed(() => {
-  const settings = editorStore.pageSettings
-  const classes: string[] = []
-
-  if (settings.fontFamily) {
-    switch (settings.fontFamily) {
-      case 'sans':
-        classes.push('font-sans')
-        break
-      case 'serif':
-        classes.push('font-serif')
-        break
-      case 'mono':
-        classes.push('font-mono')
-        break
-    }
-  }
-
-  return classes.join(' ')
+  return ''
 })
 
 function handlePreviewClick(event: MouseEvent) {
@@ -220,8 +296,10 @@ function handleDrop(event: DragEvent) {
   const presetType = event.dataTransfer?.getData('application/x-preset-type') as PresetType
   if (presetType) {
     const block = createPresetBlock(presetType)
-    editorStore.addPresetBlock(block, index !== null ? index : undefined)
-    editorStore.selectBlock(block.id)
+    const inserted = editorStore.addPresetBlock(block, index !== null ? index : undefined)
+    if (inserted) {
+      editorStore.selectBlock(inserted.id)
+    }
     return
   }
 
@@ -245,7 +323,7 @@ function handleSectionDragEnter(index: number, event: DragEvent) {
     const minIndex = hasHeader ? 1 : 0
 
     // Don't allow dropping after footer
-    const footerIndex = blocks.findIndex(b => b.type === 'footer')
+    const footerIndex = blocks.findIndex((b: { type: string }) => b.type === 'footer')
     const maxIndex = footerIndex !== -1 ? footerIndex : blocks.length
 
     // Determine if we're in the top or bottom half of the section
@@ -286,7 +364,7 @@ function handleSectionDrop(event: DragEvent) {
       editorStore.moveBlockToRoot(blockIdToMove, index)
     } else {
       // Already at root - reorder
-      const currentIndex = editorStore.blocks.findIndex(b => b.id === blockIdToMove)
+      const currentIndex = editorStore.blocks.findIndex((b: { id: string }) => b.id === blockIdToMove)
       if (currentIndex !== -1 && currentIndex !== index) {
         // Adjust target index if moving down (since we remove first)
         const targetIndex = currentIndex < index ? index - 1 : index
@@ -301,8 +379,10 @@ function handleSectionDrop(event: DragEvent) {
   const presetType = event.dataTransfer?.getData('application/x-preset-type') as PresetType
   if (presetType && index !== null) {
     const block = createPresetBlock(presetType)
-    editorStore.addPresetBlock(block, index)
-    editorStore.selectBlock(block.id)
+    const inserted = editorStore.addPresetBlock(block, index)
+    if (inserted) {
+      editorStore.selectBlock(inserted.id)
+    }
     return
   }
 
@@ -331,14 +411,14 @@ function handleSectionDrop(event: DragEvent) {
     >
       <!-- Viewport container -->
       <div
-        class="mx-auto h-full transition-all duration-300"
+        class="h-full transition-all duration-300"
         :style="{ maxWidth: editorStore.viewportWidth }"
         @click.self="editorStore.selectBlock(null)"
         @contextmenu="handleViewportContextMenu"
       >
         <!-- Page container with settings applied -->
         <div
-          class="mx-auto bg-background h-full transition-all duration-300"
+          class="editor-preview-container bg-background min-h-full transition-all duration-300"
           :class="pageClasses"
           :style="pageStyles"
           @click.self="editorStore.selectBlock(null)"
@@ -360,7 +440,32 @@ function handleSectionDrop(event: DragEvent) {
           <!-- Section blocks -->
           <div v-else>
             <template v-for="(block, index) in editorStore.blocks" :key="block.id">
-              <div class="relative">
+              <!-- Header block: use sticky wrapper for proper sticky behavior -->
+              <div
+                v-if="block.type === 'header'"
+                :class="[
+                  (block.settings as any)?.sticky !== false ? 'sticky top-0 z-50' : 'relative',
+                  (block.settings as any)?.isHidden ? 'hidden' : ''
+                ]"
+              >
+                <!-- Drop indicator line (positioned absolutely, no layout impact) -->
+                <div
+                  v-if="isDragOver && dropTargetIndex === index"
+                  class="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full z-10"
+                />
+
+                <PreviewSection
+                  :block="block"
+                  :index="index"
+                  :total="editorStore.blocks.length"
+                  @dragenter="handleSectionDragEnter(index, $event)"
+                  @dragover="handleDropZoneDragOver"
+                  @drop="handleSectionDrop"
+                />
+              </div>
+
+              <!-- Other blocks: regular relative wrapper -->
+              <div v-else class="relative">
                 <!-- Drop indicator line (positioned absolutely, no layout impact) -->
                 <div
                   v-if="isDragOver && dropTargetIndex === index"

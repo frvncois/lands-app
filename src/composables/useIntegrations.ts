@@ -84,8 +84,8 @@ export function useIntegrations(projectId: string) {
         projectId: row.project_id,
         providerId: row.provider_id,
         isConnected: row.is_connected,
-        connectedAt: row.connected_at,
-        accountInfo: row.account_info as ConnectedAccountInfo | undefined,
+        connectedAt: row.connected_at ?? undefined,
+        accountInfo: row.account_info as unknown as ConnectedAccountInfo | undefined,
         settings: (row.settings as Record<string, string>) || {},
       }))
 
@@ -202,10 +202,11 @@ export function useIntegrations(projectId: string) {
       // Update local state
       const projectConns = connections.value.get(projectId) || []
       const idx = projectConns.findIndex(c => c.id === connection.id)
-      if (idx !== -1) {
+      const existingConn = projectConns[idx]
+      if (idx !== -1 && existingConn) {
         projectConns[idx] = {
-          ...projectConns[idx],
-          settings: { ...projectConns[idx].settings, ...settings },
+          ...existingConn,
+          settings: { ...existingConn.settings, ...settings },
         }
         connections.value.set(projectId, projectConns)
       }

@@ -15,9 +15,8 @@ function switchMode(newMode: AuthMode) {
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col items-center text-center pb-3">
-      <LandsLogo class="w-8 h-8 mb-6" />
+    <div class="flex flex-col items-center text-center">
+      <LandsLogo class="w-10 h-10 mb-6" />
       <h1 class="text-3xl tracking-tight text-foreground">
         {{ mode === 'login' ? 'Welcome back' : 'Create an account' }}
       </h1>
@@ -26,13 +25,11 @@ function switchMode(newMode: AuthMode) {
       </p>
     </div>
 
-    <!-- Auth Forms -->
     <LoginForm v-if="mode === 'login'" @switch-mode="switchMode('signup')" />
     <SignupForm v-else @switch-mode="switchMode('login')" />
 
-    <!-- Terms -->
-    <p class="text-xs text-center text-muted-foreground px-4">
-      By continuing, you agree to our
+    <p class="text-xxs text-center text-muted-foreground/50 px-4">
+      By continuing, you agree to our<br>
       <a href="#" class="underline underline-offset-4 hover:text-foreground">Terms of Service</a>
       and
       <a href="#" class="underline underline-offset-4 hover:text-foreground">Privacy Policy</a>.

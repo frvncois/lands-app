@@ -5,7 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useProjectsStore } from '@/stores/projects'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
-import { Card, Button, Badge, Avatar, Dropdown } from '@/components/ui'
+import { Card, Button, Badge, Avatar, Dropdown, Icon } from '@/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,10 +79,10 @@ function onProjectCreated(projectId: string) {
 
 // Navigation items for project sub-menu
 const navItems = [
-  { name: 'editor', label: 'Editor', icon: 'lni-pencil-1' },
-  { name: 'analytics', label: 'Analytics', icon: 'lni-bar-chart-4' },
-  { name: 'integration', label: 'Integrations', icon: 'lni-link-2-angular-right' },
-  { name: 'settings', label: 'Settings', icon: 'lni-gear-1' },
+  { name: 'editor', label: 'Editor', icon: 'app-editor' },
+  { name: 'analytics', label: 'Analytics', icon: 'app-analytics' },
+  { name: 'integration', label: 'Integrations', icon: 'app-integration' },
+  { name: 'settings', label: 'Settings', icon: 'app-settings' },
 ]
 
 function isNavActive(navName: string, projectId: string) {
@@ -160,13 +160,7 @@ function isNavActive(navName: string, projectId: string) {
             </div>
 
             <!-- Chevron -->
-            <i
-              class="lni lni-chevron-down text-xs shrink-0 text-sidebar-foreground/50 transition-all duration-200"
-              :class="[
-                expandedProjectId === project.id ? 'rotate-180' : '',
-                isCollapsed ? 'opacity-0' : 'opacity-100'
-              ]"
-            ></i>
+            <Icon name="chevron-down" class="text-xs shrink-0 text-sidebar-foreground/50 transition-all duration-200" />
           </button>
 
           <!-- Hover Card (collapsed only) -->
@@ -213,7 +207,7 @@ function isNavActive(navName: string, projectId: string) {
                   ? 'bg-sidebar-accent/50 text-sidebar-foreground'
                   : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'"
               >
-                <i :class="['lni', nav.icon, 'text-sm shrink-0']"></i>
+                <Icon :name="nav.icon" :size="14" class="shrink-0" />
                 <span class="text-xs font-medium">{{ nav.label }}</span>
               </router-link>
             </div>
@@ -233,7 +227,7 @@ function isNavActive(navName: string, projectId: string) {
                 ? 'bg-sidebar-accent text-sidebar-foreground'
                 : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'"
             >
-              <i :class="['lni', nav.icon, 'text-sm']"></i>
+              <Icon :name="nav.icon" :size="14" />
             </router-link>
             <!-- Tooltip -->
             <span class="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 text-xs font-medium text-popover-foreground bg-popover border border-border rounded shadow-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
@@ -253,7 +247,7 @@ function isNavActive(navName: string, projectId: string) {
         :class="isCollapsed ? 'mx-auto' : ''"
         @click="showNewProjectModal = true"
       >
-        <i class="lni lni-plus text-lg"></i>
+        <Icon name="plus" class="text-lg" />
         <span
           v-if="!isCollapsed"
           class="text-xxs font-medium"
@@ -283,18 +277,13 @@ function isNavActive(navName: string, projectId: string) {
               <p class="text-sm font-medium text-sidebar-foreground truncate">{{ user.name || 'User' }}</p>
               <p class="text-xs text-sidebar-foreground/60 truncate">{{ user.email }}</p>
             </div>
-            <i
-              class="lni lni-chevron-up text-xs shrink-0 text-sidebar-foreground/50 transition-opacity duration-200"
-              :class="isCollapsed ? 'opacity-0 absolute' : 'opacity-100'"
-            ></i>
           </button>
         </template>
 
         <Dropdown.Item icon="lni-user-4" @click="goToAccount">
           Account Settings
         </Dropdown.Item>
-        <Dropdown.Divider />
-        <Dropdown.Item icon="lni-exit" @click="signOut">
+        <Dropdown.Item icon="app-logout" @click="signOut">
           Sign Out
         </Dropdown.Item>
       </Dropdown>

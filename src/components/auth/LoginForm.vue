@@ -46,11 +46,10 @@ async function handleOAuth(provider: 'google' | 'github') {
 
 <template>
   <div class="space-y-6">
-    <!-- OAuth Buttons -->
     <div class="grid grid-cols-2 gap-3">
       <Button
         variant="outline"
-        size="lg"
+        size="sm"
         :disabled="isOAuthLoading !== null"
         @click="handleOAuth('google')"
       >
@@ -66,7 +65,7 @@ async function handleOAuth(provider: 'google' | 'github') {
 
       <Button
         variant="outline"
-        size="lg"
+        size="sm"
         :disabled="isOAuthLoading !== null"
         @click="handleOAuth('github')"
       >
@@ -78,7 +77,6 @@ async function handleOAuth(provider: 'google' | 'github') {
       </Button>
     </div>
 
-    <!-- Divider -->
     <div class="relative">
       <div class="absolute inset-0 flex items-center">
         <span class="w-full border-t border-border"></span>
@@ -88,7 +86,6 @@ async function handleOAuth(provider: 'google' | 'github') {
       </div>
     </div>
 
-    <!-- Email/Password Form -->
     <form @submit.prevent="handleSubmit" class="space-y-4">
       <FormField label="Email">
         <Input
@@ -101,10 +98,7 @@ async function handleOAuth(provider: 'google' | 'github') {
 
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
-          <label class="text-xs text-accent">Password</label>
-          <Button variant="link" size="xs" class="h-auto p-0">
-            Forgot password?
-          </Button>
+          <label class="flex items-center font-mono uppercase gap-1 text-xxs text-accent-foreground tracking-wide">Password</label>
         </div>
         <Input
           v-model="password"
@@ -114,14 +108,13 @@ async function handleOAuth(provider: 'google' | 'github') {
         />
       </div>
 
-      <!-- Error message -->
       <Alert v-if="error" variant="error">
         {{ error }}
       </Alert>
 
       <Button
         type="submit"
-        size="lg"
+        size="sm"
         full-width
         :loading="isSubmitting"
         :disabled="!email || !password"

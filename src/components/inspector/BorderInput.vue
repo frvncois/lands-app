@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { BorderStyle } from '@/types/editor'
+import { Icon } from '@/components/ui'
 import ColorInput from './ColorInput.vue'
 import SliderInput from './SliderInput.vue'
 import InspectorField from './InspectorField.vue'
@@ -17,14 +18,20 @@ const emit = defineEmits<{
 type BorderSide = 'top' | 'right' | 'bottom' | 'left'
 
 const sides: { key: BorderSide; icon: string; label: string }[] = [
-  { key: 'top', icon: 'lni-arrow-up', label: 'Top' },
-  { key: 'right', icon: 'lni-arrow-right', label: 'Right' },
-  { key: 'bottom', icon: 'lni-arrow-down', label: 'Bottom' },
-  { key: 'left', icon: 'lni-arrow-left', label: 'Left' },
+  { key: 'top', icon: 'style-border-top', label: 'Top' },
+  { key: 'right', icon: 'style-border-right', label: 'Right' },
+  { key: 'bottom', icon: 'style-border-bottom', label: 'Bottom' },
+  { key: 'left', icon: 'style-border-left', label: 'Left' },
 ]
 
-// Computed active sides
+// Current width
+const currentWidth = computed(() => parseInt(props.modelValue?.width ?? '0', 10))
+
+// Computed active sides - if width is 0, no sides are active
 const activeSides = computed<Set<BorderSide>>(() => {
+  if (currentWidth.value === 0) {
+    return new Set<BorderSide>()
+  }
   const sidesStr = props.modelValue?.sides
   if (!sidesStr) {
     return new Set(['top', 'right', 'bottom', 'left'])
@@ -38,12 +45,49 @@ function isSideActive(side: BorderSide): boolean {
 
 function toggleSide(side: BorderSide) {
   const active = new Set(activeSides.value)
+  let newWidth = props.modelValue?.width ?? '0'
+
   if (active.has(side)) {
     active.delete(side)
+    // If all sides are unselected, set width to 0
+    if (active.size === 0) {
+      newWidth = '0'
+    }
   } else {
     active.add(side)
+    // If width is 0 and user selects a side, set width to 1px
+    if (currentWidth.value === 0) {
+      newWidth = '1'
+    }
   }
-  update('sides', Array.from(active).join(','))
+
+  emit('update:modelValue', {
+    width: newWidth,
+    color: props.modelValue?.color ?? '',
+    radius: props.modelValue?.radius ?? '0',
+    sides: Array.from(active).join(','),
+  })
+}
+
+function updateWidth(value: string) {
+  const newWidth = parseInt(value, 10)
+  let newSides = props.modelValue?.sides ?? 'top,right,bottom,left'
+
+  // If width goes to 0, clear all sides
+  if (newWidth === 0) {
+    newSides = ''
+  }
+  // If width goes from 0 to 1+, select all sides
+  else if (currentWidth.value === 0 && newWidth > 0) {
+    newSides = 'top,right,bottom,left'
+  }
+
+  emit('update:modelValue', {
+    width: value,
+    color: props.modelValue?.color ?? '',
+    radius: props.modelValue?.radius ?? '0',
+    sides: newSides,
+  })
 }
 
 function update(key: keyof BorderStyle, value: string) {
@@ -61,19 +105,19 @@ function update(key: keyof BorderStyle, value: string) {
   <div class="space-y-0">
     <!-- Border Sides -->
     <InspectorField label="Sides" horizontal>
-      <div class="flex p-1 bg-secondary rounded-md">
+      <div class="flex p-0.5 bg-secondary rounded-md">
         <button
           v-for="side in sides"
           :key="side.key"
           type="button"
-          class="flex items-center justify-center w-7 h-6 rounded transition-colors"
+          class="flex items-center justify-center w-7 h-7 rounded transition-colors"
           :class="isSideActive(side.key)
             ? 'bg-background text-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground'"
           :title="side.label"
           @click="toggleSide(side.key)"
         >
-          <i :class="['lni', side.icon, 'text-xs']"></i>
+          <Icon :name="side.icon" :size="12" />
         </button>
       </div>
     </InspectorField>
@@ -86,7 +130,7 @@ function update(key: keyof BorderStyle, value: string) {
         :max="8"
         :step="1"
         unit="px"
-        @update:model-value="update('width', $event)"
+        @update:model-value="updateWidth"
       />
     </InspectorField>
 

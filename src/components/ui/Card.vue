@@ -14,7 +14,7 @@ withDefaults(defineProps<Props>(), {
 })
 
 const variantClasses: Record<CardVariant, string> = {
-  default: 'border bg-card border-border shadow-xs',
+  default: 'border bg-card border-border/25 shadow-xs',
   outline: 'bg-transparent border border-border',
   ghost: 'bg-muted/50 border border-transparent',
   destructive: 'bg-card border border-destructive/30',

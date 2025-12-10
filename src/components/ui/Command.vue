@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import Input from './Input.vue'
+import Icon from './Icon.vue'
 
 interface CommandItem {
   id: string
@@ -91,8 +92,9 @@ function handleKeydown(event: KeyboardEvent) {
       break
     case 'Enter':
       event.preventDefault()
-      if (flatItems.value[selectedIndex.value]) {
-        handleSelect(flatItems.value[selectedIndex.value])
+      const selectedItem = flatItems.value[selectedIndex.value]
+      if (selectedItem) {
+        handleSelect(selectedItem)
       }
       break
     case 'Escape':
@@ -187,7 +189,7 @@ export default {
           >
             <!-- Search Input -->
             <div class="flex items-center gap-3 px-4 border-b border-border">
-              <i class="lni lni-search-1 text-muted-foreground"></i>
+              <Icon name="search-1" class="text-muted-foreground" />
               <input
                 ref="inputRef"
                 v-model="searchQuery"
@@ -234,7 +236,7 @@ export default {
                           @click="handleSelect(item)"
                           @mouseenter="selectedIndex = flatItems.indexOf(item)"
                         >
-                          <i v-if="item.icon" :class="['lni', item.icon, 'text-base text-muted-foreground']"></i>
+                          <Icon v-if="item.icon" :name="item.icon" :size="16" class="text-muted-foreground" />
                           <span class="flex-1">{{ item.label }}</span>
                           <span v-if="item.shortcut" class="flex items-center gap-0.5">
                             <kbd
@@ -257,10 +259,10 @@ export default {
             <div class="flex items-center gap-4 px-4 py-2 border-t border-border bg-muted/30">
               <div class="flex items-center gap-1 text-xs text-muted-foreground">
                 <kbd class="px-1 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-                  <i class="lni lni-arrow-up text-[8px]"></i>
+                  <Icon name="arrow-up" class="text-[8px]" />
                 </kbd>
                 <kbd class="px-1 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-                  <i class="lni lni-arrow-down text-[8px]"></i>
+                  <Icon name="arrow-down" class="text-[8px]" />
                 </kbd>
                 <span>Navigate</span>
               </div>

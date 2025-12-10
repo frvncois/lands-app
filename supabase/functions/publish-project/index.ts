@@ -19,10 +19,227 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Generate static HTML for the published site
-function generateHTML(project: any, content: any, settings: any, umamiSiteId?: string): string {
+// ============================================
+// STYLE COLLECTOR - Manages CSS classes and styles
+// ============================================
+
+interface CSSRule {
+  selector: string
+  properties: Record<string, string>
+  mediaQuery?: string
+}
+
+class StyleCollector {
+  private rules: CSSRule[] = []
+  private usedIds: Set<string> = new Set()
+
+  // Generate a unique 4-character random ID (letters and numbers)
+  private generateId(): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let id: string
+    do {
+      id = ''
+      for (let i = 0; i < 4; i++) {
+        id += chars[Math.floor(Math.random() * chars.length)]
+      }
+    } while (this.usedIds.has(id))
+    this.usedIds.add(id)
+    return id
+  }
+
+  // Create class name following pattern: ld-[block]-[id]
+  // Every block gets its own unique class with 4 random characters
+  createClassName(blockType: string, _element: string = 'block'): string {
+    return `ld-${blockType}-${this.generateId()}`
+  }
+
+  // Add a CSS rule
+  addRule(selector: string, properties: Record<string, string>, mediaQuery?: string) {
+    // Only add if there are properties
+    if (Object.keys(properties).length > 0) {
+      this.rules.push({ selector, properties, mediaQuery })
+    }
+  }
+
+  // Generate the complete CSS stylesheet
+  generateCSS(): string {
+    const normalRules: CSSRule[] = []
+    const mediaRules: Map<string, CSSRule[]> = new Map()
+
+    // Separate normal rules from media query rules
+    for (const rule of this.rules) {
+      if (rule.mediaQuery) {
+        if (!mediaRules.has(rule.mediaQuery)) {
+          mediaRules.set(rule.mediaQuery, [])
+        }
+        mediaRules.get(rule.mediaQuery)!.push(rule)
+      } else {
+        normalRules.push(rule)
+      }
+    }
+
+    // CSS Reset - normalize browser defaults
+    let css = `/* CSS Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; }
+body { margin: 0; }
+h1, h2, h3, h4, h5, h6, p { margin: 0; }
+img, video { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; }
+a { color: inherit; text-decoration: inherit; }
+
+`
+
+    // Generate normal rules
+    for (const rule of normalRules) {
+      css += this.ruleToString(rule)
+    }
+
+    // Generate media query rules
+    for (const [query, rules] of mediaRules) {
+      css += `\n${query} {\n`
+      for (const rule of rules) {
+        css += '  ' + this.ruleToString(rule).replace(/\n/g, '\n  ')
+      }
+      css += '}\n'
+    }
+
+    return css
+  }
+
+  private ruleToString(rule: CSSRule): string {
+    const props = Object.entries(rule.properties)
+      .map(([key, value]) => `  ${this.camelToKebab(key)}: ${value};`)
+      .join('\n')
+    return `.${rule.selector} {\n${props}\n}\n`
+  }
+
+  private camelToKebab(str: string): string {
+    return str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+  }
+}
+
+// ============================================
+// STYLE BUILDERS - Convert block styles to CSS properties
+// ============================================
+
+function buildSpacingCSS(spacing: any, property: 'padding' | 'margin'): Record<string, string> {
+  if (!spacing) return {}
+  const props: Record<string, string> = {}
+
+  // Only add non-zero values
+  if (spacing.top && spacing.top !== '0' && spacing.top !== '0px') props[`${property}Top`] = spacing.top
+  if (spacing.bottom && spacing.bottom !== '0' && spacing.bottom !== '0px') props[`${property}Bottom`] = spacing.bottom
+  if (spacing.left && spacing.left !== '0' && spacing.left !== '0px') props[`${property}Left`] = spacing.left
+  if (spacing.right && spacing.right !== '0' && spacing.right !== '0px') props[`${property}Right`] = spacing.right
+
+  return props
+}
+
+function buildBorderCSS(border: any): Record<string, string> {
+  if (!border) return {}
+  const props: Record<string, string> = {}
+
+  if (border.width && border.width !== '0' && border.width !== '0px') {
+    props.borderWidth = border.width
+    props.borderStyle = border.style || 'solid'
+    if (border.color) props.borderColor = border.color
+  }
+  // Only add border radius if non-zero
+  if (border.radius && border.radius !== '0' && border.radius !== '0px') {
+    props.borderRadius = border.radius
+  }
+
+  return props
+}
+
+function buildShadowCSS(shadow: any): Record<string, string> {
+  if (!shadow || !shadow.enabled) return {}
+
+  const x = shadow.x || '0px'
+  const y = shadow.y || '4px'
+  const blur = shadow.blur || '6px'
+  const color = shadow.color || 'rgba(0,0,0,0.1)'
+
+  return { boxShadow: `${x} ${y} ${blur} ${color}` }
+}
+
+function buildTypographyCSS(styles: any): Record<string, string> {
+  const props: Record<string, string> = {}
+
+  if (styles.fontFamily) props.fontFamily = `'${styles.fontFamily}', system-ui, sans-serif`
+  if (styles.fontSize) props.fontSize = mapFontSize(styles.fontSize)
+  if (styles.fontWeight) props.fontWeight = mapFontWeight(styles.fontWeight)
+  if (styles.fontStyle && styles.fontStyle !== 'normal') props.fontStyle = styles.fontStyle
+  if (styles.lineHeight) props.lineHeight = styles.lineHeight
+  if (styles.letterSpacing) props.letterSpacing = styles.letterSpacing
+  if (styles.textAlign) props.textAlign = styles.textAlign
+  if (styles.color) props.color = styles.color
+  if (styles.textDecoration && styles.textDecoration !== 'none') props.textDecoration = styles.textDecoration
+
+  return props
+}
+
+function buildBaseBlockCSS(styles: any): Record<string, string> {
+  const props: Record<string, string> = {}
+
+  if (styles.backgroundColor) props.backgroundColor = styles.backgroundColor
+
+  Object.assign(props, buildSpacingCSS(styles.padding, 'padding'))
+  Object.assign(props, buildSpacingCSS(styles.margin, 'margin'))
+  Object.assign(props, buildBorderCSS(styles.border))
+  Object.assign(props, buildShadowCSS(styles.shadow))
+
+  if (styles.opacity && styles.opacity !== '1') props.opacity = styles.opacity
+  if (styles.mixBlendMode && styles.mixBlendMode !== 'normal') props.mixBlendMode = styles.mixBlendMode
+
+  // Flex child properties
+  if (styles.flexGrow && styles.flexGrow !== '0') props.flexGrow = styles.flexGrow
+  if (styles.flexShrink && styles.flexShrink !== '1') props.flexShrink = styles.flexShrink
+  if (styles.flexBasis && styles.flexBasis !== 'auto') props.flexBasis = styles.flexBasis
+
+  return props
+}
+
+function mapFontSize(size: string): string {
+  const sizeMap: Record<string, string> = {
+    'xs': '0.75rem',
+    'sm': '0.875rem',
+    'base': '1rem',
+    'lg': '1.125rem',
+    'xl': '1.25rem',
+    '2xl': '1.5rem',
+    '3xl': '1.875rem',
+    '4xl': '2.25rem',
+    '5xl': '3rem',
+    '6xl': '3.75rem',
+  }
+  return sizeMap[size] || size
+}
+
+function mapFontWeight(weight: string): string {
+  const weightMap: Record<string, string> = {
+    'normal': '400',
+    'medium': '500',
+    'semibold': '600',
+    'bold': '700',
+  }
+  return weightMap[weight] || weight
+}
+
+// ============================================
+// HTML GENERATORS
+// ============================================
+
+interface GeneratorContext {
+  collector: StyleCollector
+  pageSettings: any
+}
+
+function generateHTML(project: any, content: any, settings: any, umamiSiteId?: string): { html: string, css: string } {
   const { pageSettings, blocks } = content
   const seo = settings || {}
+  const collector = new StyleCollector()
 
   const title = seo.meta_title || project.title
   const description = seo.meta_description || project.description || ''
@@ -35,10 +252,19 @@ function generateHTML(project: any, content: any, settings: any, umamiSiteId?: s
     ? `\n  <!-- Umami Analytics -->\n  <script defer src="${UMAMI_API_URL}/script.js" data-website-id="${umamiSiteId}"></script>`
     : ''
 
-  // Generate blocks HTML
-  const blocksHTML = blocks.map((block: any) => generateBlockHTML(block, pageSettings)).join('')
+  // Create context for generation
+  const ctx: GeneratorContext = {
+    collector,
+    pageSettings,
+  }
 
-  return `<!DOCTYPE html>
+  // Generate blocks HTML
+  const blocksHTML = blocks.map((block: any) => generateBlockHTML(block, ctx)).join('\n')
+
+  // Generate CSS
+  const generatedCSS = collector.generateCSS()
+
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -69,190 +295,605 @@ function generateHTML(project: any, content: any, settings: any, umamiSiteId?: s
   <link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(pageSettings.fontFamily || 'Inter')}:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: '${pageSettings.fontFamily || 'Inter'}', system-ui, sans-serif;
-      background-color: ${pageSettings.backgroundColor || '#ffffff'};
-      color: ${pageSettings.textColor || '#000000'};
-      line-height: 1.6;
-      min-height: 100vh;
-    }
-    img { max-width: 100%; height: auto; }
-    a { color: inherit; }
-    .section { width: 100%; }
-    .container { max-width: ${pageSettings.maxWidth || '1200px'}; margin: 0 auto; padding: 0 1rem; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 500; text-decoration: none; transition: opacity 0.2s; cursor: pointer; border: none; }
-    .btn:hover { opacity: 0.9; }
-    .btn-primary { background-color: ${pageSettings.primaryColor || '#000000'}; color: ${pageSettings.backgroundColor || '#ffffff'}; }
-    .btn-secondary { background-color: transparent; border: 1px solid currentColor; }
+/* Base Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: '${pageSettings.fontFamily || 'Inter'}', system-ui, sans-serif;
+  background-color: ${pageSettings.backgroundColor || '#ffffff'};
+  color: ${pageSettings.textColor || '#09090b'};
+  line-height: 1.6;
+  min-height: 100vh;
+}
+img { max-width: 100%; height: auto; display: block; }
+a { color: inherit; }
+button { font-family: inherit; }
 
-    @media (max-width: 768px) {
-      .container { padding: 0 1rem; }
-    }
+/* Generated Styles */
+${generatedCSS}
   </style>
 </head>
 <body>
-  ${blocksHTML}
+${blocksHTML}
 
   <!-- Powered by Lands -->
-  <div style="text-align: center; padding: 2rem; font-size: 0.75rem; color: #9ca3af;">
-    <a href="https://lands.app" target="_blank" rel="noopener" style="color: inherit; text-decoration: none;">
+  <div class="ld-watermark">
+    <a href="https://lands.app" target="_blank" rel="noopener">
       Built with Lands
     </a>
   </div>
 </body>
 </html>`
+
+  return { html, css: generatedCSS }
 }
 
-function generateBlockHTML(block: any, pageSettings: any): string {
+function generateBlockHTML(block: any, ctx: GeneratorContext): string {
+  const { collector, pageSettings } = ctx
   const styles = block.styles || {}
-  const bgColor = styles.backgroundColor || 'transparent'
-  const padding = styles.padding || { top: 64, bottom: 64 }
+  const settings = block.settings || {}
 
-  let innerHTML = ''
+  // Check if block is hidden
+  if (settings.isHidden) return ''
 
-  // Handle different block types
   switch (block.type) {
-    case 'hero':
-    case 'text-image':
-    case 'features':
-    case 'cta':
+    case 'header':
+      return generateHeaderHTML(block, ctx)
+    case 'footer':
+      return generateFooterHTML(block, ctx)
+    case 'container':
+      return generateContainerHTML(block, ctx)
+    case 'grid':
+      return generateGridHTML(block, ctx)
+    case 'stack':
+      return generateStackHTML(block, ctx)
+    case 'heading':
+      return generateHeadingHTML(block, ctx)
     case 'text':
-      innerHTML = generateStandardBlockContent(block, pageSettings)
-      break
-    case 'post':
-      innerHTML = generatePostBlockContent(block)
-      break
-    case 'link':
-      innerHTML = generateLinkBlockContent(block)
-      break
-    case 'product':
-      innerHTML = generateProductBlockContent(block)
-      break
+      return generateTextHTML(block, ctx)
+    case 'image':
+      return generateImageHTML(block, ctx)
+    case 'video':
+      return generateVideoHTML(block, ctx)
+    case 'button':
+      return generateButtonHTML(block, ctx)
+    case 'icon':
+      return generateIconHTML(block, ctx)
+    case 'divider':
+      return generateDividerHTML(block, ctx)
+    case 'form':
+      return generateFormHTML(block, ctx)
     default:
-      innerHTML = generateStandardBlockContent(block, pageSettings)
+      return `<!-- Unknown block type: ${block.type} -->`
+  }
+}
+
+// ============================================
+// LAYOUT BLOCK GENERATORS
+// ============================================
+
+function generateHeaderHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  if (settings.isHidden) return ''
+
+  const className = collector.createClassName('header', 'block')
+
+  // Build CSS properties
+  const cssProps: Record<string, string> = {
+    display: 'flex',
+    alignItems: styles.alignItems || 'center',
+    justifyContent: styles.justifyContent || 'space-between',
+    width: '100%',
+    ...buildBaseBlockCSS(styles),
   }
 
-  return `
-  <section class="section" style="background-color: ${bgColor}; padding-top: ${padding.top}px; padding-bottom: ${padding.bottom}px;">
-    <div class="container">
-      ${innerHTML}
-    </div>
-  </section>`
+  if (settings.height) cssProps.height = `${settings.height}px`
+  if (settings.gap) cssProps.gap = `${settings.gap}px`
+  if (settings.sticky) {
+    cssProps.position = 'sticky'
+    cssProps.top = '0'
+    cssProps.zIndex = '50'
+  }
+
+  collector.addRule(className, cssProps)
+
+  // Generate children
+  const childrenHTML = (block.children || [])
+    .map((child: any) => generateBlockHTML(child, ctx))
+    .join('\n')
+
+  return `<header class="${className}">${childrenHTML}</header>`
 }
 
-function generateStandardBlockContent(block: any, pageSettings: any): string {
-  const children = block.children || []
-  const alignment = block.styles?.alignment || 'center'
+function generateFooterHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
 
-  return `
-    <div style="display: flex; flex-direction: column; align-items: ${alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start'}; text-align: ${alignment}; gap: 1rem;">
-      ${children.map((item: any) => generateItemHTML(item, pageSettings)).join('')}
-    </div>`
+  if (settings.isHidden) return ''
+
+  const className = collector.createClassName('footer', 'block')
+
+  const cssProps: Record<string, string> = {
+    display: 'flex',
+    alignItems: styles.alignItems || 'center',
+    justifyContent: styles.justifyContent || 'space-between',
+    width: '100%',
+    ...buildBaseBlockCSS(styles),
+  }
+
+  if (settings.gap) cssProps.gap = `${settings.gap}px`
+
+  collector.addRule(className, cssProps)
+
+  const childrenHTML = (block.children || [])
+    .map((child: any) => generateBlockHTML(child, ctx))
+    .join('\n')
+
+  return `<footer class="${className}">${childrenHTML}</footer>`
 }
 
-function generateItemHTML(item: any, pageSettings: any): string {
-  const settings = item.settings || {}
-  const styles = item.styles || {}
+function generateContainerHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
 
-  const inlineStyles = buildInlineStyles(styles)
+  const className = collector.createClassName('container', 'block')
 
-  switch (item.type) {
-    case 'heading':
-      const level = settings.level || 'h2'
-      return `<${level} style="${inlineStyles}">${escapeHtml(settings.content || '')}</${level}>`
+  const cssProps: Record<string, string> = {
+    display: 'flex',
+    flexDirection: styles.flexDirection || 'column',
+    alignItems: styles.alignItems || 'stretch',
+    justifyContent: styles.justifyContent || 'flex-start',
+    width: '100%',
+    ...buildBaseBlockCSS(styles),
+  }
 
-    case 'subheading':
-      return `<p style="font-size: 1.25rem; opacity: 0.8; ${inlineStyles}">${escapeHtml(settings.content || '')}</p>`
+  if (settings.maxWidth) cssProps.maxWidth = `${settings.maxWidth}px`
+  if (settings.gap) cssProps.gap = `${settings.gap}px`
+  if (styles.flexWrap) cssProps.flexWrap = styles.flexWrap
+  if (settings.height && settings.height !== 'auto') {
+    cssProps.minHeight = settings.height === 'full' ? '100vh' : settings.height === 'half' ? '50vh' : settings.height
+  }
 
-    case 'text':
-      return `<p style="${inlineStyles}">${escapeHtml(settings.content || '')}</p>`
+  // Center the container
+  cssProps.marginLeft = 'auto'
+  cssProps.marginRight = 'auto'
 
-    case 'button':
-      const variant = settings.variant || 'primary'
-      const href = settings.url || '#'
-      return `<a href="${escapeHtml(href)}" class="btn btn-${variant}" style="${inlineStyles}">${escapeHtml(settings.title || 'Button')}</a>`
+  collector.addRule(className, cssProps)
 
-    case 'image':
-      if (!settings.src) return ''
-      return `<img src="${escapeHtml(settings.src)}" alt="${escapeHtml(settings.alt || '')}" style="border-radius: 0.5rem; ${inlineStyles}">`
+  const childrenHTML = (block.children || [])
+    .map((child: any) => generateBlockHTML(child, ctx))
+    .join('\n')
 
-    case 'video':
-      if (!settings.src) return ''
-      return `<video src="${escapeHtml(settings.src)}" ${settings.autoplay ? 'autoplay' : ''} ${settings.loop ? 'loop' : ''} ${settings.muted ? 'muted' : ''} controls style="border-radius: 0.5rem; width: 100%; ${inlineStyles}"></video>`
+  return `<section class="${className}">${childrenHTML}</section>`
+}
+
+function generateGridHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  const className = collector.createClassName('grid', 'block')
+  const columns = settings.columns || 2
+  const gap = settings.gap || 16
+
+  const cssProps: Record<string, string> = {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+    gridAutoRows: 'minmax(80px, auto)',
+    gap: `${gap}px`,
+    width: '100%',
+    ...buildBaseBlockCSS(styles),
+  }
+
+  collector.addRule(className, cssProps)
+
+  // Grid children - each child gets its own unique class
+  const childrenHTML = (block.children || []).map((child: any, index: number) => {
+    // Generate wrapper for grid item positioning if spans are set
+    const itemSettings = child.settings || {}
+    const colSpan = itemSettings.gridColumnSpan || 1
+    const rowSpan = itemSettings.gridRowSpan || 1
+
+    if (colSpan > 1 || rowSpan > 1) {
+      const itemClassName = collector.createClassName('grid', 'item')
+      const itemCss: Record<string, string> = {}
+      if (colSpan > 1) itemCss.gridColumn = `span ${colSpan}`
+      if (rowSpan > 1) itemCss.gridRow = `span ${rowSpan}`
+      collector.addRule(itemClassName, itemCss)
+
+      return `<div class="${itemClassName}">${generateBlockHTML(child, ctx)}</div>`
+    }
+
+    return generateBlockHTML(child, ctx)
+  }).join('\n')
+
+  return `<div class="${className}">${childrenHTML}</div>`
+}
+
+function generateStackHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  // Every stack gets its own unique class
+  const className = collector.createClassName('stack', 'block')
+
+  const direction = settings.direction || 'column'
+
+  const cssProps: Record<string, string> = {
+    display: 'flex',
+    flexDirection: direction,
+    alignItems: styles.alignItems || (direction === 'row' ? 'center' : 'stretch'),
+    justifyContent: styles.justifyContent || 'flex-start',
+    ...buildBaseBlockCSS(styles),
+  }
+
+  if (settings.gap) cssProps.gap = `${settings.gap}px`
+  if (styles.flexWrap) cssProps.flexWrap = styles.flexWrap
+  if (settings.width === 'full') cssProps.width = '100%'
+
+  collector.addRule(className, cssProps)
+
+  const childrenHTML = (block.children || [])
+    .map((child: any) => generateBlockHTML(child, ctx))
+    .join('\n')
+
+  return `<div class="${className}">${childrenHTML}</div>`
+}
+
+// ============================================
+// CONTENT BLOCK GENERATORS
+// ============================================
+
+function generateHeadingHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  // Every heading gets its own unique class
+  const className = collector.createClassName('heading', 'block')
+
+  const cssProps: Record<string, string> = {
+    ...buildTypographyCSS(styles),
+    ...buildBaseBlockCSS(styles),
+  }
+
+  collector.addRule(className, cssProps)
+
+  const tag = settings.level || 'h2'
+  const content = escapeHtml(settings.content || '')
+
+  return `<${tag} class="${className}">${content}</${tag}>`
+}
+
+function generateTextHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  // Every text block gets its own unique class
+  const className = collector.createClassName('text', 'block')
+
+  const cssProps: Record<string, string> = {
+    ...buildTypographyCSS(styles),
+    ...buildBaseBlockCSS(styles),
+  }
+
+  collector.addRule(className, cssProps)
+
+  const content = escapeHtml(settings.content || '')
+
+  return `<p class="${className}">${content}</p>`
+}
+
+function generateImageHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  if (!settings.source) return ''
+
+  // Every image gets its own unique class
+  const className = collector.createClassName('image', 'block')
+
+  const cssProps: Record<string, string> = {
+    ...buildBaseBlockCSS(styles),
+    maxWidth: '100%',
+    height: 'auto',
+  }
+
+  if (settings.aspectRatio && settings.aspectRatio !== 'auto') {
+    const ratioMap: Record<string, string> = {
+      '1:1': '1 / 1',
+      '4:3': '4 / 3',
+      '3:4': '3 / 4',
+      '16:9': '16 / 9',
+      '9:16': '9 / 16',
+    }
+    cssProps.aspectRatio = ratioMap[settings.aspectRatio] || 'auto'
+    cssProps.objectFit = settings.objectFit || 'cover'
+  }
+
+  if (settings.width) cssProps.width = settings.width
+  if (styles.borderRadius || styles.border?.radius) {
+    cssProps.borderRadius = styles.borderRadius || styles.border?.radius
+  }
+
+  collector.addRule(className, cssProps)
+
+  const alt = escapeHtml(settings.alt || '')
+  const src = escapeHtml(settings.source)
+
+  return `<img class="${className}" src="${src}" alt="${alt}" loading="lazy">`
+}
+
+function generateVideoHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  if (!settings.source) return ''
+
+  const className = collector.createClassName('video', 'block')
+
+  const cssProps: Record<string, string> = {
+    ...buildBaseBlockCSS(styles),
+    width: '100%',
+    height: 'auto',
+  }
+
+  if (settings.aspectRatio && settings.aspectRatio !== 'auto') {
+    const ratioMap: Record<string, string> = {
+      '1:1': '1 / 1',
+      '4:3': '4 / 3',
+      '16:9': '16 / 9',
+    }
+    cssProps.aspectRatio = ratioMap[settings.aspectRatio] || '16 / 9'
+    cssProps.objectFit = 'cover'
+  }
+
+  collector.addRule(className, cssProps)
+
+  const src = escapeHtml(settings.source)
+  const autoplay = settings.autoplay ? 'autoplay' : ''
+  const loop = settings.loop ? 'loop' : ''
+  const muted = settings.muted ? 'muted' : ''
+  const controls = settings.controls !== false ? 'controls' : ''
+
+  return `<video class="${className}" src="${src}" ${autoplay} ${loop} ${muted} ${controls} playsinline></video>`
+}
+
+function generateButtonHTML(block: any, ctx: GeneratorContext): string {
+  const { collector, pageSettings } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  // Every button gets its own unique class
+  const className = collector.createClassName('button', 'block')
+
+  const variant = settings.variant || 'primary'
+  const size = settings.size || 'md'
+
+  const sizeStyles: Record<string, Record<string, string>> = {
+    sm: { padding: '0.5rem 1rem', fontSize: '0.875rem' },
+    md: { padding: '0.75rem 1.5rem', fontSize: '1rem' },
+    lg: { padding: '1rem 2rem', fontSize: '1.125rem' },
+  }
+
+  const cssProps: Record<string, string> = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '500',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    border: 'none',
+    transition: 'opacity 0.2s, transform 0.2s',
+    ...sizeStyles[size] || sizeStyles.md,
+    ...buildBaseBlockCSS(styles),
+  }
+
+  // Variant styles
+  const primaryColor = pageSettings?.primaryColor || '#000000'
+  const bgColor = pageSettings?.backgroundColor || '#ffffff'
+
+  switch (variant) {
+    case 'primary':
+      cssProps.backgroundColor = styles.backgroundColor || primaryColor
+      cssProps.color = styles.color || bgColor
+      break
+    case 'secondary':
+      cssProps.backgroundColor = styles.backgroundColor || bgColor
+      cssProps.color = styles.color || primaryColor
+      cssProps.border = `1px solid ${primaryColor}`
+      break
+    case 'outline':
+      cssProps.backgroundColor = 'transparent'
+      cssProps.color = styles.color || primaryColor
+      cssProps.border = `1px solid currentColor`
+      break
+    case 'ghost':
+      cssProps.backgroundColor = 'transparent'
+      cssProps.color = styles.color || primaryColor
+      break
+  }
+
+  if (!cssProps.borderRadius) cssProps.borderRadius = '0.5rem'
+
+  collector.addRule(className, cssProps)
+  collector.addRule(`${className}:hover`, { opacity: '0.9' })
+
+  const href = settings.url || '#'
+  const label = escapeHtml(settings.label || 'Button')
+  const target = settings.openInNewTab ? ' target="_blank" rel="noopener"' : ''
+
+  return `<a class="${className}" href="${escapeHtml(href)}"${target}>${label}</a>`
+}
+
+function generateIconHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  const className = collector.createClassName('icon', 'block')
+
+  const size = settings.size || 24
+  const cssProps: Record<string, string> = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: `${size}px`,
+    height: `${size}px`,
+    ...buildBaseBlockCSS(styles),
+  }
+
+  if (styles.color) cssProps.color = styles.color
+
+  collector.addRule(className, cssProps)
+
+  // For now, return empty div - icons would need icon library integration
+  return `<span class="${className}"></span>`
+}
+
+function generateDividerHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  const className = collector.createClassName('divider', 'block')
+
+  const dividerStyle = settings.style || 'line'
+  const cssProps: Record<string, string> = {
+    width: '100%',
+    ...buildBaseBlockCSS(styles),
+  }
+
+  if (dividerStyle === 'space') {
+    cssProps.height = settings.height || '32px'
+  } else {
+    cssProps.height = '0'
+    cssProps.borderBottom = dividerStyle === 'dashed'
+      ? `1px dashed ${styles.color || '#e5e7eb'}`
+      : dividerStyle === 'dotted'
+      ? `1px dotted ${styles.color || '#e5e7eb'}`
+      : `1px solid ${styles.color || '#e5e7eb'}`
+  }
+
+  collector.addRule(className, cssProps)
+
+  return `<hr class="${className}">`
+}
+
+function generateFormHTML(block: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const styles = block.styles || {}
+  const settings = block.settings || {}
+
+  const className = collector.createClassName('form', 'block')
+
+  const cssProps: Record<string, string> = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: `${settings.gap || 16}px`,
+    width: '100%',
+    ...buildBaseBlockCSS(styles),
+  }
+
+  if (settings.maxWidth) cssProps.maxWidth = `${settings.maxWidth}px`
+
+  collector.addRule(className, cssProps)
+
+  const childrenHTML = (block.children || [])
+    .map((child: any) => generateFormFieldHTML(child, ctx))
+    .join('\n')
+
+  const action = settings.action || '#'
+  const method = settings.method || 'POST'
+
+  return `<form class="${className}" action="${escapeHtml(action)}" method="${method}">${childrenHTML}</form>`
+}
+
+function generateFormFieldHTML(field: any, ctx: GeneratorContext): string {
+  const { collector } = ctx
+  const settings = field.settings || {}
+  const styles = field.styles || {}
+
+  switch (field.type) {
+    case 'form-input':
+    case 'form-textarea':
+    case 'form-select': {
+      const className = collector.createClassName('form', 'field')
+      const inputClassName = collector.createClassName('form', 'input')
+
+      collector.addRule(className, {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.5rem',
+      })
+
+      collector.addRule(inputClassName, {
+        padding: '0.75rem 1rem',
+        border: '1px solid #e5e7eb',
+        borderRadius: '0.5rem',
+        fontSize: '1rem',
+        width: '100%',
+        ...buildBaseBlockCSS(styles),
+      })
+
+      const label = settings.label ? `<label>${escapeHtml(settings.label)}</label>` : ''
+      const placeholder = settings.placeholder || ''
+      const name = settings.name || settings.label?.toLowerCase().replace(/\s+/g, '_') || 'field'
+      const required = settings.required ? 'required' : ''
+
+      if (field.type === 'form-textarea') {
+        return `<div class="${className}">${label}<textarea class="${inputClassName}" name="${name}" placeholder="${escapeHtml(placeholder)}" ${required}></textarea></div>`
+      } else if (field.type === 'form-select') {
+        const options = (settings.options || [])
+          .map((opt: any) => `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.label)}</option>`)
+          .join('')
+        return `<div class="${className}">${label}<select class="${inputClassName}" name="${name}" ${required}>${options}</select></div>`
+      } else {
+        const type = settings.type || 'text'
+        return `<div class="${className}">${label}<input class="${inputClassName}" type="${type}" name="${name}" placeholder="${escapeHtml(placeholder)}" ${required}></div>`
+      }
+    }
+
+    case 'form-button': {
+      const className = collector.createClassName('form', 'submit')
+
+      collector.addRule(className, {
+        padding: '0.75rem 1.5rem',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        border: 'none',
+        borderRadius: '0.5rem',
+        fontSize: '1rem',
+        fontWeight: '500',
+        cursor: 'pointer',
+        transition: 'opacity 0.2s',
+        ...buildBaseBlockCSS(styles),
+      })
+
+      const label = escapeHtml(settings.label || 'Submit')
+      return `<button class="${className}" type="submit">${label}</button>`
+    }
+
+    case 'stack':
+      return generateStackHTML(field, ctx)
 
     default:
       return ''
   }
 }
 
-function generatePostBlockContent(block: any): string {
-  const posts = block.postSettings?.posts || []
-  const layout = block.postSettings?.layout || 'grid'
-
-  const postsHTML = posts.map((post: any) => `
-    <article style="background: rgba(0,0,0,0.03); border-radius: 0.5rem; overflow: hidden;">
-      ${post.image ? `<img src="${escapeHtml(post.image)}" alt="${escapeHtml(post.title)}" style="width: 100%; aspect-ratio: 16/9; object-fit: cover;">` : ''}
-      <div style="padding: 1.5rem;">
-        <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">${escapeHtml(post.title)}</h3>
-        ${post.excerpt ? `<p style="opacity: 0.7; font-size: 0.875rem;">${escapeHtml(post.excerpt)}</p>` : ''}
-        ${post.url ? `<a href="${escapeHtml(post.url)}" style="display: inline-block; margin-top: 1rem; font-weight: 500;">Read more →</a>` : ''}
-      </div>
-    </article>
-  `).join('')
-
-  return `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">${postsHTML}</div>`
-}
-
-function generateLinkBlockContent(block: any): string {
-  const links = block.linkSettings?.links || []
-
-  const linksHTML = links.map((link: any) => `
-    <a href="${escapeHtml(link.url || '#')}" target="_blank" rel="noopener" style="display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; background: rgba(0,0,0,0.03); border-radius: 0.5rem; text-decoration: none; transition: background 0.2s;">
-      ${link.icon ? `<img src="${escapeHtml(link.icon)}" alt="" style="width: 2.5rem; height: 2.5rem; border-radius: 0.375rem;">` : ''}
-      <div style="flex: 1;">
-        <div style="font-weight: 500;">${escapeHtml(link.title)}</div>
-        ${link.description ? `<div style="font-size: 0.875rem; opacity: 0.7;">${escapeHtml(link.description)}</div>` : ''}
-      </div>
-      <svg style="width: 1.25rem; height: 1.25rem; opacity: 0.5;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-    </a>
-  `).join('')
-
-  return `<div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 600px; margin: 0 auto;">${linksHTML}</div>`
-}
-
-function generateProductBlockContent(block: any): string {
-  const products = block.productSettings?.products || []
-
-  const productsHTML = products.map((product: any) => `
-    <div style="background: rgba(0,0,0,0.03); border-radius: 0.5rem; overflow: hidden;">
-      ${product.image ? `<img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" style="width: 100%; aspect-ratio: 1; object-fit: cover;">` : ''}
-      <div style="padding: 1.5rem;">
-        <h3 style="font-size: 1rem; font-weight: 600;">${escapeHtml(product.title)}</h3>
-        ${product.price ? `<p style="font-size: 1.25rem; font-weight: 600; margin-top: 0.5rem;">${escapeHtml(product.price)}</p>` : ''}
-        ${product.url ? `<a href="${escapeHtml(product.url)}" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Buy Now</a>` : ''}
-      </div>
-    </div>
-  `).join('')
-
-  return `<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem;">${productsHTML}</div>`
-}
-
-function buildInlineStyles(styles: any): string {
-  const parts: string[] = []
-
-  if (styles.fontSize) parts.push(`font-size: ${styles.fontSize}`)
-  if (styles.fontWeight) parts.push(`font-weight: ${styles.fontWeight}`)
-  if (styles.color) parts.push(`color: ${styles.color}`)
-  if (styles.textAlign) parts.push(`text-align: ${styles.textAlign}`)
-  if (styles.margin) {
-    const m = styles.margin
-    parts.push(`margin: ${m.top || 0}px ${m.right || 0}px ${m.bottom || 0}px ${m.left || 0}px`)
-  }
-
-  return parts.join('; ')
-}
+// ============================================
+// UTILITIES
+// ============================================
 
 function escapeHtml(text: string): string {
   if (!text) return ''
@@ -264,7 +905,10 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;')
 }
 
-// Store HTML in Cloudflare KV
+// ============================================
+// CLOUDFLARE KV STORAGE
+// ============================================
+
 async function storeInKV(key: string, value: string): Promise<void> {
   if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_KV_NAMESPACE_ID) {
     console.log('Cloudflare credentials not configured, skipping KV storage')
@@ -288,7 +932,6 @@ async function storeInKV(key: string, value: string): Promise<void> {
   }
 }
 
-// Delete from Cloudflare KV
 async function deleteFromKV(key: string): Promise<void> {
   if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_KV_NAMESPACE_ID) {
     console.log('Cloudflare credentials not configured, skipping KV deletion')
@@ -298,7 +941,6 @@ async function deleteFromKV(key: string): Promise<void> {
   const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${CLOUDFLARE_KV_NAMESPACE_ID}/values/${key}`
 
   console.log(`Deleting from KV: ${key}`)
-  console.log(`KV URL: ${url}`)
 
   const response = await fetch(url, {
     method: 'DELETE',
@@ -316,6 +958,10 @@ async function deleteFromKV(key: string): Promise<void> {
 
   console.log(`Successfully deleted ${key} from KV`)
 }
+
+// ============================================
+// MAIN SERVER
+// ============================================
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -376,8 +1022,8 @@ serve(async (req) => {
         ? settings.umami_site_id
         : undefined
 
-      // Generate static HTML
-      const html = generateHTML(project, {
+      // Generate static HTML with CSS classes
+      const { html } = generateHTML(project, {
         pageSettings: content.page_settings,
         blocks: content.blocks,
       }, settings, umamiSiteId)

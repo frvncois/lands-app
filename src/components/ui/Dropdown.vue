@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import Button from './Button.vue'
+import Icon from './Icon.vue'
 
 interface Props {
   icon?: string
@@ -11,7 +12,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-  icon: 'lni-menu-meatballs-1',
+  icon: 'app-more',
   align: 'right',
   position: 'bottom',
   width: 'w-48',
@@ -64,7 +65,7 @@ export default {
         size="icon"
         @click="toggle"
       >
-        <i :class="['lni', icon, 'text-lg']"></i>
+        <Icon :name="icon" :size="18" />
       </Button>
     </slot>
 
@@ -79,7 +80,7 @@ export default {
       <div
         v-if="isOpen"
         :class="[
-          'absolute bg-popover backdrop-blur-sm p-1.5 border border-border rounded-xl shadow-lg z-10',
+          'absolute bg-popover backdrop-blur-sm p-1.5 border border-border/75 rounded-xl shadow-lg z-10',
           width,
           position === 'top' ? 'bottom-full mb-1 origin-bottom' : 'top-full mt-1 origin-top',
           align === 'right' ? 'right-0' : 'left-0',

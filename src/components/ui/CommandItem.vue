@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from './Icon.vue'
+
 interface Props {
   icon?: string
   shortcut?: string[]
@@ -30,7 +32,7 @@ function handleClick() {
     :disabled="disabled"
     @click="handleClick"
   >
-    <i v-if="icon" :class="['lni', icon, 'text-base text-muted-foreground']"></i>
+    <Icon v-if="icon" :name="icon" :size="16" class="text-muted-foreground" />
     <span class="flex-1">
       <slot />
     </span>

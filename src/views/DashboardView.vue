@@ -6,7 +6,7 @@ import { useUserStore } from '@/stores/user'
 import type { Project } from '@/types/project'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
 import ProjectDelete from '@/components/modal/ProjectDelete.vue'
-import { Button, Card, Badge, Skeleton, Spinner, Header, Dropdown } from '@/components/ui'
+import { Button, Card, Badge, Skeleton, Spinner, Header, Dropdown, Icon } from '@/components/ui'
 
 const router = useRouter()
 const projectsStore = useProjectsStore()
@@ -119,7 +119,7 @@ function openPublishedSite(project: Project) {
         </Card>
       </div>
 
-      <!-- Projects Grid -->
+
       <div v-else-if="projects.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card
           v-for="project in projects"
@@ -127,7 +127,6 @@ function openPublishedSite(project: Project) {
           class="group"
           variant="ghost"
         >
-          <!-- Thumbnail -->
           <Card.Thumbnail
             :src="project.thumbnail"
             :alt="project.title"
@@ -138,36 +137,31 @@ function openPublishedSite(project: Project) {
             <template #overlay>
               <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center backdrop-blur-xs justify-center gap-3">
                 <Button
-                  variant="secondary"
+                  variant="default"
                   size="sm"
                   @click.stop="editProject(project.id)"
                 >
-                  <i class="lni lni-pencil-1 text-xs"></i>
+                  <Icon name="app-editor" class="text-xs" />
                   Edit
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="default"
                   size="sm"
-                  class="bg-white/10 text-white hover:bg-white/20"
                   @click.stop="openSettings(project.id)"
                 >
-                  <i class="lni lni-gear-1 text-xs"></i>
+                  <Icon name="app-settings" class="text-xs" />
                   Settings
                 </Button>
               </div>
             </template>
           </Card.Thumbnail>
-
-          <!-- Content -->
           <Card.Content>
             <div class="flex items-start justify-between">
               <div class="flex-1 min-w-0">
                 <h3 class="text-md font-medium text-foreground truncate">{{ project.title }}</h3>
-                <p class="text-xxs font-mono uppercase text-muted-foreground mt-0.5">{{ project.slug }}.lands.app</p>
+                <p class="text-[10px] font-mono uppercase text-muted-foreground">{{ project.slug }}.lands.app</p>
               </div>
-
-              <!-- Dropdown Menu -->
-              <Dropdown icon="lni-menu-meatballs-1">
+              <Dropdown icon="app-more">
                 <Dropdown.Item icon="lni-pencil-1" @click="editProject(project.id)">
                   Edit
                 </Dropdown.Item>
@@ -191,11 +185,11 @@ function openPublishedSite(project: Project) {
                   </Dropdown.Item>
                 </template>
                 <template v-else>
-                  <Dropdown.Item icon="lni-link-1" @click="openPublishedSite(project)">
+                  <Dropdown.Item icon="app-show" @click="openPublishedSite(project)">
                     View Site
                   </Dropdown.Item>
                   <Dropdown.Item
-                    icon="lni-cloud-download"
+                    icon="app-hide"
                     :disabled="publishingProjectId === project.id"
                     @click="unpublishProject(project)"
                   >
@@ -208,15 +202,13 @@ function openPublishedSite(project: Project) {
                 </Dropdown.Item>
               </Dropdown>
             </div>
-
-            <!-- Footer with badges -->
-            <div class="flex items-center justify-between gap-3 mt-3">
-              <!-- Publishing indicator -->
+          </Card.Content>
+          <Card.Footer>
+            <div class="flex items-center justify-between">
               <Badge v-if="publishingProjectId === project.id" variant="secondary" size="sm">
                 <Spinner size="xs" />
                 Publishing...
               </Badge>
-              <!-- Published badge (clickable) -->
               <Badge
                 v-else-if="project.isPublished"
                 variant="success"
@@ -227,22 +219,21 @@ function openPublishedSite(project: Project) {
               >
                 Published
               </Badge>
-              <!-- Draft badge -->
-              <Badge v-else variant="secondary" size="xs" dot>
+              <Badge v-else variant="draft" size="xs" dot>
                 Draft
               </Badge>
               <span class="text-[10px] text-muted-foreground">Updated {{ formatDate(project.updatedAt) }}</span>
             </div>
-          </Card.Content>
+          </Card.Footer>
         </Card>
 
         <!-- New Project Card -->
-        <Card variant="ghost" class="border-2 border-dashed border-border hover:border-muted-foreground/50 hover:bg-muted/50 transition-colors">
+        <Card variant="outline" class="r border-1 border-dotted border-border hover:border hover:bg-muted/25 transition-colors">
           <button
-            class="flex flex-col items-center justify-center w-full aspect-[4/3]"
+            class="cursor-pointer flex flex-col items-center justify-center w-full h-full"
             @click="showNewProjectModal = true"
           >
-            <i class="lni lni-plus text-3xl text-muted-foreground mb-2"></i>
+            <Icon name="plus" class="text-3xl text-muted-foreground mb-2" />
             <span class="text-sm font-medium text-muted-foreground">Create new project</span>
           </button>
         </Card>
@@ -251,12 +242,12 @@ function openPublishedSite(project: Project) {
       <!-- Empty State -->
       <div v-else class="flex flex-col items-center justify-center min-h-[calc(100vh-120px)]">
         <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
-          <i class="lni lni-layers-1 text-3xl text-muted-foreground"></i>
+          <Icon name="layers-1" class="text-3xl text-muted-foreground" />
         </div>
         <h3 class="text-lg font-medium text-foreground mb-1">No projects yet</h3>
         <p class="text-sm text-muted-foreground mb-4">Create your first project to get started.</p>
         <Button @click="showNewProjectModal = true">
-          <i class="lni lni-plus text-sm"></i>
+          <Icon name="plus" class="text-sm" />
           Create Project
         </Button>
       </div>

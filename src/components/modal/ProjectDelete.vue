@@ -70,7 +70,7 @@ async function deleteProject() {
     <template #header>
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-          <i class="lni lni-trash-3 text-lg text-destructive"></i>
+          <Icon name="trash-3" class="text-lg text-destructive" />
         </div>
         <div>
           <h2 class="text-lg font-semibold text-foreground">Delete Project</h2>

@@ -79,6 +79,7 @@ export const useUserStore = defineStore('user', () => {
           email: data.email,
           name: data.name || '',
           avatar: data.avatar_url || '',
+          createdAt: data.created_at,
         }
       }
 
@@ -93,6 +94,7 @@ export const useUserStore = defineStore('user', () => {
         settings.value.preferences = {
           theme: prefsData.theme,
           emailNotifications: prefsData.email_notifications,
+          marketingEmails: false, // Default value, not stored in DB
         }
       }
     } catch (e) {

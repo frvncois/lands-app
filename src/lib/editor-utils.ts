@@ -4,7 +4,8 @@ import type {
   BlockCategory,
   PageSettings,
   SpacingYX,
-  FreeformChildBlockType,
+  CanvasChildBlockType,
+  MaskShape,
   // Shared types
   SocialPlatform,
   // Settings types
@@ -23,6 +24,7 @@ import type {
   VideoSettings,
   ButtonSettings,
   IconSettings,
+  VariantsSettings,
   FormSettings,
   FormInputSettings,
   FormTextareaSettings,
@@ -30,6 +32,7 @@ import type {
   FormRadioSettings,
   FormCheckboxSettings,
   FormButtonSettings,
+  CanvasSettings,
   FreeformSettings,
   // Style types
   HeaderStyles,
@@ -44,6 +47,7 @@ import type {
   VideoStyles,
   ButtonStyles,
   IconStyles,
+  VariantsStyles,
   FormStyles,
   FormInputStyles,
   FormTextareaStyles,
@@ -51,6 +55,7 @@ import type {
   FormRadioStyles,
   FormCheckboxStyles,
   FormButtonStyles,
+  CanvasStyles,
   FreeformStyles,
 } from '@/types/editor'
 
@@ -74,6 +79,7 @@ export const sectionBlockLabels: Record<SectionBlockType, string> = {
   container: 'Container',
   grid: 'Grid',
   stack: 'Stack',
+  canvas: 'Canvas',
   freeform: 'Freeform',
   // Content
   heading: 'Heading',
@@ -83,6 +89,8 @@ export const sectionBlockLabels: Record<SectionBlockType, string> = {
   button: 'Button',
   icon: 'Icon',
   divider: 'Divider',
+  // Product-specific
+  variants: 'Variants',
   form: 'Form',
   // Form field blocks (children of form)
   'form-input': 'Input',
@@ -95,34 +103,37 @@ export const sectionBlockLabels: Record<SectionBlockType, string> = {
 
 export const sectionBlockIcons: Record<SectionBlockType, string> = {
   // Special
-  header: 'lni-arrow-upward',
-  footer: 'lni-arrow-downward',
+  header: 'chevron-top',
+  footer: 'chevron-bottom',
   // Layout
-  container: 'lni-layout-26',
-  grid: 'lni-layout-9',
-  stack: 'lni-layers-1',
-  freeform: 'lni-move',
+  container: 'layout-container',
+  grid: 'layout-grid',
+  stack: 'layout-stack',
+  canvas: 'layout-canvas',
+  freeform: 'layout-canvas',
   // Content
-  heading: 'lni-text-format',
-  text: 'lni-text-paragraph',
-  image: 'lni-photos',
-  video: 'lni-play',
-  button: 'lni-power-button',
-  icon: 'lni-emoji-smile',
-  divider: 'lni-minus',
-  form: 'lni-clipboard',
+  heading: 'content-heading',
+  text: 'content-text',
+  image: 'content-image',
+  video: 'content-video',
+  button: 'content-button',
+  icon: 'content-icon',
+  divider: 'content-divider',
+  // Product-specific
+  variants: 'layout-container',
+  form: 'content-form',
   // Form field blocks
-  'form-input': 'lni-keyboard',
-  'form-textarea': 'lni-text-paragraph',
-  'form-select': 'lni-chevron-down-circle',
-  'form-radio': 'lni-radio-button',
-  'form-checkbox': 'lni-checkmark-square',
-  'form-button': 'lni-arrow-right-circle',
+  'form-input': 'content-form',
+  'form-textarea': 'content-text',
+  'form-select': 'chevron-down',
+  'form-radio': 'content-form',
+  'form-checkbox': 'content-form',
+  'form-button': 'content-button',
 }
 
 // Block categories for sidebar organization
 export const blocksByCategory: Record<BlockCategory, SectionBlockType[]> = {
-  layout: ['container', 'grid', 'stack', 'freeform'],
+  layout: ['container', 'grid', 'stack', 'canvas'],
   content: ['heading', 'text', 'image', 'video', 'button', 'icon', 'divider', 'form'],
 }
 
@@ -132,7 +143,9 @@ export const categoryLabels: Record<BlockCategory, string> = {
 }
 
 // Form field block types (for adding to form)
+// Note: 'stack' is also allowed inside form for grouping fields
 export const formFieldBlockTypes: SectionBlockType[] = [
+  'stack',
   'form-input',
   'form-textarea',
   'form-select',
@@ -143,6 +156,7 @@ export const formFieldBlockTypes: SectionBlockType[] = [
 
 // Labels for form field blocks in the add menu
 export const formFieldBlockLabels: Record<string, string> = {
+  'stack': 'Stack (Group)',
   'form-input': 'Input Field',
   'form-textarea': 'Textarea',
   'form-select': 'Dropdown Select',
@@ -151,22 +165,90 @@ export const formFieldBlockLabels: Record<string, string> = {
   'form-button': 'Submit Button',
 }
 
-// Freeform child block types (blocks that can be placed in Freeform)
-export const freeformChildBlockTypes: FreeformChildBlockType[] = [
+// Canvas child block types (blocks that can be placed in Canvas)
+// Canvas accepts content blocks only (no layout or form)
+export const canvasChildBlockTypes: CanvasChildBlockType[] = [
   'heading',
   'text',
   'image',
   'video',
   'button',
+  'icon',
+  'divider',
 ]
 
-// Labels for freeform child blocks in the add menu
-export const freeformChildBlockLabels: Record<FreeformChildBlockType, string> = {
+// Labels for canvas child blocks in the add menu
+export const canvasChildBlockLabels: Record<CanvasChildBlockType, string> = {
   'heading': 'Heading',
   'text': 'Text',
   'image': 'Image',
   'video': 'Video',
   'button': 'Button',
+  'icon': 'Icon',
+  'divider': 'Divider',
+}
+
+// Header/Footer stack child block types (heading, text, button, image only)
+export type HeaderFooterStackChildBlockType = 'heading' | 'text' | 'button' | 'image'
+export const headerFooterStackChildBlockTypes: HeaderFooterStackChildBlockType[] = [
+  'heading',
+  'text',
+  'button',
+  'image',
+]
+
+// Labels for header/footer stack child blocks
+export const headerFooterStackChildBlockLabels: Record<HeaderFooterStackChildBlockType, string> = {
+  'heading': 'Heading',
+  'text': 'Text',
+  'button': 'Button',
+  'image': 'Image',
+}
+
+// Check if a block is a header/footer stack child type
+export function isHeaderFooterStackChildBlock(type: SectionBlockType): boolean {
+  return (headerFooterStackChildBlockTypes as SectionBlockType[]).includes(type)
+}
+
+// ============================================
+// MASK SHAPES (for Image and Video blocks)
+// ============================================
+
+export const maskShapes: MaskShape[] = [
+  'none',
+  'circle',
+  'rounded',
+  'blob-1',
+  'blob-2',
+  'blob-3',
+  'hexagon',
+  'diamond',
+  'arch',
+]
+
+export const maskShapeLabels: Record<MaskShape, string> = {
+  'none': 'None',
+  'circle': 'Circle',
+  'rounded': 'Rounded',
+  'blob-1': 'Blob 1',
+  'blob-2': 'Blob 2',
+  'blob-3': 'Blob 3',
+  'hexagon': 'Hexagon',
+  'diamond': 'Diamond',
+  'arch': 'Arch',
+}
+
+// CSS clip-path values for each mask shape
+export const maskShapeClipPaths: Record<MaskShape, string> = {
+  'none': 'none',
+  'circle': 'circle(50% at 50% 50%)',
+  'rounded': 'inset(0 round 24px)',
+  'blob-1': 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+  'blob-2': 'polygon(50% 0%, 80% 10%, 100% 35%, 100% 70%, 80% 90%, 50% 100%, 20% 90%, 0% 70%, 0% 35%, 20% 10%)',
+  'blob-3': 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+  'hexagon': 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
+  'diamond': 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+  'arch': 'polygon(0% 100%, 0% 50%, 5% 35%, 15% 20%, 25% 10%, 40% 3%, 50% 0%, 60% 3%, 75% 10%, 85% 20%, 95% 35%, 100% 50%, 100% 100%)',
 }
 
 // ============================================
@@ -180,8 +262,10 @@ export type PresetType =
   | 'preset-feature-list'
   | 'preset-social-list'
   | 'preset-testimonials'
+  | 'preset-menu-list'
   | 'preset-faq-list'
   | 'preset-gallery'
+  | 'preset-slider'
 
 export const presetLabels: Record<PresetType, string> = {
   'preset-link-list': 'Link List',
@@ -190,19 +274,23 @@ export const presetLabels: Record<PresetType, string> = {
   'preset-feature-list': 'Feature List',
   'preset-social-list': 'Social List',
   'preset-testimonials': 'Testimonials',
+  'preset-menu-list': 'Menus List',
   'preset-faq-list': 'FAQ List',
   'preset-gallery': 'Gallery',
+  'preset-slider': 'Slider',
 }
 
 export const presetIcons: Record<PresetType, string> = {
-  'preset-link-list': 'lni-link-2-angular-right',
-  'preset-product-list': 'lni-cart-2',
-  'preset-card-list': 'lni-credit-card-multiple',
-  'preset-feature-list': 'lni-check-square-2',
-  'preset-social-list': 'lni-instagram',
-  'preset-testimonials': 'lni-comment-1-text',
-  'preset-faq-list': 'lni-chat-bubble-2',
-  'preset-gallery': 'lni-gallery',
+  'preset-link-list': 'list-link',
+  'preset-product-list': 'list-product',
+  'preset-card-list': 'list-product',
+  'preset-feature-list': 'list-features',
+  'preset-social-list': 'list-social',
+  'preset-testimonials': 'list-testimonial',
+  'preset-menu-list': 'list-menu',
+  'preset-faq-list': 'list-faq',
+  'preset-gallery': 'list-gallery',
+  'preset-slider': 'list-slider',
 }
 
 export const presetTypes: PresetType[] = [
@@ -212,16 +300,18 @@ export const presetTypes: PresetType[] = [
   'preset-feature-list',
   'preset-social-list',
   'preset-testimonials',
+  'preset-menu-list',
   'preset-faq-list',
   'preset-gallery',
+  'preset-slider',
 ]
 
 // Which blocks can contain children
 export const layoutBlockTypes: SectionBlockType[] = ['container', 'grid', 'stack']
 
-// Blocks that can have children (layout blocks + form + freeform)
+// Blocks that can have children (layout blocks + form + canvas + header + footer)
 export function canHaveChildren(type: SectionBlockType): boolean {
-  return layoutBlockTypes.includes(type) || type === 'form' || type === 'freeform'
+  return layoutBlockTypes.includes(type) || type === 'form' || type === 'canvas' || type === 'header' || type === 'footer'
 }
 
 // Check if a block type is a form field (can only be child of form)
@@ -229,9 +319,109 @@ export function isFormFieldBlock(type: SectionBlockType): boolean {
   return formFieldBlockTypes.includes(type)
 }
 
-// Check if a block type is a freeform child (can only be child of freeform)
-export function isFreeformChildBlock(type: SectionBlockType): boolean {
-  return (freeformChildBlockTypes as SectionBlockType[]).includes(type)
+// Check if a block type is a canvas child (can only be child of canvas)
+export function isCanvasChildBlock(type: SectionBlockType): boolean {
+  return (canvasChildBlockTypes as SectionBlockType[]).includes(type)
+}
+
+// ============================================
+// SHARED STYLES - CONTENT FIELD EXCLUSION
+// ============================================
+
+// Content fields that should NOT be synced with shared styles (per block type)
+// These are "content" fields - things like text, URLs, images, etc.
+// Everything else (styling, layout, sizing) WILL be synced
+export const contentFieldsByBlockType: Record<SectionBlockType, string[]> = {
+  // Special blocks
+  header: ['logo', 'logoUrl', 'ctaLabel', 'ctaUrl', 'navLinks'],
+  footer: ['logo', 'logoUrl', 'copyright', 'links', 'socialLinks'],
+  // Layout blocks - no content fields, all settings are structural
+  container: [],
+  grid: [],
+  stack: [],
+  freeform: [],
+  canvas: [],
+  // Content blocks
+  heading: ['content'],
+  text: ['content'],
+  image: ['src', 'alt', 'url'],
+  video: ['src', 'posterSrc'],
+  button: ['label', 'url'],
+  icon: ['name'],
+  divider: [],
+  // E-commerce
+  variants: ['productId', 'variants'],
+  // Form blocks
+  form: ['action', 'successMessage', 'errorMessage'],
+  'form-input': ['name', 'label', 'placeholder', 'defaultValue'],
+  'form-textarea': ['name', 'label', 'placeholder', 'defaultValue'],
+  'form-select': ['name', 'label', 'placeholder', 'options'],
+  'form-radio': ['name', 'label', 'options'],
+  'form-checkbox': ['name', 'label'],
+  'form-button': ['label'],
+}
+
+// Extract non-content settings from a block (for creating/updating shared styles)
+export function extractStyleSettings(
+  blockType: SectionBlockType,
+  settings: Record<string, unknown>
+): Record<string, unknown> {
+  const contentFields = contentFieldsByBlockType[blockType] || []
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(settings)) {
+    if (!contentFields.includes(key)) {
+      result[key] = value
+    }
+  }
+
+  return result
+}
+
+// Apply shared style settings to a block (preserving content fields)
+export function applyStyleSettings(
+  blockType: SectionBlockType,
+  currentSettings: Record<string, unknown>,
+  sharedSettings: Record<string, unknown>
+): Record<string, unknown> {
+  const contentFields = contentFieldsByBlockType[blockType] || []
+  const result: Record<string, unknown> = { ...sharedSettings }
+
+  // Preserve content fields from current settings
+  for (const field of contentFields) {
+    if (field in currentSettings) {
+      result[field] = currentSettings[field]
+    }
+  }
+
+  return result
+}
+
+// Check if a block's settings/styles differ from its shared style
+export function hasSharedStyleOverrides(
+  blockType: SectionBlockType,
+  blockSettings: Record<string, unknown>,
+  blockStyles: Record<string, unknown>,
+  sharedSettings: Record<string, unknown>,
+  sharedStyles: Record<string, unknown>
+): boolean {
+  const contentFields = contentFieldsByBlockType[blockType] || []
+
+  // Compare settings (excluding content fields)
+  for (const [key, value] of Object.entries(sharedSettings)) {
+    if (!contentFields.includes(key) && JSON.stringify(blockSettings[key]) !== JSON.stringify(value)) {
+      return true
+    }
+  }
+
+  // Compare styles
+  for (const [key, value] of Object.entries(sharedStyles)) {
+    if (JSON.stringify(blockStyles[key]) !== JSON.stringify(value)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 // ============================================
@@ -269,18 +459,18 @@ export const socialPlatformLabels: Record<SocialPlatform, string> = {
 }
 
 export const socialPlatformIcons: Record<SocialPlatform, string> = {
-  twitter: 'lni-x',
-  instagram: 'lni-instagram',
-  facebook: 'lni-facebook',
-  linkedin: 'lni-linkedin',
-  youtube: 'lni-youtube',
-  tiktok: 'lni-tiktok',
-  github: 'lni-github',
-  discord: 'lni-discord',
-  dribbble: 'lni-dribbble',
-  behance: 'lni-behance',
-  medium: 'lni-medium',
-  threads: 'lni-x', // Threads uses X icon as fallback
+  twitter: 'list-social',
+  instagram: 'list-social',
+  facebook: 'list-social',
+  linkedin: 'list-social',
+  youtube: 'list-social',
+  tiktok: 'list-social',
+  github: 'list-social',
+  discord: 'list-social',
+  dribbble: 'list-social',
+  behance: 'list-social',
+  medium: 'list-social',
+  threads: 'list-social', // Threads uses X icon as fallback
 }
 
 // ============================================
@@ -292,17 +482,26 @@ export function getDefaultHeaderSettings(): HeaderSettings {
     logo: '',
     logoAlt: 'Logo',
     navLinks: [],
-    ctaButton: { label: 'Get Started', url: '#', show: false },
+    ctaButton: {
+      label: 'Get Started',
+      url: '#',
+      show: false,
+    },
     isHidden: true,
+    sticky: true, // Sticky by default
+    gap: '0',
+    backgroundType: 'color',
   }
 }
 
 export function getDefaultFooterSettings(): FooterSettings {
   return {
     links: [],
-    copyrightText: '',
+    copyrightText: '© 2024 Company. All rights reserved.',
     socialLinks: [],
     isHidden: true,
+    gap: '0',
+    backgroundType: 'color',
   }
 }
 
@@ -313,13 +512,13 @@ export function getDefaultContainerSettings(): ContainerSettings {
 export function getDefaultGridSettings(): GridSettings {
   return {
     columns: 3,
-    gap: '16',
+    gap: '0',
   }
 }
 
 export function getDefaultStackSettings(): StackSettings {
   return {
-    gap: '16',
+    gap: '0',
   }
 }
 
@@ -372,8 +571,48 @@ export function getDefaultButtonSettings(): ButtonSettings {
 
 export function getDefaultIconSettings(): IconSettings {
   return {
-    icon: 'lni-star-1',
+    icon: 'content-icon',
     size: '24',
+  }
+}
+
+export function getDefaultVariantsSettings(): VariantsSettings {
+  const colorBlack = generateId()
+  const colorWhite = generateId()
+  const sizeS = generateId()
+  const sizeM = generateId()
+  const sizeL = generateId()
+
+  return {
+    optionTypes: [
+      {
+        id: generateId(),
+        name: 'Color',
+        displayStyle: 'swatches',
+        values: [
+          { id: colorBlack, value: 'Black', colorHex: '#000000' },
+          { id: colorWhite, value: 'White', colorHex: '#ffffff' },
+        ],
+      },
+      {
+        id: generateId(),
+        name: 'Size',
+        displayStyle: 'buttons',
+        values: [
+          { id: sizeS, value: 'S' },
+          { id: sizeM, value: 'M' },
+          { id: sizeL, value: 'L' },
+        ],
+      },
+    ],
+    variants: [
+      { id: generateId(), optionValues: { Color: 'Black', Size: 'S' }, price: '$99.00', buyLink: '#' },
+      { id: generateId(), optionValues: { Color: 'Black', Size: 'M' }, price: '$99.00', buyLink: '#' },
+      { id: generateId(), optionValues: { Color: 'Black', Size: 'L' }, price: '$99.00', buyLink: '#' },
+      { id: generateId(), optionValues: { Color: 'White', Size: 'S' }, price: '$99.00', buyLink: '#' },
+      { id: generateId(), optionValues: { Color: 'White', Size: 'M' }, price: '$99.00', buyLink: '#' },
+      { id: generateId(), optionValues: { Color: 'White', Size: 'L' }, price: '$99.00', buyLink: '#' },
+    ],
   }
 }
 
@@ -386,10 +625,10 @@ export function getDefaultFormSettings(): FormSettings {
 }
 
 // ============================================
-// FREEFORM BLOCK DEFAULT SETTINGS
+// CANVAS BLOCK DEFAULT SETTINGS
 // ============================================
 
-export function getDefaultFreeformSettings(): FreeformSettings {
+export function getDefaultCanvasSettings(): CanvasSettings {
   return {
     backgroundType: 'color',
     minHeight: '600px',
@@ -484,33 +723,35 @@ export function getDefaultFormButtonSettings(): FormButtonSettings {
 
 export function getDefaultHeaderStyles(): HeaderStyles {
   return {
-    padding: { top: '12', bottom: '12', left: '16', right: '16' },
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
     alignment: 'center',
+    justifyContent: 'space-between',
   }
 }
 
 export function getDefaultFooterStyles(): FooterStyles {
   return {
-    padding: { top: '24', bottom: '24', left: '16', right: '16' },
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
     alignment: 'center',
+    justifyContent: 'space-between',
   }
 }
 
 export function getDefaultContainerStyles(): ContainerStyles {
   return {
-    padding: { top: '16', bottom: '16', left: '16', right: '16' },
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
     alignment: 'center',
     flexDirection: 'column',
     justifyContent: 'flex-start',
     alignItems: 'stretch',
     flexWrap: 'nowrap',
-    gap: '16',
+    gap: '0',
   }
 }
 
 export function getDefaultGridStyles(): GridStyles {
   return {
-    padding: { top: '16', bottom: '16', left: '16', right: '16' },
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
     horizontalAlign: 'left',
     verticalAlign: 'top',
     justifyItems: 'stretch',
@@ -520,7 +761,7 @@ export function getDefaultGridStyles(): GridStyles {
 
 export function getDefaultStackStyles(): StackStyles {
   return {
-    padding: { top: '16', bottom: '16', left: '16', right: '16' },
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
     alignment: 'center',
     justifyContent: 'flex-start',
     alignItems: 'stretch',
@@ -530,14 +771,15 @@ export function getDefaultStackStyles(): StackStyles {
 
 export function getDefaultDividerStyles(): DividerStyles {
   return {
-    margin: { top: '24', bottom: '24' },
+    margin: { top: '0', bottom: '0' },
     alignment: 'center',
   }
 }
 
 export function getDefaultHeadingStyles(): HeadingStyles {
   return {
-    padding: { top: '8', bottom: '8' },
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
+    margin: { top: '0', bottom: '0', left: '0', right: '0' },
     fontSize: '4xl',
     fontWeight: 'bold',
     lineHeight: 'tight',
@@ -547,7 +789,8 @@ export function getDefaultHeadingStyles(): HeadingStyles {
 
 export function getDefaultTextStyles(): TextStyles {
   return {
-    padding: { top: '8', bottom: '8' },
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
+    margin: { top: '0', bottom: '0', left: '0', right: '0' },
     fontSize: 'base',
     lineHeight: 'relaxed',
     alignment: 'left',
@@ -557,37 +800,54 @@ export function getDefaultTextStyles(): TextStyles {
 export function getDefaultImageStyles(): ImageStyles {
   return {
     objectFit: 'cover',
-    borderRadius: '8',
   }
 }
 
 export function getDefaultVideoStyles(): VideoStyles {
   return {
     aspectRatio: '16:9',
-    borderRadius: '8',
   }
 }
 
 export function getDefaultButtonStyles(): ButtonStyles {
-  return {
-    borderRadius: '8',
-  }
+  return {}
 }
 
 export function getDefaultIconStyles(): IconStyles {
   return {}
 }
 
+export function getDefaultVariantsStyles(): VariantsStyles {
+  return {
+    optionSize: 'md',
+    gap: '0',
+  }
+}
+
 export function getDefaultFormStyles(): FormStyles {
   return {
-    padding: { top: '32', bottom: '32', left: '16', right: '16' },
-    gap: '16',
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
+    gap: '0',
   }
 }
 
 // ============================================
-// FREEFORM BLOCK DEFAULT STYLES
+// CANVAS BLOCK DEFAULT STYLES
 // ============================================
+
+export function getDefaultCanvasStyles(): CanvasStyles {
+  return {
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
+  }
+}
+
+export function getDefaultFreeformSettings(): FreeformSettings {
+  return {
+    childPositions: {
+      desktop: {},
+    },
+  }
+}
 
 export function getDefaultFreeformStyles(): FreeformStyles {
   return {
@@ -600,21 +860,15 @@ export function getDefaultFreeformStyles(): FreeformStyles {
 // ============================================
 
 export function getDefaultFormInputStyles(): FormInputStyles {
-  return {
-    borderRadius: '8',
-  }
+  return {}
 }
 
 export function getDefaultFormTextareaStyles(): FormTextareaStyles {
-  return {
-    borderRadius: '8',
-  }
+  return {}
 }
 
 export function getDefaultFormSelectStyles(): FormSelectStyles {
-  return {
-    borderRadius: '8',
-  }
+  return {}
 }
 
 export function getDefaultFormRadioStyles(): FormRadioStyles {
@@ -626,9 +880,7 @@ export function getDefaultFormCheckboxStyles(): FormCheckboxStyles {
 }
 
 export function getDefaultFormButtonStyles(): FormButtonStyles {
-  return {
-    borderRadius: '8',
-  }
+  return {}
 }
 
 // ============================================
@@ -649,7 +901,10 @@ const defaultSettingsMap: Record<SectionBlockType, () => SectionBlock['settings'
   'video': getDefaultVideoSettings,
   'button': getDefaultButtonSettings,
   'icon': getDefaultIconSettings,
+  'variants': getDefaultVariantsSettings,
   'form': getDefaultFormSettings,
+  // Canvas block
+  'canvas': getDefaultCanvasSettings,
   // Freeform block
   'freeform': getDefaultFreeformSettings,
   // Form field blocks
@@ -675,7 +930,10 @@ const defaultStylesMap: Record<SectionBlockType, () => SectionBlock['styles']> =
   'video': getDefaultVideoStyles,
   'button': getDefaultButtonStyles,
   'icon': getDefaultIconStyles,
+  'variants': getDefaultVariantsStyles,
   'form': getDefaultFormStyles,
+  // Canvas block
+  'canvas': getDefaultCanvasStyles,
   // Freeform block
   'freeform': getDefaultFreeformStyles,
   // Form field blocks
@@ -688,14 +946,60 @@ const defaultStylesMap: Record<SectionBlockType, () => SectionBlock['styles']> =
 }
 
 function getDefaultSettings(type: SectionBlockType): SectionBlock['settings'] {
-  return defaultSettingsMap[type]()
+  const factory = defaultSettingsMap[type]
+  if (!factory) throw new Error(`No default settings for type: ${type}`)
+  return factory()
 }
 
 function getDefaultStyles(type: SectionBlockType): SectionBlock['styles'] {
-  return defaultStylesMap[type]()
+  const factory = defaultStylesMap[type]
+  if (!factory) throw new Error(`No default styles for type: ${type}`)
+  return factory()
+}
+
+// Create default Start/Middle/End stacks for header/footer
+function createHeaderFooterStacks(): SectionBlock[] {
+  return [
+    {
+      id: generateId(),
+      type: 'stack',
+      name: 'Start',
+      children: [],
+      settings: { gap: '8', direction: 'horizontal' },
+      styles: { alignItems: 'center', justifyContent: 'flex-start', padding: { top: '0', bottom: '0', left: '0', right: '0' } },
+    },
+    {
+      id: generateId(),
+      type: 'stack',
+      name: 'Middle',
+      children: [],
+      settings: { gap: '8', direction: 'horizontal' },
+      styles: { alignItems: 'center', justifyContent: 'center', padding: { top: '0', bottom: '0', left: '0', right: '0' } },
+    },
+    {
+      id: generateId(),
+      type: 'stack',
+      name: 'End',
+      children: [],
+      settings: { gap: '8', direction: 'horizontal' },
+      styles: { alignItems: 'center', justifyContent: 'flex-end', padding: { top: '0', bottom: '0', left: '0', right: '0' } },
+    },
+  ]
 }
 
 export function createSectionBlock(type: SectionBlockType): SectionBlock {
+  // For header and footer, create with Start/Middle/End stacks
+  if (type === 'header' || type === 'footer') {
+    return {
+      id: generateId(),
+      type,
+      name: sectionBlockLabels[type],
+      children: createHeaderFooterStacks(),
+      settings: getDefaultSettings(type),
+      styles: getDefaultStyles(type),
+    }
+  }
+
   return {
     id: generateId(),
     type,
@@ -736,193 +1040,231 @@ function createStackItem(name: string, children: SectionBlock[]): SectionBlock {
   return stack
 }
 
-// Link List: Grid with Stack items containing Image, Heading, Text, Button
+// Link List: Stack > [Stack(Cover), Stack(Title+Description), Stack(Link)]
 export function createLinkListPreset(): SectionBlock {
   const grid = createConfiguredBlock('grid', 'Link List', { columns: 3 })
+
+  const createLinkItem = (name: string) =>
+    createStackItem(name, [
+      createStackItem('Cover', [
+        createConfiguredBlock('image', 'Cover', { src: '', alt: 'Link image' }),
+      ]),
+      createStackItem('Content', [
+        createConfiguredBlock('heading', 'Title', { content: 'Link Title', level: 'h3' }),
+        createConfiguredBlock('text', 'Description', { content: 'Description text goes here.' }),
+      ]),
+      createStackItem('Action', [
+        createConfiguredBlock('button', 'Link', { label: 'Learn More', url: '#' }),
+      ]),
+    ])
+
   grid.children = [
-    createStackItem('Link 1', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Link image' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Link Title', level: 'h3' }),
-      createConfiguredBlock('text', 'Text', { content: 'Description text goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Learn More', url: '#' }),
-    ]),
-    createStackItem('Link 2', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Link image' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Link Title', level: 'h3' }),
-      createConfiguredBlock('text', 'Text', { content: 'Description text goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Learn More', url: '#' }),
-    ]),
-    createStackItem('Link 3', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Link image' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Link Title', level: 'h3' }),
-      createConfiguredBlock('text', 'Text', { content: 'Description text goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Learn More', url: '#' }),
-    ]),
+    createLinkItem('Link 1'),
+    createLinkItem('Link 2'),
+    createLinkItem('Link 3'),
   ]
   return grid
 }
 
-// Product List: Grid with Stack items containing Image, Heading, Text, Button
+// Product List: Stack > [Stack(IMG+Badge), Stack(Stack(Title+desc), Stack(Stack(Variants), Stack(Price)), Stack(Button))]
 export function createProductListPreset(): SectionBlock {
   const grid = createConfiguredBlock('grid', 'Product List', { columns: 3 })
+
+  const createProductItem = (name: string, badge: string) =>
+    createStackItem(name, [
+      createStackItem('Media', [
+        createConfiguredBlock('image', 'Cover', { src: '', alt: 'Product image' }),
+        createConfiguredBlock('text', 'Badge', { content: badge }),
+      ]),
+      createStackItem('Details', [
+        createStackItem('Info', [
+          createConfiguredBlock('heading', 'Title', { content: 'Product Name', level: 'h3' }),
+          createConfiguredBlock('text', 'Description', { content: 'Product description goes here.' }),
+        ]),
+        createStackItem('Pricing', [
+          createStackItem('Variants', [
+            createSectionBlock('variants'),
+          ]),
+          createStackItem('Price', [
+            createConfiguredBlock('text', 'Price', { content: '$99.00' }),
+          ]),
+        ]),
+        createStackItem('Action', [
+          createConfiguredBlock('button', 'Buy link', { label: 'Buy Now', url: '#' }),
+        ]),
+      ]),
+    ])
+
   grid.children = [
-    createStackItem('Product 1', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Product image' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Product Name', level: 'h3' }),
-      createConfiguredBlock('text', 'Text', { content: '$99.00' }),
-      createConfiguredBlock('button', 'Button', { label: 'Buy Now', url: '#' }),
-    ]),
-    createStackItem('Product 2', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Product image' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Product Name', level: 'h3' }),
-      createConfiguredBlock('text', 'Text', { content: '$99.00' }),
-      createConfiguredBlock('button', 'Button', { label: 'Buy Now', url: '#' }),
-    ]),
-    createStackItem('Product 3', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Product image' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Product Name', level: 'h3' }),
-      createConfiguredBlock('text', 'Text', { content: '$99.00' }),
-      createConfiguredBlock('button', 'Button', { label: 'Buy Now', url: '#' }),
-    ]),
+    createProductItem('Product 1', 'New'),
+    createProductItem('Product 2', 'Sale'),
+    createProductItem('Product 3', 'Best Seller'),
   ]
   return grid
 }
 
-// Card List: Grid with Stack items containing Image, Heading, Subheading, Text, Button
+// Card List: Stack > [Stack(Cover), Stack(Stack(Label+Title+Description), Stack(Link))]
 export function createCardListPreset(): SectionBlock {
   const grid = createConfiguredBlock('grid', 'Card List', { columns: 3 })
+
+  const createCardItem = (name: string, label: string) =>
+    createStackItem(name, [
+      createStackItem('Media', [
+        createConfiguredBlock('image', 'Cover', { src: '', alt: 'Card image' }),
+      ]),
+      createStackItem('Content', [
+        createStackItem('Info', [
+          createConfiguredBlock('text', 'Label', { content: label }),
+          createConfiguredBlock('heading', 'Title', { content: 'Card Title', level: 'h3' }),
+          createConfiguredBlock('text', 'Description', { content: 'Card description goes here.' }),
+        ]),
+        createStackItem('Action', [
+          createConfiguredBlock('button', 'Link', { label: 'Read More', url: '#' }),
+        ]),
+      ]),
+    ])
+
   grid.children = [
-    createStackItem('Card 1', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Card image' }),
-      createConfiguredBlock('heading', 'Title', { content: 'Card Title', level: 'h3' }),
-      createConfiguredBlock('heading', 'Subtitle', { content: 'Subtitle', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Card description goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Read More', url: '#' }),
-    ]),
-    createStackItem('Card 2', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Card image' }),
-      createConfiguredBlock('heading', 'Title', { content: 'Card Title', level: 'h3' }),
-      createConfiguredBlock('heading', 'Subtitle', { content: 'Subtitle', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Card description goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Read More', url: '#' }),
-    ]),
-    createStackItem('Card 3', [
-      createConfiguredBlock('image', 'Image', { src: '', alt: 'Card image' }),
-      createConfiguredBlock('heading', 'Title', { content: 'Card Title', level: 'h3' }),
-      createConfiguredBlock('heading', 'Subtitle', { content: 'Subtitle', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Card description goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Read More', url: '#' }),
-    ]),
+    createCardItem('Card 1', 'Featured'),
+    createCardItem('Card 2', 'Popular'),
+    createCardItem('Card 3', 'New'),
   ]
   return grid
 }
 
-// Feature List: Grid with Stack items containing Icon, Heading, Subheading, Text, Button
+// Feature List: Stack > [Stack(Cover/IMAGE), Stack(Stack(Label+Title+Description), Stack(Link))]
 export function createFeatureListPreset(): SectionBlock {
   const grid = createConfiguredBlock('grid', 'Feature List', { columns: 3 })
+
+  const createFeatureItem = (name: string, label: string) =>
+    createStackItem(name, [
+      createStackItem('Media', [
+        createConfiguredBlock('image', 'Cover', { src: '', alt: 'Feature image' }),
+      ]),
+      createStackItem('Content', [
+        createStackItem('Info', [
+          createConfiguredBlock('text', 'Label', { content: label }),
+          createConfiguredBlock('heading', 'Title', { content: 'Feature Title', level: 'h3' }),
+          createConfiguredBlock('text', 'Description', { content: 'Feature description goes here.' }),
+        ]),
+        createStackItem('Action', [
+          createConfiguredBlock('button', 'Link', { label: 'Learn More', url: '#' }),
+        ]),
+      ]),
+    ])
+
   grid.children = [
-    createStackItem('Feature 1', [
-      createConfiguredBlock('icon', 'Icon', { icon: 'lni-star-1', size: '48' }),
-      createConfiguredBlock('heading', 'Title', { content: 'Feature Title', level: 'h3' }),
-      createConfiguredBlock('heading', 'Subtitle', { content: 'Subtitle', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Feature description goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Learn More', url: '#' }),
-    ]),
-    createStackItem('Feature 2', [
-      createConfiguredBlock('icon', 'Icon', { icon: 'lni-rocket-2', size: '48' }),
-      createConfiguredBlock('heading', 'Title', { content: 'Feature Title', level: 'h3' }),
-      createConfiguredBlock('heading', 'Subtitle', { content: 'Subtitle', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Feature description goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Learn More', url: '#' }),
-    ]),
-    createStackItem('Feature 3', [
-      createConfiguredBlock('icon', 'Icon', { icon: 'lni-heart-1', size: '48' }),
-      createConfiguredBlock('heading', 'Title', { content: 'Feature Title', level: 'h3' }),
-      createConfiguredBlock('heading', 'Subtitle', { content: 'Subtitle', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Feature description goes here.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Learn More', url: '#' }),
-    ]),
+    createFeatureItem('Feature 1', 'Step 1'),
+    createFeatureItem('Feature 2', 'Step 2'),
+    createFeatureItem('Feature 3', 'Step 3'),
   ]
   return grid
 }
 
-// Social List: Grid with Stack items containing Icon, Heading, Text, Button
+// Social List: Stack > [Stack(Logo), Stack(Username+Description), Stack(Link)]
 export function createSocialListPreset(): SectionBlock {
   const grid = createConfiguredBlock('grid', 'Social List', { columns: 4 })
+
+  const createSocialItem = (name: string, icon: string, username: string, description: string, buttonLabel: string) =>
+    createStackItem(name, [
+      createStackItem('Media', [
+        createConfiguredBlock('icon', 'Logo', { icon, size: '32' }),
+      ]),
+      createStackItem('Content', [
+        createConfiguredBlock('heading', 'Username', { content: username, level: 'h4' }),
+        createConfiguredBlock('text', 'Description', { content: description }),
+      ]),
+      createStackItem('Action', [
+        createConfiguredBlock('button', 'Link', { label: buttonLabel, url: '#' }),
+      ]),
+    ])
+
   grid.children = [
-    createStackItem('Twitter', [
-      createConfiguredBlock('icon', 'Icon', { icon: 'lni-x', size: '32' }),
-      createConfiguredBlock('heading', 'Heading', { content: '@username', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Follow us on X' }),
-      createConfiguredBlock('button', 'Button', { label: 'Follow', url: '#' }),
-    ]),
-    createStackItem('Instagram', [
-      createConfiguredBlock('icon', 'Icon', { icon: 'lni-instagram', size: '32' }),
-      createConfiguredBlock('heading', 'Heading', { content: '@username', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Follow us on Instagram' }),
-      createConfiguredBlock('button', 'Button', { label: 'Follow', url: '#' }),
-    ]),
-    createStackItem('LinkedIn', [
-      createConfiguredBlock('icon', 'Icon', { icon: 'lni-linkedin', size: '32' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Company Name', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Connect with us' }),
-      createConfiguredBlock('button', 'Button', { label: 'Connect', url: '#' }),
-    ]),
-    createStackItem('YouTube', [
-      createConfiguredBlock('icon', 'Icon', { icon: 'lni-youtube', size: '32' }),
-      createConfiguredBlock('heading', 'Heading', { content: 'Channel Name', level: 'h4' }),
-      createConfiguredBlock('text', 'Text', { content: 'Subscribe to our channel' }),
-      createConfiguredBlock('button', 'Button', { label: 'Subscribe', url: '#' }),
-    ]),
+    createSocialItem('Twitter', 'list-social', '@username', 'Follow us on X', 'Follow'),
+    createSocialItem('Instagram', 'list-social', '@username', 'Follow us on Instagram', 'Follow'),
+    createSocialItem('LinkedIn', 'list-social', 'Company Name', 'Connect with us', 'Connect'),
+    createSocialItem('YouTube', 'list-social', 'Channel Name', 'Subscribe to our channel', 'Subscribe'),
   ]
   return grid
 }
 
-// Testimonials: Grid with Stack items containing Image, Heading, Text, Button
+// Testimonials: Stack > [Stack(Name+Description), Stack(Quote), Stack(Avatar)] - NO LINK
 export function createTestimonialsPreset(): SectionBlock {
   const grid = createConfiguredBlock('grid', 'Testimonials', { columns: 3 })
+
+  const createTestimonialItem = (name: string, authorName: string, role: string, quote: string) =>
+    createStackItem(name, [
+      createStackItem('Author', [
+        createConfiguredBlock('heading', 'Name', { content: authorName, level: 'h4' }),
+        createConfiguredBlock('text', 'Description', { content: role }),
+      ]),
+      createStackItem('Quote', [
+        createConfiguredBlock('text', 'Quote', { content: quote }),
+      ]),
+      createStackItem('Media', [
+        createConfiguredBlock('image', 'Avatar', { src: '', alt: 'Customer photo' }),
+      ]),
+    ])
+
   grid.children = [
-    createStackItem('Testimonial 1', [
-      createConfiguredBlock('image', 'Avatar', { src: '', alt: 'Customer photo' }),
-      createConfiguredBlock('heading', 'Name', { content: 'John Doe', level: 'h4' }),
-      createConfiguredBlock('text', 'Quote', { content: '"This product changed my life. Highly recommended!"' }),
-      createConfiguredBlock('button', 'Button', { label: 'Read Story', url: '#' }),
-    ]),
-    createStackItem('Testimonial 2', [
-      createConfiguredBlock('image', 'Avatar', { src: '', alt: 'Customer photo' }),
-      createConfiguredBlock('heading', 'Name', { content: 'Jane Smith', level: 'h4' }),
-      createConfiguredBlock('text', 'Quote', { content: '"Amazing experience from start to finish."' }),
-      createConfiguredBlock('button', 'Button', { label: 'Read Story', url: '#' }),
-    ]),
-    createStackItem('Testimonial 3', [
-      createConfiguredBlock('image', 'Avatar', { src: '', alt: 'Customer photo' }),
-      createConfiguredBlock('heading', 'Name', { content: 'Mike Johnson', level: 'h4' }),
-      createConfiguredBlock('text', 'Quote', { content: '"Best decision I ever made. Thank you!"' }),
-      createConfiguredBlock('button', 'Button', { label: 'Read Story', url: '#' }),
-    ]),
+    createTestimonialItem('Testimonial 1', 'John Doe', 'CEO at Company', '"This product changed my life. Highly recommended!"'),
+    createTestimonialItem('Testimonial 2', 'Jane Smith', 'Designer', '"Amazing experience from start to finish."'),
+    createTestimonialItem('Testimonial 3', 'Mike Johnson', 'Developer', '"Best decision I ever made. Thank you!"'),
   ]
   return grid
 }
 
-// FAQ List: Grid with Stack items containing Heading, Text, Button
+// Menu List: Stack > [Stack(IMG), Stack(Stack(Title+Price), Stack(Description))]
+export function createMenuListPreset(): SectionBlock {
+  const grid = createConfiguredBlock('grid', 'Menus List', {
+    columns: 1,
+    gap: '24',
+  })
+
+  const createMenuItem = (name: string, title: string, description: string, price: string) =>
+    createStackItem(name, [
+      createStackItem('Media', [
+        createConfiguredBlock('image', 'Cover', { src: '', alt: 'Menu item photo' }),
+      ]),
+      createStackItem('Content', [
+        createStackItem('Header', [
+          createConfiguredBlock('heading', 'Title', { content: title, level: 'h3' }),
+          createConfiguredBlock('text', 'Price', { content: price }),
+        ]),
+        createStackItem('Body', [
+          createConfiguredBlock('text', 'Description', { content: description }),
+        ]),
+      ]),
+    ])
+
+  grid.children = [
+    createMenuItem('Menu Item 1', 'Signature Dish', 'House specialty prepared with seasonal ingredients.', '$18.00'),
+    createMenuItem('Menu Item 2', 'Chef\'s Pasta', 'Fresh pasta tossed in a slow-simmered sauce.', '$15.00'),
+    createMenuItem('Menu Item 3', 'Garden Salad', 'Locally sourced greens with citrus dressing.', '$12.50'),
+  ]
+
+  return grid
+}
+
+// FAQ List: Stack > [Stack(Question), Stack(Answer+Link)]
 export function createFAQListPreset(): SectionBlock {
   const grid = createConfiguredBlock('grid', 'FAQ List', { columns: 1 })
+
+  const createFAQItem = (name: string, question: string, answer: string, linkLabel: string) =>
+    createStackItem(name, [
+      createStackItem('Header', [
+        createConfiguredBlock('heading', 'Question', { content: question, level: 'h3' }),
+      ]),
+      createStackItem('Content', [
+        createConfiguredBlock('text', 'Answer', { content: answer }),
+        createConfiguredBlock('button', 'Link', { label: linkLabel, url: '#' }),
+      ]),
+    ])
+
   grid.children = [
-    createStackItem('FAQ 1', [
-      createConfiguredBlock('heading', 'Question', { content: 'What is your return policy?', level: 'h3' }),
-      createConfiguredBlock('text', 'Answer', { content: 'We offer a 30-day money-back guarantee on all purchases.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Learn More', url: '#' }),
-    ]),
-    createStackItem('FAQ 2', [
-      createConfiguredBlock('heading', 'Question', { content: 'How do I contact support?', level: 'h3' }),
-      createConfiguredBlock('text', 'Answer', { content: 'You can reach our support team via email or live chat.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Contact Us', url: '#' }),
-    ]),
-    createStackItem('FAQ 3', [
-      createConfiguredBlock('heading', 'Question', { content: 'Do you offer discounts?', level: 'h3' }),
-      createConfiguredBlock('text', 'Answer', { content: 'Yes! Sign up for our newsletter to receive exclusive offers.' }),
-      createConfiguredBlock('button', 'Button', { label: 'Subscribe', url: '#' }),
-    ]),
+    createFAQItem('FAQ 1', 'What is your return policy?', 'We offer a 30-day money-back guarantee on all purchases.', 'Learn More'),
+    createFAQItem('FAQ 2', 'How do I contact support?', 'You can reach our support team via email or live chat.', 'Contact Us'),
+    createFAQItem('FAQ 3', 'Do you offer discounts?', 'Yes! Sign up for our newsletter to receive exclusive offers.', 'Subscribe'),
   ]
   return grid
 }
@@ -937,6 +1279,42 @@ export function createGalleryPreset(): SectionBlock {
     createConfiguredBlock('image', 'Image 4', { src: '', alt: 'Gallery image 4' }),
     createConfiguredBlock('image', 'Image 5', { src: '', alt: 'Gallery image 5' }),
     createConfiguredBlock('image', 'Image 6', { src: '', alt: 'Gallery image 6' }),
+  ]
+  return grid
+}
+
+// Slider: Grid in slider mode with Stack slides
+export function createSliderPreset(): SectionBlock {
+  const grid = createConfiguredBlock('grid', 'Slider', {
+    columns: 1,
+    gap: '16',
+    isSlider: true,
+    slidesPerView: 1,
+    showArrows: true,
+    showDots: true,
+    autoplay: false,
+    autoplayInterval: 5000,
+    loop: false,
+  })
+
+  const createSlideItem = (name: string, title: string, description: string) =>
+    createStackItem(name, [
+      createStackItem('Media', [
+        createConfiguredBlock('image', 'Cover', { src: '', alt: 'Slide image' }),
+      ]),
+      createStackItem('Content', [
+        createConfiguredBlock('heading', 'Title', { content: title, level: 'h3' }),
+        createConfiguredBlock('text', 'Description', { content: description }),
+      ]),
+      createStackItem('Action', [
+        createConfiguredBlock('button', 'Link', { label: 'Learn More', url: '#' }),
+      ]),
+    ])
+
+  grid.children = [
+    createSlideItem('Slide 1', 'First Slide', 'Description for the first slide goes here.'),
+    createSlideItem('Slide 2', 'Second Slide', 'Description for the second slide goes here.'),
+    createSlideItem('Slide 3', 'Third Slide', 'Description for the third slide goes here.'),
   ]
   return grid
 }
@@ -956,10 +1334,14 @@ export function createPresetBlock(presetType: PresetType): SectionBlock {
       return createSocialListPreset()
     case 'preset-testimonials':
       return createTestimonialsPreset()
+    case 'preset-menu-list':
+      return createMenuListPreset()
     case 'preset-faq-list':
       return createFAQListPreset()
     case 'preset-gallery':
       return createGalleryPreset()
+    case 'preset-slider':
+      return createSliderPreset()
     default:
       throw new Error(`Unknown preset type: ${presetType}`)
   }
@@ -985,7 +1367,7 @@ export function duplicateSectionBlock(block: SectionBlock): SectionBlock {
 
   // Regenerate IDs for nested children
   if (newBlock.children) {
-    newBlock.children = newBlock.children.map(child => duplicateSectionBlock(child))
+    newBlock.children = newBlock.children.map((child: SectionBlock) => duplicateSectionBlock(child))
   }
 
   // Regenerate IDs for items in settings
@@ -1039,9 +1421,9 @@ export function createFooterSocialLink(platform: SocialPlatform = 'twitter'): Fo
 // ============================================
 
 export const alignmentOptions = [
-  { value: 'left', label: 'Left', icon: 'lni-align-text-left' },
-  { value: 'center', label: 'Center', icon: 'lni-align-text-center' },
-  { value: 'right', label: 'Right', icon: 'lni-align-text-right' },
+  { value: 'left', label: 'Left', icon: 'style-text-left' },
+  { value: 'center', label: 'Center', icon: 'style-text-center' },
+  { value: 'right', label: 'Right', icon: 'style-text-right' },
 ] as const
 
 export const verticalAlignmentOptions = [
@@ -1052,23 +1434,23 @@ export const verticalAlignmentOptions = [
 
 // Flexbox options for layout blocks (with icons for segmented controls)
 export const flexDirectionOptions = [
-  { value: 'row', label: 'Row', icon: 'lni-arrow-right' },
-  { value: 'column', label: 'Column', icon: 'lni-arrow-downward' },
-  { value: 'row-reverse', label: 'Row Reverse', icon: 'lni-arrow-left' },
-  { value: 'column-reverse', label: 'Column Reverse', icon: 'lni-arrow-upward' },
+  { value: 'row', label: 'Row', icon: 'style-row' },
+  { value: 'column', label: 'Column', icon: 'style-align-bottom' },
+  { value: 'row-reverse', label: 'Row Reverse', icon: 'style-invert-row' },
+  { value: 'column-reverse', label: 'Column Reverse', icon: 'style-align-start' },
 ] as const
 
 export const justifyContentOptions = [
-  { value: 'flex-start', label: 'Start', icon: 'lni-shift-left' },
-  { value: 'center', label: 'Center', icon: 'lni-align-text-center' },
-  { value: 'flex-end', label: 'End', icon: 'lni-shift-right' },
+  { value: 'flex-start', label: 'Start', icon: 'style-justify-start' },
+  { value: 'center', label: 'Center', icon: 'style-text-center' },
+  { value: 'flex-end', label: 'End', icon: 'style-justify-end' },
   { value: 'space-between', label: 'Space Between', icon: 'lni-arrow-both-direction-horizontal-1' },
 ] as const
 
 export const alignItemsOptions = [
-  { value: 'flex-start', label: 'Start', icon: 'lni-arrow-upward' },
+  { value: 'flex-start', label: 'Start', icon: 'style-align-start' },
   { value: 'center', label: 'Center', icon: 'lni-minus' },
-  { value: 'flex-end', label: 'End', icon: 'lni-arrow-downward' },
+  { value: 'flex-end', label: 'End', icon: 'style-align-bottom' },
   { value: 'stretch', label: 'Stretch', icon: 'lni-arrow-both-direction-vertical-1' },
 ] as const
 
@@ -1078,10 +1460,55 @@ export const flexWrapOptions = [
 ] as const
 
 export const justifyItemsOptions = [
-  { value: 'start', label: 'Start', icon: 'lni-shift-left' },
-  { value: 'center', label: 'Center', icon: 'lni-align-text-center' },
-  { value: 'end', label: 'End', icon: 'lni-shift-right' },
+  { value: 'start', label: 'Start', icon: 'style-justify-start' },
+  { value: 'center', label: 'Center', icon: 'style-text-center' },
+  { value: 'end', label: 'End', icon: 'style-justify-end' },
   { value: 'stretch', label: 'Stretch', icon: 'lni-arrow-both-direction-horizontal-1' },
+] as const
+
+// Flex child options (for blocks inside Stack/Container)
+export const flexGrowOptions = [
+  { value: '0', label: '0 (Don\'t grow)' },
+  { value: '1', label: '1 (Grow)' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+] as const
+
+export const flexShrinkOptions = [
+  { value: '0', label: '0 (Don\'t shrink)' },
+  { value: '1', label: '1 (Shrink)' },
+  { value: '2', label: '2' },
+  { value: '3', label: '3' },
+] as const
+
+export const flexBasisOptions = [
+  { value: 'auto', label: 'Auto' },
+  { value: '0', label: '0' },
+  { value: '25%', label: '25%' },
+  { value: '33.33%', label: '33%' },
+  { value: '50%', label: '50%' },
+  { value: '66.66%', label: '66%' },
+  { value: '75%', label: '75%' },
+  { value: '100%', label: '100%' },
+] as const
+
+export const mixBlendModeOptions = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'multiply', label: 'Multiply' },
+  { value: 'screen', label: 'Screen' },
+  { value: 'overlay', label: 'Overlay' },
+  { value: 'darken', label: 'Darken' },
+  { value: 'lighten', label: 'Lighten' },
+  { value: 'color-dodge', label: 'Color Dodge' },
+  { value: 'color-burn', label: 'Color Burn' },
+  { value: 'hard-light', label: 'Hard Light' },
+  { value: 'soft-light', label: 'Soft Light' },
+  { value: 'difference', label: 'Difference' },
+  { value: 'exclusion', label: 'Exclusion' },
+  { value: 'hue', label: 'Hue' },
+  { value: 'saturation', label: 'Saturation' },
+  { value: 'color', label: 'Color' },
+  { value: 'luminosity', label: 'Luminosity' },
 ] as const
 
 export const fontSizeOptions = [

@@ -76,7 +76,7 @@
   --color-primary: oklch(0.85 0 0);
   --color-primary-foreground: oklch(0.205 0 0);
 
-  --color-secondary: oklch(15% 0 20 / 0.60);
+  --color-secondary: oklch(0 0 0);
   --color-secondary-foreground: oklch(0.985 0 0);
 
   --color-muted: oklch(21.779% 0.00002 271.152);
@@ -96,7 +96,7 @@
   --color-ring: oklch(70% 0 270 / 0.75);
 
   /* Sidebar specific - Dark */
-  --color-sidebar-background: oklch(24.776% 0.00003 271.152 / 0.411);
+  --color-sidebar-background: oklch(0.2 0 0);
   --color-sidebar-foreground: oklch(0.708 0 0);
   --color-sidebar-primary: oklch(0.985 0 0);
   --color-sidebar-primary-foreground: oklch(0.205 0 0);
@@ -184,4 +184,28 @@
 @keyframes lands-anim-slide-right {
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
+}
+
+/* Disable text selection in editor preview except for editable areas */
+.editor-preview-container {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.editor-preview-container [contenteditable="true"],
+.editor-preview-container input,
+.editor-preview-container textarea,
+.editor-preview-container select {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Hide scrollbar for slider blocks */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

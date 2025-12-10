@@ -77,7 +77,7 @@ async function handleOAuth(provider: 'google' | 'github') {
     <div class="grid grid-cols-2 gap-3">
       <Button
         variant="outline"
-        size="lg"
+        size="sm"
         :disabled="isOAuthLoading !== null"
         @click="handleOAuth('google')"
       >
@@ -93,7 +93,7 @@ async function handleOAuth(provider: 'google' | 'github') {
 
       <Button
         variant="outline"
-        size="lg"
+        size="sm"
         :disabled="isOAuthLoading !== null"
         @click="handleOAuth('github')"
       >
@@ -152,7 +152,7 @@ async function handleOAuth(provider: 'google' | 'github') {
 
       <Button
         type="submit"
-        size="lg"
+        size="sm"
         full-width
         :loading="isSubmitting"
         :disabled="!name || !email || !password"

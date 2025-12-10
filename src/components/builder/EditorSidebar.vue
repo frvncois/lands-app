@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { Button, Combobox, Dropdown } from '@/components/ui'
+import { Button, Combobox, Dropdown, DropdownItem, Icon } from '@/components/ui'
+import ContextMenu from '@/components/ui/ContextMenu.vue'
+import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
+import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
 import type { ComboboxItem } from '@/components/ui/Combobox.vue'
 import {
   sectionBlockLabels,
@@ -11,6 +14,10 @@ import {
   canHaveChildren,
   formFieldBlockTypes,
   formFieldBlockLabels,
+  canvasChildBlockTypes,
+  canvasChildBlockLabels,
+  headerFooterStackChildBlockTypes,
+  headerFooterStackChildBlockLabels,
   socialPlatformLabels,
   socialPlatformIcons,
   presetTypes,
@@ -19,6 +26,7 @@ import {
   createPresetBlock,
   isFormFieldBlock,
   type PresetType,
+  type HeaderFooterStackChildBlockType,
 } from '@/lib/editor-utils'
 import type {
   SectionBlockType,
@@ -157,10 +165,19 @@ const firstLevelChildBlockItems = computed<ComboboxItem[]>(() => {
   return items
 })
 
-// Combobox items for deeply nested child blocks (content/form only, no layout, plus presets)
-const deepNestedChildBlockItems = computed<ComboboxItem[]>(() => {
+// Get combobox items for nested child blocks based on parent depth
+// Stack is always available at any depth
+function getNestedChildBlockItems(parentId: string): ComboboxItem[] {
   const items: ComboboxItem[] = []
-  // Add regular block categories (no layout blocks)
+
+  // Stack is always available as a layout option (no depth restriction)
+  items.push({
+    value: 'stack',
+    label: sectionBlockLabels['stack'],
+    icon: sectionBlockIcons['stack'],
+    group: categoryLabels['layout'],
+  })
+  // Add content block categories
   for (const category of deepNestedChildCategories) {
     const types = blocksByCategory[category] || []
     for (const type of types) {
@@ -182,7 +199,7 @@ const deepNestedChildBlockItems = computed<ComboboxItem[]>(() => {
     })
   }
   return items
-})
+}
 
 // Combobox items for form field blocks (only used when adding to form blocks)
 const formFieldBlockItems = computed<ComboboxItem[]>(() => {
@@ -193,6 +210,97 @@ const formFieldBlockItems = computed<ComboboxItem[]>(() => {
     group: 'Form Fields',
   }))
 })
+
+// Combobox items for canvas child blocks - content blocks only
+const canvasChildBlockItems = computed<ComboboxItem[]>(() => {
+  return canvasChildBlockTypes.map(type => ({
+    value: type,
+    label: canvasChildBlockLabels[type],
+    icon: sectionBlockIcons[type],
+    group: 'Content',
+  }))
+})
+
+// Combobox items for header/footer stack children (button, text, image only)
+const headerFooterStackChildBlockItems = computed<ComboboxItem[]>(() => {
+  return headerFooterStackChildBlockTypes.map(type => ({
+    value: type,
+    label: headerFooterStackChildBlockLabels[type],
+    icon: sectionBlockIcons[type],
+    group: 'Content',
+  }))
+})
+
+// Check if a block is a header/footer child stack (Start, Middle, End)
+function isHeaderFooterStack(block: SectionBlock): boolean {
+  const parent = editorStore.findParentBlock(block.id)
+  return parent ? (parent.type === 'header' || parent.type === 'footer') : false
+}
+
+// Context menu for blocks
+const blockContextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
+const contextMenuBlockId = ref<string | null>(null)
+const contextMenuBlockType = ref<'section' | 'child'>('section')
+
+// Get the block for context menu actions
+const contextMenuBlock = computed(() => {
+  if (!contextMenuBlockId.value) return null
+  return editorStore.findBlockById(contextMenuBlockId.value)
+})
+
+// Check if context menu block can be duplicated/deleted
+const canContextMenuDuplicate = computed(() => {
+  if (!contextMenuBlock.value) return false
+  // Protected blocks (header/footer) cannot be duplicated
+  if (contextMenuBlock.value.type === 'header' || contextMenuBlock.value.type === 'footer') return false
+  // Header/footer stacks (Start, Middle, End) cannot be duplicated
+  if (isHeaderFooterStack(contextMenuBlock.value)) return false
+  return true
+})
+
+const canContextMenuDelete = computed(() => {
+  if (!contextMenuBlock.value) return false
+  // Protected blocks (header/footer) cannot be deleted
+  if (contextMenuBlock.value.type === 'header' || contextMenuBlock.value.type === 'footer') return false
+  // Header/footer stacks (Start, Middle, End) cannot be deleted
+  if (isHeaderFooterStack(contextMenuBlock.value)) return false
+  return true
+})
+
+// Handle right-click on blocks
+function handleBlockContextMenu(blockId: string, blockType: 'section' | 'child', event: MouseEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  contextMenuBlockId.value = blockId
+  contextMenuBlockType.value = blockType
+  blockContextMenuRef.value?.open(event)
+}
+
+// Context menu actions
+function handleContextMenuDuplicate() {
+  if (!contextMenuBlockId.value) return
+  const newBlock = editorStore.duplicateBlock(contextMenuBlockId.value)
+  if (newBlock) {
+    expandedBlocks.value.add(newBlock.id)
+    editorStore.selectBlock(newBlock.id)
+  }
+}
+
+function handleContextMenuDelete() {
+  if (!contextMenuBlockId.value) return
+  editorStore.deleteBlock(contextMenuBlockId.value)
+  expandedBlocks.value.delete(contextMenuBlockId.value)
+}
+
+function handleContextMenuCopyStyle() {
+  if (!contextMenuBlockId.value) return
+  editorStore.copyBlockStyles(contextMenuBlockId.value)
+}
+
+function handleContextMenuPasteStyle() {
+  if (!contextMenuBlockId.value) return
+  editorStore.pasteBlockStyles(contextMenuBlockId.value)
+}
 
 // Helper functions
 function isProtectedBlock(block: SectionBlock): boolean {
@@ -238,8 +346,10 @@ function handleAddSection(type: SectionBlockType) {
 
 function handleAddPreset(presetType: PresetType) {
   const block = createPresetBlock(presetType)
-  editorStore.addPresetBlock(block)
-  expandedBlocks.value.add(block.id)
+  const inserted = editorStore.addPresetBlock(block)
+  if (inserted) {
+    expandedBlocks.value.add(inserted.id)
+  }
   showSectionDropdown.value = false
 }
 
@@ -290,8 +400,10 @@ function handleAddChildBlock(parentId: string, value: string) {
   // Check if it's a preset type
   if (isPresetType(value)) {
     const block = createPresetBlock(value)
-    editorStore.addPresetBlock(block, undefined, parentId)
-    editorStore.selectBlock(block.id)
+    const inserted = editorStore.addPresetBlock(block, undefined, parentId)
+    if (inserted) {
+      editorStore.selectBlock(inserted.id)
+    }
   } else {
     // It's a regular block type
     const block = editorStore.addBlock(value as SectionBlockType, undefined, parentId)
@@ -303,25 +415,73 @@ function handleAddChildBlock(parentId: string, value: string) {
   childBlockDropdownRefs.value[parentId]?.close()
 }
 
-// Check if a Grid block is a List/Collection (has Stack children)
-function isListCollectionGrid(block: SectionBlock): boolean {
+// Prebuilt list/collection names (from preset types)
+// These are the ONLY blocks where delete/duplicate/add block restrictions apply
+const PREBUILT_LIST_NAMES = [
+  'Link List',
+  'Product List',
+  'Card List',
+  'Feature List',
+  'Social List',
+  'Testimonials',
+  'Menus List',
+  'FAQ List',
+  'Gallery',
+]
+
+// Check if a Grid block is a PREBUILT List/Collection (has prebuilt name)
+function isPrebuiltListGrid(block: SectionBlock): boolean {
   if (block.type !== 'grid') return false
-  if (!block.children || block.children.length === 0) return false
-  // Check if first child is a Stack (List/Collection pattern)
-  const firstChild = block.children[0]
-  return firstChild ? firstChild.type === 'stack' : false
+  // Must match a prebuilt list name - manually created Grid > Stack is NOT a list/collection
+  return PREBUILT_LIST_NAMES.includes(block.name)
 }
 
-// Add a new list item by duplicating the first Stack child
+// Get the item type label for a List/Collection grid (e.g., "product", "card", "link")
+function getListItemTypeLabel(grid: SectionBlock): string {
+  const name = grid.name.toLowerCase()
+  if (name.includes('product')) return 'product'
+  if (name.includes('card')) return 'card'
+  if (name.includes('link')) return 'link'
+  if (name.includes('feature')) return 'feature'
+  if (name.includes('social')) return 'social'
+  if (name.includes('testimonial')) return 'testimonial'
+  if (name.includes('menu')) return 'menu item'
+  if (name.includes('faq')) return 'faq'
+  return 'item'
+}
+
+// Get the display name for a stack item (from its "Title" heading content)
+function getStackDisplayName(stack: SectionBlock): string {
+  if (!stack.children || stack.children.length === 0) return stack.name
+
+  // Find a heading named "Title" or the first heading
+  const titleHeading = stack.children.find(c =>
+    c.type === 'heading' && c.name.toLowerCase() === 'title'
+  )
+
+  if (titleHeading) {
+    const settings = titleHeading.settings as { content?: string }
+    if (settings.content && settings.content.trim()) {
+      // Truncate long titles
+      const content = settings.content.trim()
+      return content.length > 25 ? content.slice(0, 25) + '...' : content
+    }
+  }
+
+  return stack.name
+}
+
+// Add a new list item by duplicating the last Stack child (so it's added at the end)
 function handleAddListItem(gridId: string) {
   const grid = editorStore.findBlockById(gridId)
   if (!grid || !grid.children || grid.children.length === 0) return
 
-  // Find the first Stack child to use as template
-  const templateStack = grid.children.find(c => c.type === 'stack')
+  // Find the last Stack child to use as template (so new item is added at the end)
+  const stackChildren = grid.children.filter(c => c.type === 'stack')
+  const templateStack = stackChildren[stackChildren.length - 1]
   if (!templateStack) return
 
-  // Duplicate the template stack
+  // Duplicate the template stack (inserted right after it, i.e., at the end)
   const newItem = editorStore.duplicateBlock(templateStack.id)
   if (newItem) {
     // Update the name to reflect it's a new item
@@ -332,18 +492,44 @@ function handleAddListItem(gridId: string) {
   }
 }
 
-// Check if a child block is inside a List/Collection (parent is Grid with Stack children)
-function isChildInsideListCollection(parentBlock: SectionBlock, child: SectionBlock): boolean {
-  // Check if parent is a Grid with Stack children (List/Collection pattern)
-  if (parentBlock.type === 'grid' && child.type === 'stack') {
-    return true
-  }
-  // Check if parent is a Stack inside a Grid (nested inside List/Collection)
+// Check if a child is a PREBUILT List/Collection item (Stack directly inside PREBUILT Grid)
+function isPrebuiltListItem(parentBlock: SectionBlock, child: SectionBlock): boolean {
+  return isPrebuiltListGrid(parentBlock) && child.type === 'stack'
+}
+
+// Check if a child block is INSIDE a PREBUILT List/Collection item (inside Stack that's inside PREBUILT Grid)
+// These blocks can only be hidden, not deleted/duplicated
+function isBlockInsidePrebuiltListItem(parentBlock: SectionBlock): boolean {
+  // Check if parent IS a prebuilt list item (Stack in PREBUILT Grid) - then all children are inside it
   if (parentBlock.type === 'stack') {
     const grandparent = editorStore.findParentBlock(parentBlock.id)
-    if (grandparent && grandparent.type === 'grid') {
+    if (grandparent && isPrebuiltListGrid(grandparent)) {
       return true
     }
+  }
+  // Check up the tree for a prebuilt list grid
+  let current: SectionBlock | null = parentBlock
+  while (current) {
+    const parent = editorStore.findParentBlock(current.id)
+    if (!parent) break
+    // If we find a stack whose parent is a prebuilt grid, we're inside a prebuilt list item
+    if (current.type === 'stack' && isPrebuiltListGrid(parent)) {
+      return true
+    }
+    current = parent
+  }
+  return false
+}
+
+// Check if a child block is inside a PREBUILT List/Collection (either a list item or inside a list item)
+function isChildInsidePrebuiltListCollection(parentBlock: SectionBlock, child: SectionBlock): boolean {
+  // Check if this is a prebuilt list item (Stack child of PREBUILT Grid)
+  if (isPrebuiltListItem(parentBlock, child)) {
+    return true
+  }
+  // Check if this is a block inside a prebuilt list item
+  if (isBlockInsidePrebuiltListItem(parentBlock)) {
+    return true
   }
   return false
 }
@@ -363,9 +549,21 @@ function toggleChildVisibility(childId: string, event: MouseEvent) {
   editorStore.updateBlockSettings(childId, { isHidden: !settings.isHidden })
 }
 
-// Check if a child block can be dragged (not inside List/Collection)
+// Check if a child block can be dragged
+// PREBUILT list items (Stack children of PREBUILT Grid) CAN be dragged for reordering
+// Blocks inside PREBUILT list items CANNOT be dragged
+// All other blocks can be dragged normally
 function canDragChild(parentBlock: SectionBlock, child: SectionBlock): boolean {
-  return !isChildInsideListCollection(parentBlock, child)
+  // Prebuilt list items (Stack in PREBUILT Grid) can be dragged for reordering
+  if (isPrebuiltListItem(parentBlock, child)) {
+    return true
+  }
+  // Blocks inside prebuilt list items cannot be dragged
+  if (isBlockInsidePrebuiltListItem(parentBlock)) {
+    return false
+  }
+  // All other blocks (including manually created Grid > Stack) can be dragged
+  return true
 }
 
 // Child block drag handlers (for layout block children)
@@ -382,12 +580,15 @@ function handleChildDragOver(parentId: string, childIndex: number, event: DragEv
   event.stopPropagation()
   if (!draggedChildInfo.value) return
 
-  // Don't allow dropping onto List/Collection grids (Grid with Stack children)
   const targetParent = editorStore.findBlockById(parentId)
-  if (targetParent && isListCollectionGrid(targetParent)) return
+  const isSameParent = draggedChildInfo.value.parentId === parentId
+
+  // For PREBUILT List/Collection grids, only allow reordering within the same grid (not moving from outside)
+  if (targetParent && isPrebuiltListGrid(targetParent)) {
+    if (!isSameParent) return // Don't allow dropping from outside into a prebuilt list/collection
+  }
 
   // Allow drop if different position (same or different parent)
-  const isSameParent = draggedChildInfo.value.parentId === parentId
   const isDifferentPosition = !isSameParent || draggedChildInfo.value.childIndex !== childIndex
 
   if (isDifferentPosition) {
@@ -432,9 +633,9 @@ function handleEmptyParentDragOver(parentId: string, event: DragEvent) {
   event.stopPropagation()
   if (!draggedChildInfo.value) return
 
-  // Don't allow dropping onto List/Collection grids
+  // Don't allow dropping onto PREBUILT List/Collection grids
   const targetParent = editorStore.findBlockById(parentId)
-  if (targetParent && isListCollectionGrid(targetParent)) return
+  if (targetParent && isPrebuiltListGrid(targetParent)) return
 
   // Don't allow dropping onto own parent (already empty)
   if (draggedChildInfo.value.parentId === parentId) return
@@ -625,35 +826,6 @@ function handleDuplicateFooterSocialLink(blockId: string, linkId: string, event:
   editorStore.duplicateFooterSocialLink(blockId, linkId)
 }
 
-// Move item up/down handlers
-function handleMoveItemUp(blockId: string, itemIndex: number, reorderFn: (blockId: string, from: number, to: number) => void, event: MouseEvent) {
-  event.stopPropagation()
-  if (itemIndex > 0) {
-    reorderFn(blockId, itemIndex, itemIndex - 1)
-  }
-}
-
-function handleMoveItemDown(blockId: string, itemIndex: number, itemsLength: number, reorderFn: (blockId: string, from: number, to: number) => void, event: MouseEvent) {
-  event.stopPropagation()
-  if (itemIndex < itemsLength - 1) {
-    reorderFn(blockId, itemIndex, itemIndex + 1)
-  }
-}
-
-function handleMoveChildUp(parentId: string, childIndex: number, event: MouseEvent) {
-  event.stopPropagation()
-  if (childIndex > 0) {
-    editorStore.reorderBlocks(childIndex, childIndex - 1, parentId)
-  }
-}
-
-function handleMoveChildDown(parentId: string, childIndex: number, childrenLength: number, event: MouseEvent) {
-  event.stopPropagation()
-  if (childIndex < childrenLength - 1) {
-    editorStore.reorderBlocks(childIndex, childIndex + 1, parentId)
-  }
-}
-
 // Check if a block can have expandable items
 function canBlockExpand(block: SectionBlock): boolean {
   // Header, footer, form blocks can always expand (they have nav links, links, fields)
@@ -696,23 +868,23 @@ function canBlockExpand(block: SectionBlock): boolean {
         :title="block.name"
         @click="editorStore.selectBlock(block.id)"
       >
-        <i :class="['lni', sectionBlockIcons[block.type], 'text-sm']"></i>
+        <Icon :name="sectionBlockIcons[block.type]" :size="14" />
       </Button>
     </div>
 
     <!-- Expanded state -->
     <template v-else>
       <!-- Header -->
-      <div class="flex items-center justify-between h-12 px-4 mr-1 border-b border-sidebar-border">
+      <div class="flex items-center justify-between h-12 pl-3.5 pr-2.5 border-b border-sidebar-border">
         <h2 class="text-sm font-semibold text-foreground">Sections</h2>
         <div class="relative dropdown-container">
           <Button
-            variant="outline"
-            size="icon"
+            variant="ghost"
+            size="sm"
             title="Add section"
             @click="showSectionDropdown = !showSectionDropdown"
           >
-            <i class="lni lni-plus text-sm"></i>
+            <Icon name="plus" class="text-sm" />
           </Button>
           <!-- Section Dropdown -->
           <Teleport to="body">
@@ -729,7 +901,7 @@ function canBlockExpand(block: SectionBlock): boolean {
             <!-- Search input -->
             <div class="p-2 border-b border-sidebar-border">
               <div class="relative">
-                <i class="lni lni-search-1 absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground"></i>
+                <Icon name="search-1" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground" />
                 <input
                   ref="sectionSearchInputRef"
                   v-model="sectionSearchQuery"
@@ -743,7 +915,7 @@ function canBlockExpand(block: SectionBlock): boolean {
             <div class="flex-1 overflow-y-auto p-3">
               <!-- No results message -->
               <div v-if="!hasSearchResults" class="flex flex-col items-center justify-center py-8 text-center">
-                <i class="lni lni-search-1 text-2xl text-muted-foreground/50 mb-2"></i>
+                <Icon name="search-1" class="text-2xl text-muted-foreground/50 mb-2" />
                 <p class="text-xs text-muted-foreground">No blocks found</p>
               </div>
               <template v-else>
@@ -763,7 +935,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                         @dragstart="handleSectionTypeDragStart(type, $event)"
                         @dragend="handleSectionTypeDragEnd"
                       >
-                        <i :class="['lni', sectionBlockIcons[type], 'text-lg text-muted-foreground']"></i>
+                        <Icon :name="sectionBlockIcons[type]" :size="18" class="text-muted-foreground" />
                         <span class="text-[10px] text-center leading-tight">{{ sectionBlockLabels[type] }}</span>
                       </button>
                     </div>
@@ -784,7 +956,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                       @dragstart="handlePresetDragStart(preset, $event)"
                       @dragend="handlePresetDragEnd"
                     >
-                      <i :class="['lni', presetIcons[preset], 'text-lg text-muted-foreground']"></i>
+                      <Icon :name="presetIcons[preset]" :size="18" class="text-muted-foreground" />
                       <span class="text-[10px] text-center leading-tight">{{ presetLabels[preset] }}</span>
                     </button>
                   </div>
@@ -796,14 +968,14 @@ function canBlockExpand(block: SectionBlock): boolean {
       </div>
 
       <!-- Section blocks list -->
-      <div class="flex-1 overflow-y-auto p-2" @click="handleSidebarClick">
+      <div class="flex-1 p-2" @click="handleSidebarClick">
         <!-- Empty state -->
         <div
           v-if="editorStore.blocks.length === 0"
           class="flex flex-col items-center justify-center h-full text-center px-4"
         >
           <div class="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center mb-3">
-            <i class="lni lni-layers-1 text-xl text-muted-foreground"></i>
+            <Icon name="layers-1" class="text-xl text-muted-foreground" />
           </div>
           <p class="text-sm text-muted-foreground">No sections yet</p>
           <p class="text-xs text-muted-foreground mt-1">Click + to add your first section</p>
@@ -834,6 +1006,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                 dragOverBlockIndex === blockIndex ? 'border-t-2 border-primary' : '',
               ]"
               @click="editorStore.selectBlock(block.id)"
+              @contextmenu="handleBlockContextMenu(block.id, 'section', $event)"
             >
 
 
@@ -843,15 +1016,19 @@ function canBlockExpand(block: SectionBlock): boolean {
                 class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                 @click.stop="toggleBlockExpanded(block.id)"
               >
-                <i
-                  class="lni lni-chevron-down text-[10px] text-muted-foreground transition-transform"
-                  :class="expandedBlocks.has(block.id) ? '' : '-rotate-90'"
-                ></i>
+                <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
               </button>
               <!-- Spacer for blocks that can't expand -->
               <div v-else class="w-4 shrink-0"></div>
 
               <span class="flex-1 font-medium leading-4" :class="isBlockHidden(block) ? 'opacity-50' : ''">{{ block.name }}</span>
+
+              <!-- Shared style indicator -->
+              <span
+                v-if="block.sharedStyleId"
+                class="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
+                title="Has shared style"
+              />
 
               <!-- Visibility toggle for header/footer -->
               <button
@@ -861,33 +1038,8 @@ function canBlockExpand(block: SectionBlock): boolean {
                 :title="isBlockHidden(block) ? 'Show section' : 'Hide section'"
                 @click="toggleBlockVisibility(block, $event)"
               >
-                <span v-if="isBlockHidden(block)" class="relative inline-flex items-center justify-center w-3 h-3">
-                  <i class="lni lni-eye text-[10px] opacity-50"></i>
-                  <span class="absolute inset-0 flex items-center justify-center">
-                    <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
-                  </span>
-                </span>
-                <i v-else class="lni lni-eye text-[10px]"></i>
-              </button>
-
-              <!-- Move up button -->
-              <button
-                v-if="!isProtectedBlock(block)"
-                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                title="Move up"
-                @click.stop="editorStore.moveBlockUp(blockIndex)"
-              >
-                <i class="lni lni-chevron-up text-[10px]"></i>
-              </button>
-
-              <!-- Move down button -->
-              <button
-                v-if="!isProtectedBlock(block)"
-                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                title="Move down"
-                @click.stop="editorStore.moveBlockDown(blockIndex)"
-              >
-                <i class="lni lni-chevron-down text-[10px]"></i>
+                <Icon v-if="isBlockHidden(block)" name="app-hide" class="text-[10px] opacity-50" />
+                <Icon v-else name="app-show" :size="10" />
               </button>
 
               <!-- Duplicate block button -->
@@ -897,7 +1049,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                 title="Duplicate section"
                 @click="handleDuplicateBlock(block.id, $event)"
               >
-                <i class="lni lni-layers-1 text-[10px]"></i>
+                <Icon name="layers-1" class="text-[10px]" />
               </button>
 
               <!-- Delete block button -->
@@ -907,229 +1059,211 @@ function canBlockExpand(block: SectionBlock): boolean {
                 title="Delete section"
                 @click="handleDeleteBlock(block.id, $event)"
               >
-                <i class="lni lni-trash-3 text-[10px]"></i>
+                <Icon name="trash-3" class="text-[10px]" />
               </button>
             </div>
 
-            <!-- Expanded content: Header nav links -->
-            <div v-if="expandedBlocks.has(block.id) && block.type === 'header'" class="ml-6 mt-1 space-y-0.5">
+            <!-- Expanded content: Header children (Start, Middle, End stacks) -->
+            <div v-if="expandedBlocks.has(block.id) && block.type === 'header' && block.children?.length" class="ml-6 mt-1 space-y-0.5">
               <div
-                v-for="(link, linkIndex) in (block.settings as HeaderSettings).navLinks"
-                :key="link.id"
-                draggable="true"
-                class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs cursor-grab transition-colors group"
-                :class="[
-                  editorStore.selectedBlockId === block.id && editorStore.selectedItemId === link.id
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                  draggedItemInfo?.blockId === block.id && draggedItemInfo?.itemIndex === linkIndex ? 'opacity-50' : '',
-                  dragOverItemInfo?.blockId === block.id && dragOverItemInfo?.itemIndex === linkIndex ? 'border-t-2 border-primary' : '',
-                ]"
-                @click="editorStore.selectBlock(block.id, link.id)"
-                @dragstart="handleItemDragStart(block.id, linkIndex, $event)"
-                @dragover="handleItemDragOver(block.id, linkIndex, $event)"
-                @dragleave="handleItemDragLeave"
-                @drop.stop="handleItemDrop(block.id, linkIndex, editorStore.reorderHeaderNavLinks)"
-                @dragend="handleItemDragEnd"
+                v-for="(child, childIndex) in block.children"
+                :key="child.id"
+                class="block-item"
               >
-                <div class="w-4 h-4 flex items-center justify-center shrink-0">
-                  <i class="lni lni-link-2 text-xs text-muted-foreground"></i>
-                </div>
-                <span class="flex-1 truncate leading-4">{{ link.label || 'Nav Link' }}</span>
-                <button
-                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                  title="Move up"
-                  @click="handleMoveItemUp(block.id, linkIndex, editorStore.reorderHeaderNavLinks, $event)"
-                >
-                  <i class="lni lni-chevron-up text-[10px]"></i>
-                </button>
-                <button
-                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                  title="Move down"
-                  @click="handleMoveItemDown(block.id, linkIndex, (block.settings as HeaderSettings).navLinks.length, editorStore.reorderHeaderNavLinks, $event)"
-                >
-                  <i class="lni lni-chevron-down text-[10px]"></i>
-                </button>
-                <button
-                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                  title="Duplicate nav link"
-                  @click="handleDuplicateHeaderNavLink(block.id, link.id, $event)"
-                >
-                  <i class="lni lni-layers-1 text-[10px]"></i>
-                </button>
-                <button
-                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                  title="Delete nav link"
-                  @click="handleDeleteHeaderNavLink(block.id, link.id, $event)"
-                >
-                  <i class="lni lni-xmark text-[10px]"></i>
-                </button>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                full-width
-                class="justify-start gap-1.5 text-muted-foreground"
-                @click.stop="handleAddHeaderNavLink(block.id)"
-              >
-                <i class="lni lni-plus text-xs"></i>
-                Add nav link
-              </Button>
-            </div>
-
-            <!-- Expanded content: Footer links and social -->
-            <div v-if="expandedBlocks.has(block.id) && block.type === 'footer'" class="ml-6 mt-1 space-y-2">
-              <!-- Footer links -->
-              <div class="space-y-0.5">
-                <div class="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Links</div>
+                <!-- Header stack row (Start/Middle/End) -->
                 <div
-                  v-for="(link, linkIndex) in (block.settings as FooterSettings).links"
-                  :key="link.id"
-                  draggable="true"
-                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs cursor-grab transition-colors group"
+                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors group"
                   :class="[
-                    editorStore.selectedBlockId === block.id && editorStore.selectedItemId === link.id
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                    draggedItemInfo?.blockId === block.id && draggedItemInfo?.itemIndex === linkIndex ? 'opacity-50' : '',
-                    dragOverItemInfo?.blockId === block.id && dragOverItemInfo?.itemIndex === linkIndex ? 'border-t-2 border-primary' : '',
-                  ]"
-                  @click="editorStore.selectBlock(block.id, link.id)"
-                  @dragstart="handleItemDragStart(block.id, linkIndex, $event)"
-                  @dragover="handleItemDragOver(block.id, linkIndex, $event)"
-                  @dragleave="handleItemDragLeave"
-                  @drop.stop="handleItemDrop(block.id, linkIndex, editorStore.reorderFooterLinks)"
-                  @dragend="handleItemDragEnd"
-                >
-                  <div class="w-4 h-4 flex items-center justify-center shrink-0">
-                    <i class="lni lni-link-2 text-xs text-muted-foreground"></i>
-                  </div>
-                  <span class="flex-1 truncate leading-4">{{ link.label || 'Footer Link' }}</span>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                    title="Move up"
-                    @click="handleMoveItemUp(block.id, linkIndex, editorStore.reorderFooterLinks, $event)"
-                  >
-                    <i class="lni lni-chevron-up text-[10px]"></i>
-                  </button>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                    title="Move down"
-                    @click="handleMoveItemDown(block.id, linkIndex, (block.settings as FooterSettings).links.length, editorStore.reorderFooterLinks, $event)"
-                  >
-                    <i class="lni lni-chevron-down text-[10px]"></i>
-                  </button>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                    title="Duplicate link"
-                    @click="handleDuplicateFooterLink(block.id, link.id, $event)"
-                  >
-                    <i class="lni lni-layers-1 text-[10px]"></i>
-                  </button>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                    title="Delete link"
-                    @click="handleDeleteFooterLink(block.id, link.id, $event)"
-                  >
-                    <i class="lni lni-xmark text-[10px]"></i>
-                  </button>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  full-width
-                  class="justify-start gap-1.5 text-muted-foreground"
-                  @click.stop="handleAddFooterLink(block.id)"
-                >
-                  <i class="lni lni-plus text-xs"></i>
-                  Add link
-                </Button>
-              </div>
-
-              <!-- Social links -->
-              <div class="space-y-0.5">
-                <div class="px-2 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">Social</div>
-                <div
-                  v-for="(social, socialIndex) in (block.settings as FooterSettings).socialLinks"
-                  :key="social.id"
-                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs transition-colors group cursor-pointer"
-                  :class="[
-                    editorStore.selectedBlockId === block.id && editorStore.selectedItemId === social.id
+                    editorStore.selectedBlockId === child.id
                       ? 'bg-accent text-accent-foreground'
                       : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
                   ]"
-                  @click="editorStore.selectBlock(block.id, social.id)"
+                  @click="editorStore.selectBlock(child.id)"
+                  @contextmenu="handleBlockContextMenu(child.id, 'child', $event)"
                 >
+                  <!-- Expand/collapse toggle -->
+                  <button
+                    class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
+                    @click.stop="toggleBlockExpanded(child.id)"
+                  >
+                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                  </button>
                   <div class="w-4 h-4 flex items-center justify-center shrink-0">
-                    <i :class="['lni', socialPlatformIcons[social.platform], 'text-xs text-muted-foreground']"></i>
+                    <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
                   </div>
-                  <span class="flex-1 truncate leading-4">{{ socialPlatformLabels[social.platform] }}</span>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                    title="Move up"
-                    @click="handleMoveItemUp(block.id, socialIndex, editorStore.reorderFooterSocialLinks, $event)"
-                  >
-                    <i class="lni lni-chevron-up text-[10px]"></i>
-                  </button>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                    title="Move down"
-                    @click="handleMoveItemDown(block.id, socialIndex, (block.settings as FooterSettings).socialLinks.length, editorStore.reorderFooterSocialLinks, $event)"
-                  >
-                    <i class="lni lni-chevron-down text-[10px]"></i>
-                  </button>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                    title="Duplicate social"
-                    @click="handleDuplicateFooterSocialLink(block.id, social.id, $event)"
-                  >
-                    <i class="lni lni-layers-1 text-[10px]"></i>
-                  </button>
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                    title="Delete social"
-                    @click="handleDeleteFooterSocialLink(block.id, social.id, $event)"
-                  >
-                    <i class="lni lni-xmark text-[10px]"></i>
-                  </button>
+                  <span class="flex-1 truncate leading-4">{{ child.name }}</span>
                 </div>
-                <div class="relative">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    full-width
-                    class="justify-start gap-1.5 text-muted-foreground"
-                    @click.stop="showSocialDropdown = showSocialDropdown === block.id ? null : block.id"
-                  >
-                    <i class="lni lni-plus text-xs"></i>
-                    <span class="flex-1 text-left">Add social</span>
-                    <i class="lni lni-chevron-down text-[10px]"></i>
-                  </Button>
+                <!-- Nested children of this stack -->
+                <div v-if="expandedBlocks.has(child.id)" class="ml-6 mt-0.5 space-y-0.5">
                   <div
-                    v-if="showSocialDropdown === block.id"
-                    class="absolute left-0 top-full mt-1 w-full bg-popover border border-sidebar-border rounded-md shadow-lg z-10 py-1 max-h-48 overflow-y-auto"
+                    v-for="(grandchild, grandchildIndex) in (child.children || [])"
+                    :key="grandchild.id"
+                    draggable="true"
+                    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-grab transition-colors group"
+                    :class="[
+                      editorStore.selectedBlockId === grandchild.id
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                      draggedChildInfo?.blockId === grandchild.id ? 'opacity-50' : '',
+                      dragOverChildInfo?.parentId === child.id && dragOverChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
+                    ]"
+                    @click="editorStore.selectBlock(grandchild.id)"
+                    @contextmenu="handleBlockContextMenu(grandchild.id, 'child', $event)"
+                    @dragstart="handleChildDragStart(child.id, grandchildIndex, grandchild.id, $event)"
+                    @dragover="handleChildDragOver(child.id, grandchildIndex, $event)"
+                    @dragleave="handleChildDragLeave"
+                    @drop.stop="handleChildDrop(child.id, grandchildIndex)"
+                    @dragend="handleChildDragEnd"
                   >
+                    <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                      <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
+                    </div>
+                    <span class="flex-1 truncate leading-4">{{ grandchild.name }}</span>
                     <button
-                      v-for="platform in socialPlatforms"
-                      :key="platform"
-                      class="flex items-center gap-1.5 w-full px-2 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
-                      @click.stop="handleAddFooterSocialLink(block.id, platform)"
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                      title="Duplicate"
+                      @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
                     >
-                      <div class="w-4 h-4 flex items-center justify-center shrink-0">
-                        <i :class="['lni', socialPlatformIcons[platform], 'text-muted-foreground']"></i>
-                      </div>
-                      <span class="leading-4">{{ socialPlatformLabels[platform] }}</span>
+                      <Icon name="layers-1" class="text-[10px]" />
+                    </button>
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete"
+                      @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                    >
+                      <Icon name="xmark" class="text-[10px]" />
                     </button>
                   </div>
+                  <!-- Add block to header stack -->
+                  <Dropdown>
+                    <template #trigger="{ toggle }">
+                      <Button
+                        variant="dotted"
+                        size="sm"
+                        full-width
+                        class="justify-start text-muted-foreground"
+                        @click="toggle"
+                      >
+                        <Icon name="plus" class="text-xs" />
+                        <span class="text-[10px]">Add block</span>
+                      </Button>
+                    </template>
+                    <DropdownItem
+                      v-for="item in headerFooterStackChildBlockItems"
+                      :key="item.value"
+                      :icon="item.icon"
+                      @click="handleAddChildBlock(child.id, item.value)"
+                    >
+                      {{ item.label }}
+                    </DropdownItem>
+                  </Dropdown>
                 </div>
               </div>
             </div>
 
-            <!-- Expanded content: Nested children (for layout blocks and form) -->
-            <div v-if="expandedBlocks.has(block.id) && canHaveChildren(block.type)" class="ml-6 mt-1 space-y-0.5">
+            <!-- Expanded content: Footer children (Start, Middle, End stacks) -->
+            <div v-if="expandedBlocks.has(block.id) && block.type === 'footer' && block.children?.length" class="ml-6 mt-1 space-y-0.5">
+              <div
+                v-for="child in block.children"
+                :key="child.id"
+                class="block-item"
+              >
+                <!-- Footer stack row (Start/Middle/End) -->
+                <div
+                  class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-pointer transition-colors group"
+                  :class="[
+                    editorStore.selectedBlockId === child.id
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                  ]"
+                  @click="editorStore.selectBlock(child.id)"
+                  @contextmenu="handleBlockContextMenu(child.id, 'child', $event)"
+                >
+                  <!-- Expand/collapse toggle -->
+                  <button
+                    class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
+                    @click.stop="toggleBlockExpanded(child.id)"
+                  >
+                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                  </button>
+                  <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                    <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
+                  </div>
+                  <span class="flex-1 truncate leading-4">{{ child.name }}</span>
+                </div>
+                <!-- Nested children of this stack -->
+                <div v-if="expandedBlocks.has(child.id)" class="ml-6 mt-0.5 space-y-0.5">
+                  <div
+                    v-for="(grandchild, grandchildIndex) in (child.children || [])"
+                    :key="grandchild.id"
+                    draggable="true"
+                    class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs cursor-grab transition-colors group"
+                    :class="[
+                      editorStore.selectedBlockId === grandchild.id
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                      draggedChildInfo?.blockId === grandchild.id ? 'opacity-50' : '',
+                      dragOverChildInfo?.parentId === child.id && dragOverChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
+                    ]"
+                    @click="editorStore.selectBlock(grandchild.id)"
+                    @contextmenu="handleBlockContextMenu(grandchild.id, 'child', $event)"
+                    @dragstart="handleChildDragStart(child.id, grandchildIndex, grandchild.id, $event)"
+                    @dragover="handleChildDragOver(child.id, grandchildIndex, $event)"
+                    @dragleave="handleChildDragLeave"
+                    @drop.stop="handleChildDrop(child.id, grandchildIndex)"
+                    @dragend="handleChildDragEnd"
+                  >
+                    <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                      <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
+                    </div>
+                    <span class="flex-1 truncate leading-4">{{ grandchild.name }}</span>
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                      title="Duplicate"
+                      @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                    >
+                      <Icon name="layers-1" class="text-[10px]" />
+                    </button>
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                      title="Delete"
+                      @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                    >
+                      <Icon name="xmark" class="text-[10px]" />
+                    </button>
+                  </div>
+                  <!-- Add block to footer stack -->
+                  <Dropdown>
+                    <template #trigger="{ toggle }">
+                      <Button
+                        variant="dotted"
+                        size="sm"
+                        full-width
+                        class="justify-start text-muted-foreground"
+                        @click="toggle"
+                      >
+                        <Icon name="plus" class="text-xs" />
+                        <span class="text-[10px]">Add block</span>
+                      </Button>
+                    </template>
+                    <DropdownItem
+                      v-for="item in headerFooterStackChildBlockItems"
+                      :key="item.value"
+                      :icon="item.icon"
+                      @click="handleAddChildBlock(child.id, item.value)"
+                    >
+                      {{ item.label }}
+                    </DropdownItem>
+                  </Dropdown>
+                </div>
+              </div>
+            </div>
+
+            <!-- Expanded content: Nested children (for layout blocks and form, but NOT header/footer which have their own rendering above) -->
+            <div v-if="expandedBlocks.has(block.id) && canHaveChildren(block.type) && block.type !== 'header' && block.type !== 'footer'" class="ml-5 mt-1 space-y-0.5">
               <!-- Empty drop zone for dragging blocks to empty parents -->
               <div
-                v-if="(!block.children || block.children.length === 0) && draggedChildInfo && !isListCollectionGrid(block)"
+                v-if="(!block.children || block.children.length === 0) && draggedChildInfo && !isPrebuiltListGrid(block)"
                 class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
                 :class="dragOverEmptyParentId === block.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
                 @dragover="handleEmptyParentDragOver(block.id, $event)"
@@ -1156,6 +1290,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                     dragOverChildInfo?.parentId === block.id && dragOverChildInfo?.childIndex === childIndex ? 'border-t-2 border-primary' : '',
                   ]"
                   @click="editorStore.selectBlock(child.id)"
+                  @contextmenu="handleBlockContextMenu(child.id, 'child', $event)"
                   @dragstart="canDragChild(block, child) && handleChildDragStart(block.id, childIndex, child.id, $event)"
                   @dragover="handleChildDragOver(block.id, childIndex, $event)"
                   @dragleave="handleChildDragLeave"
@@ -1168,75 +1303,34 @@ function canBlockExpand(block: SectionBlock): boolean {
                     class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                     @click.stop="toggleBlockExpanded(child.id)"
                   >
-                    <i
-                      class="lni lni-chevron-down text-[10px] text-muted-foreground transition-transform"
-                      :class="expandedBlocks.has(child.id) ? '' : '-rotate-90'"
-                    ></i>
+                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
                   </button>
-                  <div v-else class="w-4 h-4 shrink-0"></div>
                   <div class="w-4 h-4 flex items-center justify-center shrink-0">
-                    <i :class="['lni', sectionBlockIcons[child.type], 'text-xs text-muted-foreground']"></i>
+                    <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
                   </div>
-                  <span class="flex-1 truncate leading-4" :class="isChildBlockHidden(child) ? 'opacity-50' : ''">{{ child.name }}</span>
-                  <!-- List/Collection item actions: eye, move up, move down -->
-                  <template v-if="isChildInsideListCollection(block, child)">
-                    <!-- Visibility toggle -->
+                  <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(block, child) ? getStackDisplayName(child) : child.name }}</span>
+                  <span v-if="child.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
+                  <!-- List/Collection items (Stack items in Grid) and blocks inside them - only visibility toggle -->
+                  <template v-if="isPrebuiltListItem(block, child) || isBlockInsidePrebuiltListItem(block)">
                     <button
                       class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
                       :class="isChildBlockHidden(child) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
-                      :title="isChildBlockHidden(child) ? 'Show item' : 'Hide item'"
+                      :title="isChildBlockHidden(child) ? 'Show' : 'Hide'"
                       @click="toggleChildVisibility(child.id, $event)"
                     >
-                      <span v-if="isChildBlockHidden(child)" class="relative inline-flex items-center justify-center w-3 h-3">
-                        <i class="lni lni-eye text-[10px] opacity-50"></i>
-                        <span class="absolute inset-0 flex items-center justify-center">
-                          <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
-                        </span>
-                      </span>
-                      <i v-else class="lni lni-eye text-[10px]"></i>
-                    </button>
-                    <!-- Move up button -->
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                      title="Move up"
-                      @click.stop="handleMoveChildUp(block.id, childIndex, $event)"
-                    >
-                      <i class="lni lni-chevron-up text-[10px]"></i>
-                    </button>
-                    <!-- Move down button -->
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                      title="Move down"
-                      @click.stop="handleMoveChildDown(block.id, childIndex, (block.children || []).length, $event)"
-                    >
-                      <i class="lni lni-chevron-down text-[10px]"></i>
+                      <Icon v-if="isChildBlockHidden(child)" name="app-hide" class="text-[10px] opacity-50" />
+                      <Icon v-else name="app-show" :size="10" />
                     </button>
                   </template>
-                  <!-- Regular block actions: move up, move down, duplicate, delete -->
+                  <!-- Regular block actions: duplicate, delete -->
                   <template v-else>
-                    <!-- Move up button -->
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                      title="Move up"
-                      @click.stop="handleMoveChildUp(block.id, childIndex, $event)"
-                    >
-                      <i class="lni lni-chevron-up text-[10px]"></i>
-                    </button>
-                    <!-- Move down button -->
-                    <button
-                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                      title="Move down"
-                      @click.stop="handleMoveChildDown(block.id, childIndex, (block.children || []).length, $event)"
-                    >
-                      <i class="lni lni-chevron-down text-[10px]"></i>
-                    </button>
                     <!-- Duplicate button -->
                     <button
                       class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                       title="Duplicate"
                       @click.stop="handleDuplicateChildBlock(child.id, $event)"
                     >
-                      <i class="lni lni-layers-1 text-[10px]"></i>
+                      <Icon name="layers-1" class="text-[10px]" />
                     </button>
                     <!-- Delete button -->
                     <button
@@ -1244,7 +1338,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                       title="Delete"
                       @click.stop="handleDeleteChildBlock(child.id, $event)"
                     >
-                      <i class="lni lni-xmark text-[10px]"></i>
+                      <Icon name="xmark" class="text-[10px]" />
                     </button>
                   </template>
                 </div>
@@ -1252,7 +1346,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                 <div v-if="expandedBlocks.has(child.id) && canHaveChildren(child.type)" class="ml-6 mt-0.5 space-y-0.5">
                   <!-- Empty drop zone for dragging blocks to empty parents -->
                   <div
-                    v-if="(!child.children || child.children.length === 0) && draggedChildInfo && !isListCollectionGrid(child)"
+                    v-if="(!child.children || child.children.length === 0) && draggedChildInfo && !isPrebuiltListGrid(child)"
                     class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
                     :class="dragOverEmptyParentId === child.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
                     @dragover="handleEmptyParentDragOver(child.id, $event)"
@@ -1279,6 +1373,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                         dragOverChildInfo?.parentId === child.id && dragOverChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
                       ]"
                       @click="editorStore.selectBlock(grandchild.id)"
+                      @contextmenu="handleBlockContextMenu(grandchild.id, 'child', $event)"
                       @dragstart="canDragChild(child, grandchild) && handleChildDragStart(child.id, grandchildIndex, grandchild.id, $event)"
                       @dragover="handleChildDragOver(child.id, grandchildIndex, $event)"
                       @dragleave="handleChildDragLeave"
@@ -1291,75 +1386,53 @@ function canBlockExpand(block: SectionBlock): boolean {
                         class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                         @click.stop="toggleBlockExpanded(grandchild.id)"
                       >
-                        <i
-                          class="lni lni-chevron-down text-[10px] text-muted-foreground transition-transform"
-                          :class="expandedBlocks.has(grandchild.id) ? '' : '-rotate-90'"
-                        ></i>
+                        <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
                       </button>
-                      <div v-else class="w-4 h-4 shrink-0"></div>
                       <div class="w-4 h-4 flex items-center justify-center shrink-0">
-                        <i :class="['lni', sectionBlockIcons[grandchild.type], 'text-xs text-muted-foreground']"></i>
+                        <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
                       </div>
-                      <span class="flex-1 truncate leading-4" :class="isChildBlockHidden(grandchild) ? 'opacity-50' : ''">{{ grandchild.name }}</span>
-                      <!-- List/Collection item actions: eye, move up, move down -->
-                      <template v-if="isChildInsideListCollection(child, grandchild)">
-                        <!-- Visibility toggle -->
+                      <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(child, grandchild) ? getStackDisplayName(grandchild) : grandchild.name }}</span>
+                      <span v-if="grandchild.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
+                      <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
+                      <template v-if="isPrebuiltListItem(child, grandchild)">
+                        <!-- Duplicate button for list items -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                          title="Duplicate"
+                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
+                        >
+                          <Icon name="layers-1" class="text-[10px]" />
+                        </button>
+                        <!-- Delete button for list items -->
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                          title="Delete"
+                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
+                        >
+                          <Icon name="xmark" class="text-[10px]" />
+                        </button>
+                      </template>
+                      <!-- Blocks inside list items - only visibility toggle -->
+                      <template v-else-if="isBlockInsidePrebuiltListItem(child)">
                         <button
                           class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
                           :class="isChildBlockHidden(grandchild) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
-                          :title="isChildBlockHidden(grandchild) ? 'Show item' : 'Hide item'"
+                          :title="isChildBlockHidden(grandchild) ? 'Show' : 'Hide'"
                           @click="toggleChildVisibility(grandchild.id, $event)"
                         >
-                          <span v-if="isChildBlockHidden(grandchild)" class="relative inline-flex items-center justify-center w-3 h-3">
-                            <i class="lni lni-eye text-[10px] opacity-50"></i>
-                            <span class="absolute inset-0 flex items-center justify-center">
-                              <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
-                            </span>
-                          </span>
-                          <i v-else class="lni lni-eye text-[10px]"></i>
-                        </button>
-                        <!-- Move up button -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                          title="Move up"
-                          @click.stop="handleMoveChildUp(child.id, grandchildIndex, $event)"
-                        >
-                          <i class="lni lni-chevron-up text-[10px]"></i>
-                        </button>
-                        <!-- Move down button -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                          title="Move down"
-                          @click.stop="handleMoveChildDown(child.id, grandchildIndex, (child.children || []).length, $event)"
-                        >
-                          <i class="lni lni-chevron-down text-[10px]"></i>
+                          <Icon v-if="isChildBlockHidden(grandchild)" name="app-hide" class="text-[10px] opacity-50" />
+                          <Icon v-else name="app-show" :size="10" />
                         </button>
                       </template>
-                      <!-- Regular block actions: move up, move down, duplicate, delete -->
+                      <!-- Regular block actions: duplicate, delete -->
                       <template v-else>
-                        <!-- Move up button -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                          title="Move up"
-                          @click.stop="handleMoveChildUp(child.id, grandchildIndex, $event)"
-                        >
-                          <i class="lni lni-chevron-up text-[10px]"></i>
-                        </button>
-                        <!-- Move down button -->
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                          title="Move down"
-                          @click.stop="handleMoveChildDown(child.id, grandchildIndex, (child.children || []).length, $event)"
-                        >
-                          <i class="lni lni-chevron-down text-[10px]"></i>
-                        </button>
                         <!-- Duplicate button -->
                         <button
                           class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
                           title="Duplicate"
                           @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
                         >
-                          <i class="lni lni-layers-1 text-[10px]"></i>
+                          <Icon name="layers-1" class="text-[10px]" />
                         </button>
                         <!-- Delete button -->
                         <button
@@ -1367,15 +1440,15 @@ function canBlockExpand(block: SectionBlock): boolean {
                           title="Delete"
                           @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
                         >
-                          <i class="lni lni-xmark text-[10px]"></i>
+                          <Icon name="xmark" class="text-[10px]" />
                         </button>
                       </template>
                     </div>
-                    <!-- Level 3 children (great-grandchildren) - deepest level, no more layout blocks allowed -->
+                    <!-- Level 3 children (great-grandchildren) -->
                     <div v-if="expandedBlocks.has(grandchild.id) && canHaveChildren(grandchild.type)" class="ml-6 mt-0.5 space-y-0.5">
                       <!-- Empty drop zone for dragging blocks to empty parents -->
                       <div
-                        v-if="(!grandchild.children || grandchild.children.length === 0) && draggedChildInfo && !isListCollectionGrid(grandchild)"
+                        v-if="(!grandchild.children || grandchild.children.length === 0) && draggedChildInfo && !isPrebuiltListGrid(grandchild)"
                         class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
                         :class="dragOverEmptyParentId === grandchild.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
                         @dragover="handleEmptyParentDragOver(grandchild.id, $event)"
@@ -1384,103 +1457,162 @@ function canBlockExpand(block: SectionBlock): boolean {
                       >
                         <span class="text-xs text-muted-foreground">Drop here</span>
                       </div>
-                      <div
+                      <template
                         v-for="(greatgrandchild, greatgrandchildIndex) in (grandchild.children || [])"
                         :key="greatgrandchild.id"
-                        :draggable="canDragChild(grandchild, greatgrandchild)"
-                        class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
-                        :class="[
-                          canDragChild(grandchild, greatgrandchild) ? 'cursor-grab' : 'cursor-pointer',
-                          editorStore.selectedBlockId === greatgrandchild.id
-                            ? 'bg-accent text-accent-foreground'
-                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                          draggedChildInfo?.blockId === greatgrandchild.id ? 'opacity-50' : '',
-                          dragOverChildInfo?.parentId === grandchild.id && dragOverChildInfo?.childIndex === greatgrandchildIndex ? 'border-t-2 border-primary' : '',
-                        ]"
-                        @click="editorStore.selectBlock(greatgrandchild.id)"
-                        @dragstart="canDragChild(grandchild, greatgrandchild) && handleChildDragStart(grandchild.id, greatgrandchildIndex, greatgrandchild.id, $event)"
-                        @dragover="handleChildDragOver(grandchild.id, greatgrandchildIndex, $event)"
-                        @dragleave="handleChildDragLeave"
-                        @drop.stop="handleChildDrop(grandchild.id, greatgrandchildIndex)"
-                        @dragend="handleChildDragEnd"
                       >
-                        <div class="w-4 h-4 shrink-0"></div>
-                        <div class="w-4 h-4 flex items-center justify-center shrink-0">
-                          <i :class="['lni', sectionBlockIcons[greatgrandchild.type], 'text-xs text-muted-foreground']"></i>
+                        <div class="block-item">
+                          <!-- Great-grandchild block row -->
+                          <div
+                            :draggable="canDragChild(grandchild, greatgrandchild)"
+                            class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                            :class="[
+                              canDragChild(grandchild, greatgrandchild) ? 'cursor-grab' : 'cursor-pointer',
+                              editorStore.selectedBlockId === greatgrandchild.id
+                                ? 'bg-accent text-accent-foreground'
+                                : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                              draggedChildInfo?.blockId === greatgrandchild.id ? 'opacity-50' : '',
+                              dragOverChildInfo?.parentId === grandchild.id && dragOverChildInfo?.childIndex === greatgrandchildIndex ? 'border-t-2 border-primary' : '',
+                            ]"
+                            @click="editorStore.selectBlock(greatgrandchild.id)"
+                            @contextmenu="handleBlockContextMenu(greatgrandchild.id, 'child', $event)"
+                            @dragstart="canDragChild(grandchild, greatgrandchild) && handleChildDragStart(grandchild.id, greatgrandchildIndex, greatgrandchild.id, $event)"
+                            @dragover="handleChildDragOver(grandchild.id, greatgrandchildIndex, $event)"
+                            @dragleave="handleChildDragLeave"
+                            @drop.stop="handleChildDrop(grandchild.id, greatgrandchildIndex)"
+                            @dragend="handleChildDragEnd"
+                          >
+                            <!-- Expand/collapse toggle for layout blocks -->
+                            <button
+                              v-if="canHaveChildren(greatgrandchild.type)"
+                              class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
+                              @click.stop="toggleBlockExpanded(greatgrandchild.id)"
+                            >
+                              <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                            </button>
+                            <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                              <Icon :name="sectionBlockIcons[greatgrandchild.type]" :size="12" class="text-muted-foreground" />
+                            </div>
+                            <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(grandchild, greatgrandchild) ? getStackDisplayName(greatgrandchild) : greatgrandchild.name }}</span>
+                            <span v-if="greatgrandchild.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
+                            <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
+                            <template v-if="isPrebuiltListItem(grandchild, greatgrandchild)">
+                              <!-- Duplicate button for list items -->
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                title="Duplicate"
+                                @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
+                              >
+                                <Icon name="layers-1" class="text-[10px]" />
+                              </button>
+                              <!-- Delete button for list items -->
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                                title="Delete"
+                                @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
+                              >
+                                <Icon name="xmark" class="text-[10px]" />
+                              </button>
+                            </template>
+                            <!-- Blocks inside list items - only visibility toggle -->
+                            <template v-else-if="isBlockInsidePrebuiltListItem(grandchild)">
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
+                                :class="isChildBlockHidden(greatgrandchild) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
+                                :title="isChildBlockHidden(greatgrandchild) ? 'Show' : 'Hide'"
+                                @click="toggleChildVisibility(greatgrandchild.id, $event)"
+                              >
+                                <Icon v-if="isChildBlockHidden(greatgrandchild)" name="app-hide" class="text-[10px] opacity-50" />
+                                <Icon v-else name="app-show" :size="10" />
+                              </button>
+                            </template>
+                            <!-- Regular block actions: duplicate, delete -->
+                            <template v-else>
+                              <!-- Duplicate button -->
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                title="Duplicate"
+                                @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
+                              >
+                                <Icon name="layers-1" class="text-[10px]" />
+                              </button>
+                              <!-- Delete button -->
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                                title="Delete"
+                                @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
+                              >
+                                <Icon name="xmark" class="text-[10px]" />
+                              </button>
+                            </template>
+                          </div>
+                          <!-- Level 4 children - for layout blocks at greatgrandchild level (e.g., Stack inside Stack) -->
+                          <div v-if="expandedBlocks.has(greatgrandchild.id) && canHaveChildren(greatgrandchild.type)" class="ml-6 mt-0.5 space-y-0.5">
+                            <div
+                              v-for="(level4child, level4childIndex) in (greatgrandchild.children || [])"
+                              :key="level4child.id"
+                              class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group cursor-pointer"
+                              :class="[
+                                editorStore.selectedBlockId === level4child.id
+                                  ? 'bg-accent text-accent-foreground'
+                                  : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                              ]"
+                              @click="editorStore.selectBlock(level4child.id)"
+                              @contextmenu="handleBlockContextMenu(level4child.id, 'child', $event)"
+                            >
+                              <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                                <Icon :name="sectionBlockIcons[level4child.type]" :size="12" class="text-muted-foreground" />
+                              </div>
+                              <span class="flex-1 truncate leading-4">{{ level4child.name }}</span>
+                              <span v-if="level4child.sharedStyleId" class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Has shared style" />
+                              <!-- Duplicate button -->
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+                                title="Duplicate"
+                                @click.stop="handleDuplicateChildBlock(level4child.id, $event)"
+                              >
+                                <Icon name="layers-1" class="text-[10px]" />
+                              </button>
+                              <!-- Delete button -->
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
+                                title="Delete"
+                                @click.stop="handleDeleteChildBlock(level4child.id, $event)"
+                              >
+                                <Icon name="xmark" class="text-[10px]" />
+                              </button>
+                            </div>
+                            <!-- Add block to level 4 layout block -->
+                            <Dropdown
+                              :ref="(el: any) => childBlockDropdownRefs[greatgrandchild.id] = el"
+                              align="left"
+                              :close-on-click="false"
+                            >
+                              <template #trigger="{ toggle }">
+                                <Button
+                                  variant="dotted"
+                                  size="sm"
+                                  full-width
+                                  class="justify-start text-muted-foreground"
+                                  @click.stop="toggle"
+                                >
+                                  <Icon name="plus" class="text-xs" />
+                                  <span class="text-[10px]">Add block</span>
+                                </Button>
+                              </template>
+                              <Combobox
+                                :items="getNestedChildBlockItems(greatgrandchild.id)"
+                                search-placeholder="Search blocks..."
+                                empty-text="No blocks found"
+                                @select="handleAddChildBlock(greatgrandchild.id, $event)"
+                              />
+                            </Dropdown>
+                          </div>
                         </div>
-                        <span class="flex-1 truncate leading-4" :class="isChildBlockHidden(greatgrandchild) ? 'opacity-50' : ''">{{ greatgrandchild.name }}</span>
-                        <!-- List/Collection item actions: eye, move up, move down -->
-                        <template v-if="isChildInsideListCollection(grandchild, greatgrandchild)">
-                          <!-- Visibility toggle -->
-                          <button
-                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all"
-                            :class="isChildBlockHidden(greatgrandchild) ? '!opacity-100 text-muted-foreground hover:bg-accent hover:text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100'"
-                            :title="isChildBlockHidden(greatgrandchild) ? 'Show item' : 'Hide item'"
-                            @click="toggleChildVisibility(greatgrandchild.id, $event)"
-                          >
-                            <span v-if="isChildBlockHidden(greatgrandchild)" class="relative inline-flex items-center justify-center w-3 h-3">
-                              <i class="lni lni-eye text-[10px] opacity-50"></i>
-                              <span class="absolute inset-0 flex items-center justify-center">
-                                <span class="w-3 h-[1px] bg-current rotate-45 rounded-full"></span>
-                              </span>
-                            </span>
-                            <i v-else class="lni lni-eye text-[10px]"></i>
-                          </button>
-                          <!-- Move up button -->
-                          <button
-                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                            title="Move up"
-                            @click.stop="handleMoveChildUp(grandchild.id, greatgrandchildIndex, $event)"
-                          >
-                            <i class="lni lni-chevron-up text-[10px]"></i>
-                          </button>
-                          <!-- Move down button -->
-                          <button
-                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                            title="Move down"
-                            @click.stop="handleMoveChildDown(grandchild.id, greatgrandchildIndex, (grandchild.children || []).length, $event)"
-                          >
-                            <i class="lni lni-chevron-down text-[10px]"></i>
-                          </button>
-                        </template>
-                        <!-- Regular block actions: move up, move down, duplicate, delete -->
-                        <template v-else>
-                          <!-- Move up button -->
-                          <button
-                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                            title="Move up"
-                            @click.stop="handleMoveChildUp(grandchild.id, greatgrandchildIndex, $event)"
-                          >
-                            <i class="lni lni-chevron-up text-[10px]"></i>
-                          </button>
-                          <!-- Move down button -->
-                          <button
-                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                            title="Move down"
-                            @click.stop="handleMoveChildDown(grandchild.id, greatgrandchildIndex, (grandchild.children || []).length, $event)"
-                          >
-                            <i class="lni lni-chevron-down text-[10px]"></i>
-                          </button>
-                          <!-- Duplicate button -->
-                          <button
-                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
-                            title="Duplicate"
-                            @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
-                          >
-                            <i class="lni lni-layers-1 text-[10px]"></i>
-                          </button>
-                          <!-- Delete button -->
-                          <button
-                            class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all opacity-0 group-hover:opacity-100"
-                            title="Delete"
-                            @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
-                          >
-                            <i class="lni lni-xmark text-[10px]"></i>
-                          </button>
-                        </template>
-                      </div>
-                      <!-- Add block to deepest level - NO layout blocks allowed -->
+                      </template>
+                      <!-- Add block to grandchild layout block - not for list items -->
                       <Dropdown
+                        v-if="!isPrebuiltListItem(child, grandchild) && !isBlockInsidePrebuiltListItem(child)"
                         :ref="(el: any) => childBlockDropdownRefs[grandchild.id] = el"
                         align="left"
                         width="w-56"
@@ -1488,19 +1620,18 @@ function canBlockExpand(block: SectionBlock): boolean {
                       >
                         <template #trigger="{ toggle }">
                           <Button
-                            variant="ghost"
+                            variant="dotted"
                             size="sm"
                             full-width
-                            class="justify-start gap-1.5 text-muted-foreground"
+                            class="justify-start text-muted-foreground"
                             @click.stop="toggle"
                           >
-                            <i class="lni lni-plus text-xs"></i>
-                            <span class="flex-1 text-left">Add block</span>
-                            <i class="lni lni-chevron-down text-[10px]"></i>
+                            <Icon name="plus" class="text-xs" />
+                            <span class="text-[10px]">Add block</span>
                           </Button>
                         </template>
                         <Combobox
-                          :items="deepNestedChildBlockItems"
+                          :items="getNestedChildBlockItems(grandchild.id)"
                           search-placeholder="Search blocks..."
                           empty-text="No blocks found"
                           @select="handleAddChildBlock(grandchild.id, $event)"
@@ -1508,8 +1639,9 @@ function canBlockExpand(block: SectionBlock): boolean {
                       </Dropdown>
                     </div>
                   </div>
-                  <!-- Add child to nested layout block - allows layout blocks -->
+                  <!-- Add child to nested layout block - allows layout blocks, but not for list items -->
                   <Dropdown
+                    v-if="!isPrebuiltListItem(block, child)"
                     :ref="(el: any) => childBlockDropdownRefs[child.id] = el"
                     align="left"
                     width="w-56"
@@ -1517,19 +1649,18 @@ function canBlockExpand(block: SectionBlock): boolean {
                   >
                     <template #trigger="{ toggle }">
                       <Button
-                        variant="ghost"
+                        variant="dotted"
                         size="sm"
                         full-width
-                        class="justify-start gap-1.5 text-muted-foreground"
+                        class="justify-start text-muted-foreground"
                         @click.stop="toggle"
                       >
-                        <i class="lni lni-plus text-xs"></i>
-                        <span class="flex-1 text-left">Add block</span>
-                        <i class="lni lni-chevron-down text-[10px]"></i>
+                        <Icon name="plus" class="text-xs" />
+                        <span class="text-[10px]">Add block</span>
                       </Button>
                     </template>
                     <Combobox
-                      :items="deepNestedChildBlockItems"
+                      :items="getNestedChildBlockItems(child.id)"
                       search-placeholder="Search blocks..."
                       empty-text="No blocks found"
                       @select="handleAddChildBlock(child.id, $event)"
@@ -1539,15 +1670,15 @@ function canBlockExpand(block: SectionBlock): boolean {
               </div>
               <!-- Add child button - for List/Collection grids, just add a new item -->
               <Button
-                v-if="isListCollectionGrid(block)"
-                variant="ghost"
-                size="xs"
+                v-if="isPrebuiltListGrid(block)"
+                variant="dotted"
+                size="sm"
                 full-width
-                class="justify-start gap-1.5 text-muted-foreground"
+                class="justify-start text-muted-foreground"
                 @click.stop="handleAddListItem(block.id)"
               >
-                <i class="lni lni-plus text-xs"></i>
-                <span class="flex-1 text-left">Add item</span>
+                <Icon name="plus" class="text-xs" />
+                <span class="text-[10px]">Add {{ getListItemTypeLabel(block) }}</span>
               </Button>
               <!-- Form blocks show form field options -->
               <Dropdown
@@ -1559,15 +1690,15 @@ function canBlockExpand(block: SectionBlock): boolean {
               >
                 <template #trigger="{ toggle }">
                   <Button
-                    variant="ghost"
+                    variant="dotted"
                     size="sm"
                     full-width
-                    class="justify-start gap-1.5 text-muted-foreground"
+                    class="justify-start text-muted-foreground"
                     @click.stop="toggle"
                   >
-                    <i class="lni lni-plus text-xs"></i>
-                    <span class="flex-1 text-left">Add field</span>
-                    <i class="lni lni-chevron-down text-[10px]"></i>
+                    <Icon name="plus" class="text-xs" />
+                    <span class="text-[10px] flex-1 text-left">Add field</span>
+                    <Icon name="chevron-down" class="text-[10px]" />
                   </Button>
                 </template>
                 <Combobox
@@ -1575,6 +1706,34 @@ function canBlockExpand(block: SectionBlock): boolean {
                   search-placeholder="Search fields..."
                   empty-text="No fields found"
                   @select="handleAddFormFieldBlock(block.id, $event as FormFieldBlockType)"
+                />
+              </Dropdown>
+              <!-- Canvas blocks show content-only options -->
+              <Dropdown
+                v-else-if="block.type === 'canvas'"
+                :ref="(el: any) => childBlockDropdownRefs[block.id] = el"
+                align="left"
+                width="w-56"
+                :close-on-click="false"
+              >
+                <template #trigger="{ toggle }">
+                  <Button
+                    variant="dotted"
+                    size="sm"
+                    full-width
+                    class="justify-start text-muted-foreground"
+                    @click.stop="toggle"
+                  >
+                    <Icon name="plus" class="text-xs" />
+                    <span class="text-[10px] flex-1 text-left">Add element</span>
+                    <Icon name="chevron-down" class="text-[10px]" />
+                  </Button>
+                </template>
+                <Combobox
+                  :items="canvasChildBlockItems"
+                  search-placeholder="Search elements..."
+                  empty-text="No elements found"
+                  @select="handleAddChildBlock(block.id, $event)"
                 />
               </Dropdown>
               <!-- Regular layout blocks show dropdown -->
@@ -1587,15 +1746,15 @@ function canBlockExpand(block: SectionBlock): boolean {
               >
                 <template #trigger="{ toggle }">
                   <Button
-                    variant="ghost"
+                    variant="dotted"
                     size="sm"
                     full-width
-                    class="justify-start gap-1.5 text-muted-foreground"
+                    class="justify-start text-muted-foreground"
                     @click.stop="toggle"
                   >
-                    <i class="lni lni-plus text-xs"></i>
-                    <span class="flex-1 text-left">Add block</span>
-                    <i class="lni lni-chevron-down text-[10px]"></i>
+                    <Icon name="plus" class="text-xs" />
+                    <span class="text-[10px] flex-1 text-left">Add block</span>
+                    <Icon name="chevron-down" class="text-[10px]" />
                   </Button>
                 </template>
                 <Combobox
@@ -1610,5 +1769,38 @@ function canBlockExpand(block: SectionBlock): boolean {
         </div>
       </div>
     </template>
+
+    <!-- Block Context Menu -->
+    <ContextMenu ref="blockContextMenuRef">
+      <ContextMenuItem
+        icon="app-copy-style"
+        @click="handleContextMenuCopyStyle"
+      >
+        Copy style
+      </ContextMenuItem>
+      <ContextMenuItem
+        icon="app-paste-style"
+        :disabled="!editorStore.hasClipboardStyles"
+        @click="handleContextMenuPasteStyle"
+      >
+        Paste style
+      </ContextMenuItem>
+      <ContextMenuDivider />
+      <ContextMenuItem
+        icon="layers-1"
+        :disabled="!canContextMenuDuplicate"
+        @click="handleContextMenuDuplicate"
+      >
+        Duplicate
+      </ContextMenuItem>
+      <ContextMenuItem
+        icon="trash-3"
+        destructive
+        :disabled="!canContextMenuDelete"
+        @click="handleContextMenuDelete"
+      >
+        Delete
+      </ContextMenuItem>
+    </ContextMenu>
   </aside>
 </template>

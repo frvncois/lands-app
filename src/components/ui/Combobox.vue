@@ -114,7 +114,7 @@ defineExpose({ focusSearch })
     <!-- Search Input -->
     <div class="p-2 border-b border-border">
       <div class="relative">
-        <i class="lni lni-search-1 absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground"></i>
+        <Icon name="search-1" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground" />
         <input
           ref="searchInputRef"
           v-model="search"
@@ -155,7 +155,7 @@ defineExpose({ focusSearch })
             @mouseenter="highlightedIndex = flatFilteredItems.indexOf(item)"
           >
             <div v-if="item.icon" class="w-4 h-4 flex items-center justify-center shrink-0">
-              <i :class="['lni', item.icon, 'text-muted-foreground']"></i>
+              <Icon :name="item.icon" class="text-muted-foreground" />
             </div>
             <span class="flex-1 text-left truncate">{{ item.label }}</span>
           </button>
@@ -176,7 +176,7 @@ defineExpose({ focusSearch })
             @mouseenter="highlightedIndex = flatFilteredItems.indexOf(item)"
           >
             <div v-if="item.icon" class="w-4 h-4 flex items-center justify-center shrink-0">
-              <i :class="['lni', item.icon, 'text-muted-foreground']"></i>
+              <Icon :name="item.icon" class="text-muted-foreground" />
             </div>
             <span class="flex-1 text-left truncate">{{ item.label }}</span>
           </button>

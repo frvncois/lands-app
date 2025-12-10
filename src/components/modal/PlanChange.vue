@@ -78,13 +78,13 @@ async function updatePlan(plan: ProjectPlan) {
         @click="updatePlan(plan.value)"
       >
         <div v-if="project?.plan === plan.value" class="absolute top-2 right-2">
-          <i class="lni lni-checkmark-circle text-lg text-primary"></i>
+          <Icon name="checkmark-circle" class="text-lg text-primary" />
         </div>
         <p class="text-sm font-semibold text-foreground">{{ plan.label }}</p>
         <p class="text-lg font-bold text-foreground mt-1">{{ plan.price }}</p>
         <ul class="mt-3 space-y-1.5">
           <li v-for="feature in plan.features" :key="feature" class="flex items-center gap-2 text-xs text-muted-foreground">
-            <i class="lni lni-checkmark text-xs text-primary shrink-0"></i>
+            <Icon name="checkmark" class="text-xs text-primary shrink-0" />
             {{ feature }}
           </li>
         </ul>

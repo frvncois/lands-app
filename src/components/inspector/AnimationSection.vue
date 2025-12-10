@@ -10,7 +10,7 @@ import {
 import InspectorField from './InspectorField.vue'
 import SelectInput from './SelectInput.vue'
 import SliderInput from './SliderInput.vue'
-import ToggleInput from './ToggleInput.vue'
+import Toggle from '@/components/ui/Toggle.vue'
 
 interface Props {
   modelValue?: AnimationSettings
@@ -107,11 +107,12 @@ const presetOptions = computed(() => {
     <!-- Header with toggle -->
     <div class="flex items-center justify-between px-4 py-3">
       <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
-        <i class="lni lni-star text-sm text-muted-foreground"></i>
+        <Icon name="reload" class="text-sm text-muted-foreground" />
         Animation
       </span>
-      <ToggleInput
+      <Toggle
         :model-value="settings.enabled"
+        size="sm"
         @update:model-value="toggleEnabled"
       />
     </div>
@@ -140,7 +141,7 @@ const presetOptions = computed(() => {
               : 'border-border hover:border-primary/50 hover:bg-accent/50 text-muted-foreground'"
             @click="handlePresetChange(preset.id)"
           >
-            <i :class="['lni', preset.icon, 'text-sm']"></i>
+            <Icon :name="preset.icon" :size="14" />
             <span class="text-[10px] leading-tight">{{ preset.label }}</span>
           </button>
         </div>
@@ -182,10 +183,11 @@ const presetOptions = computed(() => {
       <!-- Playback Options -->
       <div class="space-y-3 pt-2 border-t border-border">
         <!-- Hover-specific options -->
-        <ToggleInput
+        <Toggle
           v-if="settings.trigger === 'hover'"
           :model-value="settings.reverseOnHoverOut ?? true"
           label="Reverse on hover out"
+          size="sm"
           @update:model-value="updateSettings({ reverseOnHoverOut: $event })"
         />
 
@@ -202,9 +204,10 @@ const presetOptions = computed(() => {
             />
           </InspectorField>
 
-          <ToggleInput
+          <Toggle
             :model-value="settings.repeatOnScroll ?? false"
             label="Repeat when re-entering"
+            size="sm"
             @update:model-value="updateSettings({ repeatOnScroll: $event })"
           />
         </template>
@@ -219,7 +222,7 @@ const presetOptions = computed(() => {
         :disabled="isPreviewPlaying"
         @click="playPreview"
       >
-        <i class="lni lni-play text-xs"></i>
+        <Icon name="play" class="text-xs" />
         {{ isPreviewPlaying ? 'Playing...' : 'Preview Animation' }}
       </button>
     </div>

@@ -11,6 +11,7 @@ import {
   presetTypes,
   type PresetType,
 } from '@/lib/editor-utils'
+import { Icon } from '@/components/ui'
 
 interface Props {
   open: boolean
@@ -228,7 +229,7 @@ onUnmounted(() => {
           >
             <!-- Search Input -->
             <div class="flex items-center gap-3 px-4 border-b border-border">
-              <i class="lni lni-search-1 text-muted-foreground"></i>
+              <Icon name="search-1" class="text-muted-foreground" />
               <input
                 ref="inputRef"
                 v-model="searchQuery"
@@ -269,7 +270,7 @@ onUnmounted(() => {
                       @mouseenter="selectedIndex = filteredItems.indexOf(item)"
                     >
                       <div class="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
-                        <i :class="['lni', item.icon, 'text-base text-muted-foreground']"></i>
+                        <Icon :name="item.icon" :size="16" class="text-muted-foreground" />
                       </div>
                       <span class="flex-1">{{ item.label }}</span>
                     </button>
@@ -282,10 +283,10 @@ onUnmounted(() => {
             <div class="flex items-center gap-4 px-4 py-2 border-t border-border bg-muted/30">
               <div class="flex items-center gap-1 text-xs text-muted-foreground">
                 <kbd class="px-1 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-                  <i class="lni lni-arrow-up text-[8px]"></i>
+                  <Icon name="arrow-up" class="text-[8px]" />
                 </kbd>
                 <kbd class="px-1 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-                  <i class="lni lni-arrow-down text-[8px]"></i>
+                  <Icon name="arrow-down" class="text-[8px]" />
                 </kbd>
                 <span>Navigate</span>
               </div>

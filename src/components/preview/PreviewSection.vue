@@ -7,6 +7,7 @@ import type {
   HeaderSettings,
   FooterSettings,
   ContainerSettings,
+  ContainerStyles,
   GridSettings,
   StackSettings,
   DividerSettings,
@@ -16,6 +17,8 @@ import type {
   VideoSettings,
   ButtonSettings,
   IconSettings,
+  VariantsSettings,
+  VariantsStyles,
   FormSettings,
   FormInputSettings,
   FormTextareaSettings,
@@ -23,11 +26,14 @@ import type {
   FormRadioSettings,
   FormCheckboxSettings,
   FormButtonSettings,
-  FreeformSettings,
-  FreeformChildPosition,
+  CanvasSettings,
+  CanvasChildPosition,
   AnimationSettings,
   BaseBlockStyles,
+  IconStyles,
+  StateStyles,
 } from '@/types/editor'
+import { STYLE_STATE_BLOCK_TYPES } from '@/types/editor'
 import {
   animationInitialStates,
   animationFinalStates,
@@ -37,11 +43,14 @@ import {
 import { getResponsiveStyles } from '@/lib/style-utils'
 
 // SectionBlockType is used for addBlock calls
-import { socialPlatformIcons, sectionBlockLabels, sectionBlockIcons, canHaveChildren, createPresetBlock, presetTypes, type PresetType } from '@/lib/editor-utils'
+import { socialPlatformIcons, sectionBlockLabels, sectionBlockIcons, canHaveChildren, createPresetBlock, presetTypes, maskShapeClipPaths, type PresetType } from '@/lib/editor-utils'
+import type { MaskShape } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
 import BlockPicker from '@/components/builder/BlockPicker.vue'
+import InlineFormatToolbar from '@/components/preview/InlineFormatToolbar.vue'
+import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps<{
   block: SectionBlock
@@ -54,6 +63,7 @@ const editorStore = useEditorStore()
 const isHovered = ref(false)
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
 const sectionRef = ref<HTMLElement | null>(null)
+const editableRef = ref<HTMLElement | null>(null)
 
 // ============================================
 // ANIMATION STATE
@@ -232,6 +242,112 @@ function openBlockPicker() {
   isBlockPickerOpen.value = true
 }
 
+// ============================================
+// SLIDER STATE & HANDLERS
+// ============================================
+const sliderRefs = new Map<string, HTMLElement | null>()
+const sliderCurrentIndex = ref(new Map<string, number>())
+const sliderAutoplayIntervals = new Map<string, ReturnType<typeof setInterval>>()
+const sliderIsPaused = ref(new Map<string, boolean>())
+
+function handleSliderPrev(blockId: string) {
+  const container = sliderRefs.get(blockId)
+  if (!container) return
+
+  const block = props.block.type === 'grid' ? props.block : null
+  if (!block) return
+
+  const settings = block.settings as GridSettings
+  const slidesPerView = settings.slidesPerView || 1
+  const gap = parseFloat(settings.gap || '16')
+  const slideWidth = (container.scrollWidth - (block.children?.length || 1 - 1) * gap) / (block.children?.length || 1)
+
+  const currentIdx = sliderCurrentIndex.value.get(blockId) || 0
+  const newIdx = settings.loop
+    ? (currentIdx - 1 + (block.children?.length || 1) - slidesPerView + 1) % ((block.children?.length || 1) - slidesPerView + 1)
+    : Math.max(0, currentIdx - 1)
+
+  sliderCurrentIndex.value.set(blockId, newIdx)
+  container.scrollTo({ left: newIdx * (slideWidth + gap), behavior: 'smooth' })
+}
+
+function handleSliderNext(blockId: string) {
+  const container = sliderRefs.get(blockId)
+  if (!container) return
+
+  const block = props.block.type === 'grid' ? props.block : null
+  if (!block) return
+
+  const settings = block.settings as GridSettings
+  const slidesPerView = settings.slidesPerView || 1
+  const gap = parseFloat(settings.gap || '16')
+  const slideWidth = (container.scrollWidth - (block.children?.length || 1 - 1) * gap) / (block.children?.length || 1)
+  const maxIdx = (block.children?.length || 1) - slidesPerView
+
+  const currentIdx = sliderCurrentIndex.value.get(blockId) || 0
+  const newIdx = settings.loop
+    ? (currentIdx + 1) % (maxIdx + 1)
+    : Math.min(maxIdx, currentIdx + 1)
+
+  sliderCurrentIndex.value.set(blockId, newIdx)
+  container.scrollTo({ left: newIdx * (slideWidth + gap), behavior: 'smooth' })
+}
+
+function handleSliderGoTo(blockId: string, index: number) {
+  const container = sliderRefs.get(blockId)
+  if (!container) return
+
+  const block = props.block.type === 'grid' ? props.block : null
+  if (!block) return
+
+  const settings = block.settings as GridSettings
+  const gap = parseFloat(settings.gap || '16')
+  const slideWidth = (container.scrollWidth - (block.children?.length || 1 - 1) * gap) / (block.children?.length || 1)
+
+  sliderCurrentIndex.value.set(blockId, index)
+  container.scrollTo({ left: index * (slideWidth + gap), behavior: 'smooth' })
+}
+
+function startSliderAutoplay(blockId: string) {
+  const block = props.block.type === 'grid' ? props.block : null
+  if (!block) return
+
+  const settings = block.settings as GridSettings
+  if (!settings.autoplay) return
+
+  // Clear existing interval
+  const existingInterval = sliderAutoplayIntervals.get(blockId)
+  if (existingInterval) clearInterval(existingInterval)
+
+  const interval = setInterval(() => {
+    if (!sliderIsPaused.value.get(blockId)) {
+      handleSliderNext(blockId)
+    }
+  }, settings.autoplayInterval || 5000)
+
+  sliderAutoplayIntervals.set(blockId, interval)
+}
+
+function stopSliderAutoplay(blockId: string) {
+  const interval = sliderAutoplayIntervals.get(blockId)
+  if (interval) {
+    clearInterval(interval)
+    sliderAutoplayIntervals.delete(blockId)
+  }
+}
+
+function handleSliderMouseEnter(blockId: string) {
+  sliderIsPaused.value.set(blockId, true)
+}
+
+function handleSliderMouseLeave(blockId: string) {
+  sliderIsPaused.value.set(blockId, false)
+}
+
+function getSliderCurrentIndex(blockId: string): number {
+  return sliderCurrentIndex.value.get(blockId) || 0
+}
+
 function handleBlockPickerSelectBlock(type: SectionBlockType) {
   const block = editorStore.addBlock(type, undefined, props.block.id)
   if (block) {
@@ -241,8 +357,10 @@ function handleBlockPickerSelectBlock(type: SectionBlockType) {
 
 function handleBlockPickerSelectPreset(type: PresetType) {
   const block = createPresetBlock(type)
-  editorStore.addPresetBlock(block, undefined, props.block.id)
-  editorStore.selectBlock(block.id)
+  const inserted = editorStore.addPresetBlock(block, undefined, props.block.id)
+  if (inserted) {
+    editorStore.selectBlock(inserted.id)
+  }
 }
 
 const isSelected = computed(() =>
@@ -259,10 +377,25 @@ const isLayoutBlock = computed(() => canHaveChildren(props.block.type))
 // Check if this block is inside a List/Collection (Grid > Stack pattern)
 const isInsideListCollection = computed(() => editorStore.isInsideListCollection(props.block.id))
 
-// Check if this block is inside a Freeform parent
-const isInsideFreeform = computed(() => {
+// Check if this block IS a list item (Stack directly inside Grid) - these can be dragged for reordering
+const isListItem = computed(() => {
+  if (props.block.type !== 'stack') return false
   const parent = editorStore.findParentBlock(props.block.id)
-  return parent?.type === 'freeform'
+  return parent?.type === 'grid'
+})
+
+// Check if this block is INSIDE a list item (child of Stack inside Grid) - these cannot be dragged
+const isBlockInsideListItem = computed(() => {
+  const parent = editorStore.findParentBlock(props.block.id)
+  if (!parent || parent.type !== 'stack') return false
+  const grandparent = editorStore.findParentBlock(parent.id)
+  return grandparent?.type === 'grid'
+})
+
+// Check if this block is inside a Canvas parent
+const isInsideCanvas = computed(() => {
+  const parent = editorStore.findParentBlock(props.block.id)
+  return parent?.type === 'canvas'
 })
 
 // Check if block is hidden
@@ -271,11 +404,38 @@ const isBlockHidden = computed(() => {
   return !!settings.isHidden
 })
 
+// Check if header/footer is hidden (should completely hide in preview)
+const isHeaderFooterHidden = computed(() => {
+  if (props.block.type === 'header') {
+    return !!(props.block.settings as HeaderSettings)?.isHidden
+  }
+  if (props.block.type === 'footer') {
+    return !!(props.block.settings as FooterSettings)?.isHidden
+  }
+  return false
+})
+
 // Type guards for settings
 const headerSettings = computed(() => props.block.type === 'header' ? props.block.settings as HeaderSettings : null)
 const footerSettings = computed(() => props.block.type === 'footer' ? props.block.settings as FooterSettings : null)
 const containerSettings = computed(() => props.block.type === 'container' ? props.block.settings as ContainerSettings : null)
 const gridSettings = computed(() => props.block.type === 'grid' ? props.block.settings as GridSettings : null)
+
+// Start slider autoplay when autoplay setting changes
+// Note: Using a watcher here to react to autoplay setting changes
+watch(
+  () => gridSettings.value?.autoplay,
+  (autoplay) => {
+    if (props.block.type !== 'grid' || !gridSettings.value?.isSlider) return
+    if (autoplay) {
+      startSliderAutoplay(props.block.id)
+    } else {
+      stopSliderAutoplay(props.block.id)
+    }
+  },
+  { immediate: true }
+)
+
 const stackSettings = computed(() => props.block.type === 'stack' ? props.block.settings as StackSettings : null)
 const dividerSettings = computed(() => props.block.type === 'divider' ? props.block.settings as DividerSettings : null)
 const headingSettings = computed(() => props.block.type === 'heading' ? props.block.settings as HeadingSettings : null)
@@ -284,6 +444,9 @@ const imageSettings = computed(() => props.block.type === 'image' ? props.block.
 const videoSettings = computed(() => props.block.type === 'video' ? props.block.settings as VideoSettings : null)
 const buttonSettings = computed(() => props.block.type === 'button' ? props.block.settings as ButtonSettings : null)
 const iconSettings = computed(() => props.block.type === 'icon' ? props.block.settings as IconSettings : null)
+const iconStyles = computed(() => props.block.type === 'icon' ? props.block.styles as IconStyles : null)
+const variantsSettings = computed(() => props.block.type === 'variants' ? props.block.settings as VariantsSettings : null)
+const variantsStyles = computed(() => props.block.type === 'variants' ? props.block.styles as VariantsStyles : null)
 const formSettings = computed(() => props.block.type === 'form' ? props.block.settings as FormSettings : null)
 // Form field block settings
 const formInputSettings = computed(() => props.block.type === 'form-input' ? props.block.settings as FormInputSettings : null)
@@ -292,15 +455,15 @@ const formSelectSettings = computed(() => props.block.type === 'form-select' ? p
 const formRadioSettings = computed(() => props.block.type === 'form-radio' ? props.block.settings as FormRadioSettings : null)
 const formCheckboxSettings = computed(() => props.block.type === 'form-checkbox' ? props.block.settings as FormCheckboxSettings : null)
 const formButtonSettings = computed(() => props.block.type === 'form-button' ? props.block.settings as FormButtonSettings : null)
-// Freeform block settings
-const freeformSettings = computed(() => props.block.type === 'freeform' ? props.block.settings as FreeformSettings : null)
+// Canvas block settings
+const canvasSettings = computed(() => props.block.type === 'canvas' ? props.block.settings as CanvasSettings : null)
 
-// Helper to get freeform child position for template (viewport-aware with cascade)
-function getFreeformChildPos(childId: string): FreeformChildPosition {
-  if (!freeformSettings.value) return { x: 10, y: 10 }
-  const positions = freeformSettings.value.childPositions
+// Helper to get canvas child position for template (viewport-aware with cascade)
+function getCanvasChildPos(childId: string): CanvasChildPosition {
+  if (!canvasSettings.value) return { x: 10, y: 10 }
+  const positions = canvasSettings.value.childPositions
   const viewport = editorStore.viewport
-  const defaultPos: FreeformChildPosition = { x: 10, y: 10 }
+  const defaultPos: CanvasChildPosition = { x: 10, y: 10 }
 
   // Cascade: check current viewport, then fall back to larger viewports
   if (viewport === 'mobile') {
@@ -453,11 +616,61 @@ function handleDelete() {
   editorStore.deleteBlock(props.block.id)
 }
 
+// Z-index handlers for Canvas children
+function handleBringToFront() {
+  if (!isInsideCanvas.value) return
+  const parent = editorStore.findParentBlock(props.block.id)
+  if (!parent || parent.type !== 'canvas') return
+
+  const settings = parent.settings as CanvasSettings
+  const viewport = editorStore.viewport
+  const viewportKey = viewport === 'desktop' ? 'desktop' : viewport === 'tablet' ? 'tablet' : 'mobile'
+
+  // Find the max zIndex among all children
+  const positions = settings.childPositions[viewportKey] || settings.childPositions.desktop || {}
+  let maxZ = 0
+  for (const pos of Object.values(positions)) {
+    if (pos.zIndex !== undefined && pos.zIndex > maxZ) maxZ = pos.zIndex
+  }
+
+  // Set this child's zIndex to max + 1
+  const currentPos = positions[props.block.id] || { x: 10, y: 10 }
+  editorStore.updateCanvasChildPosition(parent.id, props.block.id, {
+    ...currentPos,
+    zIndex: maxZ + 1,
+  })
+}
+
+function handleSendToBack() {
+  if (!isInsideCanvas.value) return
+  const parent = editorStore.findParentBlock(props.block.id)
+  if (!parent || parent.type !== 'canvas') return
+
+  const settings = parent.settings as CanvasSettings
+  const viewport = editorStore.viewport
+  const viewportKey = viewport === 'desktop' ? 'desktop' : viewport === 'tablet' ? 'tablet' : 'mobile'
+
+  // Find the min zIndex among all children
+  const positions = settings.childPositions[viewportKey] || settings.childPositions.desktop || {}
+  let minZ = 0
+  for (const pos of Object.values(positions)) {
+    if (pos.zIndex !== undefined && pos.zIndex < minZ) minZ = pos.zIndex
+  }
+
+  // Set this child's zIndex to min - 1
+  const currentPos = positions[props.block.id] || { x: 10, y: 10 }
+  editorStore.updateCanvasChildPosition(parent.id, props.block.id, {
+    ...currentPos,
+    zIndex: minZ - 1,
+  })
+}
+
 // Inline editing handlers
 // These update translations when in translation mode, otherwise update source content
 function handleHeadingEdit(event: FocusEvent) {
   const target = event.target as HTMLElement
-  const newContent = target.innerText.trim()
+  // Use innerHTML to preserve line breaks (converted to <br>)
+  const newContent = target.innerHTML.trim()
   if (editorStore.isEditingTranslation) {
     // Update translation
     editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
@@ -491,28 +704,74 @@ function handleButtonEdit(event: FocusEvent) {
   }
 }
 
+// Handle Escape key - save content and blur (don't revert)
+function handleEscapeKey(event: KeyboardEvent) {
+  const target = event.target as HTMLElement
+  target.blur()
+}
+
+// Handle inline formatting - update block content after format applied
+function handleInlineFormat(_command: string) {
+  // After applying format, save the new HTML content
+  if (editableRef.value) {
+    const newContent = editableRef.value.innerHTML.trim()
+    if (props.block.type === 'heading') {
+      if (editorStore.isEditingTranslation) {
+        editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
+      } else {
+        editorStore.updateBlockSettings(props.block.id, { content: newContent })
+      }
+    } else if (props.block.type === 'text') {
+      if (editorStore.isEditingTranslation) {
+        editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
+      } else {
+        editorStore.updateBlockSettings(props.block.id, { content: newContent })
+      }
+    }
+  }
+}
+
+// Handle paste - strip HTML and paste as plain text
+function handlePasteClean(event: ClipboardEvent) {
+  event.preventDefault()
+  const text = event.clipboardData?.getData('text/plain') || ''
+  // Insert plain text at cursor position
+  document.execCommand('insertText', false, text)
+}
+
 // Drag & drop for layout blocks
 const isDropTarget = ref(false)
 const childDropIndex = ref<number | null>(null) // Index where child will be dropped
 
-// Check if this block can be dragged (not protected and not inside List/Collection)
-// Blocks inside Freeform use mouse drag for positioning, not HTML5 drag
-const canDragBlock = computed(() => !isProtectedBlock.value && !isInsideListCollection.value && !isInsideFreeform.value)
+// Check if this block can be dragged
+// - Protected blocks (header/footer) cannot be dragged
+// - List items (Stack in Grid) CAN be dragged for reordering
+// - Blocks inside list items CANNOT be dragged
+// - Blocks inside Canvas use mouse drag for positioning, not HTML5 drag
+const canDragBlock = computed(() => {
+  if (isProtectedBlock.value) return false
+  if (isInsideCanvas.value) return false
+  // List items can be dragged for reordering
+  if (isListItem.value) return true
+  // Blocks inside list items cannot be dragged
+  if (isBlockInsideListItem.value) return false
+  return true
+})
 
 // ============================================
-// FREEFORM POSITIONING (for children of Freeform)
+// CANVAS POSITIONING (for children of Canvas)
 // ============================================
-const isFreeformDragging = ref(false)
-const freeformDragStartX = ref(0)
-const freeformDragStartY = ref(0)
-const freeformStartPosX = ref(0)
-const freeformStartPosY = ref(0)
+const isCanvasDragging = ref(false)
+const canvasDragStartX = ref(0)
+const canvasDragStartY = ref(0)
+const canvasStartPosX = ref(0)
+const canvasStartPosY = ref(0)
 
 // Helper to get child position for current viewport (cascading: mobile -> tablet -> desktop)
-function getResponsiveChildPosition(settings: FreeformSettings, childId: string): FreeformChildPosition {
+function getResponsiveChildPosition(settings: CanvasSettings, childId: string): CanvasChildPosition {
   const positions = settings.childPositions
   const viewport = editorStore.viewport
-  const defaultPos: FreeformChildPosition = { x: 10, y: 10 }
+  const defaultPos: CanvasChildPosition = { x: 10, y: 10 }
 
   // Cascade: check current viewport, then fall back to larger viewports
   if (viewport === 'mobile') {
@@ -524,53 +783,53 @@ function getResponsiveChildPosition(settings: FreeformSettings, childId: string)
   return positions.desktop?.[childId] || defaultPos
 }
 
-function handleFreeformDragStart(event: MouseEvent) {
-  if (!isInsideFreeform.value) return
+function handleCanvasDragStart(event: MouseEvent) {
+  if (!isInsideCanvas.value) return
 
   event.preventDefault()
   event.stopPropagation()
 
-  isFreeformDragging.value = true
-  freeformDragStartX.value = event.clientX
-  freeformDragStartY.value = event.clientY
+  isCanvasDragging.value = true
+  canvasDragStartX.value = event.clientX
+  canvasDragStartY.value = event.clientY
 
   // Get current position from parent's settings (viewport-aware)
   const parent = editorStore.findParentBlock(props.block.id)
-  if (parent && parent.type === 'freeform') {
-    const parentSettings = parent.settings as FreeformSettings
+  if (parent && parent.type === 'canvas') {
+    const parentSettings = parent.settings as CanvasSettings
     const currentPos = getResponsiveChildPosition(parentSettings, props.block.id)
-    freeformStartPosX.value = currentPos.x
-    freeformStartPosY.value = currentPos.y
+    canvasStartPosX.value = currentPos.x
+    canvasStartPosY.value = currentPos.y
   }
 
-  document.addEventListener('mousemove', handleFreeformDragMove)
-  document.addEventListener('mouseup', handleFreeformDragEnd)
+  document.addEventListener('mousemove', handleCanvasDragMove)
+  document.addEventListener('mouseup', handleCanvasDragEnd)
 }
 
-function handleFreeformDragMove(event: MouseEvent) {
-  if (!isFreeformDragging.value) return
+function handleCanvasDragMove(event: MouseEvent) {
+  if (!isCanvasDragging.value) return
 
   const parent = editorStore.findParentBlock(props.block.id)
-  if (!parent || parent.type !== 'freeform') return
+  if (!parent || parent.type !== 'canvas') return
 
-  // Find the freeform container element to get its dimensions
-  const freeformEl = document.querySelector(`[data-block-id="${parent.id}"]`) as HTMLElement
-  if (!freeformEl) return
+  // Find the canvas container element to get its dimensions
+  const canvasEl = document.querySelector(`[data-block-id="${parent.id}"]`) as HTMLElement
+  if (!canvasEl) return
 
-  const rect = freeformEl.getBoundingClientRect()
-  const deltaX = event.clientX - freeformDragStartX.value
-  const deltaY = event.clientY - freeformDragStartY.value
+  const rect = canvasEl.getBoundingClientRect()
+  const deltaX = event.clientX - canvasDragStartX.value
+  const deltaY = event.clientY - canvasDragStartY.value
 
   // Convert pixel delta to percentage of container
   const deltaXPercent = (deltaX / rect.width) * 100
   const deltaYPercent = (deltaY / rect.height) * 100
 
   // Calculate new position
-  const newX = Math.max(0, Math.min(95, freeformStartPosX.value + deltaXPercent))
-  const newY = Math.max(0, Math.min(95, freeformStartPosY.value + deltaYPercent))
+  const newX = Math.max(0, Math.min(95, canvasStartPosX.value + deltaXPercent))
+  const newY = Math.max(0, Math.min(95, canvasStartPosY.value + deltaYPercent))
 
   // Update the parent's childPositions for current viewport
-  const parentSettings = parent.settings as FreeformSettings
+  const parentSettings = parent.settings as CanvasSettings
   const viewport = editorStore.viewport
   const currentPositions = parentSettings.childPositions || { desktop: {} }
   const viewportPositions = currentPositions[viewport] || {}
@@ -591,10 +850,10 @@ function handleFreeformDragMove(event: MouseEvent) {
   })
 }
 
-function handleFreeformDragEnd() {
-  isFreeformDragging.value = false
-  document.removeEventListener('mousemove', handleFreeformDragMove)
-  document.removeEventListener('mouseup', handleFreeformDragEnd)
+function handleCanvasDragEnd() {
+  isCanvasDragging.value = false
+  document.removeEventListener('mousemove', handleCanvasDragMove)
+  document.removeEventListener('mouseup', handleCanvasDragEnd)
 }
 
 // Drag handlers for moving this block (HTML5 drag for reordering)
@@ -635,16 +894,16 @@ function getGridItemStyles(child: SectionBlock): Record<string, string> {
   const settings = child.settings as Record<string, unknown>
   const styles: Record<string, string> = {}
 
-  if (settings.gridColumn) {
-    styles.gridColumn = settings.gridColumn as string
-  } else if (settings.gridColumnSpan && (settings.gridColumnSpan as number) > 1) {
-    styles.gridColumn = `span ${settings.gridColumnSpan}`
+  // Column span
+  const colSpan = parseInt(String(settings.gridColumnSpan || 1), 10)
+  if (!isNaN(colSpan) && colSpan > 1) {
+    styles['grid-column'] = `span ${colSpan}`
   }
 
-  if (settings.gridRow) {
-    styles.gridRow = settings.gridRow as string
-  } else if (settings.gridRowSpan && (settings.gridRowSpan as number) > 1) {
-    styles.gridRow = `span ${settings.gridRowSpan}`
+  // Row span
+  const rowSpan = parseInt(String(settings.gridRowSpan || 1), 10)
+  if (!isNaN(rowSpan) && rowSpan > 1) {
+    styles['grid-row'] = `span ${rowSpan}`
   }
 
   return styles
@@ -755,6 +1014,8 @@ function isValidDragType(event: DragEvent): boolean {
 
 function handleDragEnter(event: DragEvent) {
   if (!isLayoutBlock.value) return
+  // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
+  if (isListItem.value) return
   if (isValidDragType(event)) {
     event.preventDefault()
     event.stopPropagation()
@@ -764,6 +1025,8 @@ function handleDragEnter(event: DragEvent) {
 
 function handleDragOver(event: DragEvent) {
   if (!isLayoutBlock.value) return
+  // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
+  if (isListItem.value) return
   if (isValidDragType(event)) {
     event.preventDefault()
     event.stopPropagation()
@@ -784,6 +1047,8 @@ function handleDragLeave(event: DragEvent) {
 
 function handleDrop(event: DragEvent) {
   if (!isLayoutBlock.value) return
+  // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
+  if (isListItem.value) return
   event.preventDefault()
   event.stopPropagation()
   isDropTarget.value = false
@@ -798,27 +1063,43 @@ function handleDrop(event: DragEvent) {
 
     // Check if reordering within same parent
     const blockParent = editorStore.findParentBlock(blockIdToMove)
-    if (blockParent?.id === props.block.id && dropIndex !== null) {
+    const isSameParent = blockParent?.id === props.block.id
+
+    // Check if this is a List/Collection Grid (Grid with Stack children)
+    const isListCollectionGrid = props.block.type === 'grid' &&
+      props.block.children?.some(c => c.type === 'stack')
+
+    if (isSameParent && dropIndex !== null) {
       // Reordering within this container
       const currentIndex = props.block.children?.findIndex(c => c.id === blockIdToMove) ?? -1
       if (currentIndex !== -1 && currentIndex !== dropIndex) {
         const targetIndex = currentIndex < dropIndex ? dropIndex - 1 : dropIndex
         editorStore.reorderBlocks(currentIndex, targetIndex, props.block.id)
       }
-    } else {
-      // Move the block to this parent at the specified index
+    } else if (!isListCollectionGrid) {
+      // Only allow moving blocks INTO this parent if it's NOT a List/Collection Grid
       editorStore.moveBlockToParent(blockIdToMove, props.block.id, dropIndex ?? undefined)
+    } else {
+      // List/Collection Grids only allow reordering their own items, not moves from outside
+      return
     }
     editorStore.selectBlock(blockIdToMove)
     return
   }
 
+  // Check if this is a List/Collection Grid - these don't accept new blocks
+  const isListCollectionGrid = props.block.type === 'grid' &&
+    props.block.children?.some(c => c.type === 'stack')
+  if (isListCollectionGrid) return
+
   // Check for preset type
   const presetType = event.dataTransfer?.getData('application/x-preset-type') as PresetType
   if (presetType && presetTypes.includes(presetType)) {
     const block = createPresetBlock(presetType)
-    editorStore.addPresetBlock(block, dropIndex ?? undefined, props.block.id)
-    editorStore.selectBlock(block.id)
+    const inserted = editorStore.addPresetBlock(block, dropIndex ?? undefined, props.block.id)
+    if (inserted) {
+      editorStore.selectBlock(inserted.id)
+    }
     return
   }
 
@@ -887,6 +1168,13 @@ const fontSizeMap: Record<string, string> = {
   '6xl': '60px',
 }
 
+// Helper to convert px value to em (based on 16px base)
+function pxToEm(value: string | number): string {
+  const px = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(px) || px === 0) return '0'
+  return `${px / 16}em`
+}
+
 // Compute CSS styles from block.styles with responsive support
 const blockStyles = computed(() => {
   const rawStyles = props.block.styles as BaseBlockStyles
@@ -899,86 +1187,235 @@ const blockStyles = computed(() => {
 
   const css: Record<string, string> = {}
 
-  // Padding (responsive)
+  // Check if we're editing a state style for THIS block
+  const currentState = editorStore.currentStyleState
+  const isEditingStateForThisBlock = currentState !== 'none' &&
+    editorStore.selectedBlockId === props.block.id &&
+    STYLE_STATE_BLOCK_TYPES.includes(props.block.type)
+
+  // Get state styles if editing a state
+  const stateStylesBeingEdited = isEditingStateForThisBlock
+    ? (allStyles[currentState] as StateStyles | undefined)
+    : undefined
+
+  // Padding (responsive) - use em
   if (styles.padding) {
     const p = styles.padding as { top?: string; right?: string; bottom?: string; left?: string }
-    if (p.top) css.paddingTop = `${p.top}px`
-    if (p.right) css.paddingRight = `${p.right}px`
-    if (p.bottom) css.paddingBottom = `${p.bottom}px`
-    if (p.left) css.paddingLeft = `${p.left}px`
+    if (p.top) css.paddingTop = pxToEm(p.top)
+    if (p.right) css.paddingRight = pxToEm(p.right)
+    if (p.bottom) css.paddingBottom = pxToEm(p.bottom)
+    if (p.left) css.paddingLeft = pxToEm(p.left)
   }
 
-  // Margin (responsive)
+  // Margin (responsive) - use em, supports negative values
   if (styles.margin) {
     const m = styles.margin as { top?: string; right?: string; bottom?: string; left?: string }
-    if (m.top) css.marginTop = `${m.top}px`
-    if (m.right) css.marginRight = `${m.right}px`
-    if (m.bottom) css.marginBottom = `${m.bottom}px`
-    if (m.left) css.marginLeft = `${m.left}px`
+    if (m.top) css.marginTop = pxToEm(m.top)
+    if (m.right) css.marginRight = pxToEm(m.right)
+    if (m.bottom) css.marginBottom = pxToEm(m.bottom)
+    if (m.left) css.marginLeft = pxToEm(m.left)
   }
 
   // Background (responsive)
-  if (styles.backgroundColor) css.backgroundColor = styles.backgroundColor as string
+  // For blocks with state styles, use CSS custom properties so :hover/:active/:focus can override
+  const supportsStates = STYLE_STATE_BLOCK_TYPES.includes(props.block.type)
+  if (supportsStates) {
+    // Set base background as CSS variable, state styles will override via CSS
+    if (styles.backgroundColor) {
+      css['--base-bg'] = styles.backgroundColor as string
+    }
+    // If editing a state, show that state's background directly
+    if (stateStylesBeingEdited?.backgroundColor) {
+      css['--base-bg'] = stateStylesBeingEdited.backgroundColor
+    }
+  } else if (styles.backgroundColor) {
+    css.backgroundColor = styles.backgroundColor as string
+  }
   if (styles.backgroundImage) {
     css.backgroundImage = `url(${styles.backgroundImage})`
     css.backgroundSize = (styles.backgroundSize as string) || 'cover'
     css.backgroundPosition = (styles.backgroundPosition as string) || 'center'
   }
 
-  // Border (responsive)
+  // Border (responsive) - use em for width and radius
   if (styles.border) {
-    const b = styles.border as { width?: string; color?: string; radius?: string; style?: string }
+    const b = styles.border as { width?: string; color?: string; radius?: string; style?: string; sides?: string }
     if (b.width && b.width !== '0') {
-      css.borderWidth = `${b.width}px`
-      css.borderStyle = b.style || 'solid'
-      css.borderColor = b.color || 'currentColor'
+      const borderStyle = b.style || 'solid'
+      const borderColor = b.color || 'currentColor'
+      const borderValue = `${pxToEm(b.width)} ${borderStyle} ${borderColor}`
+
+      // Parse sides - default to all sides if not specified
+      const sidesStr = b.sides || 'top,right,bottom,left'
+      const activeSides = new Set(sidesStr.split(',').filter(s => s))
+
+      // Apply border to each active side
+      if (activeSides.has('top')) css.borderTop = borderValue
+      if (activeSides.has('right')) css.borderRight = borderValue
+      if (activeSides.has('bottom')) css.borderBottom = borderValue
+      if (activeSides.has('left')) css.borderLeft = borderValue
     }
-    if (b.radius && b.radius !== '0') css.borderRadius = `${b.radius}px`
+    if (b.radius && b.radius !== '0') css.borderRadius = pxToEm(b.radius)
   }
 
-  // Shadow (responsive)
+  // Shadow (responsive) - use em for offsets and blur
   if (styles.shadow) {
     const s = styles.shadow as { enabled?: boolean; x?: string; y?: string; blur?: string; color?: string }
     if (s.enabled) {
-      css.boxShadow = `${s.x || 0}px ${s.y || 0}px ${s.blur || 0}px ${s.color || 'rgba(0,0,0,0.1)'}`
+      css.boxShadow = `${pxToEm(s.x || '0')} ${pxToEm(s.y || '0')} ${pxToEm(s.blur || '0')} ${s.color || 'rgba(0,0,0,0.1)'}`
     }
   }
 
-  // Typography styles (non-responsive for now) - fontSize uses Tailwind class names, convert to pixels
+  // Typography styles (non-responsive for now) - fontSize uses em
   if (allStyles.fontSize) {
     const size = allStyles.fontSize as string
-    css.fontSize = fontSizeMap[size] || `${size}px`
+    const pxValue = fontSizeMap[size] || `${size}px`
+    // Convert px string to em
+    const pxNum = parseFloat(pxValue)
+    css.fontSize = pxToEm(pxNum)
   }
-  if (allStyles.color) css.color = allStyles.color as string
+  // Color: For blocks with state styles, use CSS custom properties so :hover/:active/:focus can override
+  if (supportsStates) {
+    // Set base color as CSS variable
+    if (allStyles.color) {
+      css['--base-color'] = allStyles.color as string
+    }
+    // If editing a state, show that state's color directly
+    if (stateStylesBeingEdited?.color) {
+      css['--base-color'] = stateStylesBeingEdited.color
+    }
+  } else if (allStyles.color) {
+    css.color = allStyles.color as string
+  }
   if (allStyles.alignment) css.textAlign = allStyles.alignment as string
   if (allStyles.fontWeight) css.fontWeight = allStyles.fontWeight as string
+  if (allStyles.fontFamily) css.fontFamily = allStyles.fontFamily as string
+  if (allStyles.fontStyle) css.fontStyle = allStyles.fontStyle as string
+  if (allStyles.textDecoration && allStyles.textDecoration !== 'none') css.textDecoration = allStyles.textDecoration as string
   if (allStyles.lineHeight) css.lineHeight = allStyles.lineHeight as string
-  if (allStyles.letterSpacing) css.letterSpacing = `${allStyles.letterSpacing}px`
+  if (allStyles.letterSpacing) css.letterSpacing = pxToEm(allStyles.letterSpacing as string)
 
-  // Border radius (direct, non-responsive for now)
-  if (allStyles.borderRadius) css.borderRadius = `${allStyles.borderRadius}px`
+  // Border radius (direct, non-responsive for now) - use em
+  if (allStyles.borderRadius) css.borderRadius = pxToEm(allStyles.borderRadius as string)
 
   // Flexbox properties for layout blocks (non-responsive for now)
   if (allStyles.flexDirection) css.flexDirection = allStyles.flexDirection as string
   if (allStyles.justifyContent) css.justifyContent = allStyles.justifyContent as string
   if (allStyles.alignItems) css.alignItems = allStyles.alignItems as string
   if (allStyles.flexWrap) css.flexWrap = allStyles.flexWrap as string
-  if (allStyles.gap) css.gap = `${allStyles.gap}px`
+  if (allStyles.gap) css.gap = pxToEm(allStyles.gap as string)
+
+  // Flex child properties (responsive)
+  if (styles.flexGrow && styles.flexGrow !== '0') css.flexGrow = styles.flexGrow as string
+  if (styles.flexShrink && styles.flexShrink !== '1') css.flexShrink = styles.flexShrink as string
+  if (styles.flexBasis && styles.flexBasis !== 'auto') css.flexBasis = styles.flexBasis as string
 
   // Grid properties (non-responsive for now)
   if (allStyles.justifyItems) css.justifyItems = allStyles.justifyItems as string
 
+  // Opacity & Blend Mode (responsive)
+  if (styles.opacity !== undefined && styles.opacity !== '100') {
+    css.opacity = String(Number(styles.opacity) / 100)
+  }
+  if (styles.mixBlendMode && styles.mixBlendMode !== 'normal') {
+    css.mixBlendMode = styles.mixBlendMode as string
+  }
+
+  // Add state style CSS custom properties if this block supports them
+  if (STYLE_STATE_BLOCK_TYPES.includes(props.block.type)) {
+    // Access state styles from allStyles to ensure reactivity
+    const hoverStyles = allStyles.hover as StateStyles | undefined
+    const pressedStyles = allStyles.pressed as StateStyles | undefined
+    const focusedStyles = allStyles.focused as StateStyles | undefined
+
+    const processStateStyles = (state: 'hover' | 'pressed' | 'focused', stateStyles: StateStyles | undefined) => {
+      if (!stateStyles) return
+
+      if (stateStyles.backgroundColor) {
+        css[`--${state}-bg`] = stateStyles.backgroundColor
+      }
+      if (stateStyles.color) {
+        css[`--${state}-color`] = stateStyles.color
+      }
+      if (stateStyles.opacity !== undefined) {
+        css[`--${state}-opacity`] = String(Number(stateStyles.opacity) / 100)
+      }
+      if (stateStyles.transform) {
+        css[`--${state}-transform`] = stateStyles.transform
+      }
+      if (stateStyles.border) {
+        const b = stateStyles.border
+        if (b.color) css[`--${state}-border-color`] = b.color
+        if (b.width) css[`--${state}-border-width`] = pxToEm(b.width)
+        if (b.radius) css[`--${state}-border-radius`] = pxToEm(b.radius)
+      }
+      if (stateStyles.shadow?.enabled) {
+        const s = stateStyles.shadow
+        css[`--${state}-shadow`] = `${pxToEm(s.x || '0')} ${pxToEm(s.y || '0')} ${pxToEm(s.blur || '0')} ${s.color || 'rgba(0,0,0,0.1)'}`
+      }
+    }
+
+    processStateStyles('hover', hoverStyles)
+    processStateStyles('pressed', pressedStyles)
+    processStateStyles('focused', focusedStyles)
+  }
+
   return css
+})
+
+// Check if block supports state styles (heading, text, button, image, video, form inputs)
+// This is used to apply the .has-state-styles class which enables CSS variable-based styling
+const supportsStateStyles = computed(() => {
+  return STYLE_STATE_BLOCK_TYPES.includes(props.block.type)
 })
 
 // Helper to get image-specific styles
 function getImageStyles(): Record<string, string> {
   const styles = props.block.styles as Record<string, unknown>
+  const settings = props.block.settings as Record<string, unknown>
   const css: Record<string, string> = {}
+
+  // Object fit
   if (styles?.objectFit) css.objectFit = styles.objectFit as string
   else css.objectFit = 'cover'
-  if (styles?.borderRadius) css.borderRadius = `${styles.borderRadius}px`
-  else css.borderRadius = '8px'
+
+  // Border radius - use em
+  if (styles?.borderRadius && styles.borderRadius !== '0') {
+    css.borderRadius = pxToEm(styles.borderRadius as string)
+  }
+
+  // Width - supports percentage or px (converted to em)
+  if (styles?.width) {
+    const width = styles.width as string
+    if (width.endsWith('%')) {
+      css.width = width
+    } else {
+      css.width = pxToEm(width)
+    }
+  }
+
+  // Height - supports percentage or px (converted to em)
+  if (styles?.height) {
+    const height = styles.height as string
+    if (height.endsWith('%')) {
+      css.height = height
+    } else {
+      css.height = pxToEm(height)
+    }
+  }
+
+  // Aspect ratio
+  if (styles?.aspectRatio && styles.aspectRatio !== 'auto') {
+    const ratio = styles.aspectRatio as string
+    // Convert "16:9" format to CSS aspect-ratio value "16/9"
+    css.aspectRatio = ratio.replace(':', '/')
+  }
+
+  // Apply mask shape
+  const mask = styles?.mask as MaskShape | undefined
+  if (mask && mask !== 'none') {
+    css.clipPath = maskShapeClipPaths[mask]
+  }
   return css
 }
 
@@ -992,8 +1429,15 @@ function getVideoStyles(): Record<string, string> {
   } else {
     css.aspectRatio = '16/9'
   }
-  if (styles?.borderRadius) css.borderRadius = `${styles.borderRadius}px`
-  else css.borderRadius = '8px'
+  // Border radius - use em, default to 0
+  if (styles?.borderRadius && styles.borderRadius !== '0') {
+    css.borderRadius = pxToEm(styles.borderRadius as string)
+  }
+  // Apply mask shape
+  const mask = styles?.mask as MaskShape | undefined
+  if (mask && mask !== 'none') {
+    css.clipPath = maskShapeClipPaths[mask]
+  }
   return css
 }
 
@@ -1004,7 +1448,7 @@ function getButtonAlignment(): string | undefined {
 }
 
 function getButtonClasses(variant?: string, size?: string): string[] {
-  const classes = ['inline-flex', 'items-center', 'gap-2', 'rounded-md', 'font-medium', 'transition-colors']
+  const classes = ['inline-flex', 'items-center', 'gap-2', 'font-medium', 'transition-colors']
 
   switch (variant) {
     case 'primary':
@@ -1039,9 +1483,9 @@ function getButtonClasses(variant?: string, size?: string): string[] {
 </script>
 
 <template>
-  <!-- Hide completely if isHidden is true for List/Collection items -->
+  <!-- Hide completely if isHidden is true for List/Collection items or header/footer -->
   <section
-    v-if="!isBlockHidden || !isInsideListCollection"
+    v-if="!isHeaderFooterHidden && (!isBlockHidden || !isInsideListCollection)"
     ref="sectionRef"
     class="relative w-full cursor-pointer"
     data-preview-block
@@ -1070,58 +1514,71 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       class="flex items-center absolute top-0 left-0 px-1.5 h-4 text-[10px] font-mono uppercase rounded-br rounded-tl backdrop-blur-sm z-20"
       :class="[
         isSelected ? 'bg-primary/50 text-primary-foreground' : 'bg-primary/80 text-primary-foreground',
-        canDragBlock || isInsideFreeform ? 'cursor-grab active:cursor-grabbing' : '',
-        isFreeformDragging ? 'cursor-grabbing' : ''
+        canDragBlock || isInsideCanvas ? 'cursor-grab active:cursor-grabbing' : '',
+        isCanvasDragging ? 'cursor-grabbing' : ''
       ]"
       @dragstart="handleBlockDragStart"
       @dragend="handleBlockDragEnd"
-      @mousedown="isInsideFreeform ? handleFreeformDragStart($event) : undefined"
+      @mousedown="isInsideCanvas ? handleCanvasDragStart($event) : undefined"
     >
-      <i v-if="canDragBlock || isInsideFreeform" class="lni lni-menu-hamburger-1 mr-1 text-[8px] opacity-70"></i>
+      <span v-if="canDragBlock || isInsideCanvas" class="w-2 h-2 rounded-full bg-current mr-1 opacity-70"></span>
       {{ block.name }}
     </div>
 
     <!-- ============================================ -->
     <!-- HEADER BLOCK -->
     <!-- ============================================ -->
-    <div v-if="block.type === 'header'" :style="blockStyles">
-      <div v-if="!headerSettings?.isHidden" class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
-          <img v-if="headerSettings?.logo" :src="headerSettings.logo" :alt="headerSettings.logoAlt || 'Logo'" class="h-8 w-auto object-contain" />
-          <span v-else class="text-lg font-semibold">Logo</span>
+    <div v-if="block.type === 'header' && !headerSettings?.isHidden" class="flex" :style="{ ...blockStyles, gap: `${headerSettings?.gap || 16}px`, height: headerSettings?.height ? `${headerSettings.height}px` : undefined }">
+      <!-- Render Start/Middle/End stacks as children -->
+      <template v-if="block.children && block.children.length > 0">
+        <PreviewSection
+          v-for="(child, childIndex) in block.children"
+          :key="child.id"
+          :block="child"
+          :index="childIndex"
+          :total="block.children.length"
+        />
+      </template>
+      <!-- Fallback: show placeholders if no children -->
+      <template v-else>
+        <div class="flex-1 flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">Start</span>
         </div>
-        <nav class="flex items-center gap-6">
-          <a v-for="link in headerSettings?.navLinks" :key="link.id" :href="link.url || '#'" class="text-sm font-medium hover:opacity-80 transition-opacity">{{ getDisplayNavLinkLabel(link.id) }}</a>
-        </nav>
-        <a v-if="headerSettings?.ctaButton?.show" :href="headerSettings.ctaButton.url || '#'" class="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors">
-          {{ displayHeaderCtaLabel || 'Get Started' }}
-        </a>
-      </div>
-      <div v-else class="py-4 text-center text-muted-foreground text-sm italic border-2 border-dashed border-border rounded-lg">
-        Header is hidden
-      </div>
+        <div class="flex-1 flex items-center justify-center gap-2">
+          <span class="text-sm text-muted-foreground">Middle</span>
+        </div>
+        <div class="flex-1 flex items-center justify-end gap-2">
+          <span class="text-sm text-muted-foreground">End</span>
+        </div>
+      </template>
     </div>
 
     <!-- ============================================ -->
     <!-- FOOTER BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'footer'" :style="blockStyles">
-      <div v-if="!footerSettings?.isHidden" class="flex flex-col gap-4">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <nav class="flex flex-wrap items-center gap-4">
-            <a v-for="link in footerSettings?.links" :key="link.id" :href="link.url || '#'" class="text-sm hover:opacity-80 transition-opacity">{{ getDisplayFooterLinkLabel(link.id) }}</a>
-          </nav>
-          <div class="flex items-center gap-3">
-            <a v-for="social in footerSettings?.socialLinks" :key="social.id" :href="social.url || '#'" class="text-muted-foreground hover:text-foreground transition-colors" target="_blank" rel="noopener noreferrer">
-              <i :class="['lni', socialPlatformIcons[social.platform], 'text-lg']"></i>
-            </a>
-          </div>
+    <div v-else-if="block.type === 'footer' && !footerSettings?.isHidden" class="flex" :style="{ ...blockStyles, gap: `${footerSettings?.gap || 16}px` }">
+      <!-- Render Start/Middle/End stacks as children -->
+      <template v-if="block.children && block.children.length > 0">
+        <PreviewSection
+          v-for="(child, childIndex) in block.children"
+          :key="child.id"
+          :block="child"
+          :index="childIndex"
+          :total="block.children.length"
+        />
+      </template>
+      <!-- Fallback: show placeholders if no children -->
+      <template v-else>
+        <div class="flex-1 flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">Start</span>
         </div>
-        <p v-if="displayFooterCopyright" class="text-sm text-muted-foreground text-center">{{ displayFooterCopyright }}</p>
-      </div>
-      <div v-else class="py-4 text-center text-muted-foreground text-sm italic border-2 border-dashed border-border rounded-lg">
-        Footer is hidden
-      </div>
+        <div class="flex-1 flex items-center justify-center gap-2">
+          <span class="text-sm text-muted-foreground">Middle</span>
+        </div>
+        <div class="flex-1 flex items-center justify-end gap-2">
+          <span class="text-sm text-muted-foreground">End</span>
+        </div>
+      </template>
     </div>
 
     <!-- ============================================ -->
@@ -1129,15 +1586,36 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ============================================ -->
     <div
       v-else-if="block.type === 'container'"
-      class="flex min-h-[80px] transition-colors"
+      class="relative flex min-h-[80px] transition-colors overflow-hidden"
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
-      :style="{ ...blockStyles, maxWidth: containerSettings?.maxWidth ? `${containerSettings.maxWidth}px` : undefined, margin: '0 auto', minHeight: getHeightStyle(containerSettings?.height) }"
+      :style="{
+        ...blockStyles,
+        flexDirection: (block.styles as ContainerStyles).flexDirection || 'column',
+        maxWidth: containerSettings?.maxWidth ? `${containerSettings.maxWidth}px` : undefined,
+        marginLeft: blockStyles.marginLeft || (containerSettings?.maxWidth ? 'auto' : undefined),
+        marginRight: blockStyles.marginRight || (containerSettings?.maxWidth ? 'auto' : undefined),
+        minHeight: getHeightStyle(containerSettings?.height),
+        backgroundColor: containerSettings?.backgroundType && containerSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
+        backgroundImage: containerSettings?.backgroundType === 'image' && containerSettings?.backgroundImage ? `url(${containerSettings.backgroundImage})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
     >
-      <div v-if="block.children && block.children.length > 0" class="relative flex flex-col gap-4 w-full">
+      <!-- Background Video -->
+      <video
+        v-if="containerSettings?.backgroundType === 'video' && containerSettings?.backgroundVideo"
+        class="absolute inset-0 w-full h-full object-cover"
+        :src="containerSettings.backgroundVideo"
+        autoplay
+        loop
+        muted
+        playsinline
+      />
+      <template v-if="block.children && block.children.length > 0">
         <template v-for="(child, childIndex) in block.children" :key="child.id">
           <!-- Drop indicator before this child -->
           <div
@@ -1146,6 +1624,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
             :style="{ top: `${childIndex * 100 / block.children.length}%` }"
           />
           <div
+            class="relative z-10"
             @dragover="handleChildDragOver(childIndex, $event)"
             @dragleave="handleChildDragLeave"
           >
@@ -1161,30 +1640,181 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           v-if="childDropIndex === block.children.length"
           class="h-1 bg-primary rounded-full"
         />
-      </div>
+      </template>
       <div
         v-else
-        class="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+        class="relative z-10 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
         @click.stop="openBlockPicker"
       >
-        <i class="lni lni-add-1 text-2xl mb-2"></i>
-        <span class="text-xs">Click to add block</span>
+        <Icon name="add-1" class="text-2xl mb-2" />
+        <span class="text-xxs font-mono uppercase">Click to add block</span>
       </div>
     </div>
 
     <!-- ============================================ -->
-    <!-- GRID BLOCK -->
+    <!-- GRID BLOCK (Regular or Slider Mode) -->
     <!-- ============================================ -->
+    <!-- SLIDER MODE -->
+    <div
+      v-else-if="block.type === 'grid' && gridSettings?.isSlider"
+      class="relative overflow-hidden"
+      :style="{
+        marginTop: blockStyles.marginTop,
+        marginRight: blockStyles.marginRight,
+        marginBottom: blockStyles.marginBottom,
+        marginLeft: blockStyles.marginLeft,
+        backgroundImage: gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage ? `url(${gridSettings.backgroundImage})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }"
+    >
+      <!-- Background Video -->
+      <video
+        v-if="gridSettings?.backgroundType === 'video' && gridSettings?.backgroundVideo"
+        class="absolute inset-0 w-full h-full object-cover"
+        :src="gridSettings.backgroundVideo"
+        autoplay
+        loop
+        muted
+        playsinline
+      />
+      <!-- Slider container -->
+      <div
+        :ref="(el) => sliderRefs.set(block.id, el as HTMLElement)"
+        :data-block-id="block.id"
+        class="relative z-10 flex overflow-x-auto snap-x snap-mandatory scroll-smooth min-h-[80px] transition-colors scrollbar-hide"
+        :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
+        :style="{
+          ...blockStyles,
+          marginTop: undefined,
+          marginRight: undefined,
+          marginBottom: undefined,
+          marginLeft: undefined,
+          gap: `${gridSettings?.gap || 16}px`,
+          minHeight: getHeightStyle(gridSettings?.height),
+          backgroundColor: gridSettings?.backgroundType && gridSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor
+        }"
+        @dragenter="handleDragEnter"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
+        @mouseenter="handleSliderMouseEnter(block.id)"
+        @mouseleave="handleSliderMouseLeave(block.id)"
+      >
+        <template v-if="block.children && block.children.length > 0">
+          <div
+            v-for="(child, childIndex) in block.children"
+            :key="child.id"
+            class="relative flex-shrink-0 snap-start"
+            :style="{
+              width: `calc((100% - ${(gridSettings.slidesPerView || 1) - 1} * ${gridSettings?.gap || 16}px) / ${gridSettings.slidesPerView || 1})`,
+            }"
+            @dragover="handleChildDragOver(childIndex, $event)"
+            @dragleave="handleChildDragLeave"
+          >
+            <!-- Drop indicator (left edge for slider) -->
+            <div
+              v-if="childDropIndex === childIndex"
+              class="absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
+            />
+            <PreviewSection
+              :block="child"
+              :index="childIndex"
+              :total="block.children.length"
+            />
+            <!-- Drop indicator after last child -->
+            <div
+              v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
+              class="absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
+            />
+          </div>
+        </template>
+        <template v-else>
+          <div
+            class="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+            @click.stop="openBlockPicker"
+          >
+            <Icon name="add-1" class="text-xl mb-1" />
+            <span class="text-xxs font-mono uppercase">Add slide</span>
+          </div>
+        </template>
+      </div>
+
+      <!-- Slider Navigation Arrows -->
+      <template v-if="gridSettings?.showArrows && block.children && block.children.length > (gridSettings.slidesPerView || 1)">
+        <button
+          type="button"
+          class="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-sm flex items-center justify-center transition-colors"
+          @click="handleSliderPrev(block.id)"
+        >
+          <Icon name="chevron-left" class="text-lg" />
+        </button>
+        <button
+          type="button"
+          class="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-sm flex items-center justify-center transition-colors"
+          @click="handleSliderNext(block.id)"
+        >
+          <Icon name="chevron-right" class="text-lg" />
+        </button>
+      </template>
+
+      <!-- Slider Dots -->
+      <div
+        v-if="gridSettings?.showDots && block.children && block.children.length > (gridSettings.slidesPerView || 1)"
+        class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2"
+      >
+        <button
+          v-for="(_, dotIndex) in Math.ceil((block.children.length - (gridSettings.slidesPerView || 1) + 1))"
+          :key="dotIndex"
+          type="button"
+          class="w-2 h-2 rounded-full transition-colors"
+          :class="getSliderCurrentIndex(block.id) === dotIndex ? 'bg-primary' : 'bg-primary/30 hover:bg-primary/50'"
+          @click="handleSliderGoTo(block.id, dotIndex)"
+        />
+      </div>
+    </div>
+
+    <!-- REGULAR GRID MODE -->
     <div
       v-else-if="block.type === 'grid'"
-      class="relative"
+      class="relative overflow-hidden"
+      :style="{
+        marginTop: blockStyles.marginTop,
+        marginRight: blockStyles.marginRight,
+        marginBottom: blockStyles.marginBottom,
+        marginLeft: blockStyles.marginLeft,
+        backgroundImage: gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage ? `url(${gridSettings.backgroundImage})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }"
     >
+      <!-- Background Video -->
+      <video
+        v-if="gridSettings?.backgroundType === 'video' && gridSettings?.backgroundVideo"
+        class="absolute inset-0 w-full h-full object-cover"
+        :src="gridSettings.backgroundVideo"
+        autoplay
+        loop
+        muted
+        playsinline
+      />
       <!-- Grid container -->
       <div
         :data-block-id="block.id"
-        class="grid min-h-[80px] transition-colors rounded-lg"
+        class="relative z-10 grid min-h-[80px] transition-colors"
         :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
-        :style="{ ...blockStyles, gridTemplateColumns, gap: `${gridSettings?.gap || 16}px`, minHeight: getHeightStyle(gridSettings?.height) }"
+        :style="{
+          ...blockStyles,
+          marginTop: undefined,
+          marginRight: undefined,
+          marginBottom: undefined,
+          marginLeft: undefined,
+          gridTemplateColumns,
+          'grid-auto-rows': 'minmax(80px, auto)',
+          gap: `${gridSettings?.gap || 16}px`,
+          minHeight: getHeightStyle(gridSettings?.height),
+          backgroundColor: gridSettings?.backgroundType && gridSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor
+        }"
         @dragenter="handleDragEnter"
         @dragover="handleDragOver"
         @dragleave="handleDragLeave"
@@ -1220,11 +1850,11 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           <div
             v-for="i in (gridSettings?.columns || 2)"
             :key="i"
-            class="flex flex-col items-center justify-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+            class="flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
             @click.stop="openBlockPicker"
           >
-            <i class="lni lni-add-1 text-xl mb-1"></i>
-            <span class="text-xs">Add block</span>
+            <Icon name="add-1" class="text-xl mb-1" />
+            <span class="text-xxs font-mono uppercase">Add block</span>
           </div>
         </template>
       </div>
@@ -1248,19 +1878,38 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ============================================ -->
     <div
       v-else-if="block.type === 'stack'"
-      class="relative flex min-h-[80px] transition-colors rounded-lg"
+      class="relative flex min-h-[80px] transition-colors overflow-hidden"
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
-      :style="{ ...blockStyles, flexDirection: stackSettings?.direction === 'horizontal' ? 'row' : 'column', gap: `${stackSettings?.gap || 16}px`, minHeight: getHeightStyle(stackSettings?.height) }"
+      :style="{
+        ...blockStyles,
+        flexDirection: stackSettings?.direction === 'horizontal' ? 'row' : 'column',
+        gap: `${stackSettings?.gap || 16}px`,
+        minHeight: getHeightStyle(stackSettings?.height),
+        backgroundColor: stackSettings?.backgroundType && stackSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
+        backgroundImage: stackSettings?.backgroundType === 'image' && stackSettings?.backgroundImage ? `url(${stackSettings.backgroundImage})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
     >
+      <!-- Background Video -->
+      <video
+        v-if="stackSettings?.backgroundType === 'video' && stackSettings?.backgroundVideo"
+        class="absolute inset-0 w-full h-full object-cover"
+        :src="stackSettings.backgroundVideo"
+        autoplay
+        loop
+        muted
+        playsinline
+      />
       <template v-if="block.children && block.children.length > 0">
         <div
           v-for="(child, childIndex) in block.children"
           :key="child.id"
-          class="relative"
+          class="relative z-10"
           :class="stackSettings?.direction === 'horizontal' ? '' : 'w-full'"
           @dragover="handleChildDragOver(childIndex, $event)"
           @dragleave="handleChildDragLeave"
@@ -1288,11 +1937,11 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       </template>
       <div
         v-else
-        class="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+        class="relative z-10 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
         @click.stop="openBlockPicker"
       >
-        <i class="lni lni-add-1 text-2xl mb-2"></i>
-        <span class="text-xs">Click to add block</span>
+        <Icon name="add-1" class="text-2xl mb-2" />
+        <span class="text-xxs font-mono uppercase">Click to add block</span>
       </div>
     </div>
 
@@ -1315,65 +1964,78 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <component
       v-else-if="block.type === 'heading'"
       :is="headingSettings?.level || 'h2'"
-      class="outline-none"
-      :class="!blockStyles.fontSize ? {
-        'text-6xl': headingSettings?.level === 'h1',
-        'text-5xl': headingSettings?.level === 'h2',
-        'text-4xl': headingSettings?.level === 'h3',
-        'text-3xl': headingSettings?.level === 'h4',
-        'text-2xl': headingSettings?.level === 'h5',
-        'text-xl': headingSettings?.level === 'h6',
-      } : {}"
+      :ref="(el: any) => { if (block.type === 'heading') editableRef = el }"
+      class="outline-none whitespace-pre-wrap"
+      :class="[
+        !blockStyles.fontSize ? {
+          'text-6xl': headingSettings?.level === 'h1',
+          'text-5xl': headingSettings?.level === 'h2',
+          'text-4xl': headingSettings?.level === 'h3',
+          'text-3xl': headingSettings?.level === 'h4',
+          'text-2xl': headingSettings?.level === 'h5',
+          'text-xl': headingSettings?.level === 'h6',
+        } : {},
+        { 'has-state-styles': supportsStateStyles }
+      ]"
       :style="blockStyles"
       contenteditable="true"
       @blur="handleHeadingEdit($event)"
-      @keydown.enter.prevent="($event.target as HTMLElement).blur()"
-    :key="`heading-${editorStore.currentLanguage || 'default'}`"
-    >{{ displayHeadingContent || 'Heading' }}</component>
+      @keydown.escape="handleEscapeKey($event)"
+      @paste="handlePasteClean($event)"
+      :key="`heading-${editorStore.currentLanguage || 'default'}`"
+      v-html="displayHeadingContent || 'Heading'"
+    />
 
     <!-- ============================================ -->
     <!-- TEXT BLOCK -->
     <!-- ============================================ -->
     <div
       v-else-if="block.type === 'text'"
+      :ref="(el: any) => { if (block.type === 'text') editableRef = el }"
       :key="`text-${editorStore.currentLanguage || 'default'}`"
       class="prose prose-neutral max-w-none outline-none"
+      :class="{ 'has-state-styles': supportsStateStyles }"
       :style="blockStyles"
       contenteditable="true"
       @blur="handleTextEdit($event)"
+      @keydown.escape="handleEscapeKey($event)"
+      @paste="handlePasteClean($event)"
       v-html="displayTextContent || 'Enter your text here...'"
     ></div>
 
     <!-- ============================================ -->
     <!-- IMAGE BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'image'" class="flex justify-center" :style="blockStyles">
+    <div v-else-if="block.type === 'image'" class="flex justify-center" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
       <img v-if="imageSettings?.src" :src="imageSettings.src" :alt="displayImageAlt || ''" class="max-w-full h-auto" :style="getImageStyles()" />
       <div v-else class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center">
-        <i class="lni lni-photos text-4xl text-muted-foreground"></i>
+        <Icon name="content-image" class="text-4xl text-muted-foreground" />
       </div>
     </div>
 
     <!-- ============================================ -->
     <!-- VIDEO BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'video'" class="flex justify-center" :style="blockStyles">
+    <div v-else-if="block.type === 'video'" class="flex justify-center" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
       <video v-if="videoSettings?.src" :src="videoSettings.src" :autoplay="videoSettings.autoplay" :loop="videoSettings.loop" :muted="videoSettings.muted" :controls="videoSettings.controls" class="max-w-full" :style="getVideoStyles()"></video>
       <div v-else class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center">
-        <i class="lni lni-play text-4xl text-muted-foreground"></i>
+        <Icon name="play" class="text-4xl text-muted-foreground" />
       </div>
     </div>
 
     <!-- ============================================ -->
     <!-- BUTTON BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'button'" class="flex py-2" :class="{ 'justify-start': getButtonAlignment() === 'left', 'justify-center': !getButtonAlignment() || getButtonAlignment() === 'center', 'justify-end': getButtonAlignment() === 'right' }" :style="blockStyles">
+    <div v-else-if="block.type === 'button'" class="flex py-2" :class="{ 'justify-start': getButtonAlignment() === 'left', 'justify-center': !getButtonAlignment() || getButtonAlignment() === 'center', 'justify-end': getButtonAlignment() === 'right' }">
       <span
         :key="`button-${editorStore.currentLanguage || 'default'}`"
-        :class="[...getButtonClasses(buttonSettings?.variant, buttonSettings?.size), 'outline-none focus:ring-2 focus:ring-primary/20']"
+        :class="[...getButtonClasses(buttonSettings?.variant, buttonSettings?.size), 'outline-none focus:ring-2 focus:ring-primary/20', { 'has-state-styles': supportsStateStyles }]"
+        :style="blockStyles"
         contenteditable="true"
         @blur="handleButtonEdit($event)"
         @keydown.enter.prevent="($event.target as HTMLElement).blur()"
+        @keydown.escape="handleEscapeKey($event)"
+        @paste="handlePasteClean($event)"
         @click.stop
       >{{ displayButtonLabel || 'Click me' }}</span>
     </div>
@@ -1382,7 +2044,82 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ICON BLOCK -->
     <!-- ============================================ -->
     <div v-else-if="block.type === 'icon'" class="flex justify-center" :style="blockStyles">
-      <i :class="['lni', iconSettings?.icon || 'lni-star-1']" :style="{ fontSize: `${iconSettings?.size || 24}px`, color: (block.styles as Record<string, unknown>)?.color as string || undefined }"></i>
+      <Icon :name="iconSettings?.icon || 'star-1'" :size="iconSettings?.size || '24px'" :style="{ color: iconStyles?.color || undefined }" />
+    </div>
+
+    <!-- ============================================ -->
+    <!-- VARIANTS BLOCK (Shopify-style) -->
+    <!-- ============================================ -->
+    <div
+      v-else-if="block.type === 'variants'"
+      class="space-y-3"
+      :style="blockStyles"
+    >
+      <!-- Render each option type (e.g., Color, Size) -->
+      <div
+        v-for="optionType in variantsSettings?.optionTypes || []"
+        :key="optionType.id"
+        class="space-y-2"
+      >
+        <div class="text-xs font-medium text-foreground/80">{{ optionType.name }}</div>
+        <div class="flex flex-wrap" :style="{ gap: `${variantsStyles?.gap || '8'}px` }">
+          <!-- Dropdown -->
+          <template v-if="optionType.displayStyle === 'dropdown'">
+            <select
+              class="px-3 py-2 border border-input bg-background text-sm min-w-[120px]"
+              :class="{
+                'h-8 text-xs': variantsStyles?.optionSize === 'sm',
+                'h-10': variantsStyles?.optionSize === 'md' || !variantsStyles?.optionSize,
+                'h-12 text-base': variantsStyles?.optionSize === 'lg',
+              }"
+            >
+              <option v-for="val in optionType.values || []" :key="val.id" :value="val.value">
+                {{ val.value }}
+              </option>
+            </select>
+          </template>
+
+          <!-- Buttons -->
+          <template v-else-if="optionType.displayStyle === 'buttons'">
+            <button
+              v-for="(val, idx) in optionType.values || []"
+              :key="val.id"
+              type="button"
+              class="px-3 border transition-colors"
+              :class="[
+                idx === 0 ? 'border-primary bg-primary/10 text-primary' : 'border-input hover:border-primary/50',
+                {
+                  'py-1 text-xs': variantsStyles?.optionSize === 'sm',
+                  'py-2 text-sm': variantsStyles?.optionSize === 'md' || !variantsStyles?.optionSize,
+                  'py-3 text-base': variantsStyles?.optionSize === 'lg',
+                },
+              ]"
+            >
+              {{ val.value }}
+            </button>
+          </template>
+
+          <!-- Swatches -->
+          <template v-else-if="optionType.displayStyle === 'swatches'">
+            <button
+              v-for="(val, idx) in optionType.values || []"
+              :key="val.id"
+              type="button"
+              class="rounded-full border-2 transition-colors"
+              :class="[
+                idx === 0 ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-primary/50',
+                {
+                  'w-6 h-6': variantsStyles?.optionSize === 'sm',
+                  'w-8 h-8': variantsStyles?.optionSize === 'md' || !variantsStyles?.optionSize,
+                  'w-10 h-10': variantsStyles?.optionSize === 'lg',
+                },
+              ]"
+              :style="{ backgroundColor: val.colorHex || '#cccccc' }"
+              :title="val.value"
+            ></button>
+          </template>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================ -->
@@ -1407,7 +2144,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- These are rendered as children of form blocks -->
     <!-- ============================================ -->
     <!-- Form Input -->
-    <div v-else-if="block.type === 'form-input'" class="flex flex-col gap-1.5" :style="blockStyles">
+    <div v-else-if="block.type === 'form-input'" class="flex flex-col gap-1.5">
       <label v-if="formInputSettings?.label" class="text-sm font-medium">
         {{ formInputSettings.label }}
         <span v-if="formInputSettings?.required" class="text-destructive">*</span>
@@ -1416,12 +2153,14 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         :type="formInputSettings?.inputType || 'text'"
         :placeholder="formInputSettings?.placeholder"
         :required="formInputSettings?.required"
-        class="px-4 py-2 border border-input rounded-md bg-background"
+        class="px-4 py-2 border border-input bg-background"
+        :class="{ 'has-state-styles': supportsStateStyles }"
+        :style="blockStyles"
       />
     </div>
 
     <!-- Form Textarea -->
-    <div v-else-if="block.type === 'form-textarea'" class="flex flex-col gap-1.5" :style="blockStyles">
+    <div v-else-if="block.type === 'form-textarea'" class="flex flex-col gap-1.5">
       <label v-if="formTextareaSettings?.label" class="text-sm font-medium">
         {{ formTextareaSettings.label }}
         <span v-if="formTextareaSettings?.required" class="text-destructive">*</span>
@@ -1430,17 +2169,24 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         :placeholder="formTextareaSettings?.placeholder"
         :rows="formTextareaSettings?.rows || 4"
         :required="formTextareaSettings?.required"
-        class="px-4 py-2 border border-input rounded-md bg-background resize-none"
+        class="px-4 py-2 border border-input bg-background resize-none"
+        :class="{ 'has-state-styles': supportsStateStyles }"
+        :style="blockStyles"
       ></textarea>
     </div>
 
     <!-- Form Select (Dropdown) -->
-    <div v-else-if="block.type === 'form-select'" class="flex flex-col gap-1.5" :style="blockStyles">
+    <div v-else-if="block.type === 'form-select'" class="flex flex-col gap-1.5">
       <label v-if="formSelectSettings?.label" class="text-sm font-medium">
         {{ formSelectSettings.label }}
         <span v-if="formSelectSettings?.required" class="text-destructive">*</span>
       </label>
-      <select :required="formSelectSettings?.required" class="px-4 py-2 border border-input rounded-md bg-background">
+      <select
+        :required="formSelectSettings?.required"
+        class="px-4 py-2 border border-input bg-background"
+        :class="{ 'has-state-styles': supportsStateStyles }"
+        :style="blockStyles"
+      >
         <option v-if="formSelectSettings?.placeholder" value="" disabled selected>{{ formSelectSettings.placeholder }}</option>
         <option v-for="option in formSelectSettings?.options || []" :key="option.id" :value="option.value">
           {{ option.label }}
@@ -1449,7 +2195,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Radio -->
-    <div v-else-if="block.type === 'form-radio'" class="flex flex-col gap-1.5" :style="blockStyles">
+    <div v-else-if="block.type === 'form-radio'" class="flex flex-col gap-1.5" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
       <label v-if="formRadioSettings?.label" class="text-sm font-medium">
         {{ formRadioSettings.label }}
         <span v-if="formRadioSettings?.required" class="text-destructive">*</span>
@@ -1463,7 +2209,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Checkbox -->
-    <div v-else-if="block.type === 'form-checkbox'" class="flex flex-col gap-1.5" :style="blockStyles">
+    <div v-else-if="block.type === 'form-checkbox'" class="flex flex-col gap-1.5" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
       <label v-if="formCheckboxSettings?.label" class="text-sm font-medium">
         {{ formCheckboxSettings.label }}
         <span v-if="formCheckboxSettings?.required" class="text-destructive">*</span>
@@ -1477,34 +2223,37 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Button -->
-    <div v-else-if="block.type === 'form-button'" :style="blockStyles">
+    <div v-else-if="block.type === 'form-button'">
       <button
         type="submit"
         :class="[
-          'px-6 py-2 font-medium rounded-md transition-colors',
+          'px-6 py-2 font-medium transition-colors',
           formButtonSettings?.size === 'sm' ? 'text-sm px-4 py-1.5' : formButtonSettings?.size === 'lg' ? 'text-lg px-8 py-3' : 'text-base',
           formButtonSettings?.variant === 'secondary' ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' :
           formButtonSettings?.variant === 'outline' ? 'border border-input bg-transparent hover:bg-accent' :
           'bg-primary text-primary-foreground hover:bg-primary/90',
-          formButtonSettings?.fullWidth ? 'w-full' : ''
+          formButtonSettings?.fullWidth ? 'w-full' : '',
+          { 'has-state-styles': supportsStateStyles }
         ]"
+        :style="blockStyles"
       >
         {{ formButtonSettings?.label || 'Submit' }}
       </button>
     </div>
 
     <!-- ============================================ -->
-    <!-- FREEFORM BLOCK -->
+    <!-- CANVAS BLOCK -->
     <!-- ============================================ -->
     <div
-      v-else-if="block.type === 'freeform'"
+      v-else-if="block.type === 'canvas'"
       :data-block-id="block.id"
       class="relative overflow-hidden transition-colors"
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed' : ''"
       :style="{
         ...blockStyles,
-        minHeight: freeformSettings?.minHeight || '600px',
-        backgroundImage: freeformSettings?.backgroundType === 'image' && freeformSettings?.backgroundImage ? `url(${freeformSettings.backgroundImage})` : undefined,
+        minHeight: getHeightStyle(canvasSettings?.minHeight) || '400px',
+        backgroundColor: canvasSettings?.backgroundType && canvasSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
+        backgroundImage: canvasSettings?.backgroundType === 'image' && canvasSettings?.backgroundImage ? `url(${canvasSettings.backgroundImage})` : undefined,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }"
@@ -1515,9 +2264,9 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     >
       <!-- Background Video -->
       <video
-        v-if="freeformSettings?.backgroundType === 'video' && freeformSettings?.backgroundVideo"
+        v-if="canvasSettings?.backgroundType === 'video' && canvasSettings?.backgroundVideo"
         class="absolute inset-0 w-full h-full object-cover"
-        :src="freeformSettings.backgroundVideo"
+        :src="canvasSettings.backgroundVideo"
         autoplay
         loop
         muted
@@ -1531,10 +2280,10 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           :key="child.id"
           class="absolute"
           :style="{
-            left: `${getFreeformChildPos(child.id).x}%`,
-            top: `${getFreeformChildPos(child.id).y}%`,
-            width: getFreeformChildPos(child.id).width ? `${getFreeformChildPos(child.id).width}%` : 'auto',
-            zIndex: getFreeformChildPos(child.id).zIndex || childIndex + 1,
+            left: `${getCanvasChildPos(child.id).x}%`,
+            top: `${getCanvasChildPos(child.id).y}%`,
+            width: getCanvasChildPos(child.id).width ? `${getCanvasChildPos(child.id).width}%` : 'auto',
+            zIndex: getCanvasChildPos(child.id).zIndex || childIndex + 1,
           }"
         >
           <PreviewSection
@@ -1548,10 +2297,10 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       <!-- Empty state -->
       <div
         v-else
-        class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-lg m-4 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+        class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground border-1 border-dashed border-border/50 rounded-lg m-4 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
         @click.stop="openBlockPicker"
       >
-        <i class="lni lni-add-1 text-3xl mb-2"></i>
+        <Icon name="add-1" class="text-3xl mb-2" />
         <span class="text-sm">Drag elements here to position freely</span>
       </div>
     </div>
@@ -1559,8 +2308,8 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ============================================ -->
     <!-- FALLBACK / PLACEHOLDER -->
     <!-- ============================================ -->
-    <div v-else class="flex flex-col items-center justify-center py-12 text-muted-foreground border-2 border-dashed border-border rounded-lg">
-      <i :class="['lni', sectionBlockIcons[block.type], 'text-3xl mb-2']"></i>
+    <div v-else class="flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg">
+      <Icon :name="sectionBlockIcons[block.type]" :size="30" class="mb-2" />
       <span class="text-sm font-medium">{{ sectionBlockLabels[block.type] }}</span>
     </div>
 
@@ -1568,28 +2317,23 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <ContextMenu ref="contextMenuRef">
       <!-- Add content option for layout blocks -->
       <template v-if="isLayoutBlock">
-        <ContextMenuItem icon="lni-plus" @click="openBlockPicker">
+        <ContextMenuItem icon="plus" @click="openBlockPicker">
           Add content
         </ContextMenuItem>
         <ContextMenuDivider />
       </template>
-      <ContextMenuItem icon="lni-pencil-1" @click="handleEditStyle">
-        Edit style
-      </ContextMenuItem>
-      <ContextMenuDivider />
-      <ContextMenuItem icon="lni-brush-2" @click="handleCopyStyle">
-        Copy style
-      </ContextMenuItem>
+      <!-- Z-index options for Canvas children -->
+      <template v-if="isInsideCanvas">
+        <ContextMenuItem icon="lni-arrow-upward" @click="handleBringToFront">
+          Bring to front
+        </ContextMenuItem>
+        <ContextMenuItem icon="lni-arrow-downward" @click="handleSendToBack">
+          Send to back
+        </ContextMenuItem>
+        <ContextMenuDivider />
+      </template>
       <ContextMenuItem
-        icon="lni-brush-2"
-        :disabled="!editorStore.hasClipboardStyles"
-        @click="handlePasteStyle"
-      >
-        Paste style
-      </ContextMenuItem>
-      <ContextMenuDivider />
-      <ContextMenuItem
-        icon="lni-slice-2"
+        icon="app-cut"
         shortcut="⌘X"
         :disabled="isProtectedBlock"
         @click="handleCut"
@@ -1597,7 +2341,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         Cut
       </ContextMenuItem>
       <ContextMenuItem
-        icon="lni-file-multiple"
+        icon="app-duplicate"
         shortcut="⌘C"
         :disabled="isProtectedBlock"
         @click="handleCopy"
@@ -1605,15 +2349,30 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         Copy
       </ContextMenuItem>
       <ContextMenuItem
-        icon="lni-clipboard"
+        icon="app-paste"
         shortcut="⌘V"
         :disabled="!editorStore.hasClipboardBlock"
         @click="handlePaste"
       >
         Paste
       </ContextMenuItem>
+      <ContextMenuDivider />
+      <ContextMenuItem icon="app-editor" @click="handleEditStyle">
+        Edit style
+      </ContextMenuItem>
+      <ContextMenuItem icon="app-copy-style" @click="handleCopyStyle">
+        Copy style
+      </ContextMenuItem>
       <ContextMenuItem
-        icon="lni-layers-1"
+        icon="app-paste-style"
+        :disabled="!editorStore.hasClipboardStyles"
+        @click="handlePasteStyle"
+      >
+        Paste style
+      </ContextMenuItem>
+      <ContextMenuDivider />
+      <ContextMenuItem
+        icon="app-duplicate"
         shortcut="⌘D"
         :disabled="isProtectedBlock"
         @click="handleDuplicate"
@@ -1621,7 +2380,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         Duplicate
       </ContextMenuItem>
       <ContextMenuItem
-        icon="lni-trash-3"
+        icon="app-delete"
         shortcut="⌫"
         destructive
         :disabled="isProtectedBlock"
@@ -1637,5 +2396,56 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       @select-block="handleBlockPickerSelectBlock"
       @select-preset="handleBlockPickerSelectPreset"
     />
+
+    <!-- Inline Format Toolbar for heading/text blocks -->
+    <InlineFormatToolbar
+      v-if="block.type === 'heading' || block.type === 'text'"
+      :target-element="editableRef"
+      @format="handleInlineFormat"
+    />
   </section>
 </template>
+
+<style>
+/* State styles - apply base and hover/active/focus styles via CSS custom properties
+   Using CSS variables allows :hover/:active/:focus pseudo-classes to override inline styles
+   Note: Not scoped because these styles need to apply to dynamically classed elements */
+.has-state-styles {
+  /* Apply base color and background from CSS variables (set in inline style) */
+  background-color: var(--base-bg, transparent);
+  color: var(--base-color, inherit);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.has-state-styles:hover {
+  /* Hover styles override base, fallback to base if not set */
+  background-color: var(--hover-bg, var(--base-bg, transparent));
+  color: var(--hover-color, var(--base-color, inherit));
+  border-color: var(--hover-border-color);
+  box-shadow: var(--hover-shadow);
+  opacity: var(--hover-opacity);
+  transform: var(--hover-transform);
+}
+
+.has-state-styles:active {
+  /* Pressed styles override hover, fallback to hover then base */
+  background-color: var(--pressed-bg, var(--hover-bg, var(--base-bg, transparent)));
+  color: var(--pressed-color, var(--hover-color, var(--base-color, inherit)));
+  border-color: var(--pressed-border-color, var(--hover-border-color));
+  box-shadow: var(--pressed-shadow, var(--hover-shadow));
+  opacity: var(--pressed-opacity, var(--hover-opacity));
+  transform: var(--pressed-transform, var(--hover-transform));
+}
+
+.has-state-styles:focus,
+.has-state-styles:focus-visible {
+  /* Focus styles, no cascading - just focused or base */
+  background-color: var(--focused-bg, var(--base-bg, transparent));
+  color: var(--focused-color, var(--base-color, inherit));
+  border-color: var(--focused-border-color);
+  box-shadow: var(--focused-shadow);
+  opacity: var(--focused-opacity);
+  transform: var(--focused-transform);
+  outline: none;
+}
+</style>

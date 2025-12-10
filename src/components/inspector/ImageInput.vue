@@ -2,6 +2,8 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import ProjectUpload from '@/components/modal/ProjectUpload.vue'
+import ProjectUnsplash from '@/components/modal/ProjectUnsplash.vue'
+import Icon from '@/components/ui/Icon.vue'
 
 const props = defineProps<{
   modelValue: string
@@ -14,6 +16,7 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const showUploadModal = ref(false)
+const showUnsplashModal = ref(false)
 
 const projectId = computed(() => route.params.projectId as string)
 
@@ -23,7 +26,15 @@ function handleUpload() {
   showUploadModal.value = true
 }
 
+function handleFindImage() {
+  showUnsplashModal.value = true
+}
+
 function handleUploaded(url: string) {
+  emit('update:modelValue', url)
+}
+
+function handleUnsplashSelect(url: string) {
   emit('update:modelValue', url)
 }
 
@@ -49,12 +60,20 @@ function handleRemove() {
         <button
           type="button"
           class="w-8 h-8 bg-background/90 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-foreground hover:bg-background transition-colors"
-          title="Replace image"
+          title="Upload image"
           @click="handleUpload"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
+        </button>
+        <button
+          type="button"
+          class="w-8 h-8 bg-background/90 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-foreground hover:bg-background transition-colors"
+          title="Find image"
+          @click="handleFindImage"
+        >
+          <Icon name="search-1" class="text-sm" />
         </button>
         <button
           type="button"
@@ -69,24 +88,39 @@ function handleRemove() {
       </div>
     </div>
 
-    <!-- Upload button (when no image) -->
-    <button
-      v-else
-      type="button"
-      class="w-full h-24 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
-      @click="handleUpload"
-    >
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-      <span class="text-xs">{{ placeholder || 'Click to upload' }}</span>
-    </button>
+    <!-- Upload/Find buttons (when no image) -->
+    <div v-else class="space-y-2">
+      <button
+        type="button"
+        class="w-full h-20 border-2 border-dashed border-border rounded-md flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+        @click="handleUpload"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span class="text-xs">{{ placeholder || 'Click to upload' }}</span>
+      </button>
+      <button
+        type="button"
+        class="w-full h-9 border border-border rounded-md flex items-center justify-center gap-2 text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground hover:bg-muted/50 transition-colors"
+        @click="handleFindImage"
+      >
+        <Icon name="search-1" class="text-xs" />
+        <span>Find image</span>
+      </button>
+    </div>
 
     <!-- Upload modal -->
     <ProjectUpload
       v-model:open="showUploadModal"
       :project-id="projectId"
       @uploaded="handleUploaded"
+    />
+
+    <!-- Unsplash modal -->
+    <ProjectUnsplash
+      v-model:open="showUnsplashModal"
+      @select="handleUnsplashSelect"
     />
   </div>
 </template>

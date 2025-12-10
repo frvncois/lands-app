@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Modal, Button, Select } from '@/components/ui'
+import { Modal, Button, Select, Icon } from '@/components/ui'
 import { useEditorStore } from '@/stores/editor'
 import { languages, getLanguageByCode } from '@/lib/languages'
 import type { LanguageCode } from '@/types/editor'
@@ -31,7 +31,7 @@ const availableLanguages = computed(() => {
 const allLanguageOptions = computed(() => {
   return languages.map(l => ({
     value: l.code,
-    label: `${l.flag} ${l.name}`,
+    label: l.name,
   }))
 })
 
@@ -39,7 +39,7 @@ const allLanguageOptions = computed(() => {
 const languageOptions = computed(() => {
   return availableLanguages.value.map(l => ({
     value: l.code,
-    label: `${l.flag} ${l.name}`,
+    label: l.name,
   }))
 })
 
@@ -96,7 +96,6 @@ function close() {
             class="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
           >
             <div class="flex items-center gap-2">
-              <span class="text-lg">{{ getLanguageByCode(langCode)?.flag }}</span>
               <span class="text-sm font-medium">{{ getLanguageByCode(langCode)?.name }}</span>
               <span class="text-xs text-muted-foreground">({{ getLanguageByCode(langCode)?.nativeName }})</span>
             </div>
@@ -105,7 +104,7 @@ function close() {
               size="sm"
               @click="handleRemoveTranslation(langCode)"
             >
-              <i class="lni lni-trash-3 text-destructive"></i>
+              <Icon name="trash-3" class="text-destructive" />
             </Button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import Icon from '@/components/ui/Icon.vue'
 
 defineProps<{
   title: string
@@ -17,13 +18,10 @@ const isOpen = ref(true)
       @click="isOpen = !isOpen"
     >
       <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
-        <i v-if="icon" :class="['lni', icon, 'text-sm text-muted-foreground']"></i>
+        <Icon v-if="icon" :name="icon" :size="14" class="text-muted-foreground" />
         {{ title }}
       </span>
-      <i
-        class="lni lni-chevron-down text-xs text-muted-foreground transition-transform"
-        :class="isOpen ? '' : '-rotate-90'"
-      ></i>
+      <Icon name="chevron-down" class="text-xs text-muted-foreground transition-transform" />
     </button>
     <div v-if="isOpen" class="px-4 pb-4 space-y-3">
       <slot />

@@ -13,15 +13,6 @@ import { getDefaultProjectSettings } from '@/types/project'
 import { useProjectsStore } from '@/stores/projects'
 import { useToast } from '@/stores/toast'
 
-// Debounce helper
-function debounce<T extends (...args: unknown[]) => void>(fn: T, delay: number) {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null
-  return (...args: Parameters<T>) => {
-    if (timeoutId) clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => fn(...args), delay)
-  }
-}
-
 export const useProjectStore = defineStore('project', () => {
   const toast = useToast()
 
@@ -30,12 +21,7 @@ export const useProjectStore = defineStore('project', () => {
   const currentProjectId = ref<string | null>(null)
   const isLoading = ref(false)
   const isSaving = ref(false)
-
-  // Debounced save function
-  const debouncedSave = debounce(async () => {
-    if (!currentProjectId.value) return
-    await saveToDatabase()
-  }, 500)
+  const hasUnsavedChanges = ref(false)
 
   // Save settings to database
   async function saveToDatabase() {
@@ -81,6 +67,10 @@ export const useProjectStore = defineStore('project', () => {
       // Also update the projects store so the sidebar reflects changes
       const projectsStore = useProjectsStore()
       await projectsStore.fetchProjects()
+
+      // Reset unsaved changes flag
+      hasUnsavedChanges.value = false
+      toast.success('Settings saved')
     } catch (e) {
       console.error('Failed to save project settings:', e)
       toast.error('Failed to save settings')
@@ -94,6 +84,7 @@ export const useProjectStore = defineStore('project', () => {
     if (currentProjectId.value === projectId && !forceReload) return
 
     isLoading.value = true
+    hasUnsavedChanges.value = false
     currentProjectId.value = projectId
 
     try {
@@ -173,13 +164,13 @@ export const useProjectStore = defineStore('project', () => {
       ...updates,
       updatedAt: new Date().toISOString(),
     }
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   function updateTitle(title: string) {
     settings.value.title = title
     settings.value.updatedAt = new Date().toISOString()
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   function updateSlug(slug: string) {
@@ -191,19 +182,19 @@ export const useProjectStore = defineStore('project', () => {
     settings.value.slug = sanitizedSlug
     settings.value.domain.subdomain = sanitizedSlug
     settings.value.updatedAt = new Date().toISOString()
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   function updateSEO(seo: Partial<SEOSettings>) {
     settings.value.seo = { ...settings.value.seo, ...seo }
     settings.value.updatedAt = new Date().toISOString()
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   function updateAnalytics(analytics: Partial<AnalyticsSettings>) {
     settings.value.analytics = { ...settings.value.analytics, ...analytics }
     settings.value.updatedAt = new Date().toISOString()
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   function updatePublish(publish: Partial<PublishSettings>) {
@@ -212,19 +203,19 @@ export const useProjectStore = defineStore('project', () => {
       settings.value.publish.publishedAt = new Date().toISOString()
     }
     settings.value.updatedAt = new Date().toISOString()
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   function updateDomain(domain: Partial<DomainSettings>) {
     settings.value.domain = { ...settings.value.domain, ...domain }
     settings.value.updatedAt = new Date().toISOString()
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   function updatePlan(plan: ProjectPlan) {
     settings.value.plan = plan
     settings.value.updatedAt = new Date().toISOString()
-    debouncedSave()
+    hasUnsavedChanges.value = true
   }
 
   // Setup Umami analytics for Pro/Business plans
@@ -316,6 +307,7 @@ export const useProjectStore = defineStore('project', () => {
     currentProjectId,
     isLoading,
     isSaving,
+    hasUnsavedChanges,
     // Actions
     loadProject,
     updateSettings,

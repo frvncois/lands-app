@@ -153,7 +153,7 @@ function handleProjectDeleted() {
               <div class="flex items-center justify-between p-4 border border-dashed border-border rounded-xl">
                 <div class="flex items-center gap-3">
                   <div class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <i class="lni lni-credit-card-multiple text-muted-foreground"></i>
+                    <Icon name="credit-card-multiple" class="text-muted-foreground" />
                   </div>
                   <div>
                     <p class="text-xs text-muted-foreground">No payment method added</p>
@@ -249,7 +249,7 @@ function handleProjectDeleted() {
 
                 <ListItem.Actions>
                   <Dropdown>
-                    <Dropdown.Item v-if="project.isPublished" icon="lni-globe-1" @click="viewSite(project)">
+                    <Dropdown.Item v-if="project.isPublished" icon="app-show" @click="viewSite(project)">
                       View Site
                     </Dropdown.Item>
                     <Dropdown.Item icon="lni-pencil-1" @click="openEditor(project.id)">
@@ -272,7 +272,7 @@ function handleProjectDeleted() {
                     </template>
                     <template v-else>
                       <Dropdown.Divider />
-                      <Dropdown.Item icon="lni-exit" destructive @click="openLeaveModal(project)">
+                      <Dropdown.Item icon="app-logout" destructive @click="openLeaveModal(project)">
                         Leave Project
                       </Dropdown.Item>
                     </template>
@@ -299,7 +299,7 @@ function handleProjectDeleted() {
             <Card.Content>
               <div class="flex flex-col items-center justify-center py-6 text-center">
                 <div class="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-3">
-                  <i class="lni lni-clipboard text-muted-foreground"></i>
+                  <Icon name="clipboard" class="text-muted-foreground" />
                 </div>
                 <p class="text-xs text-muted-foreground">No invoices yet</p>
                 <p class="text-xxs text-muted-foreground/70">Your billing history will appear here</p>
@@ -311,7 +311,7 @@ function handleProjectDeleted() {
           <Card variant="destructive">
             <Card.Header :border-bottom="false">
               <template #icon>
-                <i class="lni lni-xmark-circle text-sm" style="color: var(--color-destructive)"></i>
+                <Icon name="xmark-circle" class="text-sm" />
               </template>
               <h2 class="text-xs font-medium text-destructive">Danger Zone</h2>
               <template #action>

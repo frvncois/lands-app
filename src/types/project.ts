@@ -1,7 +1,7 @@
 import type { SectionBlock, PageSettings, ProjectTranslations } from '@/types/editor'
 
 // Project Plan Types
-export type ProjectPlan = 'free' | 'pro'
+export type ProjectPlan = 'free' | 'pro' | 'business'
 
 // Plan Feature Keys
 export type PlanFeature =
@@ -11,6 +11,8 @@ export type PlanFeature =
   | 'analytics'
   | 'integrations'
   | 'collaborators'
+  | 'customFonts'
+  | 'customCode'
 
 // Plan Definition
 export interface PlanDefinition {
@@ -36,6 +38,8 @@ export const PLAN_DEFINITIONS: Record<ProjectPlan, PlanDefinition> = {
       analytics: false,
       integrations: false,
       collaborators: false,
+      customFonts: false,
+      customCode: false,
     },
     featureLabels: [
       'Lands subdomain (yoursite.lands.app)',
@@ -55,6 +59,8 @@ export const PLAN_DEFINITIONS: Record<ProjectPlan, PlanDefinition> = {
       analytics: true,
       integrations: true,
       collaborators: true,
+      customFonts: true,
+      customCode: true,
     },
     featureLabels: [
       'Custom domain support',
@@ -63,6 +69,29 @@ export const PLAN_DEFINITIONS: Record<ProjectPlan, PlanDefinition> = {
       'All integrations (email, payments, etc.)',
       'Team collaboration',
       'Priority support',
+    ],
+  },
+  business: {
+    id: 'business',
+    name: 'Business',
+    price: 15,
+    description: 'For teams and agencies',
+    features: {
+      landsDomain: true,
+      customDomain: true,
+      noWatermark: true,
+      analytics: true,
+      integrations: true,
+      collaborators: true,
+      customFonts: true,
+      customCode: true,
+    },
+    featureLabels: [
+      'Everything in Pro',
+      'Unlimited team members',
+      'White label option',
+      'API access',
+      'Dedicated support',
     ],
   },
 }
@@ -298,6 +327,7 @@ export interface AnalyticsSettings {
   umamiSiteId?: string
   umamiEnabled?: boolean
   customHeadCode?: string
+  googleAnalyticsId?: string
 }
 
 // Publish Settings

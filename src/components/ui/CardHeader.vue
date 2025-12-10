@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from './Icon.vue'
+
 interface Props {
   title?: string
   subtitle?: string
@@ -26,7 +28,9 @@ const emit = defineEmits<{
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <slot name="icon">
-          <i v-if="icon" :class="['lni', icon, 'text-muted-foreground bg-accent/50 p-1.5 rounded-lg']" />
+          <span v-if="icon" class="text-muted-foreground bg-accent/50 p-1.5 rounded-lg flex items-center justify-center">
+            <Icon :name="icon" :size="14" />
+          </span>
         </slot>
         <div v-if="title || $slots.title">
           <slot name="title">

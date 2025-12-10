@@ -18,7 +18,7 @@ interface InviteInfo {
   email: string
   role: string
   project_title: string
-  invited_by: string
+  inviter_name: string
   expires_at: string
 }
 
@@ -51,7 +51,13 @@ async function fetchInviteInfo() {
       return
     }
 
-    inviteInfo.value = data
+    inviteInfo.value = {
+      email: data.email || '',
+      role: data.role || '',
+      project_title: data.project_title || '',
+      inviter_name: data.inviter_name || '',
+      expires_at: data.expires_at || '',
+    }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load invite'
   } finally {
@@ -111,7 +117,7 @@ function goToDashboard() {
       <!-- Error State -->
       <div v-else-if="error && !inviteInfo" class="bg-card border border-border rounded-lg p-8 text-center">
         <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
-          <i class="lni lni-cross-circle text-2xl text-destructive"></i>
+          <Icon name="cross-circle" class="text-2xl text-destructive" />
         </div>
         <h1 class="text-lg font-semibold text-foreground mb-2">Invalid Invite</h1>
         <p class="text-sm text-muted-foreground mb-6">{{ error }}</p>
@@ -128,11 +134,11 @@ function goToDashboard() {
         <!-- Header -->
         <div class="bg-muted/30 p-6 text-center border-b border-border">
           <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-            <i class="lni lni-users text-2xl text-primary"></i>
+            <Icon name="users" class="text-2xl text-primary" />
           </div>
           <h1 class="text-lg font-semibold text-foreground">You're invited!</h1>
           <p class="text-sm text-muted-foreground mt-1">
-            <span class="font-medium text-foreground">{{ inviteInfo.invited_by }}</span> invited you to collaborate
+            <span class="font-medium text-foreground">{{ inviteInfo.inviter_name }}</span> invited you to collaborate
           </p>
         </div>
 
@@ -159,7 +165,7 @@ function goToDashboard() {
           <!-- Email mismatch warning -->
           <div v-if="isAuthenticated && emailMismatch" class="p-3 bg-amber-50 border border-amber-200 rounded-md">
             <p class="text-sm text-amber-800">
-              <i class="lni lni-warning mr-1"></i>
+              <Icon name="warning" class="mr-1" />
               This invite was sent to <strong>{{ inviteInfo.email }}</strong>, but you're logged in as <strong>{{ currentUserEmail }}</strong>.
             </p>
           </div>

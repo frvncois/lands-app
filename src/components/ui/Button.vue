@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'link'
+type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'dotted' | 'destructive' | 'link'
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon'
 
 interface Props {
@@ -32,6 +32,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   default: 'bg-primary text-primary-foreground hover:bg-primary/90',
   secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
   outline: 'border bg-transparent hover:bg-accent/25 shadow-xs',
+  dotted: 'border border-dotted bg-transparent hover:bg-accent/25 shadow-xs',
   ghost: 'hover:bg-accent hover:text-accent-foreground',
   destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   link: 'text-primary underline-offset-4 hover:underline',

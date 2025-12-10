@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
-import { Card, Button, Header } from '@/components/ui'
+import { Card, Button, Header, Icon } from '@/components/ui'
 import PlanUpgrade from '@/components/modal/PlanUpgrade.vue'
 import { planHasFeature } from '@/types/project'
 import { useIntegrations } from '@/composables/useIntegrations'
@@ -124,41 +124,47 @@ async function disconnectIntegration() {
       <div v-if="!canUseIntegrations" class="flex items-center justify-center py-20">
         <div class="text-center max-w-md">
           <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-            <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
+            <Icon name="app-integration" :size="32" class="text-primary" />
           </div>
           <h3 class="text-xl font-semibold text-foreground mb-2">Unlock Integrations</h3>
           <p class="text-sm text-muted-foreground mb-6">
             Upgrade to Pro to connect third-party services and supercharge your project.
           </p>
-          <div class="space-y-3 text-left mb-6 p-4 bg-muted/50 rounded-lg">
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+          <div class="space-y-3 text-left mb-6">
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Email marketing (Mailchimp, ConvertKit, Buttondown)
             </div>
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Payments (Stripe, Gumroad, Lemon Squeezy)
             </div>
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Automation (Zapier, Custom Webhooks)
             </div>
-            <div class="flex items-center gap-2 text-sm text-foreground">
-              <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-              </svg>
+            <div class="flex items-center gap-3 text-sm text-foreground bg-muted/50 rounded-2xl p-3.5">
+              <div class="bg-green-500/10 text-green-600 border border-green-500/20 rounded-full p-1">
+                <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
               Form submissions to your integrations
             </div>
           </div>
-          <Button size="lg" @click="showUpgradeModal = true">
+          <Button size="sm" @click="showUpgradeModal = true">
             Upgrade to Pro - $6/month
           </Button>
         </div>

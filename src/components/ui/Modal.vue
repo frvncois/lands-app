@@ -9,6 +9,8 @@ interface Props {
   closable?: boolean
   closeOnBackdrop?: boolean
   closeOnEscape?: boolean
+  title?: string
+  description?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -16,6 +18,8 @@ const props = withDefaults(defineProps<Props>(), {
   closable: true,
   closeOnBackdrop: true,
   closeOnEscape: true,
+  title: undefined,
+  description: undefined,
 })
 
 const emit = defineEmits<{
@@ -116,8 +120,13 @@ onUnmounted(() => {
             </button>
 
             <!-- Header -->
-            <div v-if="$slots.header" class="px-6 pt-6 pb-0">
-              <slot name="header" />
+            <div v-if="$slots.header || title" class="px-6 pt-6 pb-0">
+              <slot name="header">
+                <div v-if="title">
+                  <h2 class="text-lg font-semibold text-foreground">{{ title }}</h2>
+                  <p v-if="description" class="text-sm text-muted-foreground mt-1">{{ description }}</p>
+                </div>
+              </slot>
             </div>
 
             <!-- Content -->

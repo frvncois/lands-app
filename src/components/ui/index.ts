@@ -51,3 +51,4 @@ export { default as Modal } from './Modal.vue'
 // Display Components
 export { default as Avatar } from './Avatar.vue'
 export { default as ColorPicker } from './ColorPicker.vue'
+export { default as Icon } from './Icon.vue'

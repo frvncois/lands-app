@@ -17,6 +17,7 @@ export type SectionBlockType =
   | 'grid'
   | 'stack'
   | 'freeform'
+  | 'canvas'
   // Content
   | 'heading'
   | 'text'
@@ -25,6 +26,8 @@ export type SectionBlockType =
   | 'button'
   | 'icon'
   | 'divider'
+  // E-commerce
+  | 'variants'
   // Form (container that accepts form field children)
   | 'form'
   // Form field types (children of form only)
@@ -52,6 +55,19 @@ export type FreeformChildBlockType =
   | 'video'
   | 'button'
 
+// Canvas child block types (blocks that can be placed in Canvas)
+export type CanvasChildBlockType =
+  | 'heading'
+  | 'text'
+  | 'image'
+  | 'video'
+  | 'button'
+  | 'icon'
+  | 'divider'
+
+// Mask shapes for canvas/image blocks
+export type MaskShape = 'none' | 'circle' | 'rounded' | 'blob-1' | 'blob-2' | 'blob-3' | 'hexagon' | 'diamond' | 'arch'
+
 // Block categories for sidebar organization
 export type BlockCategory = 'layout' | 'content'
 
@@ -75,6 +91,24 @@ export type AspectRatio = '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | 'auto'
 export type ObjectFit = 'cover' | 'contain' | 'fill' | 'none'
 // Legacy animation type (deprecated - use AnimationSettings instead)
 export type AnimationType = 'none' | 'fade' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'zoom'
+
+// Style states for interactive elements
+export type StyleState = 'none' | 'hover' | 'pressed' | 'focused'
+
+// Block types that support style states
+export const STYLE_STATE_BLOCK_TYPES: SectionBlockType[] = [
+  'heading',
+  'text',
+  'button',
+  'image',
+  'video',
+  'form-input',
+  'form-textarea',
+  'form-select',
+  'form-radio',
+  'form-checkbox',
+  'form-button',
+]
 
 // ============================================
 // ANIMATION SYSTEM
@@ -209,6 +243,23 @@ export interface CoreBlockStyles {
   border?: BorderStyle
   // Shadow
   shadow?: ShadowStyle
+  // Flexbox child properties
+  flexGrow?: number | string
+  flexShrink?: number | string
+  flexBasis?: string
+  // Visual effects
+  opacity?: number | string
+  mixBlendMode?: string
+}
+
+// State style overrides (for hover, pressed, focused states)
+export interface StateStyles {
+  backgroundColor?: string
+  color?: string
+  border?: BorderStyle
+  shadow?: ShadowStyle
+  opacity?: number | string
+  transform?: string
 }
 
 export interface BaseBlockStyles extends CoreBlockStyles {
@@ -217,6 +268,10 @@ export interface BaseBlockStyles extends CoreBlockStyles {
   // Responsive overrides (inherit from desktop → tablet → mobile)
   tablet?: Partial<CoreBlockStyles>
   mobile?: Partial<CoreBlockStyles>
+  // State style overrides (for interactive elements)
+  hover?: StateStyles
+  pressed?: StateStyles
+  focused?: StateStyles
 }
 
 // ============================================
@@ -240,10 +295,17 @@ export interface HeaderSettings extends SharedBlockSettings {
   }
   isHidden: boolean
   sticky?: boolean
+  gap?: string
+  height?: string
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
 }
 
 export interface HeaderStyles extends BaseBlockStyles {
   alignment?: Alignment
+  justifyContent?: JustifyContent
+  alignItems?: AlignItems
 }
 
 // ============================================
@@ -269,10 +331,17 @@ export interface FooterSettings extends SharedBlockSettings {
   copyrightText: string
   socialLinks: FooterSocialLink[]
   isHidden: boolean
+  gap?: string
+  height?: string
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
 }
 
 export interface FooterStyles extends BaseBlockStyles {
   alignment?: Alignment
+  justifyContent?: JustifyContent
+  alignItems?: AlignItems
 }
 
 // ============================================
@@ -283,6 +352,10 @@ export interface FooterStyles extends BaseBlockStyles {
 export interface ContainerSettings extends SharedBlockSettings {
   maxWidth?: string
   height?: string
+  // Background
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
 }
 
 export interface ContainerStyles extends BaseBlockStyles {
@@ -294,6 +367,9 @@ export interface ContainerStyles extends BaseBlockStyles {
   flexWrap?: FlexWrap
   gap?: string
 }
+
+// Grid collection type (for preset grids)
+export type GridCollectionType = 'cards' | 'features' | 'logos' | 'testimonials' | 'gallery' | 'pricing' | 'team' | 'faq' | 'menu-list' | 'none'
 
 // Grid
 export interface GridSettings extends SharedBlockSettings {
@@ -307,6 +383,21 @@ export interface GridSettings extends SharedBlockSettings {
   columnWidths?: number[]
   rows?: number // number of rows for explicit grid
   rowHeights?: number[] // custom row heights as fr values
+  // Collection metadata (for preset grids)
+  collectionType?: GridCollectionType
+  collectionLevel?: number // nesting depth for styling sync
+  isSlider?: boolean // render as horizontal slider instead of grid
+  // Slider settings (when isSlider is true)
+  slidesPerView?: number
+  loop?: boolean
+  autoplay?: boolean
+  autoplayInterval?: number
+  showArrows?: boolean
+  showDots?: boolean
+  // Background
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
 }
 
 export interface GridStyles extends BaseBlockStyles {
@@ -323,6 +414,10 @@ export interface StackSettings extends SharedBlockSettings {
   direction?: 'horizontal' | 'vertical'
   align?: 'start' | 'center' | 'end' | 'stretch'
   height?: string
+  // Background
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
 }
 
 export interface StackStyles extends BaseBlockStyles {
@@ -358,6 +453,9 @@ export interface HeadingSettings extends SharedBlockSettings {
 export interface HeadingStyles extends BaseBlockStyles {
   fontSize?: FontSize
   fontWeight?: FontWeight
+  fontFamily?: string
+  fontStyle?: 'normal' | 'italic'
+  textDecoration?: 'none' | 'underline' | 'line-through'
   color?: string
   lineHeight?: string
   letterSpacing?: string
@@ -372,6 +470,10 @@ export interface TextSettings extends SharedBlockSettings {
 
 export interface TextStyles extends BaseBlockStyles {
   fontSize?: FontSize
+  fontFamily?: string
+  fontWeight?: FontWeight
+  fontStyle?: 'normal' | 'italic'
+  textDecoration?: 'none' | 'underline' | 'line-through'
   color?: string
   lineHeight?: string
   letterSpacing?: string
@@ -393,6 +495,8 @@ export interface ImageStyles extends BaseBlockStyles {
   height?: string
   objectFit?: ObjectFit
   borderRadius?: string
+  mask?: MaskShape
+  aspectRatio?: AspectRatio | '3:2' | '2:3'
 }
 
 // Video
@@ -409,6 +513,7 @@ export interface VideoStyles extends BaseBlockStyles {
   aspectRatio?: AspectRatio
   maxWidth?: string
   borderRadius?: string
+  mask?: MaskShape
 }
 
 // Button
@@ -426,6 +531,7 @@ export interface ButtonSettings extends SharedBlockSettings {
 export interface ButtonStyles extends BaseBlockStyles {
   backgroundColor?: string
   textColor?: string
+  color?: string // Alias for textColor (used by inspector)
   hoverBackgroundColor?: string
   hoverTextColor?: string
   borderRadius?: string
@@ -466,10 +572,18 @@ export interface FormSettings extends SharedBlockSettings {
   integrationProvider?: string
   // Layout
   gap?: string
+  height?: string
+  // Background
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
 }
 
 export interface FormStyles extends BaseBlockStyles {
   gap?: string
+  flexDirection?: FlexDirection
+  justifyContent?: JustifyContent
+  alignItems?: AlignItems
 }
 
 // ============================================
@@ -494,6 +608,9 @@ export interface FormInputSettings extends BaseFormFieldSettings {
 
 export interface FormInputStyles extends BaseBlockStyles {
   borderRadius?: string
+  fontSize?: FontSize
+  color?: string
+  labelColor?: string
 }
 
 // Form Textarea
@@ -506,6 +623,9 @@ export interface FormTextareaSettings extends BaseFormFieldSettings {
 
 export interface FormTextareaStyles extends BaseBlockStyles {
   borderRadius?: string
+  fontSize?: FontSize
+  color?: string
+  labelColor?: string
 }
 
 // Form Select (Dropdown)
@@ -522,6 +642,9 @@ export interface FormSelectSettings extends BaseFormFieldSettings {
 
 export interface FormSelectStyles extends BaseBlockStyles {
   borderRadius?: string
+  fontSize?: FontSize
+  color?: string
+  labelColor?: string
 }
 
 // Form Radio
@@ -530,7 +653,11 @@ export interface FormRadioSettings extends BaseFormFieldSettings {
   layout?: 'vertical' | 'horizontal'
 }
 
-export interface FormRadioStyles extends BaseBlockStyles {}
+export interface FormRadioStyles extends BaseBlockStyles {
+  fontSize?: FontSize
+  color?: string
+  labelColor?: string
+}
 
 // Form Checkbox
 export interface FormCheckboxSettings extends BaseFormFieldSettings {
@@ -538,7 +665,11 @@ export interface FormCheckboxSettings extends BaseFormFieldSettings {
   layout?: 'vertical' | 'horizontal'
 }
 
-export interface FormCheckboxStyles extends BaseBlockStyles {}
+export interface FormCheckboxStyles extends BaseBlockStyles {
+  fontSize?: FontSize
+  color?: string
+  labelColor?: string
+}
 
 // Form Button (submit)
 export interface FormButtonSettings extends SharedBlockSettings {
@@ -551,6 +682,9 @@ export interface FormButtonSettings extends SharedBlockSettings {
 
 export interface FormButtonStyles extends BaseBlockStyles {
   borderRadius?: string
+  textColor?: string
+  fontSize?: FontSize
+  letterSpacing?: string
 }
 
 // ============================================
@@ -592,6 +726,145 @@ export interface FreeformStyles extends BaseBlockStyles {
 }
 
 // ============================================
+// CANVAS BLOCK
+// ============================================
+
+// Canvas child position (absolute positioning data)
+export interface CanvasChildPosition {
+  x: number // Percentage from left (0-100)
+  y: number // Percentage from top (0-100)
+  width?: number // Percentage width (optional, defaults to auto)
+  height?: number // Percentage height (optional, defaults to auto)
+  zIndex?: number // Layer order
+}
+
+// Responsive child positions for Canvas (per-viewport)
+export interface ResponsiveCanvasChildPositions {
+  desktop: Record<string, CanvasChildPosition>
+  tablet?: Record<string, CanvasChildPosition>
+  mobile?: Record<string, CanvasChildPosition>
+}
+
+// Canvas block settings
+export interface CanvasSettings extends SharedBlockSettings {
+  // Background
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
+  // Size
+  minHeight?: string // e.g., '100vh', '600px'
+  aspectRatio?: AspectRatio
+  // Child positions (responsive - per viewport)
+  childPositions: ResponsiveCanvasChildPositions
+}
+
+export interface CanvasStyles extends BaseBlockStyles {
+  // Canvas styles
+}
+
+// ============================================
+// VARIANTS BLOCK (E-COMMERCE)
+// ============================================
+
+// Variant option display style
+export type VariantDisplayStyle = 'buttons' | 'swatches' | 'dropdown'
+
+// Single option value
+export interface VariantOptionValue {
+  id: string
+  value: string
+  colorHex?: string // For color swatches
+}
+
+// Option type (e.g., Color, Size)
+export interface VariantOptionType {
+  id: string
+  name: string
+  displayStyle: VariantDisplayStyle
+  values: VariantOptionValue[]
+}
+
+// Product variant
+export interface ProductVariant {
+  id: string
+  optionValues: Record<string, string> // { "Color": "Red", "Size": "M" }
+  price: string
+  buyLink: string
+  image?: string
+}
+
+// Variants block settings
+export interface VariantsSettings extends SharedBlockSettings {
+  optionTypes: VariantOptionType[]
+  variants: ProductVariant[]
+  // Index signature for compatibility with updateBlockSettings
+  [key: string]: unknown
+}
+
+export interface VariantsStyles extends BaseBlockStyles {
+  // Variants styles
+  optionSize?: 'sm' | 'md' | 'lg'
+  gap?: string
+}
+
+// ============================================
+// GOOGLE FONTS
+// ============================================
+
+export interface GoogleFont {
+  family: string
+  category: string
+  variants: string[]
+}
+
+// Custom font (user uploaded)
+export interface CustomFont {
+  id: string
+  name: string
+  url: string
+}
+
+// ============================================
+// SHARED STYLES
+// ============================================
+
+export interface SharedStyle {
+  id: string
+  name: string
+  blockType: SectionBlockType
+  // Styles and settings to apply (excludes content fields)
+  styles: BlockStyles
+  settings: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+}
+
+// Union type for all block styles
+export type BlockStyles =
+  | HeaderStyles
+  | FooterStyles
+  | ContainerStyles
+  | GridStyles
+  | StackStyles
+  | DividerStyles
+  | HeadingStyles
+  | TextStyles
+  | ImageStyles
+  | VideoStyles
+  | ButtonStyles
+  | IconStyles
+  | FormStyles
+  | FormInputStyles
+  | FormTextareaStyles
+  | FormSelectStyles
+  | FormRadioStyles
+  | FormCheckboxStyles
+  | FormButtonStyles
+  | FreeformStyles
+  | CanvasStyles
+  | VariantsStyles
+
+// ============================================
 // SECTION BLOCK (UNIFIED)
 // ============================================
 
@@ -599,6 +872,9 @@ export interface SectionBlock {
   id: string
   type: SectionBlockType
   name: string
+
+  // Shared style reference (for style syncing)
+  sharedStyleId?: string
 
   // Nested blocks (for layout blocks like container, grid, stack, form)
   children?: SectionBlock[]
@@ -627,6 +903,10 @@ export interface SectionBlock {
     | FormButtonSettings
     // Freeform block settings
     | FreeformSettings
+    // Canvas block settings
+    | CanvasSettings
+    // Variants block settings
+    | VariantsSettings
 
   // Block-specific styles
   styles:
@@ -652,6 +932,10 @@ export interface SectionBlock {
     | FormButtonStyles
     // Freeform block styles
     | FreeformStyles
+    // Canvas block styles
+    | CanvasStyles
+    // Variants block styles
+    | VariantsStyles
 }
 
 // ============================================
@@ -675,6 +959,10 @@ export interface PageSettings {
   // Typography defaults
   fontFamily?: string
   textColor?: string
+  baseFontSize?: FontSize | string // Can be FontSize type or pixel value string
+  // Fonts
+  customFonts?: CustomFont[]
+  googleFonts?: GoogleFont[]
   // Layout
   maxWidth?: string
   padding?: SpacingYX
@@ -682,6 +970,12 @@ export interface PageSettings {
   // Metadata
   useCase?: UseCaseCategory
   layoutId?: string
+  // Custom code (Pro feature)
+  customCSS?: string
+  customHeaderScript?: string
+  customFooterScript?: string
+  // Shared styles (style presets for blocks)
+  sharedStyles?: SharedStyle[]
 }
 
 // ============================================
@@ -719,17 +1013,20 @@ export interface LanguageInfo {
 // Translatable content fields per block type
 // Only content fields are translated, not structural/style settings
 export interface BlockTranslation {
-  // Heading
+  // Heading/Text
   content?: string
+  // Image/Video source (URL)
+  source?: string
   // Image
   alt?: string
   caption?: string
+  attribution?: string
   // Video
   // (no translatable fields besides potential captions)
   // Button
   label?: string
   // Header nav links
-  navLinks?: Array<{ id: string; label: string }>
+  navLinks?: Array<{ id: string; label?: string }>
   // Header CTA
   ctaButtonLabel?: string
   // Footer
