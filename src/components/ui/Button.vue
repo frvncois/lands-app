@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'dotted' | 'destructive' | 'link'
-type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon'
+type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm'
 
 interface Props {
   variant?: ButtonVariant
@@ -44,6 +44,7 @@ const sizeClasses: Record<ButtonSize, string> = {
   md: 'h-9 px-5 py-5 text-xxs rounded-xl gap-3',
   lg: 'h-10 px-6 text-sm rounded-lg gap-2',
   icon: 'h-9 w-9 rounded-xl',
+  'icon-sm': 'h-7 w-7 rounded-lg',
 }
 
 const classes = computed(() => [

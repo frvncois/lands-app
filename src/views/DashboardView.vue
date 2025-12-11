@@ -90,8 +90,7 @@ function openPublishedSite(project: Project) {
 </script>
 
 <template>
-  <div class="flex-1 h-full overflow-y-auto bg-background">
-    <div class="max-w-6xl mx-auto p-8">
+    <div class="max-w-6xl mx-auto p-10">
       <!-- Header (hidden when no projects) -->
       <Header
         v-if="isLoading || projects.length > 0"
@@ -124,13 +123,11 @@ function openPublishedSite(project: Project) {
         <Card
           v-for="project in projects"
           :key="project.id"
-          class="group"
-          variant="ghost"
+          variant="default"
         >
           <Card.Thumbnail
             :src="project.thumbnail"
             :alt="project.title"
-            aspect-ratio="4/3"
             class="cursor-pointer"
             @click="editProject(project.id)"
           >
@@ -162,22 +159,22 @@ function openPublishedSite(project: Project) {
                 <p class="text-[10px] font-mono uppercase text-muted-foreground">{{ project.slug }}.lands.app</p>
               </div>
               <Dropdown icon="app-more">
-                <Dropdown.Item icon="lni-pencil-1" @click="editProject(project.id)">
+                <Dropdown.Item icon="app-editor" @click="editProject(project.id)">
                   Edit
                 </Dropdown.Item>
-                <Dropdown.Item icon="lni-gear-1" @click="openSettings(project.id)">
+                <Dropdown.Item icon="app-settings" @click="openSettings(project.id)">
                   Settings
                 </Dropdown.Item>
-                <Dropdown.Item icon="lni-bar-chart-4" @click="openAnalytics(project.id)">
+                <Dropdown.Item icon="app-analytics" @click="openAnalytics(project.id)">
                   Analytics
                 </Dropdown.Item>
-                <Dropdown.Item icon="lni-file-multiple" @click="duplicateProject(project)">
+                <Dropdown.Item icon="app-duplicate" @click="duplicateProject(project)">
                   Duplicate
                 </Dropdown.Item>
                 <Dropdown.Divider />
                 <template v-if="!project.isPublished">
                   <Dropdown.Item
-                    icon="lni-cloud-upload"
+                    icon="app-publish"
                     :disabled="publishingProjectId === project.id"
                     @click="publishProject(project)"
                   >
@@ -197,7 +194,7 @@ function openPublishedSite(project: Project) {
                   </Dropdown.Item>
                 </template>
                 <Dropdown.Divider />
-                <Dropdown.Item icon="lni-trash-3" destructive @click="confirmDelete(project)">
+                <Dropdown.Item icon="app-delete" destructive @click="confirmDelete(project)">
                   Delete
                 </Dropdown.Item>
               </Dropdown>
@@ -205,9 +202,9 @@ function openPublishedSite(project: Project) {
           </Card.Content>
           <Card.Footer>
             <div class="flex items-center justify-between">
-              <Badge v-if="publishingProjectId === project.id" variant="secondary" size="sm">
+              <Badge v-if="publishingProjectId === project.id" variant="secondary" size="xs">
                 <Spinner size="xs" />
-                Publishing...
+                Updating ...
               </Badge>
               <Badge
                 v-else-if="project.isPublished"
@@ -228,7 +225,10 @@ function openPublishedSite(project: Project) {
         </Card>
 
         <!-- New Project Card -->
-        <Card variant="outline" class="r border-1 border-dotted border-border hover:border hover:bg-muted/25 transition-colors">
+        <Card 
+          variant="outline"
+          class="border-1 border-dotted border-border hover:border hover:bg-muted/25 transition-colors"
+          aspect-ratio="4/3">
           <button
             class="cursor-pointer flex flex-col items-center justify-center w-full h-full"
             @click="showNewProjectModal = true"
@@ -264,5 +264,4 @@ function openPublishedSite(project: Project) {
       :project-title="projectToDelete.title"
       @deleted="handleDeleted"
     />
-  </div>
 </template>

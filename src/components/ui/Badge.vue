@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const variantClasses: Record<BadgeVariant, string> = {
   default: 'bg-primary text-primary-foreground',
-  secondary: 'bg-slate-500/10 text-slate-600 border border-slate-500/20',
+  secondary: 'bg-blue-900/50 text-blue-400 border border-blue-500/20',
   draft: 'bg-orange-500/10 text-orange-600 border border-orange-500/20',
   success: 'bg-green-500/10 text-green-600 border border-green-500/20',
   warning: 'bg-amber-500/10 text-amber-600 border border-amber-500/20',
@@ -44,16 +44,31 @@ const dotColors: Record<BadgeVariant, string> = {
   outline: 'bg-violet-500',
 }
 
+const shadowColors: Record<BadgeVariant, string> = {
+  default: 'oklch(0.205 0 0 / 0.3)',
+  secondary: 'oklch(0.55 0.15 250 / 0.4)',
+  draft: 'oklch(0.7 0.17 50 / 0.4)',
+  success: 'oklch(0.65 0.2 145 / 0.4)',
+  warning: 'oklch(0.75 0.18 85 / 0.4)',
+  error: 'oklch(0.577 0.245 27.325 / 0.4)',
+  info: 'oklch(0.6 0.18 250 / 0.4)',
+  outline: 'oklch(0.6 0.2 290 / 0.4)',
+}
+
 const classes = computed(() => [
   'inline-flex items-center rounded',
   props.dot ? 'gap-1.5' : 'gap-1',
   variantClasses[props.variant],
   sizeClasses[props.size],
 ])
+
+const shadowStyle = computed(() => ({
+  boxShadow: `0 0px 15px -6px ${shadowColors[props.variant]}`,
+}))
 </script>
 
 <template>
-  <span :class="classes">
+  <span :class="classes" :style="shadowStyle">
     <span v-if="dot" class="w-1 h-1 rounded-full" :class="dotColors[variant]"></span>
     <slot />
   </span>

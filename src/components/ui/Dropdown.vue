@@ -9,6 +9,7 @@ interface Props {
   position?: 'bottom' | 'top'
   width?: string
   closeOnClick?: boolean
+  noPadding?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
@@ -17,6 +18,7 @@ withDefaults(defineProps<Props>(), {
   position: 'bottom',
   width: 'min-w-30',
   closeOnClick: true,
+  noPadding: false,
 })
 
 const isOpen = ref(false)
@@ -80,11 +82,11 @@ export default {
       <div
         v-if="isOpen"
         :class="[
-          'absolute bg-popover backdrop-blur-sm p-1.5 border border-border/75 rounded-xl shadow-lg z-10',
+          'absolute bg-popover backdrop-blur-sm border border-border/75 rounded-xl shadow-lg z-10',
+          noPadding ? '' : 'p-1.5',
           width,
           position === 'top' ? 'bottom-full mb-1 origin-bottom' : 'top-full mt-1 origin-top',
           align === 'right' ? 'right-0' : 'left-0',
-          closeOnClick ? '' : '',
         ]"
         @click="closeOnClick && close()"
       >

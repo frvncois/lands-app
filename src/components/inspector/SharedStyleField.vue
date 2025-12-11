@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { Icon, Tooltip } from '@/components/ui'
+import { Button, Icon, Tooltip } from '@/components/ui'
 import InspectorField from './InspectorField.vue'
 import type { SectionBlockType, SharedStyle } from '@/types/editor'
 
@@ -116,12 +116,6 @@ function handleRemoveStyle() {
                   :class="currentSharedStyle?.id === style.id ? 'bg-primary' : 'bg-muted-foreground/30'"
                 />
                 <span class="flex-1 truncate">{{ style.name }}</span>
-                <Icon
-                  v-if="currentSharedStyle?.id === style.id"
-                  name="checkmark"
-                  :size="12"
-                  class="text-primary shrink-0"
-                />
               </button>
             </div>
 
@@ -169,13 +163,13 @@ function handleRemoveStyle() {
 
       <!-- Detach/Unlink button -->
       <Tooltip v-if="currentSharedStyle" text="Detach">
-        <button
-          type="button"
-          class="p-1.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground shrink-0"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           @click="handleDetach"
         >
           <Icon name="app-unlink" :size="14" />
-        </button>
+        </Button>
       </Tooltip>
     </div>
   </InspectorField>

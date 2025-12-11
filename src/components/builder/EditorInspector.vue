@@ -110,7 +110,6 @@ import ToggleInput from '@/components/inspector/ToggleInput.vue'
 import BorderInput from '@/components/inspector/BorderInput.vue'
 import AnimationSection from '@/components/inspector/AnimationSection.vue'
 import SharedStyleField from '@/components/inspector/SharedStyleField.vue'
-import StateField from '@/components/inspector/StateField.vue'
 import ProjectFont from '@/components/modal/ProjectFont.vue'
 import ProductVariants from '@/components/modal/ProductVariants.vue'
 import SharedStyleCreate from '@/components/modal/SharedStyleCreate.vue'
@@ -299,6 +298,58 @@ const breadcrumbPath = computed<BreadcrumbItem[]>(() => {
   return path
 })
 
+// State dropdown for breadcrumb
+const isStateDropdownOpen = ref(false)
+
+// Check if current block supports style states
+const currentBlockSupportsStates = computed(() => {
+  if (!selectedBlock.value) return false
+  return editorStore.supportsStyleStates(selectedBlock.value.type)
+})
+
+// State label for breadcrumb
+const stateLabel = computed(() => {
+  if (currentStyleState.value === 'none') return ''
+  return `(${currentStyleState.value})`
+})
+
+// State colors
+const stateColors = computed(() => {
+  switch (currentStyleState.value) {
+    case 'hover': return 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
+    case 'pressed': return 'bg-orange-500/20 text-orange-600 dark:text-orange-400'
+    case 'focused': return 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
+    default: return 'bg-accent text-foreground'
+  }
+})
+
+function toggleStateDropdown() {
+  isStateDropdownOpen.value = !isStateDropdownOpen.value
+}
+
+function closeStateDropdown() {
+  isStateDropdownOpen.value = false
+}
+
+function selectState(state: 'none' | 'hover' | 'pressed' | 'focused') {
+  editorStore.setStyleState(state)
+  closeStateDropdown()
+}
+
+function resetState(state: 'hover' | 'pressed' | 'focused') {
+  if (!selectedBlock.value) return
+  editorStore.setStyleState(state)
+  editorStore.resetStateStyles(selectedBlock.value.id)
+  editorStore.setStyleState('none')
+}
+
+function blockHasStateStyles(state: 'hover' | 'pressed' | 'focused'): boolean {
+  if (!selectedBlock.value) return false
+  const styles = selectedBlock.value.styles as Record<string, unknown>
+  const stateStyles = styles[state] as Record<string, unknown> | undefined
+  return stateStyles !== undefined && Object.keys(stateStyles).length > 0
+}
+
 // Handle breadcrumb click navigation
 function handleBreadcrumbClick(item: BreadcrumbItem) {
   if (item.id === null) {
@@ -365,6 +416,13 @@ function updateBlockSettings(settings: Record<string, unknown>) {
 
 function updateBlockStyles(styles: Record<string, unknown>) {
   if (!selectedBlock.value) return
+
+  // If editing a style state (hover/focus/pressed), always use normal update path
+  // The store handles state-specific style updates
+  if (currentStyleState.value !== 'none') {
+    editorStore.updateBlockStyles(selectedBlock.value.id, styles)
+    return
+  }
 
   // For core styles (padding, margin, background, border, shadow), apply viewport-aware update
   const coreStyleKeys = ['padding', 'margin', 'backgroundColor', 'backgroundImage', 'backgroundPosition', 'backgroundSize', 'border', 'shadow']
@@ -660,6 +718,7 @@ const blockSupportsAnimation = computed(() => {
 <template>
   <aside
     class="group/inspector relative flex flex-col h-full bg-sidebar-background transition-[width] duration-300 ease-out"
+    style="overflow-x: hidden !important;"
     :class="editorStore.isInspectorCollapsed ? 'w-16' : 'w-65'"
   >
     <!-- Left border toggle handle -->
@@ -711,7 +770,7 @@ const blockSupportsAnimation = computed(() => {
       <!-- Header with Breadcrumb -->
       <div class="flex items-center h-12 px-3 border-b border-sidebar-border gap-2 ml-1">
         <!-- Breadcrumb navigation -->
-        <nav class="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+        <nav class="flex items-center gap-1 min-w-0 flex-1">
           <template v-for="(item, index) in breadcrumbPath" :key="item.id ?? 'page'">
             <!-- Separator -->
             <i
@@ -733,20 +792,112 @@ const blockSupportsAnimation = computed(() => {
                 :class="hoveredBreadcrumbId === (item.id ?? 'page') ? 'opacity-100 w-auto' : 'opacity-0 w-0'"
               >{{ item.label }}</span>
             </button>
-            <!-- Current item: icon + label -->
+            <!-- Current item: icon + label + state dropdown if applicable -->
             <div
               v-else
-              class="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold text-foreground bg-accent shrink-0"
+              class="relative flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold shrink-0"
+              :class="stateColors"
             >
               <Icon v-if="item.icon" :name="item.icon" :size="10" />
               <span class="truncate max-w-32">{{ item.label }}</span>
+              <span v-if="stateLabel" class="text-[10px] opacity-75">{{ stateLabel }}</span>
+              <!-- State dropdown chevron -->
+              <button
+                v-if="currentBlockSupportsStates"
+                type="button"
+                class="ml-0.5 p-0.5 -mr-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                @click.stop="toggleStateDropdown"
+              >
+                <Icon name="chevron-down" :size="10" :class="{ 'rotate-180': isStateDropdownOpen }" />
+              </button>
+              <!-- State dropdown menu -->
+              <div
+                v-if="isStateDropdownOpen"
+                class="fixed inset-0 z-40"
+                @click="closeStateDropdown"
+              />
+              <Transition
+                enter-active-class="transition duration-100 ease-out"
+                enter-from-class="opacity-0 scale-95"
+                enter-to-class="opacity-100 scale-100"
+                leave-active-class="transition duration-75 ease-in"
+                leave-from-class="opacity-100 scale-100"
+                leave-to-class="opacity-0 scale-95"
+              >
+                <div
+                  v-if="isStateDropdownOpen && currentBlockSupportsStates"
+                  class="absolute top-full left-0 mt-1 w-32 bg-popover border border-border rounded-lg shadow-lg overflow-hidden z-50"
+                >
+                  <div class="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">States</div>
+                  <button
+                    type="button"
+                    class="w-full flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors text-left"
+                    :class="currentStyleState === 'none' ? 'bg-muted/30 text-foreground' : 'text-muted-foreground'"
+                    @click="selectState('none')"
+                  >
+                    <span class="w-2 h-2 rounded-full bg-foreground/30" />
+                    None
+                  </button>
+                  <div class="flex items-center">
+                    <button
+                      type="button"
+                      class="flex-1 flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors text-left"
+                      :class="currentStyleState === 'hover' ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400' : 'text-muted-foreground'"
+                      @click="selectState('hover')"
+                    >
+                      <span class="w-2 h-2 rounded-full bg-yellow-500" />
+                      Hover
+                    </button>
+                    <button
+                      v-if="blockHasStateStyles('hover')"
+                      type="button"
+                      class="px-2 py-1.5 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                      @click="resetState('hover')"
+                    >Reset</button>
+                  </div>
+                  <div class="flex items-center">
+                    <button
+                      type="button"
+                      class="flex-1 flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors text-left"
+                      :class="currentStyleState === 'focused' ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400' : 'text-muted-foreground'"
+                      @click="selectState('focused')"
+                    >
+                      <span class="w-2 h-2 rounded-full bg-blue-500" />
+                      Focus
+                    </button>
+                    <button
+                      v-if="blockHasStateStyles('focused')"
+                      type="button"
+                      class="px-2 py-1.5 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                      @click="resetState('focused')"
+                    >Reset</button>
+                  </div>
+                  <div class="flex items-center">
+                    <button
+                      type="button"
+                      class="flex-1 flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted/50 transition-colors text-left"
+                      :class="currentStyleState === 'pressed' ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400' : 'text-muted-foreground'"
+                      @click="selectState('pressed')"
+                    >
+                      <span class="w-2 h-2 rounded-full bg-orange-500" />
+                      Pressed
+                    </button>
+                    <button
+                      v-if="blockHasStateStyles('pressed')"
+                      type="button"
+                      class="px-2 py-1.5 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                      @click="resetState('pressed')"
+                    >Reset</button>
+                  </div>
+                </div>
+              </Transition>
             </div>
           </template>
         </nav>
       </div>
 
       <!-- Settings content -->
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto overflow-x-hidden">
         <!-- Page Settings (when nothing selected) -->
         <template v-if="!selectedBlock">
           <!-- Layout Styles -->
@@ -1089,7 +1240,7 @@ const blockSupportsAnimation = computed(() => {
           <InspectorSection title="Style" icon="style-color">
             <InspectorField label="Font Size" horizontal>
               <FontSizeSlider
-                :model-value="(selectedBlock.styles as FormInputStyles).fontSize || 'base'"
+                :model-value="(effectiveBlockStyles as FormInputStyles).fontSize || 'base'"
                 @update:model-value="updateBlockStyles({ fontSize: $event })"
               />
             </InspectorField>
@@ -1102,7 +1253,7 @@ const blockSupportsAnimation = computed(() => {
             </InspectorField>
             <InspectorField label="Label Color" horizontal>
               <ColorInput
-                :model-value="(selectedBlock.styles as FormInputStyles).labelColor"
+                :model-value="(effectiveBlockStyles as FormInputStyles).labelColor"
                 swatch-only
                 @update:model-value="updateBlockStyles({ labelColor: $event })"
               />
@@ -1146,7 +1297,7 @@ const blockSupportsAnimation = computed(() => {
           <InspectorSection title="Style" icon="style-color">
             <InspectorField label="Font Size" horizontal>
               <FontSizeSlider
-                :model-value="(selectedBlock.styles as FormTextareaStyles).fontSize || 'base'"
+                :model-value="(effectiveBlockStyles as FormTextareaStyles).fontSize || 'base'"
                 @update:model-value="updateBlockStyles({ fontSize: $event })"
               />
             </InspectorField>
@@ -1159,7 +1310,7 @@ const blockSupportsAnimation = computed(() => {
             </InspectorField>
             <InspectorField label="Label Color" horizontal>
               <ColorInput
-                :model-value="(selectedBlock.styles as FormTextareaStyles).labelColor"
+                :model-value="(effectiveBlockStyles as FormTextareaStyles).labelColor"
                 swatch-only
                 @update:model-value="updateBlockStyles({ labelColor: $event })"
               />
@@ -1235,7 +1386,7 @@ const blockSupportsAnimation = computed(() => {
           <InspectorSection title="Style" icon="style-color">
             <InspectorField label="Font Size" horizontal>
               <FontSizeSlider
-                :model-value="(selectedBlock.styles as FormSelectStyles).fontSize || 'base'"
+                :model-value="(effectiveBlockStyles as FormSelectStyles).fontSize || 'base'"
                 @update:model-value="updateBlockStyles({ fontSize: $event })"
               />
             </InspectorField>
@@ -1248,7 +1399,7 @@ const blockSupportsAnimation = computed(() => {
             </InspectorField>
             <InspectorField label="Label Color" horizontal>
               <ColorInput
-                :model-value="(selectedBlock.styles as FormSelectStyles).labelColor"
+                :model-value="(effectiveBlockStyles as FormSelectStyles).labelColor"
                 swatch-only
                 @update:model-value="updateBlockStyles({ labelColor: $event })"
               />
@@ -1324,7 +1475,7 @@ const blockSupportsAnimation = computed(() => {
           <InspectorSection title="Style" icon="style-color">
             <InspectorField label="Font Size" horizontal>
               <FontSizeSlider
-                :model-value="(selectedBlock.styles as FormRadioStyles).fontSize || 'base'"
+                :model-value="(effectiveBlockStyles as FormRadioStyles).fontSize || 'base'"
                 @update:model-value="updateBlockStyles({ fontSize: $event })"
               />
             </InspectorField>
@@ -1337,7 +1488,7 @@ const blockSupportsAnimation = computed(() => {
             </InspectorField>
             <InspectorField label="Label Color" horizontal>
               <ColorInput
-                :model-value="(selectedBlock.styles as FormRadioStyles).labelColor"
+                :model-value="(effectiveBlockStyles as FormRadioStyles).labelColor"
                 swatch-only
                 @update:model-value="updateBlockStyles({ labelColor: $event })"
               />
@@ -1413,7 +1564,7 @@ const blockSupportsAnimation = computed(() => {
           <InspectorSection title="Style" icon="style-color">
             <InspectorField label="Font Size" horizontal>
               <FontSizeSlider
-                :model-value="(selectedBlock.styles as FormCheckboxStyles).fontSize || 'base'"
+                :model-value="(effectiveBlockStyles as FormCheckboxStyles).fontSize || 'base'"
                 @update:model-value="updateBlockStyles({ fontSize: $event })"
               />
             </InspectorField>
@@ -1426,7 +1577,7 @@ const blockSupportsAnimation = computed(() => {
             </InspectorField>
             <InspectorField label="Label Color" horizontal>
               <ColorInput
-                :model-value="(selectedBlock.styles as FormCheckboxStyles).labelColor"
+                :model-value="(effectiveBlockStyles as FormCheckboxStyles).labelColor"
                 swatch-only
                 @update:model-value="updateBlockStyles({ labelColor: $event })"
               />
@@ -1469,20 +1620,20 @@ const blockSupportsAnimation = computed(() => {
             </InspectorField>
             <InspectorField label="Text Color" horizontal>
               <ColorInput
-                :model-value="(selectedBlock.styles as FormButtonStyles).textColor"
+                :model-value="(effectiveBlockStyles as FormButtonStyles).textColor"
                 swatch-only
                 @update:model-value="updateBlockStyles({ textColor: $event })"
               />
             </InspectorField>
             <InspectorField label="Font Size" horizontal>
               <FontSizeSlider
-                :model-value="(selectedBlock.styles as FormButtonStyles).fontSize || 'base'"
+                :model-value="(effectiveBlockStyles as FormButtonStyles).fontSize || 'base'"
                 @update:model-value="updateBlockStyles({ fontSize: $event })"
               />
             </InspectorField>
             <InspectorField label="Letter Spacing" horizontal>
               <SliderInput
-                :model-value="(selectedBlock.styles as FormButtonStyles).letterSpacing || '0'"
+                :model-value="(effectiveBlockStyles as FormButtonStyles).letterSpacing || '0'"
                 :min="-2"
                 :max="8"
                 :step="0.5"
@@ -1534,7 +1685,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorField label="Justify" horizontal>
               <SegmentedControl
                 :options="justifyContentOptions"
-                :model-value="(selectedBlock.styles as HeaderStyles).justifyContent || 'space-between'"
+                :model-value="(effectiveBlockStyles as HeaderStyles).justifyContent || 'space-between'"
                 icon-only
                 @update:model-value="updateBlockStyles({ justifyContent: $event })"
               />
@@ -1542,7 +1693,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorField label="Align" horizontal>
               <SegmentedControl
                 :options="alignItemsOptions"
-                :model-value="(selectedBlock.styles as HeaderStyles).alignItems || 'center'"
+                :model-value="(effectiveBlockStyles as HeaderStyles).alignItems || 'center'"
                 icon-only
                 @update:model-value="updateBlockStyles({ alignItems: $event })"
               />
@@ -1635,7 +1786,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorField label="Justify" horizontal>
               <SegmentedControl
                 :options="justifyContentOptions"
-                :model-value="(selectedBlock.styles as FooterStyles).justifyContent || 'space-between'"
+                :model-value="(effectiveBlockStyles as FooterStyles).justifyContent || 'space-between'"
                 icon-only
                 @update:model-value="updateBlockStyles({ justifyContent: $event })"
               />
@@ -1643,7 +1794,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorField label="Align" horizontal>
               <SegmentedControl
                 :options="alignItemsOptions"
-                :model-value="(selectedBlock.styles as FooterStyles).alignItems || 'center'"
+                :model-value="(effectiveBlockStyles as FooterStyles).alignItems || 'center'"
                 icon-only
                 @update:model-value="updateBlockStyles({ alignItems: $event })"
               />
@@ -1732,7 +1883,7 @@ const blockSupportsAnimation = computed(() => {
                   { value: 'column', label: 'Column', icon: 'style-column' },
                   { value: 'row', label: 'Row', icon: 'style-row' },
                 ]"
-                :model-value="(selectedBlock.styles as FormStyles).flexDirection || 'column'"
+                :model-value="(effectiveBlockStyles as FormStyles).flexDirection || 'column'"
                 icon-only
                 @update:model-value="updateBlockStyles({ flexDirection: $event })"
               />
@@ -1740,7 +1891,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorField label="Justify" horizontal>
               <SegmentedControl
                 :options="justifyContentOptions"
-                :model-value="(selectedBlock.styles as FormStyles).justifyContent || 'flex-start'"
+                :model-value="(effectiveBlockStyles as FormStyles).justifyContent || 'flex-start'"
                 icon-only
                 @update:model-value="updateBlockStyles({ justifyContent: $event })"
               />
@@ -1748,7 +1899,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorField label="Align" horizontal>
               <SegmentedControl
                 :options="alignItemsOptions"
-                :model-value="(selectedBlock.styles as FormStyles).alignItems || 'stretch'"
+                :model-value="(effectiveBlockStyles as FormStyles).alignItems || 'stretch'"
                 icon-only
                 @update:model-value="updateBlockStyles({ alignItems: $event })"
               />
@@ -1856,14 +2007,6 @@ const blockSupportsAnimation = computed(() => {
             />
           </div>
 
-          <!-- State (for interactive blocks: text, heading, button, image, video, form inputs) -->
-          <div
-            v-if="editorStore.supportsStyleStates(selectedBlock.type)"
-            class="px-4 py-3 border-b border-sidebar-border"
-          >
-            <StateField :block-id="selectedBlock.id" />
-          </div>
-
           <!-- Heading Settings -->
           <template v-if="selectedBlock.type === 'heading'">
             <!-- Overwrite Style Toggle (only for blocks inside List/Collection) -->
@@ -1899,20 +2042,20 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Font Family" horizontal>
                 <SelectInput
                   :options="combinedFontOptions"
-                  :model-value="(selectedBlock.styles as HeadingStyles).fontFamily || pageSettings.fontFamily || 'Inter'"
+                  :model-value="(effectiveBlockStyles as HeadingStyles).fontFamily || pageSettings.fontFamily || 'Inter'"
                   @update:model-value="updateBlockStyles({ fontFamily: $event })"
                 />
               </InspectorField>
               <InspectorField label="Font Size" horizontal>
                 <FontSizeSlider
-                  :model-value="(selectedBlock.styles as HeadingStyles).fontSize || 'xl'"
+                  :model-value="(effectiveBlockStyles as HeadingStyles).fontSize || 'xl'"
                   @update:model-value="updateBlockStyles({ fontSize: $event })"
                 />
               </InspectorField>
               <InspectorField label="Font Weight" horizontal>
                 <SelectInput
                   :options="fontWeightOptions"
-                  :model-value="(selectedBlock.styles as HeadingStyles).fontWeight || 'bold'"
+                  :model-value="(effectiveBlockStyles as HeadingStyles).fontWeight || 'bold'"
                   @update:model-value="updateBlockStyles({ fontWeight: $event })"
                 />
               </InspectorField>
@@ -1922,10 +2065,10 @@ const blockSupportsAnimation = computed(() => {
                     <button
                       type="button"
                       class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                      :class="(selectedBlock.styles as HeadingStyles).fontStyle === 'italic'
+                      :class="(effectiveBlockStyles as HeadingStyles).fontStyle === 'italic'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
-                      @click="updateBlockStyles({ fontStyle: (selectedBlock.styles as HeadingStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
+                      @click="updateBlockStyles({ fontStyle: (effectiveBlockStyles as HeadingStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
                     >
                       <Icon name="italic" class="text-sm" />
                     </button>
@@ -1934,10 +2077,10 @@ const blockSupportsAnimation = computed(() => {
                     <button
                       type="button"
                       class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                      :class="(selectedBlock.styles as HeadingStyles).textDecoration === 'underline'
+                      :class="(effectiveBlockStyles as HeadingStyles).textDecoration === 'underline'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
-                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as HeadingStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
+                      @click="updateBlockStyles({ textDecoration: (effectiveBlockStyles as HeadingStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
                     >
                       <Icon name="underline" class="text-sm" />
                     </button>
@@ -1946,10 +2089,10 @@ const blockSupportsAnimation = computed(() => {
                     <button
                       type="button"
                       class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                      :class="(selectedBlock.styles as HeadingStyles).textDecoration === 'line-through'
+                      :class="(effectiveBlockStyles as HeadingStyles).textDecoration === 'line-through'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
-                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as HeadingStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
+                      @click="updateBlockStyles({ textDecoration: (effectiveBlockStyles as HeadingStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
                     >
                       <Icon name="strikethrough" class="text-sm" />
                     </button>
@@ -1958,7 +2101,7 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Line Height" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as HeadingStyles).lineHeight || '1.5'"
+                  :model-value="(effectiveBlockStyles as HeadingStyles).lineHeight || '1.5'"
                   :min="1"
                   :max="2.5"
                   :step="0.1"
@@ -1967,7 +2110,7 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Letter Spacing" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as HeadingStyles).letterSpacing || '0'"
+                  :model-value="(effectiveBlockStyles as HeadingStyles).letterSpacing || '0'"
                   :min="-2"
                   :max="8"
                   :step="0.5"
@@ -1978,7 +2121,7 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Alignment" horizontal>
                 <SegmentedControl
                   :options="alignmentOptions"
-                  :model-value="(selectedBlock.styles as HeadingStyles).alignment || 'left'"
+                  :model-value="(effectiveBlockStyles as HeadingStyles).alignment || 'left'"
                   icon-only
                   @update:model-value="updateBlockStyles({ alignment: $event })"
                 />
@@ -2022,20 +2165,20 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Font Family" horizontal>
                 <SelectInput
                   :options="combinedFontOptions"
-                  :model-value="(selectedBlock.styles as TextStyles).fontFamily || pageSettings.fontFamily || 'Inter'"
+                  :model-value="(effectiveBlockStyles as TextStyles).fontFamily || pageSettings.fontFamily || 'Inter'"
                   @update:model-value="updateBlockStyles({ fontFamily: $event })"
                 />
               </InspectorField>
               <InspectorField label="Font Size" horizontal>
                 <FontSizeSlider
-                  :model-value="(selectedBlock.styles as TextStyles).fontSize || 'base'"
+                  :model-value="(effectiveBlockStyles as TextStyles).fontSize || 'base'"
                   @update:model-value="updateBlockStyles({ fontSize: $event })"
                 />
               </InspectorField>
               <InspectorField label="Font Weight" horizontal>
                 <SelectInput
                   :options="fontWeightOptions"
-                  :model-value="(selectedBlock.styles as TextStyles).fontWeight || 'normal'"
+                  :model-value="(effectiveBlockStyles as TextStyles).fontWeight || 'normal'"
                   @update:model-value="updateBlockStyles({ fontWeight: $event })"
                 />
               </InspectorField>
@@ -2045,10 +2188,10 @@ const blockSupportsAnimation = computed(() => {
                     <button
                       type="button"
                       class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                      :class="(selectedBlock.styles as TextStyles).fontStyle === 'italic'
+                      :class="(effectiveBlockStyles as TextStyles).fontStyle === 'italic'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
-                      @click="updateBlockStyles({ fontStyle: (selectedBlock.styles as TextStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
+                      @click="updateBlockStyles({ fontStyle: (effectiveBlockStyles as TextStyles).fontStyle === 'italic' ? 'normal' : 'italic' })"
                     >
                       <Icon name="italic" class="text-sm" />
                     </button>
@@ -2057,10 +2200,10 @@ const blockSupportsAnimation = computed(() => {
                     <button
                       type="button"
                       class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                      :class="(selectedBlock.styles as TextStyles).textDecoration === 'underline'
+                      :class="(effectiveBlockStyles as TextStyles).textDecoration === 'underline'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
-                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as TextStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
+                      @click="updateBlockStyles({ textDecoration: (effectiveBlockStyles as TextStyles).textDecoration === 'underline' ? 'none' : 'underline' })"
                     >
                       <Icon name="underline" class="text-sm" />
                     </button>
@@ -2069,10 +2212,10 @@ const blockSupportsAnimation = computed(() => {
                     <button
                       type="button"
                       class="flex items-center justify-center w-7 h-7 rounded transition-colors"
-                      :class="(selectedBlock.styles as TextStyles).textDecoration === 'line-through'
+                      :class="(effectiveBlockStyles as TextStyles).textDecoration === 'line-through'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
-                      @click="updateBlockStyles({ textDecoration: (selectedBlock.styles as TextStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
+                      @click="updateBlockStyles({ textDecoration: (effectiveBlockStyles as TextStyles).textDecoration === 'line-through' ? 'none' : 'line-through' })"
                     >
                       <Icon name="strikethrough" class="text-sm" />
                     </button>
@@ -2088,7 +2231,7 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Line Height" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as TextStyles).lineHeight || '1.5'"
+                  :model-value="(effectiveBlockStyles as TextStyles).lineHeight || '1.5'"
                   :min="1"
                   :max="2.5"
                   :step="0.1"
@@ -2097,7 +2240,7 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Letter Spacing" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as TextStyles).letterSpacing || '0'"
+                  :model-value="(effectiveBlockStyles as TextStyles).letterSpacing || '0'"
                   :min="-2"
                   :max="8"
                   :step="0.5"
@@ -2108,7 +2251,7 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Alignment" horizontal>
                 <SegmentedControl
                   :options="alignmentOptions"
-                  :model-value="(selectedBlock.styles as TextStyles).alignment || 'left'"
+                  :model-value="(effectiveBlockStyles as TextStyles).alignment || 'left'"
                   icon-only
                   @update:model-value="updateBlockStyles({ alignment: $event })"
                 />
@@ -2157,7 +2300,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorSection title="Size" icon="style-column">
               <InspectorField label="Width" horizontal>
                 <SliderInput
-                  :model-value="parseInt((selectedBlock.styles as ImageStyles).width || '100')"
+                  :model-value="parseInt((effectiveBlockStyles as ImageStyles).width || '100')"
                   :min="0"
                   :max="100"
                   :step="5"
@@ -2167,7 +2310,7 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Height" horizontal>
                 <SliderInput
-                  :model-value="parseInt((selectedBlock.styles as ImageStyles).height || '100')"
+                  :model-value="parseInt((effectiveBlockStyles as ImageStyles).height || '100')"
                   :min="0"
                   :max="100"
                   :step="5"
@@ -2189,7 +2332,7 @@ const blockSupportsAnimation = computed(() => {
                     { value: '3:2', label: '3:2' },
                     { value: '2:3', label: '2:3' },
                   ]"
-                  :model-value="(selectedBlock.styles as ImageStyles).aspectRatio || 'auto'"
+                  :model-value="(effectiveBlockStyles as ImageStyles).aspectRatio || 'auto'"
                   @update:model-value="updateBlockStyles({ aspectRatio: $event })"
                 />
               </InspectorField>
@@ -2202,20 +2345,20 @@ const blockSupportsAnimation = computed(() => {
                     { value: 'none', label: 'None' },
                     { value: 'scale-down', label: 'Scale Down' },
                   ]"
-                  :model-value="(selectedBlock.styles as ImageStyles).objectFit || 'cover'"
+                  :model-value="(effectiveBlockStyles as ImageStyles).objectFit || 'cover'"
                   @update:model-value="updateBlockStyles({ objectFit: $event })"
                 />
               </InspectorField>
               <InspectorField label="Mask">
                 <SelectInput
                   :options="maskShapes.map(shape => ({ value: shape, label: maskShapeLabels[shape] }))"
-                  :model-value="(selectedBlock.styles as ImageStyles).mask || 'none'"
+                  :model-value="(effectiveBlockStyles as ImageStyles).mask || 'none'"
                   @update:model-value="updateBlockStyles({ mask: $event })"
                 />
               </InspectorField>
               <InspectorField label="Border Radius" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as ImageStyles).borderRadius || '0'"
+                  :model-value="(effectiveBlockStyles as ImageStyles).borderRadius || '0'"
                   :min="0"
                   :max="48"
                   :step="4"
@@ -2274,14 +2417,14 @@ const blockSupportsAnimation = computed(() => {
                     { value: '4:3', label: '4:3' },
                     { value: '16:9', label: '16:9' },
                   ]"
-                  :model-value="(selectedBlock.styles as VideoStyles).aspectRatio || '16:9'"
+                  :model-value="(effectiveBlockStyles as VideoStyles).aspectRatio || '16:9'"
                   @update:model-value="updateBlockStyles({ aspectRatio: $event })"
                 />
               </InspectorField>
               <InspectorField label="Mask">
                 <SelectInput
                   :options="maskShapes.map(shape => ({ value: shape, label: maskShapeLabels[shape] }))"
-                  :model-value="(selectedBlock.styles as VideoStyles).mask || 'none'"
+                  :model-value="(effectiveBlockStyles as VideoStyles).mask || 'none'"
                   @update:model-value="updateBlockStyles({ mask: $event })"
                 />
               </InspectorField>
@@ -2343,18 +2486,28 @@ const blockSupportsAnimation = computed(() => {
               </InspectorField>
               <InspectorField label="Font Size" horizontal>
                 <FontSizeSlider
-                  :model-value="(selectedBlock.styles as ButtonStyles).fontSize || 'base'"
+                  :model-value="(effectiveBlockStyles as ButtonStyles).fontSize || 'base'"
                   @update:model-value="updateBlockStyles({ fontSize: $event })"
                 />
               </InspectorField>
               <InspectorField label="Letter Spacing" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as ButtonStyles).letterSpacing || '0'"
+                  :model-value="(effectiveBlockStyles as ButtonStyles).letterSpacing || '0'"
                   :min="-2"
                   :max="8"
                   :step="0.5"
                   unit="px"
                   @update:model-value="updateBlockStyles({ letterSpacing: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Border Radius" horizontal>
+                <SliderInput
+                  :model-value="(effectiveBlockStyles as ButtonStyles).border?.radius || '8'"
+                  :min="0"
+                  :max="32"
+                  :step="1"
+                  unit="px"
+                  @update:model-value="updateBlockStyles({ border: { ...(effectiveBlockStyles as ButtonStyles).border, radius: $event } })"
                 />
               </InspectorField>
             </InspectorSection>
@@ -2456,7 +2609,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorSection title="Style" icon="style-color">
               <InspectorField label="Color" horizontal>
                 <ColorInput
-                  :model-value="(selectedBlock.styles as IconStyles).color"
+                  :model-value="(effectiveBlockStyles as IconStyles).color"
                   swatch-only
                   @update:model-value="updateBlockStyles({ color: $event })"
                 />
@@ -2506,13 +2659,13 @@ const blockSupportsAnimation = computed(() => {
                     { value: 'md', label: 'M' },
                     { value: 'lg', label: 'L' },
                   ]"
-                  :model-value="(selectedBlock.styles as VariantsStyles).optionSize || 'md'"
+                  :model-value="(effectiveBlockStyles as VariantsStyles).optionSize || 'md'"
                   @update:model-value="updateBlockStyles({ optionSize: $event })"
                 />
               </InspectorField>
               <InspectorField label="Gap" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as VariantsStyles).gap || '8'"
+                  :model-value="(effectiveBlockStyles as VariantsStyles).gap || '8'"
                   :min="0"
                   :max="24"
                   :step="4"
@@ -2554,14 +2707,14 @@ const blockSupportsAnimation = computed(() => {
                     { value: 'column', label: 'Column', icon: 'style-column' },
                     { value: 'row', label: 'Row', icon: 'style-row' },
                   ]"
-                  :model-value="(selectedBlock.styles as ContainerStyles).flexDirection || 'column'"
+                  :model-value="(effectiveBlockStyles as ContainerStyles).flexDirection || 'column'"
                   icon-only
                   @update:model-value="updateBlockStyles({ flexDirection: $event })"
                 />
               </InspectorField>
               <InspectorField label="Justify" horizontal>
                 <SegmentedControl
-                  :options="(selectedBlock.styles as ContainerStyles).flexDirection === 'row' ? [
+                  :options="(effectiveBlockStyles as ContainerStyles).flexDirection === 'row' ? [
                     { value: 'flex-start', label: 'Left', icon: 'style-justify-start' },
                     { value: 'center', label: 'Center', icon: 'style-justify-center' },
                     { value: 'flex-end', label: 'Right', icon: 'style-justify-end' },
@@ -2572,14 +2725,14 @@ const blockSupportsAnimation = computed(() => {
                     { value: 'flex-end', label: 'Bottom', icon: 'style-align-bottom' },
                     { value: 'space-between', label: 'Between', icon: 'style-align-stretch' },
                   ]"
-                  :model-value="(selectedBlock.styles as ContainerStyles).justifyContent || 'flex-start'"
+                  :model-value="(effectiveBlockStyles as ContainerStyles).justifyContent || 'flex-start'"
                   icon-only
                   @update:model-value="updateBlockStyles({ justifyContent: $event })"
                 />
               </InspectorField>
               <InspectorField label="Align" horizontal>
                 <SegmentedControl
-                  :options="(selectedBlock.styles as ContainerStyles).flexDirection === 'row' ? [
+                  :options="(effectiveBlockStyles as ContainerStyles).flexDirection === 'row' ? [
                     { value: 'flex-start', label: 'Top', icon: 'style-align-start' },
                     { value: 'center', label: 'Center', icon: 'content-divider' },
                     { value: 'flex-end', label: 'Bottom', icon: 'style-align-bottom' },
@@ -2590,14 +2743,14 @@ const blockSupportsAnimation = computed(() => {
                     { value: 'flex-end', label: 'Right', icon: 'style-justify-end' },
                     { value: 'stretch', label: 'Stretch', icon: 'style-justify-between' },
                   ]"
-                  :model-value="(selectedBlock.styles as ContainerStyles).alignItems || 'stretch'"
+                  :model-value="(effectiveBlockStyles as ContainerStyles).alignItems || 'stretch'"
                   icon-only
                   @update:model-value="updateBlockStyles({ alignItems: $event })"
                 />
               </InspectorField>
               <InspectorField label="Gap" horizontal>
                 <SliderInput
-                  :model-value="(selectedBlock.styles as ContainerStyles).gap || '16'"
+                  :model-value="(effectiveBlockStyles as ContainerStyles).gap || '16'"
                   :min="0"
                   :max="64"
                   :step="4"
@@ -2771,7 +2924,7 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Justify" horizontal>
                 <SegmentedControl
                   :options="justifyItemsOptions"
-                  :model-value="(selectedBlock.styles as GridStyles).justifyItems || 'stretch'"
+                  :model-value="(effectiveBlockStyles as GridStyles).justifyItems || 'stretch'"
                   icon-only
                   @update:model-value="updateBlockStyles({ justifyItems: $event })"
                 />
@@ -2779,7 +2932,7 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Align" horizontal>
                 <SegmentedControl
                   :options="alignItemsOptions"
-                  :model-value="(selectedBlock.styles as GridStyles).alignItems || 'stretch'"
+                  :model-value="(effectiveBlockStyles as GridStyles).alignItems || 'stretch'"
                   icon-only
                   @update:model-value="updateBlockStyles({ alignItems: $event })"
                 />
@@ -2873,7 +3026,7 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Justify" horizontal>
                 <SegmentedControl
                   :options="justifyContentOptions"
-                  :model-value="(selectedBlock.styles as StackStyles).justifyContent || 'flex-start'"
+                  :model-value="(effectiveBlockStyles as StackStyles).justifyContent || 'flex-start'"
                   icon-only
                   @update:model-value="updateBlockStyles({ justifyContent: $event })"
                 />
@@ -2881,7 +3034,7 @@ const blockSupportsAnimation = computed(() => {
               <InspectorField label="Align" horizontal>
                 <SegmentedControl
                   :options="alignItemsOptions"
-                  :model-value="(selectedBlock.styles as StackStyles).alignItems || 'stretch'"
+                  :model-value="(effectiveBlockStyles as StackStyles).alignItems || 'stretch'"
                   icon-only
                   @update:model-value="updateBlockStyles({ alignItems: $event })"
                 />
@@ -2990,7 +3143,7 @@ const blockSupportsAnimation = computed(() => {
             <InspectorSection title="Style" icon="style-color">
               <InspectorField label="Background" horizontal>
                 <ColorInput
-                  :model-value="(selectedBlock.styles as BaseBlockStyles).backgroundColor"
+                  :model-value="(effectiveBlockStyles as BaseBlockStyles).backgroundColor"
                   swatch-only
                   @update:model-value="updateBlockStyles({ backgroundColor: $event })"
                 />
@@ -3100,12 +3253,9 @@ const blockSupportsAnimation = computed(() => {
             @preview="handleAnimationPreview"
           />
 
-          <!-- Debug Section (shows applied styles) -->
-          <InspectorSection title="Debug" icon="app-settings">
+          <!-- Dev Tool Section (shows applied styles) -->
+          <InspectorSection title="Dev tool" icon="code">
             <div class="px-3 pb-3">
-              <div class="text-xxs font-mono text-muted-foreground mb-2">Block ID: {{ selectedBlock.id }}</div>
-              <div class="text-xxs font-mono text-muted-foreground mb-2">Type: {{ selectedBlock.type }}</div>
-              <div class="text-xxs font-mono text-muted-foreground mb-1">Styles ({{ currentViewport }}):</div>
               <pre class="text-xxs font-mono bg-secondary/50 rounded p-2 overflow-auto max-h-48 text-foreground/70">{{ JSON.stringify(responsiveStyles, null, 2) }}</pre>
             </div>
           </InspectorSection>

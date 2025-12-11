@@ -2,10 +2,11 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { Button, Combobox, Dropdown, DropdownItem, Icon, Tooltip } from '@/components/ui'
+import type { ComboboxItem } from '@/components/ui/Combobox.vue'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
-import type { ComboboxItem } from '@/components/ui/Combobox.vue'
+import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 import {
   sectionBlockLabels,
   sectionBlockIcons,
@@ -14,10 +15,6 @@ import {
   canHaveChildren,
   formFieldBlockTypes,
   formFieldBlockLabels,
-  canvasChildBlockTypes,
-  canvasChildBlockLabels,
-  headerFooterStackChildBlockTypes,
-  headerFooterStackChildBlockLabels,
   socialPlatformLabels,
   socialPlatformIcons,
   presetTypes,
@@ -26,7 +23,6 @@ import {
   createPresetBlock,
   isFormFieldBlock,
   type PresetType,
-  type HeaderFooterStackChildBlockType,
 } from '@/lib/editor-utils'
 import type {
   SectionBlockType,
@@ -132,75 +128,6 @@ watch(() => editorStore.selectedBlockId, (blockId) => {
   }
 }, { immediate: true })
 
-// Categories allowed for first-level child blocks (can include layout for nesting)
-const firstLevelChildCategories: BlockCategory[] = ['layout', 'content']
-
-// Categories allowed for deeply nested blocks (no more layout blocks)
-const deepNestedChildCategories: BlockCategory[] = ['content']
-
-// Combobox items for first-level child blocks (includes layout and presets)
-const firstLevelChildBlockItems = computed<ComboboxItem[]>(() => {
-  const items: ComboboxItem[] = []
-  // Add regular block categories
-  for (const category of firstLevelChildCategories) {
-    const types = blocksByCategory[category] || []
-    for (const type of types) {
-      items.push({
-        value: type,
-        label: sectionBlockLabels[type],
-        icon: sectionBlockIcons[type],
-        group: categoryLabels[category],
-      })
-    }
-  }
-  // Add List / Collection presets
-  for (const preset of presetTypes) {
-    items.push({
-      value: preset,
-      label: presetLabels[preset],
-      icon: presetIcons[preset],
-      group: 'List / Collection',
-    })
-  }
-  return items
-})
-
-// Get combobox items for nested child blocks based on parent depth
-// Stack is always available at any depth
-function getNestedChildBlockItems(parentId: string): ComboboxItem[] {
-  const items: ComboboxItem[] = []
-
-  // Stack is always available as a layout option (no depth restriction)
-  items.push({
-    value: 'stack',
-    label: sectionBlockLabels['stack'],
-    icon: sectionBlockIcons['stack'],
-    group: categoryLabels['layout'],
-  })
-  // Add content block categories
-  for (const category of deepNestedChildCategories) {
-    const types = blocksByCategory[category] || []
-    for (const type of types) {
-      items.push({
-        value: type,
-        label: sectionBlockLabels[type],
-        icon: sectionBlockIcons[type],
-        group: categoryLabels[category],
-      })
-    }
-  }
-  // Add List / Collection presets (presets are allowed at any level)
-  for (const preset of presetTypes) {
-    items.push({
-      value: preset,
-      label: presetLabels[preset],
-      icon: presetIcons[preset],
-      group: 'List / Collection',
-    })
-  }
-  return items
-}
-
 // Combobox items for form field blocks (only used when adding to form blocks)
 const formFieldBlockItems = computed<ComboboxItem[]>(() => {
   return formFieldBlockTypes.map(type => ({
@@ -208,26 +135,6 @@ const formFieldBlockItems = computed<ComboboxItem[]>(() => {
     label: formFieldBlockLabels[type] || sectionBlockLabels[type],
     icon: sectionBlockIcons[type],
     group: 'Form Fields',
-  }))
-})
-
-// Combobox items for canvas child blocks - content blocks only
-const canvasChildBlockItems = computed<ComboboxItem[]>(() => {
-  return canvasChildBlockTypes.map(type => ({
-    value: type,
-    label: canvasChildBlockLabels[type],
-    icon: sectionBlockIcons[type],
-    group: 'Content',
-  }))
-})
-
-// Combobox items for header/footer stack children (button, text, image only)
-const headerFooterStackChildBlockItems = computed<ComboboxItem[]>(() => {
-  return headerFooterStackChildBlockTypes.map(type => ({
-    value: type,
-    label: headerFooterStackChildBlockLabels[type],
-    icon: sectionBlockIcons[type],
-    group: 'Content',
   }))
 })
 
@@ -930,7 +837,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                         v-for="type in filteredBlocksByCategory[category]"
                         :key="type"
                         draggable="true"
-                        class="flex flex-col items-center gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
+                        class="flex flex-col items-center border border-border/25 gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent/25 hover:border-border/50 transition-colors cursor-grab active:cursor-grabbing"
                         @click="handleAddSection(type)"
                         @dragstart="handleSectionTypeDragStart(type, $event)"
                         @dragend="handleSectionTypeDragEnd"
@@ -951,7 +858,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                       v-for="preset in filteredPresetTypes"
                       :key="preset"
                       draggable="true"
-                      class="flex flex-col items-center gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing"
+                      class="flex flex-col items-center border border-border/25 gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent/25 hover:border-border/50 transition-colors cursor-grab active:cursor-grabbing"
                       @click="handleAddPreset(preset)"
                       @dragstart="handlePresetDragStart(preset, $event)"
                       @dragend="handlePresetDragEnd"
@@ -1014,7 +921,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                 class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                 @click.stop="toggleBlockExpanded(block.id)"
               >
-                <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" :class="expandedBlocks.has(block.id) ? 'rotate-0' : '-rotate-90'" />
               </button>
               <!-- Spacer for blocks that can't expand -->
               <div v-else class="w-4 shrink-0"></div>
@@ -1092,7 +999,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                     class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                     @click.stop="toggleBlockExpanded(child.id)"
                   >
-                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" :class="expandedBlocks.has(child.id) ? 'rotate-0' : '-rotate-90'" />
                   </button>
                   <div class="w-4 h-4 flex items-center justify-center shrink-0">
                     <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
@@ -1153,28 +1060,10 @@ function canBlockExpand(block: SectionBlock): boolean {
                     </div>
                   </div>
                   <!-- Add block to header stack -->
-                  <Dropdown>
-                    <template #trigger="{ toggle }">
-                      <Button
-                        variant="dotted"
-                        size="sm"
-                        full-width
-                        class="justify-start text-muted-foreground"
-                        @click="toggle"
-                      >
-                        <Icon name="plus" class="text-xs" />
-                        <span class="text-[10px]">Add block</span>
-                      </Button>
-                    </template>
-                    <DropdownItem
-                      v-for="item in headerFooterStackChildBlockItems"
-                      :key="item.value"
-                      :icon="item.icon"
-                      @click="handleAddChildBlock(child.id, item.value)"
-                    >
-                      {{ item.label }}
-                    </DropdownItem>
-                  </Dropdown>
+                  <SidebarBlockPicker
+                    mode="header-footer-stack"
+                    @select="handleAddChildBlock(child.id, $event)"
+                  />
                 </div>
               </div>
             </div>
@@ -1202,7 +1091,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                     class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                     @click.stop="toggleBlockExpanded(child.id)"
                   >
-                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" :class="expandedBlocks.has(child.id) ? 'rotate-0' : '-rotate-90'" />
                   </button>
                   <div class="w-4 h-4 flex items-center justify-center shrink-0">
                     <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
@@ -1263,28 +1152,10 @@ function canBlockExpand(block: SectionBlock): boolean {
                     </div>
                   </div>
                   <!-- Add block to footer stack -->
-                  <Dropdown>
-                    <template #trigger="{ toggle }">
-                      <Button
-                        variant="dotted"
-                        size="sm"
-                        full-width
-                        class="justify-start text-muted-foreground"
-                        @click="toggle"
-                      >
-                        <Icon name="plus" class="text-xs" />
-                        <span class="text-[10px]">Add block</span>
-                      </Button>
-                    </template>
-                    <DropdownItem
-                      v-for="item in headerFooterStackChildBlockItems"
-                      :key="item.value"
-                      :icon="item.icon"
-                      @click="handleAddChildBlock(child.id, item.value)"
-                    >
-                      {{ item.label }}
-                    </DropdownItem>
-                  </Dropdown>
+                  <SidebarBlockPicker
+                    mode="header-footer-stack"
+                    @select="handleAddChildBlock(child.id, $event)"
+                  />
                 </div>
               </div>
             </div>
@@ -1333,7 +1204,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                     class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                     @click.stop="toggleBlockExpanded(child.id)"
                   >
-                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                    <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" :class="expandedBlocks.has(child.id) ? 'rotate-0' : '-rotate-90'" />
                   </button>
                   <div class="w-4 h-4 flex items-center justify-center shrink-0">
                     <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
@@ -1429,7 +1300,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                         class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                         @click.stop="toggleBlockExpanded(grandchild.id)"
                       >
-                        <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                        <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" :class="expandedBlocks.has(grandchild.id) ? 'rotate-0' : '-rotate-90'" />
                       </button>
                       <div class="w-4 h-4 flex items-center justify-center shrink-0">
                         <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
@@ -1544,7 +1415,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                               class="w-4 h-4 flex items-center justify-center shrink-0 rounded hover:bg-accent/50 transition-colors"
                               @click.stop="toggleBlockExpanded(greatgrandchild.id)"
                             >
-                              <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" />
+                              <Icon name="chevron-down" class="text-[10px] text-muted-foreground transition-transform" :class="expandedBlocks.has(greatgrandchild.id) ? 'rotate-0' : '-rotate-90'" />
                             </button>
                             <div class="w-4 h-4 flex items-center justify-center shrink-0">
                               <Icon :name="sectionBlockIcons[greatgrandchild.type]" :size="12" class="text-muted-foreground" />
@@ -1664,89 +1535,27 @@ function canBlockExpand(block: SectionBlock): boolean {
                               </div>
                             </div>
                             <!-- Add block to level 4 layout block -->
-                            <Dropdown
-                              :ref="(el: any) => childBlockDropdownRefs[greatgrandchild.id] = el"
-                              align="left"
-                              :close-on-click="false"
-                            >
-                              <template #trigger="{ toggle }">
-                                <Button
-                                  variant="dotted"
-                                  size="sm"
-                                  full-width
-                                  class="justify-start text-muted-foreground"
-                                  @click.stop="toggle"
-                                >
-                                  <Icon name="plus" class="text-xs" />
-                                  <span class="text-[10px]">Add block</span>
-                                </Button>
-                              </template>
-                              <Combobox
-                                :items="getNestedChildBlockItems(greatgrandchild.id)"
-                                search-placeholder="Search blocks..."
-                                empty-text="No blocks found"
-                                @select="handleAddChildBlock(greatgrandchild.id, $event)"
-                              />
-                            </Dropdown>
+                            <SidebarBlockPicker
+                              mode="nested"
+                              @select="handleAddChildBlock(greatgrandchild.id, $event)"
+                            />
                           </div>
                         </div>
                       </template>
                       <!-- Add block to grandchild layout block - not for list items -->
-                      <Dropdown
+                      <SidebarBlockPicker
                         v-if="!isPrebuiltListItem(child, grandchild) && !isBlockInsidePrebuiltListItem(child)"
-                        :ref="(el: any) => childBlockDropdownRefs[grandchild.id] = el"
-                        align="left"
-                        width="w-56"
-                        :close-on-click="false"
-                      >
-                        <template #trigger="{ toggle }">
-                          <Button
-                            variant="dotted"
-                            size="sm"
-                            full-width
-                            class="justify-start text-muted-foreground"
-                            @click.stop="toggle"
-                          >
-                            <Icon name="plus" class="text-xs" />
-                            <span class="text-[10px]">Add block</span>
-                          </Button>
-                        </template>
-                        <Combobox
-                          :items="getNestedChildBlockItems(grandchild.id)"
-                          search-placeholder="Search blocks..."
-                          empty-text="No blocks found"
-                          @select="handleAddChildBlock(grandchild.id, $event)"
-                        />
-                      </Dropdown>
+                        mode="nested"
+                        @select="handleAddChildBlock(grandchild.id, $event)"
+                      />
                     </div>
                   </div>
                   <!-- Add child to nested layout block - allows layout blocks, but not for list items -->
-                  <Dropdown
+                  <SidebarBlockPicker
                     v-if="!isPrebuiltListItem(block, child)"
-                    :ref="(el: any) => childBlockDropdownRefs[child.id] = el"
-                    align="left"
-                    width="w-56"
-                    :close-on-click="false"
-                  >
-                    <template #trigger="{ toggle }">
-                      <Button
-                        variant="dotted"
-                        size="sm"
-                        full-width
-                        class="justify-start text-muted-foreground"
-                        @click.stop="toggle"
-                      >
-                        <Icon name="plus" class="text-xs" />
-                        <span class="text-[10px]">Add block</span>
-                      </Button>
-                    </template>
-                    <Combobox
-                      :items="getNestedChildBlockItems(child.id)"
-                      search-placeholder="Search blocks..."
-                      empty-text="No blocks found"
-                      @select="handleAddChildBlock(child.id, $event)"
-                    />
-                  </Dropdown>
+                    mode="nested"
+                    @select="handleAddChildBlock(child.id, $event)"
+                  />
                 </div>
               </div>
               <!-- Add child button - for List/Collection grids, just add a new item -->
@@ -1768,6 +1577,7 @@ function canBlockExpand(block: SectionBlock): boolean {
                 align="left"
                 width="w-56"
                 :close-on-click="false"
+                              no-padding
               >
                 <template #trigger="{ toggle }">
                   <Button
@@ -1790,61 +1600,17 @@ function canBlockExpand(block: SectionBlock): boolean {
                 />
               </Dropdown>
               <!-- Canvas blocks show content-only options -->
-              <Dropdown
+              <SidebarBlockPicker
                 v-else-if="block.type === 'canvas'"
-                :ref="(el: any) => childBlockDropdownRefs[block.id] = el"
-                align="left"
-                width="w-56"
-                :close-on-click="false"
-              >
-                <template #trigger="{ toggle }">
-                  <Button
-                    variant="dotted"
-                    size="sm"
-                    full-width
-                    class="justify-start text-muted-foreground"
-                    @click.stop="toggle"
-                  >
-                    <Icon name="plus" class="text-xs" />
-                    <span class="text-[10px] flex-1 text-left">Add element</span>
-                    <Icon name="chevron-down" class="text-[10px]" />
-                  </Button>
-                </template>
-                <Combobox
-                  :items="canvasChildBlockItems"
-                  search-placeholder="Search elements..."
-                  empty-text="No elements found"
-                  @select="handleAddChildBlock(block.id, $event)"
-                />
-              </Dropdown>
-              <!-- Regular layout blocks show dropdown -->
-              <Dropdown
+                mode="content-only"
+                trigger-label="Add element"
+                @select="handleAddChildBlock(block.id, $event)"
+              />
+              <!-- Regular layout blocks show block picker -->
+              <SidebarBlockPicker
                 v-else
-                :ref="(el: any) => childBlockDropdownRefs[block.id] = el"
-                align="left"
-                width="w-56"
-                :close-on-click="false"
-              >
-                <template #trigger="{ toggle }">
-                  <Button
-                    variant="dotted"
-                    size="sm"
-                    full-width
-                    class="justify-start text-muted-foreground"
-                    @click.stop="toggle"
-                  >
-                    <Icon name="plus" class="text-xs" />
-                    <span class="text-[10px] flex-1 text-left">Add block</span>
-                    <Icon name="chevron-down" class="text-[10px]" />
-                  </Button>
-                </template>
-                <Combobox
-                  :items="firstLevelChildBlockItems"
-                  search-placeholder="Search blocks..."
-                  empty-text="No blocks found"
-                  @select="handleAddChildBlock(block.id, $event)"
-                />
-              </Dropdown>
+                @select="handleAddChildBlock(block.id, $event)"
+              />
             </div>
           </div>
         </div>

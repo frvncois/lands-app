@@ -75,6 +75,7 @@ export const useEditorStore = defineStore('editor', () => {
   const pageSettings = ref<PageSettings>(getDefaultPageSettings())
   const selectedBlockId = ref<string | null>(null)
   const selectedItemId = ref<string | null>(null) // For items within blocks (form fields, list items, etc.)
+  const hoveredBlockId = ref<string | null>(null) // Track which block is currently hovered
   const isLoading = ref(false)
   const isSaving = ref(false)
   const hasUnsavedChanges = ref(false)
@@ -1300,6 +1301,10 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  function hoverBlock(blockId: string | null) {
+    hoveredBlockId.value = blockId
+  }
+
   // Content fields that should NEVER be shared across list items
   const CONTENT_FIELDS = new Set([
     'content', 'label', 'url', 'src', 'alt', 'caption', 'placeholder',
@@ -2355,6 +2360,7 @@ export const useEditorStore = defineStore('editor', () => {
     pageSettings,
     selectedBlockId,
     selectedItemId,
+    hoveredBlockId,
     isLoading,
     isSaving,
     hasUnsavedChanges,
@@ -2440,6 +2446,7 @@ export const useEditorStore = defineStore('editor', () => {
     moveBlockUp,
     moveBlockDown,
     selectBlock,
+    hoverBlock,
     updateBlockSettings,
     updateBlockStyles,
     updateBlockName,

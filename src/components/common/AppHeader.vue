@@ -175,7 +175,7 @@ function handleCommandSelect(item: any) {
 </script>
 
 <template>
-  <header class="relative flex items-center justify-between h-14 px-6 bg-sidebar-background border-b border-sidebar-border z-100">
+  <header class="relative flex items-center justify-between h-14 px-6 bg-sidebar-background border-b border-sidebar-border z-50">
     <!-- Project Route Header -->
     <template v-if="isProjectRoute && currentProject">
       <!-- Left: Dashboard Link + Separator + Project Selector -->
@@ -327,7 +327,7 @@ function handleCommandSelect(item: any) {
           <!-- Translation settings option -->
           <Dropdown.Divider />
           <Dropdown.Item icon="app-settings" @click="showTranslateModal = true">
-            Translation settings
+            Translation
           </Dropdown.Item>
         </Dropdown>
       </div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import Icon from './Icon.vue'
 
 export interface ComboboxItem {
   value: string
@@ -110,17 +111,17 @@ defineExpose({ focusSearch })
 </script>
 
 <template>
-  <div class="w-56" @click.stop @keydown="handleKeydown">
+  <div class="w-full min-w-56 overflow-hidden" @click.stop @keydown="handleKeydown">
     <!-- Search Input -->
     <div class="p-2 border-b border-border">
       <div class="relative">
-        <Icon name="search-1" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground" />
+        <Icon name="search-1" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none" />
         <input
           ref="searchInputRef"
           v-model="search"
           type="text"
           :placeholder="searchPlaceholder"
-          class="w-full pl-8 pr-3 py-1.5 text-xs bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/25"
+          class="w-full h-8 pl-8 pr-3 text-xs bg-input border rounded-lg shadow-xs text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-ring/25 focus:bg-background"
         />
       </div>
     </div>

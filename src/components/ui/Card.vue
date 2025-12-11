@@ -5,9 +5,10 @@ interface Props {
   variant?: CardVariant
   hoverable?: boolean
   padded?: boolean
+  aspectRatio?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   variant: 'default',
   hoverable: false,
   padded: false,
@@ -39,10 +40,11 @@ export default {
   <div
     :class="[
       'rounded-2xl',
-      variantClasses[variant],
+      variantClasses[props.variant],
       hoverable ? 'hover:border-muted-foreground/25 transition-colors cursor-pointer' : '',
       padded ? 'p-5' : '',
     ]"
+    :style="props.aspectRatio ? { aspectRatio: props.aspectRatio } : undefined"
   >
     <slot />
   </div>

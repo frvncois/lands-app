@@ -43,7 +43,7 @@ import {
 import { getResponsiveStyles } from '@/lib/style-utils'
 
 // SectionBlockType is used for addBlock calls
-import { socialPlatformIcons, sectionBlockLabels, sectionBlockIcons, canHaveChildren, createPresetBlock, presetTypes, maskShapeClipPaths, type PresetType } from '@/lib/editor-utils'
+import { socialPlatformIcons, sectionBlockLabels, sectionBlockIcons, canHaveChildren, createPresetBlock, presetTypes, presetLabels, presetIcons, blocksByCategory, maskShapeClipPaths, type PresetType } from '@/lib/editor-utils'
 import type { MaskShape } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
@@ -51,6 +51,9 @@ import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
 import BlockPicker from '@/components/builder/BlockPicker.vue'
 import InlineFormatToolbar from '@/components/preview/InlineFormatToolbar.vue'
 import Icon from '@/components/ui/Icon.vue'
+import Button from '@/components/ui/Button.vue'
+import Dropdown from '@/components/ui/Dropdown.vue'
+import DropdownItem from '@/components/ui/DropdownItem.vue'
 
 const props = defineProps<{
   block: SectionBlock
@@ -60,10 +63,29 @@ const props = defineProps<{
 
 const editorStore = useEditorStore()
 
-const isHovered = ref(false)
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
 const sectionRef = ref<HTMLElement | null>(null)
 const editableRef = ref<HTMLElement | null>(null)
+
+// Check if this specific block is hovered (not parents)
+const isHovered = computed(() => editorStore.hoveredBlockId === props.block.id)
+
+// Track if label should show below (when near top of viewport)
+const labelShowBelow = ref(false)
+
+function updateLabelPosition() {
+  if (!sectionRef.value) return
+  const rect = sectionRef.value.getBoundingClientRect()
+
+  // Find the scroll container (preview area)
+  const scrollContainer = sectionRef.value.closest('.overflow-auto')
+  const containerRect = scrollContainer?.getBoundingClientRect()
+  const containerTop = containerRect?.top ?? 0
+
+  // Check if there's enough space above for the label (24px for label + margin)
+  const spaceAbove = rect.top - containerTop
+  labelShowBelow.value = spaceAbove < 28
+}
 
 // ============================================
 // ANIMATION STATE
@@ -173,8 +195,10 @@ const hoverAnimationStyles = computed(() => {
 })
 
 // Mouse enter/leave handlers with hover animation support
-function handleMouseEnter() {
-  isHovered.value = true
+function handleMouseEnter(event: MouseEvent) {
+  event.stopPropagation() // Prevent parent blocks from also getting hovered
+  editorStore.hoverBlock(props.block.id)
+  updateLabelPosition()
 
   // Apply hover animation styles
   if (blockAnimation.value?.trigger === 'hover' && sectionRef.value) {
@@ -182,8 +206,14 @@ function handleMouseEnter() {
   }
 }
 
-function handleMouseLeave() {
-  isHovered.value = false
+function handleMouseLeave(event: MouseEvent) {
+  // Only clear hover if we're leaving to outside any block
+  const relatedTarget = event.relatedTarget as HTMLElement | null
+  const isLeavingToAnotherBlock = relatedTarget?.closest('[data-preview-block]')
+
+  if (!isLeavingToAnotherBlock) {
+    editorStore.hoverBlock(null)
+  }
 
   // Remove hover animation styles (if reverseOnHoverOut is enabled)
   if (blockAnimation.value?.trigger === 'hover' && blockAnimation.value?.reverseOnHoverOut !== false && sectionRef.value) {
@@ -363,10 +393,72 @@ function handleBlockPickerSelectPreset(type: PresetType) {
   }
 }
 
+// Quick add layout blocks (for container empty state)
+function handleAddLayoutBlock(type: 'stack' | 'grid' | 'canvas') {
+  const block = editorStore.addBlock(type, undefined, props.block.id)
+  if (block) {
+    editorStore.selectBlock(block.id)
+  }
+}
+
+// Add list/collection preset (Grid with Stack children)
+function handleAddListCollection() {
+  const block = createPresetBlock('preset-card-list')
+  const inserted = editorStore.addPresetBlock(block, undefined, props.block.id)
+  if (inserted) {
+    editorStore.selectBlock(inserted.id)
+  }
+}
+
+// Add content block inside layout block
+function handleAddContentBlock(type: SectionBlockType) {
+  const block = editorStore.addBlock(type, undefined, props.block.id)
+  if (block) {
+    editorStore.selectBlock(block.id)
+  }
+}
+
+// Add preset inside layout block
+function handleAddPresetInside(type: PresetType) {
+  const block = createPresetBlock(type)
+  const inserted = editorStore.addPresetBlock(block, undefined, props.block.id)
+  if (inserted) {
+    editorStore.selectBlock(inserted.id)
+  }
+}
+
 const isSelected = computed(() =>
   editorStore.selectedBlockId === props.block.id &&
   !editorStore.selectedItemId
 )
+
+// Track scroll container for cleanup
+let scrollContainerRef: Element | null = null
+
+// Update label position when block becomes selected or hovered
+watch([isSelected, isHovered], ([selected, hovered], [prevSelected, prevHovered]) => {
+  const wasActive = prevSelected || prevHovered
+  const isActive = selected || hovered
+
+  if (isActive && !wasActive) {
+    // Becoming active - add scroll listener
+    updateLabelPosition()
+    scrollContainerRef = sectionRef.value?.closest('.overflow-auto') ?? null
+    scrollContainerRef?.addEventListener('scroll', updateLabelPosition)
+  } else if (!isActive && wasActive) {
+    // Becoming inactive - remove scroll listener
+    scrollContainerRef?.removeEventListener('scroll', updateLabelPosition)
+    scrollContainerRef = null
+  } else if (isActive) {
+    // Still active - just update position
+    updateLabelPosition()
+  }
+})
+
+// Clean up scroll listener on unmount
+onUnmounted(() => {
+  scrollContainerRef?.removeEventListener('scroll', updateLabelPosition)
+})
 
 // Check if this is a protected block (header/footer)
 const isProtectedBlock = computed(() => props.block.type === 'header' || props.block.type === 'footer')
@@ -1487,7 +1579,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
   <section
     v-if="!isHeaderFooterHidden && (!isBlockHidden || !isInsideListCollection)"
     ref="sectionRef"
-    class="relative w-full cursor-pointer"
+    class="relative w-full cursor-pointer overflow-visible"
     data-preview-block
     :style="animationStyles"
     @click="handleClick"
@@ -1504,16 +1596,17 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- Selection outline -->
     <div
       v-if="isSelected"
-      class="absolute inset-0 border-1 border-primary rounded-lg pointer-events-none z-10"
+      class="absolute inset-0 border-1 border-border-outline pointer-events-none z-10"
     />
 
-    <!-- Section label (on hover or selected) - draggable for repositioning -->
+    <!-- Section label -->
     <div
       v-if="isHovered || isSelected"
       :draggable="canDragBlock"
-      class="flex items-center absolute top-0 left-0 px-1.5 h-4 text-[10px] font-mono uppercase rounded-br rounded-tl backdrop-blur-sm z-20"
+      class="absolute left-0 flex border items-center px-1.5 h-5 text-[10px] font-mono uppercase backdrop-blur-xs z-20 whitespace-nowrap pointer-events-auto"
       :class="[
-        isSelected ? 'bg-primary/50 text-primary-foreground' : 'bg-primary/80 text-primary-foreground',
+        labelShowBelow ? 'top-full mt-0.5 rounded-b' : 'bottom-full mb-0.5 rounded-t',
+        isSelected ? 'bg-indigo-600 border-indigo-500/10 text-blue-100' : 'bg-indigo-600/50 border-indigo-500/10 text-blue-100',
         canDragBlock || isInsideCanvas ? 'cursor-grab active:cursor-grabbing' : '',
         isCanvasDragging ? 'cursor-grabbing' : ''
       ]"
@@ -1521,7 +1614,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       @dragend="handleBlockDragEnd"
       @mousedown="isInsideCanvas ? handleCanvasDragStart($event) : undefined"
     >
-      <span v-if="canDragBlock || isInsideCanvas" class="w-2 h-2 rounded-full bg-current mr-1 opacity-70"></span>
+      <span v-if="canDragBlock || isInsideCanvas" class="w-2 h-2 rounded-full bg-blue-100 mr-1.5"></span>
       {{ block.name }}
     </div>
 
@@ -1586,7 +1679,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ============================================ -->
     <div
       v-else-if="block.type === 'container'"
-      class="relative flex min-h-[80px] transition-colors overflow-hidden"
+      class="relative flex min-h-[80px] transition-colors "
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
       :style="{
         ...blockStyles,
@@ -1643,11 +1736,46 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       </template>
       <div
         v-else
-        class="relative z-10 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-        @click.stop="openBlockPicker"
+        class="relative z-10 flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50"
       >
-        <Icon name="add-1" class="text-2xl mb-2" />
-        <span class="text-xxs font-mono uppercase">Click to add block</span>
+        <div class="flex items-center gap-2">
+          <button
+            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
+            @click.stop="handleAddLayoutBlock('stack')"
+          >
+            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
+              <Icon name="layout-stack" :size="20" class="text-muted-foreground" />
+            </div>
+            <span class="text-xs">Stack</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
+            @click.stop="handleAddLayoutBlock('grid')"
+          >
+            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
+              <Icon name="layout-grid" :size="20" class="text-muted-foreground" />
+            </div>
+            <span class="text-xs">Grid</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
+            @click.stop="handleAddLayoutBlock('canvas')"
+          >
+            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
+              <Icon name="layout-canvas" :size="20" class="text-muted-foreground" />
+            </div>
+            <span class="text-xs">Canvas</span>
+          </button>
+          <button
+            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
+            @click.stop="handleAddListCollection"
+          >
+            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
+              <Icon name="list-slider" :size="20" class="text-muted-foreground" />
+            </div>
+            <span class="text-xs">List</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1657,7 +1785,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- SLIDER MODE -->
     <div
       v-else-if="block.type === 'grid' && gridSettings?.isSlider"
-      class="relative overflow-hidden"
+      class="relative "
       :style="{
         marginTop: blockStyles.marginTop,
         marginRight: blockStyles.marginRight,
@@ -1731,11 +1859,37 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         </template>
         <template v-else>
           <div
-            class="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-            @click.stop="openBlockPicker"
+            class="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
           >
-            <Icon name="add-1" class="text-xl mb-1" />
-            <span class="text-xxs font-mono uppercase">Add slide</span>
+            <Dropdown align="left" width="min-w-48" :close-on-click="true">
+              <template #trigger="{ toggle }">
+                <Button variant="dotted" size="sm" @click.stop="toggle">
+                  <Icon name="plus" :size="12" />
+                  Add content
+                </Button>
+              </template>
+              <div class="py-1 font-sans">
+                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
+                <DropdownItem
+                  v-for="type in blocksByCategory.content"
+                  :key="type"
+                  :icon="sectionBlockIcons[type]"
+                  @click="handleAddContentBlock(type)"
+                >
+                  {{ sectionBlockLabels[type] }}
+                </DropdownItem>
+                <div class="my-1 border-t border-border" />
+                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
+                <DropdownItem
+                  v-for="type in presetTypes"
+                  :key="type"
+                  :icon="presetIcons[type]"
+                  @click="handleAddPresetInside(type)"
+                >
+                  {{ presetLabels[type] }}
+                </DropdownItem>
+              </div>
+            </Dropdown>
           </div>
         </template>
       </div>
@@ -1777,7 +1931,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- REGULAR GRID MODE -->
     <div
       v-else-if="block.type === 'grid'"
-      class="relative overflow-hidden"
+      class="relative "
       :style="{
         marginTop: blockStyles.marginTop,
         marginRight: blockStyles.marginRight,
@@ -1848,13 +2002,38 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         </template>
         <template v-else>
           <div
-            v-for="i in (gridSettings?.columns || 2)"
-            :key="i"
-            class="flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-            @click.stop="openBlockPicker"
+            class="flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
+            :style="{ gridColumn: `span ${gridSettings?.columns || 2}` }"
           >
-            <Icon name="add-1" class="text-xl mb-1" />
-            <span class="text-xxs font-mono uppercase">Add block</span>
+            <Dropdown align="left" width="min-w-48" :close-on-click="true">
+              <template #trigger="{ toggle }">
+                <Button variant="dotted" size="sm" @click.stop="toggle">
+                  <Icon name="plus" :size="12" />
+                  Add content
+                </Button>
+              </template>
+              <div class="py-1 font-sans">
+                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
+                <DropdownItem
+                  v-for="type in blocksByCategory.content"
+                  :key="type"
+                  :icon="sectionBlockIcons[type]"
+                  @click="handleAddContentBlock(type)"
+                >
+                  {{ sectionBlockLabels[type] }}
+                </DropdownItem>
+                <div class="my-1 border-t border-border" />
+                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
+                <DropdownItem
+                  v-for="type in presetTypes"
+                  :key="type"
+                  :icon="presetIcons[type]"
+                  @click="handleAddPresetInside(type)"
+                >
+                  {{ presetLabels[type] }}
+                </DropdownItem>
+              </div>
+            </Dropdown>
           </div>
         </template>
       </div>
@@ -1878,7 +2057,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ============================================ -->
     <div
       v-else-if="block.type === 'stack'"
-      class="relative flex min-h-[80px] transition-colors overflow-hidden"
+      class="relative flex min-h-[80px] transition-colors"
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
       :style="{
         ...blockStyles,
@@ -1937,11 +2116,37 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       </template>
       <div
         v-else
-        class="relative z-10 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-        @click.stop="openBlockPicker"
+        class="relative z-10 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
       >
-        <Icon name="add-1" class="text-2xl mb-2" />
-        <span class="text-xxs font-mono uppercase">Click to add block</span>
+        <Dropdown align="left" width="min-w-48" :close-on-click="true">
+          <template #trigger="{ toggle }">
+            <Button variant="dotted" size="sm" @click.stop="toggle">
+              <Icon name="plus" :size="12" />
+              Add content
+            </Button>
+          </template>
+          <div class="py-1 font-sans">
+            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
+            <DropdownItem
+              v-for="type in blocksByCategory.content"
+              :key="type"
+              :icon="sectionBlockIcons[type]"
+              @click="handleAddContentBlock(type)"
+            >
+              {{ sectionBlockLabels[type] }}
+            </DropdownItem>
+            <div class="my-1 border-t border-border" />
+            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
+            <DropdownItem
+              v-for="type in presetTypes"
+              :key="type"
+              :icon="presetIcons[type]"
+              @click="handleAddPresetInside(type)"
+            >
+              {{ presetLabels[type] }}
+            </DropdownItem>
+          </div>
+        </Dropdown>
       </div>
     </div>
 
@@ -2247,7 +2452,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <div
       v-else-if="block.type === 'canvas'"
       :data-block-id="block.id"
-      class="relative overflow-hidden transition-colors"
+      class="relative  transition-colors"
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed' : ''"
       :style="{
         ...blockStyles,
@@ -2297,18 +2502,44 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       <!-- Empty state -->
       <div
         v-else
-        class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground border-1 border-dashed border-border/50 rounded-lg m-4 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-        @click.stop="openBlockPicker"
+        class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground border-1 border-dashed border-border/50 m-4"
       >
-        <Icon name="add-1" class="text-3xl mb-2" />
-        <span class="text-sm">Drag elements here to position freely</span>
+        <Dropdown align="left" width="min-w-48" :close-on-click="true">
+          <template #trigger="{ toggle }">
+            <Button variant="dotted" size="sm" @click.stop="toggle">
+              <Icon name="plus" :size="12" />
+              Add content
+            </Button>
+          </template>
+          <div class="py-1 font-sans">
+            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
+            <DropdownItem
+              v-for="type in blocksByCategory.content"
+              :key="type"
+              :icon="sectionBlockIcons[type]"
+              @click="handleAddContentBlock(type)"
+            >
+              {{ sectionBlockLabels[type] }}
+            </DropdownItem>
+            <div class="my-1 border-t border-border" />
+            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
+            <DropdownItem
+              v-for="type in presetTypes"
+              :key="type"
+              :icon="presetIcons[type]"
+              @click="handleAddPresetInside(type)"
+            >
+              {{ presetLabels[type] }}
+            </DropdownItem>
+          </div>
+        </Dropdown>
       </div>
     </div>
 
     <!-- ============================================ -->
     <!-- FALLBACK / PLACEHOLDER -->
     <!-- ============================================ -->
-    <div v-else class="flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50 rounded-lg">
+    <div v-else class="flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50">
       <Icon :name="sectionBlockIcons[block.type]" :size="30" class="mb-2" />
       <span class="text-sm font-medium">{{ sectionBlockLabels[block.type] }}</span>
     </div>

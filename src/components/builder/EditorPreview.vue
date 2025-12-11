@@ -2,7 +2,7 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import PreviewSection from '@/components/preview/PreviewSection.vue'
-import { createPresetBlock, type PresetType } from '@/lib/editor-utils'
+import { createPresetBlock, createSectionBlock, type PresetType } from '@/lib/editor-utils'
 import type { SectionBlockType } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
@@ -411,7 +411,7 @@ function handleSectionDrop(event: DragEvent) {
     >
       <!-- Viewport container -->
       <div
-        class="h-full transition-all duration-300"
+        class="h-full mx-auto transition-all duration-300"
         :style="{ maxWidth: editorStore.viewportWidth }"
         @click.self="editorStore.selectBlock(null)"
         @contextmenu="handleViewportContextMenu"
