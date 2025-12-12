@@ -7,8 +7,19 @@ import type { SectionBlockType } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import BlockPicker from '@/components/builder/BlockPicker.vue'
+import { generateInteractionCSS } from '@/lib/interaction-utils'
+import { useInteractionTriggers } from '@/composables/useInteractionTriggers'
 
 const editorStore = useEditorStore()
+
+// Ref for the preview container (for scoping interaction triggers)
+const previewContainerRef = ref<HTMLElement | null>(null)
+
+// Setup interaction triggers (click, load, appear)
+const { refresh: refreshInteractionTriggers } = useInteractionTriggers({
+  interactions: () => editorStore.getInteractions(),
+  containerRef: previewContainerRef,
+})
 
 // Custom font loading
 const loadedFontStyleElement = ref<HTMLStyleElement | null>(null)
@@ -70,24 +81,65 @@ function loadGoogleFonts() {
   loadedGoogleFontsLink.value = linkEl
 }
 
-// Watch for custom font changes
-watch(
-  () => editorStore.pageSettings.customFonts,
-  () => loadCustomFonts(),
-  { deep: true }
+// Watch for custom font changes (compare serialized to avoid deep watch overhead)
+const customFontsKey = computed(() =>
+  JSON.stringify((editorStore.pageSettings.customFonts || []).map((f: { name: string; url: string }) => `${f.name}:${f.url}`))
 )
+watch(customFontsKey, () => loadCustomFonts())
 
-// Watch for Google font changes
-watch(
-  () => editorStore.pageSettings.googleFonts,
-  () => loadGoogleFonts(),
-  { deep: true }
+// Watch for Google font changes (compare serialized to avoid deep watch overhead)
+const googleFontsKey = computed(() =>
+  JSON.stringify((editorStore.pageSettings.googleFonts || []).map((f: { family: string }) => f.family))
 )
+watch(googleFontsKey, () => loadGoogleFonts())
 
-// Load fonts on mount
+// Interaction CSS loading
+const interactionStyleElement = ref<HTMLStyleElement | null>(null)
+
+function loadInteractionCSS() {
+  const interactions = editorStore.getInteractions()
+
+  // Remove existing style element if any
+  if (interactionStyleElement.value) {
+    interactionStyleElement.value.remove()
+    interactionStyleElement.value = null
+  }
+
+  if (interactions.length === 0) return
+
+  // Generate CSS for all interactions
+  const css = generateInteractionCSS(interactions)
+  if (!css) return
+
+  // Create and inject style element
+  const styleEl = document.createElement('style')
+  styleEl.setAttribute('data-interactions', 'true')
+  styleEl.textContent = css
+  document.head.appendChild(styleEl)
+  interactionStyleElement.value = styleEl
+}
+
+// Watch for interaction changes (compare serialized to avoid deep watch overhead)
+const interactionsKey = computed(() =>
+  JSON.stringify(editorStore.getInteractions().map(i => ({
+    id: i.id,
+    trigger: i.trigger,
+    triggerBlockId: i.triggerBlockId,
+    targetBlockId: i.targetBlockId,
+    duration: i.duration,
+    easing: i.easing,
+    delay: i.delay,
+    styles: i.styles,
+    updatedAt: i.updatedAt,
+  })))
+)
+watch(interactionsKey, () => loadInteractionCSS())
+
+// Load fonts and interactions on mount
 onMounted(() => {
   loadCustomFonts()
   loadGoogleFonts()
+  loadInteractionCSS()
 })
 
 // Cleanup on unmount
@@ -97,6 +149,9 @@ onUnmounted(() => {
   }
   if (loadedGoogleFontsLink.value) {
     loadedGoogleFontsLink.value.remove()
+  }
+  if (interactionStyleElement.value) {
+    interactionStyleElement.value.remove()
   }
 })
 
@@ -418,7 +473,8 @@ function handleSectionDrop(event: DragEvent) {
       >
         <!-- Page container with settings applied -->
         <div
-          class="editor-preview-container bg-background min-h-full transition-all duration-300"
+          ref="previewContainerRef"
+          class="lands-preview editor-preview-container bg-background min-h-full transition-all duration-300"
           :class="pageClasses"
           :style="pageStyles"
           @click.self="editorStore.selectBlock(null)"

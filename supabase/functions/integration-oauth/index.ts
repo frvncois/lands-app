@@ -55,8 +55,11 @@ interface RequestBody {
   state?: string
 }
 
+// CORS - restrict to your app domain in production
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'http://localhost:5173'
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
@@ -68,16 +71,65 @@ function generateState(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Encrypt token data before storing
-async function encryptToken(data: string, key: string): Promise<string> {
-  // Simple base64 encoding for now - in production, use proper encryption
-  // with a derived key from SUPABASE_SERVICE_ROLE_KEY
-  return btoa(data)
+// Derive encryption key from service role key using PBKDF2
+async function deriveKey(secret: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder()
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  )
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode('lands-integration-salt'),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  )
 }
 
-// Decrypt token data
-async function decryptToken(encrypted: string, key: string): Promise<string> {
-  return atob(encrypted)
+// Encrypt token data using AES-GCM
+async function encryptToken(data: string, secret: string): Promise<string> {
+  const key = await deriveKey(secret)
+  const encoder = new TextEncoder()
+  const iv = crypto.getRandomValues(new Uint8Array(12)) // 96-bit IV for AES-GCM
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoder.encode(data)
+  )
+
+  // Combine IV + encrypted data and encode as base64
+  const combined = new Uint8Array(iv.length + encrypted.byteLength)
+  combined.set(iv)
+  combined.set(new Uint8Array(encrypted), iv.length)
+
+  return btoa(String.fromCharCode(...combined))
+}
+
+// Decrypt token data using AES-GCM
+async function decryptToken(encrypted: string, secret: string): Promise<string> {
+  const key = await deriveKey(secret)
+  const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0))
+
+  const iv = combined.slice(0, 12)
+  const data = combined.slice(12)
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+  )
+
+  return new TextDecoder().decode(decrypted)
 }
 
 serve(async (req) => {
@@ -184,8 +236,10 @@ serve(async (req) => {
       }
 
       case 'callback': {
-        if (!code || !integrationId || !projectId) {
-          return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
+        const { state } = body
+
+        if (!code || !integrationId || !projectId || !state) {
+          return new Response(JSON.stringify({ error: 'Missing required parameters (code, integrationId, projectId, state)' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
           })
@@ -201,17 +255,28 @@ serve(async (req) => {
           })
         }
 
-        // Get stored state info
+        // Get stored state info and VALIDATE state parameter for CSRF protection
         const { data: stateData } = await supabase
           .from('oauth_states')
           .select('*')
+          .eq('state', state) // Match the exact state from callback
           .eq('project_id', projectId)
           .eq('integration_id', integrationId)
           .eq('user_id', user.id)
           .single()
 
         if (!stateData) {
-          return new Response(JSON.stringify({ error: 'Invalid or expired OAuth session' }), {
+          return new Response(JSON.stringify({ error: 'Invalid or expired OAuth state - possible CSRF attack' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          })
+        }
+
+        // Check if state has expired
+        if (new Date(stateData.expires_at) < new Date()) {
+          // Clean up expired state
+          await supabase.from('oauth_states').delete().eq('state', state)
+          return new Response(JSON.stringify({ error: 'OAuth session expired, please try again' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json', ...corsHeaders },
           })

@@ -8,6 +8,7 @@ import { Icon, Tooltip } from '@/components/ui'
 const props = defineProps<{
   modelValue: string
   placeholder?: string
+  hideSearch?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -68,7 +69,7 @@ function handleRemove() {
             </svg>
           </button>
         </Tooltip>
-        <Tooltip text="Search">
+        <Tooltip v-if="!hideSearch" text="Search">
           <button
             type="button"
             class="w-8 h-8 bg-background/90 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-foreground hover:bg-background transition-colors"
@@ -104,6 +105,7 @@ function handleRemove() {
         <span class="text-xs">{{ placeholder || 'Click to upload' }}</span>
       </button>
       <button
+        v-if="!hideSearch"
         type="button"
         class="w-full h-9 border border-border rounded-md flex items-center justify-center gap-2 text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground hover:bg-muted/50 transition-colors"
         @click="handleFindImage"

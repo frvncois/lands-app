@@ -92,23 +92,6 @@ export type ObjectFit = 'cover' | 'contain' | 'fill' | 'none'
 // Legacy animation type (deprecated - use AnimationSettings instead)
 export type AnimationType = 'none' | 'fade' | 'slide-up' | 'slide-down' | 'slide-left' | 'slide-right' | 'zoom'
 
-// Style states for interactive elements
-export type StyleState = 'none' | 'hover' | 'pressed' | 'focused'
-
-// Block types that support style states
-export const STYLE_STATE_BLOCK_TYPES: SectionBlockType[] = [
-  'heading',
-  'text',
-  'button',
-  'image',
-  'video',
-  'form-input',
-  'form-textarea',
-  'form-select',
-  'form-radio',
-  'form-checkbox',
-  'form-button',
-]
 
 // ============================================
 // ANIMATION SYSTEM
@@ -250,16 +233,13 @@ export interface CoreBlockStyles {
   // Visual effects
   opacity?: number | string
   mixBlendMode?: string
-}
-
-// State style overrides (for hover, pressed, focused states)
-export interface StateStyles {
-  backgroundColor?: string
-  color?: string
-  border?: BorderStyle
-  shadow?: ShadowStyle
-  opacity?: number | string
-  transform?: string
+  // Positioning
+  position?: 'relative' | 'absolute' | 'fixed' | 'sticky'
+  zIndex?: number | string
+  top?: string
+  right?: string
+  bottom?: string
+  left?: string
 }
 
 export interface BaseBlockStyles extends CoreBlockStyles {
@@ -268,10 +248,6 @@ export interface BaseBlockStyles extends CoreBlockStyles {
   // Responsive overrides (inherit from desktop → tablet → mobile)
   tablet?: Partial<CoreBlockStyles>
   mobile?: Partial<CoreBlockStyles>
-  // State style overrides (for interactive elements)
-  hover?: StateStyles
-  pressed?: StateStyles
-  focused?: StateStyles
 }
 
 // ============================================
@@ -448,6 +424,7 @@ export interface DividerStyles extends BaseBlockStyles {
 export interface HeadingSettings extends SharedBlockSettings {
   content: string
   level: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+  spans?: Record<string, InlineSpan> // Styled spans within the heading
 }
 
 export interface HeadingStyles extends BaseBlockStyles {
@@ -462,10 +439,37 @@ export interface HeadingStyles extends BaseBlockStyles {
   alignment?: Alignment
 }
 
+// Inline Span (for styled text spans within text/heading blocks)
+export interface SpanStyles {
+  color?: string
+  backgroundColor?: string
+  fontWeight?: FontWeight
+  fontStyle?: 'normal' | 'italic'
+  textDecoration?: 'none' | 'underline' | 'line-through'
+  fontSize?: FontSize
+  fontFamily?: string
+  letterSpacing?: string
+  // Border/background effects
+  padding?: string
+  borderRadius?: string
+  border?: BorderStyle
+  // Opacity
+  opacity?: string
+  mixBlendMode?: string
+}
+
+export interface InlineSpan {
+  id: string
+  name: string
+  styles: SpanStyles
+  interactionIds?: string[] // References to interactions where this span is a trigger/target
+}
+
 // Text
 export interface TextSettings extends SharedBlockSettings {
   content: string // Rich text HTML
   maxWidth?: string
+  spans?: Record<string, InlineSpan> // Styled spans within the text
 }
 
 export interface TextStyles extends BaseBlockStyles {
@@ -839,6 +843,71 @@ export interface SharedStyle {
   updatedAt: string
 }
 
+// ============================================
+// INTERACTIONS
+// ============================================
+
+// Trigger types for interactions
+export type InteractionTrigger = 'hover' | 'click' | 'load' | 'appear'
+
+// Effect types for interactions
+export type InteractionEffect = 'transition' | 'animation'
+
+// Easing options for interactions
+export type InteractionEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'spring'
+
+// Style properties that can be animated in interactions
+export interface InteractionStyles {
+  // Background
+  backgroundColor?: string
+  // Border
+  border?: BorderStyle
+  // Visual effects
+  opacity?: number | string
+  shadow?: ShadowStyle
+  // Transform
+  transform?: string
+  scale?: string
+  rotate?: string
+  translateX?: string
+  translateY?: string
+  // Spacing
+  padding?: Spacing
+  margin?: Spacing
+  // Typography (for text blocks)
+  color?: string
+  fontSize?: string
+  // Dimensions
+  width?: string
+  height?: string
+}
+
+// Single interaction definition
+export interface Interaction {
+  id: string
+  name: string
+
+  // Trigger configuration
+  trigger: InteractionTrigger
+  triggerBlockId: string      // Block that triggers the interaction
+
+  // Target configuration
+  targetBlockId: string       // Block that receives style changes (can be same or different)
+
+  // Effect configuration
+  effectType: InteractionEffect
+  duration: string            // e.g., '300ms', '0.5s'
+  easing: InteractionEasing
+  delay?: string              // e.g., '100ms'
+
+  // Style changes to apply when triggered
+  styles: InteractionStyles
+
+  // Metadata
+  createdAt: string
+  updatedAt: string
+}
+
 // Union type for all block styles
 export type BlockStyles =
   | HeaderStyles
@@ -875,6 +944,9 @@ export interface SectionBlock {
 
   // Shared style reference (for style syncing)
   sharedStyleId?: string
+
+  // Interaction references (for blocks that trigger interactions)
+  interactionIds?: string[]
 
   // Nested blocks (for layout blocks like container, grid, stack, form)
   children?: SectionBlock[]
@@ -943,14 +1015,18 @@ export interface SectionBlock {
 // ============================================
 
 export type UseCaseCategory =
-  | 'music'
-  | 'restaurant'
-  | 'event'
-  | 'portfolio'
-  | 'business'
-  | 'personal'
-  | 'ecommerce'
-  | 'saas'
+  | 'personal'      // Personal & Bio
+  | 'links'         // Links & Social
+  | 'portfolio'     // Portfolio & Work
+  | 'services'      // Services & Freelance
+  | 'startup'       // Startup & Business
+  | 'product'       // Product & Launch
+  | 'event'         // Event & Conference
+  | 'restaurant'    // Restaurant & Menu
+  | 'creator'       // Creator & Artist
+  | 'newsletter'    // Newsletter & Signup
+  | 'wedding'       // Wedding & Celebration
+  | 'nonprofit'     // Nonprofit & Cause
 
 export interface PageSettings {
   // Background
@@ -958,15 +1034,23 @@ export interface PageSettings {
   backgroundImage?: string
   // Typography defaults
   fontFamily?: string
+  headingFontFamily?: string
   textColor?: string
   baseFontSize?: FontSize | string // Can be FontSize type or pixel value string
   // Fonts
   customFonts?: CustomFont[]
   googleFonts?: GoogleFont[]
+  // Color palette
+  primaryColor?: string
+  secondaryColor?: string
+  accentColor?: string
   // Layout
   maxWidth?: string
   padding?: SpacingYX
   sectionGap?: string
+  // Style settings (from wizard)
+  layoutStyleId?: string
+  stylePresetId?: string
   // Metadata
   useCase?: UseCaseCategory
   layoutId?: string
@@ -976,6 +1060,8 @@ export interface PageSettings {
   customFooterScript?: string
   // Shared styles (style presets for blocks)
   sharedStyles?: SharedStyle[]
+  // Interactions (hover/click/load/appear effects)
+  interactions?: Interaction[]
 }
 
 // ============================================

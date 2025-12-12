@@ -1,0 +1,8 @@
+export { default as SpacingSection } from './SpacingSection.vue'
+export { default as BorderSection } from './BorderSection.vue'
+export { default as BackgroundSection } from './BackgroundSection.vue'
+export { default as OpacitySection } from './OpacitySection.vue'
+export { default as VisibilitySection } from './VisibilitySection.vue'
+export { default as TypographySection } from './TypographySection.vue'
+export { default as LayoutSection } from './LayoutSection.vue'
+export { default as PositionSection } from './PositionSection.vue'

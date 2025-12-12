@@ -56,10 +56,11 @@ function handleKeyDown(e: KeyboardEvent) {
   const isHeaderFooterStack = selectedBlock ? editorStore.isHeaderFooterChild(selectedBlock.id) : false
   const isBlockProtected = isInsideListItem || isListItem || isHeaderFooterStack
 
-  // Delete - Delete selected block (not for text/heading which need delete for editing)
-  // Also blocked for children inside list items and header/footer stacks
+  // Delete - Delete selected block
+  // Blocked for children inside list items and header/footer stacks
+  // Note: If user is in typing mode (contentEditable), we already returned at line 46
   if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (selectedBlock && !isBlockProtected && selectedBlock.type !== 'text' && selectedBlock.type !== 'heading') {
+    if (selectedBlock && !isBlockProtected) {
       e.preventDefault()
       editorStore.deleteBlock(selectedBlock.id)
     }

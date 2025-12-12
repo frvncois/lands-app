@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { Tooltip } from '@/components/ui'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { Tooltip, Icon } from '@/components/ui'
+import { useEditorStore } from '@/stores/editor'
 
 const props = defineProps<{
   targetElement: HTMLElement | null
+  blockId: string
 }>()
+
+const editorStore = useEditorStore()
 
 const emit = defineEmits<{
   (e: 'format', command: string, value?: string): void
@@ -94,10 +98,13 @@ function insertSpan() {
   const range = selection.getRangeAt(0)
   const selectedText = range.toString()
 
+  // Generate unique span ID
+  const spanId = Math.random().toString(36).substring(2, 10)
+
   // Create a span with a special class for styling
   const span = document.createElement('span')
   span.className = 'ld-styled-span'
-  span.setAttribute('data-span-id', Math.random().toString(36).substring(2, 8))
+  span.setAttribute('data-span-id', spanId)
   span.textContent = selectedText
 
   // Replace selection with span
@@ -107,7 +114,11 @@ function insertSpan() {
   // Clear selection
   selection.removeAllRanges()
 
-  emit('format', 'span')
+  // Create span in store with default name based on text content
+  const spanName = selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText
+  editorStore.createSpan(props.blockId, spanId, spanName || 'Span')
+
+  emit('format', 'span', spanId)
   isVisible.value = false
 }
 

@@ -12,23 +12,23 @@ import AccountView from '@/views/AccountView.vue'
 import InviteView from '@/views/InviteView.vue'
 import OAuthCallbackView from '@/views/OAuthCallbackView.vue'
 
+import HomeView from '@/views/HomeView.vue'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // Invite route (public, but can accept when authenticated)
+
     {
       path: '/invite/:token',
       name: 'invite',
       component: InviteView,
     },
-    // OAuth callback route (requires auth)
     {
       path: '/oauth/callback',
       name: 'oauth-callback',
       component: OAuthCallbackView,
       meta: { requiresAuth: true },
     },
-    // Auth routes (public)
     {
       path: '/auth',
       component: AuthLayout,
@@ -41,9 +41,8 @@ const router = createRouter({
         },
       ],
     },
-    // App routes (protected)
     {
-      path: '/',
+      path: '/dashboard',
       component: AppLayout,
       meta: { requiresAuth: true },
       children: [
@@ -82,6 +81,10 @@ const router = createRouter({
           component: AccountView,
         },
       ],
+    },
+    {
+      path: '/',
+      component: HomeView,
     },
   ],
 })

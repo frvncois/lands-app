@@ -4,18 +4,28 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+// CORS - restrict to your app domain in production
+const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'http://localhost:5173'
+
 // API validation endpoints for each provider
 const API_VALIDATORS: Record<string, {
   validate: (config: Record<string, string>) => Promise<{ valid: boolean; accountInfo?: any; error?: string }>
 }> = {
-  // ConvertKit
+  // ConvertKit - uses POST to avoid API secret in query string logs
   convertkit: {
     async validate(config) {
       const { apiSecret } = config
       if (!apiSecret) return { valid: false, error: 'API Secret is required' }
 
       try {
-        const response = await fetch(`https://api.convertkit.com/v3/account?api_secret=${apiSecret}`)
+        // Use POST with body to avoid exposing API secret in URL/logs
+        const response = await fetch('https://api.convertkit.com/v3/account', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ api_secret: apiSecret }),
+        })
         if (!response.ok) {
           return { valid: false, error: 'Invalid API Secret' }
         }
@@ -173,15 +183,70 @@ interface RequestBody {
 }
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Encrypt credentials before storing
+// Derive encryption key from service role key using PBKDF2
+async function deriveKey(secret: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder()
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  )
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: encoder.encode('lands-integration-salt'),
+      iterations: 100000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  )
+}
+
+// Encrypt credentials using AES-GCM
 async function encryptCredentials(data: string): Promise<string> {
-  // Simple base64 encoding for now - in production, use proper encryption
-  return btoa(data)
+  const key = await deriveKey(SUPABASE_SERVICE_ROLE_KEY)
+  const encoder = new TextEncoder()
+  const iv = crypto.getRandomValues(new Uint8Array(12)) // 96-bit IV for AES-GCM
+
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    encoder.encode(data)
+  )
+
+  // Combine IV + encrypted data and encode as base64
+  const combined = new Uint8Array(iv.length + encrypted.byteLength)
+  combined.set(iv)
+  combined.set(new Uint8Array(encrypted), iv.length)
+
+  return btoa(String.fromCharCode(...combined))
+}
+
+// Decrypt credentials using AES-GCM
+async function decryptCredentials(encrypted: string): Promise<string> {
+  const key = await deriveKey(SUPABASE_SERVICE_ROLE_KEY)
+  const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0))
+
+  const iv = combined.slice(0, 12)
+  const data = combined.slice(12)
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+  )
+
+  return new TextDecoder().decode(decrypted)
 }
 
 serve(async (req) => {
@@ -329,7 +394,7 @@ serve(async (req) => {
         }
 
         // Decrypt and validate
-        const storedConfig = JSON.parse(atob(connection.encrypted_credentials))
+        const storedConfig = JSON.parse(await decryptCredentials(connection.encrypted_credentials))
         const result = await validator.validate(storedConfig)
 
         return new Response(JSON.stringify({

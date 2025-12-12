@@ -11,21 +11,13 @@ import type {
   FooterLink,
   FooterSocialLink,
   SocialPlatform,
-  LanguageCode,
-  ProjectTranslations,
-  BlockTranslation,
   ViewportSize,
   CoreBlockStyles,
   FormFieldBlockType,
   GridSettings,
   CanvasSettings,
   CanvasChildPosition,
-  SharedStyle,
-  StyleState,
-  StateStyles,
 } from '@/types/editor'
-import { STYLE_STATE_BLOCK_TYPES } from '@/types/editor'
-import { DEFAULT_LANGUAGE } from '@/lib/languages'
 import type { ProjectContent } from '@/types/project'
 import {
   createSectionBlock,
@@ -37,308 +29,122 @@ import {
   canHaveChildren,
   isFormFieldBlock,
   generateId,
-  extractStyleSettings,
-  applyStyleSettings,
-  hasSharedStyleOverrides,
 } from '@/lib/editor-utils'
 import { getThemeById } from '@/lib/themes'
 import { getLayoutById } from '@/lib/layouts'
 import { useProjectsStore } from '@/stores/projects'
 import { useToast } from '@/stores/toast'
-import { useUserStore } from '@/stores/user'
-import { supabase } from '@/lib/supabase'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+
+// Import composables
+import {
+  useHistory,
+  useClipboard,
+  useSharedStyles,
+  useTranslations,
+  useCollaboration,
+  useItemListOperations,
+  useInteractions,
+  // Helpers
+  deepClone,
+  isLayoutBlockType,
+  hasDepthRestriction,
+  isProtectedBlockType,
+  isPrebuiltListGrid,
+  isMenuListBlock,
+  hasOnlyContentFields,
+  filterNonContentFields,
+  buildBlockIndex,
+  buildBlockIndexes,
+  MAX_LAYOUT_NESTING_DEPTH,
+  MAX_MENU_LIST_DEPTH,
+  PREBUILT_LIST_NAMES,
+} from '@/stores/editor/index'
 
 // Re-export ViewportSize for consumers
 export type { ViewportSize }
 
-// Auto-save is disabled - manual save only (Cmd+S)
-// This prevents API spam and works better with collaborators
-
-// History configuration
-const MAX_HISTORY_SIZE = 100
-
-// History snapshot type
-interface HistorySnapshot {
-  blocks: SectionBlock[]
-  pageSettings: PageSettings
-  selectedBlockId: string | null
-  selectedItemId: string | null
-}
-
 export const useEditorStore = defineStore('editor', () => {
   const toast = useToast()
 
-  // State
+  // ============================================
+  // CORE STATE
+  // ============================================
+
   const currentProjectId = ref<string | null>(null)
   const blocks = ref<SectionBlock[]>([])
   const pageSettings = ref<PageSettings>(getDefaultPageSettings())
   const selectedBlockId = ref<string | null>(null)
-  const selectedItemId = ref<string | null>(null) // For items within blocks (form fields, list items, etc.)
-  const hoveredBlockId = ref<string | null>(null) // Track which block is currently hovered
+  const selectedItemId = ref<string | null>(null)
+  const hoveredBlockId = ref<string | null>(null)
+  const selectedSpanId = ref<string | null>(null)
+  const hoveredSpanId = ref<string | null>(null)
   const isLoading = ref(false)
   const isSaving = ref(false)
   const hasUnsavedChanges = ref(false)
   const viewport = ref<ViewportSize>('desktop')
   const isSidebarCollapsed = ref(false)
   const isInspectorCollapsed = ref(false)
-  const currentStyleState = ref<StyleState>('none') // For editing hover/pressed/focused states
-  const autoSaveEnabled = ref(false) // Disabled - manual save only
+  const autoSaveEnabled = ref(false)
   const lastSavedAt = ref<string | null>(null)
 
-  // ============================================
-  // REALTIME COLLABORATION STATE
-  // ============================================
-
-  let realtimeChannel: RealtimeChannel | null = null
-  const hasCollaboratorChanges = ref(false) // True when collaborator made changes we haven't loaded
-  const lastCollaboratorUpdate = ref<string | null>(null) // Timestamp of last collaborator change
-
-  // ============================================
-  // TRANSLATIONS STATE
-  // ============================================
-
-  const translations = ref<ProjectTranslations>({
-    defaultLanguage: DEFAULT_LANGUAGE,
-    languages: {},
-  })
-  const currentLanguage = ref<LanguageCode | null>(null) // null = default (edit source content)
-
-  // ============================================
-  // BLOCK INDEX (O(1) lookups)
-  // ============================================
-
-  // Block index map for O(1) lookups - use shallowRef for performance
+  // Block index for O(1) lookups (block, parent, and shared style)
   const blockIndex = shallowRef<Map<string, SectionBlock>>(new Map())
+  const parentIndex = shallowRef<Map<string, string | null>>(new Map())
+  const sharedStyleIndex = shallowRef<Map<string, Set<string>>>(new Map())
 
-  // Rebuild the block index from the current blocks tree
   function rebuildBlockIndex() {
-    const map = new Map<string, SectionBlock>()
-    const traverse = (blockList: SectionBlock[]) => {
-      for (const block of blockList) {
-        map.set(block.id, block)
-        // Index direct children (layout blocks)
-        if (block.children) {
-          traverse(block.children)
-        }
-      }
-    }
-    traverse(blocks.value)
-    blockIndex.value = map
+    const indexes = buildBlockIndexes(blocks.value)
+    blockIndex.value = indexes.blockIndex
+    parentIndex.value = indexes.parentIndex
+    sharedStyleIndex.value = indexes.sharedStyleIndex
   }
 
   // ============================================
-  // UNDO/REDO HISTORY
+  // TOAST HELPER
   // ============================================
 
-  const undoStack = shallowRef<HistorySnapshot[]>([])
-  const redoStack = shallowRef<HistorySnapshot[]>([])
-
-  // Check if undo/redo is available
-  const canUndo = computed(() => undoStack.value.length > 0)
-  const canRedo = computed(() => redoStack.value.length > 0)
-
-  // ============================================
-  // CLIPBOARD (for copy/cut/paste blocks and styles)
-  // ============================================
-
-  const clipboardBlock = ref<SectionBlock | null>(null)
-  const clipboardStyles = ref<Record<string, unknown> | null>(null)
-  const clipboardIsCut = ref(false) // Track if the clipboard block was cut (to delete source on paste)
-
-  // Check if clipboard has content
-  const hasClipboardBlock = computed(() => clipboardBlock.value !== null)
-  const hasClipboardStyles = computed(() => clipboardStyles.value !== null)
-
-  // Deep clone helper that handles Vue reactive objects
-  function deepClone<T>(obj: T): T {
-    return JSON.parse(JSON.stringify(obj))
-  }
-
-  // Create a snapshot of current state
-  function createSnapshot(): HistorySnapshot {
-    return {
-      blocks: deepClone(blocks.value),
-      pageSettings: deepClone(pageSettings.value),
-      selectedBlockId: selectedBlockId.value,
-      selectedItemId: selectedItemId.value,
-    }
-  }
-
-  // Push current state to undo stack before making changes
-  function pushToHistory() {
-    const snapshot = createSnapshot()
-    const newStack = [...undoStack.value, snapshot]
-
-    // Keep only the last MAX_HISTORY_SIZE items
-    if (newStack.length > MAX_HISTORY_SIZE) {
-      newStack.shift()
-    }
-
-    undoStack.value = newStack
-    // Clear redo stack when new action is performed
-    redoStack.value = []
-  }
-
-  // Undo last action
-  function undo() {
-    if (!canUndo.value) return
-
-    // Save current state to redo stack
-    const currentSnapshot = createSnapshot()
-    redoStack.value = [...redoStack.value, currentSnapshot]
-
-    // Pop and apply the last undo state
-    const newUndoStack = [...undoStack.value]
-    const snapshot = newUndoStack.pop()!
-    undoStack.value = newUndoStack
-
-    // Apply snapshot without triggering history
-    applySnapshot(snapshot)
-
-    // Rebuild index after undo
-    rebuildBlockIndex()
-
-    // Mark as changed
-    hasUnsavedChanges.value = true
-  }
-
-  // Redo last undone action
-  function redo() {
-    if (!canRedo.value) return
-
-    // Save current state to undo stack
-    const currentSnapshot = createSnapshot()
-    undoStack.value = [...undoStack.value, currentSnapshot]
-
-    // Pop and apply the last redo state
-    const newRedoStack = [...redoStack.value]
-    const snapshot = newRedoStack.pop()!
-    redoStack.value = newRedoStack
-
-    // Apply snapshot without triggering history
-    applySnapshot(snapshot)
-
-    // Rebuild index after redo
-    rebuildBlockIndex()
-
-    // Mark as changed
-    hasUnsavedChanges.value = true
-  }
-
-  // Apply a snapshot to current state
-  function applySnapshot(snapshot: HistorySnapshot) {
-    blocks.value = snapshot.blocks
-    pageSettings.value = snapshot.pageSettings
-    selectedBlockId.value = snapshot.selectedBlockId
-    selectedItemId.value = snapshot.selectedItemId
-  }
-
-  // Clear history (when loading a new project)
-  function clearHistory() {
-    undoStack.value = []
-    redoStack.value = []
+  function showToast(type: 'info' | 'success' | 'error', message: string, description?: string) {
+    if (type === 'info') toast.info(message, description)
+    else if (type === 'success') toast.success(message, description)
+    else toast.error(message, description)
   }
 
   // ============================================
-  // CHANGE TRACKING (Manual save only)
+  // CHANGE TRACKING
   // ============================================
 
-  // Mark content as changed
   function markAsChanged() {
     hasUnsavedChanges.value = true
-    rebuildBlockIndex()
+    // Note: rebuildBlockIndex() should be called AFTER mutations, not here
+    // All mutating functions call rebuildBlockIndex() explicitly after their changes
   }
 
-  // Mark as changed with history (for undoable actions)
   function markAsChangedWithHistory() {
-    pushToHistory()
+    history.pushToHistory()
     markAsChanged()
   }
 
-  // Cancel pending auto-save (kept for API compatibility, but no-op now)
   function cancelAutoSave() {
     // No-op - auto-save is disabled
   }
 
   // ============================================
-  // REALTIME COLLABORATION
+  // HISTORY (Undo/Redo)
   // ============================================
 
-  // Subscribe to project content changes
-  function subscribeToProjectChanges(projectId: string) {
-    // Unsubscribe from previous channel if exists
-    unsubscribeFromProjectChanges()
-
-    const userStore = useUserStore()
-    const currentUserId = userStore.user?.id
-
-    // Subscribe to changes on project_content table
-    realtimeChannel = supabase
-      .channel(`project-content-${projectId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'project_content',
-          filter: `project_id=eq.${projectId}`,
-        },
-        (payload) => {
-          // Ignore our own changes (check updated_by or compare timestamps)
-          const updatedAt = payload.new.updated_at as string
-
-          // If we just saved, this is likely our own change
-          if (lastSavedAt.value && new Date(updatedAt).getTime() - new Date(lastSavedAt.value).getTime() < 2000) {
-            return
-          }
-
-          // Another collaborator made changes
-          hasCollaboratorChanges.value = true
-          lastCollaboratorUpdate.value = updatedAt
-
-          toast.info(
-            'Project updated',
-            'A collaborator made changes. Click "Reload" to see the latest version.'
-          )
-        }
-      )
-      .subscribe()
-  }
-
-  // Unsubscribe from project changes
-  function unsubscribeFromProjectChanges() {
-    if (realtimeChannel) {
-      supabase.removeChannel(realtimeChannel)
-      realtimeChannel = null
-    }
-    hasCollaboratorChanges.value = false
-    lastCollaboratorUpdate.value = null
-  }
-
-  // Reload project content (after collaborator changes)
-  async function reloadProjectContent(): Promise<boolean> {
-    if (!currentProjectId.value) return false
-
-    // Warn if there are unsaved changes
-    if (hasUnsavedChanges.value) {
-      const confirmed = window.confirm(
-        'You have unsaved changes that will be lost. Do you want to reload anyway?'
-      )
-      if (!confirmed) return false
-    }
-
-    const success = await loadProject(currentProjectId.value, true)
-    if (success) {
-      hasCollaboratorChanges.value = false
-      lastCollaboratorUpdate.value = null
-      toast.success('Project reloaded')
-    }
-    return success
-  }
+  const history = useHistory({
+    blocks,
+    pageSettings,
+    selectedBlockId,
+    selectedItemId,
+    onRestore: () => {
+      rebuildBlockIndex()
+      hasUnsavedChanges.value = true
+    },
+  })
 
   // ============================================
-  // GETTERS
+  // BLOCK LOOKUP HELPERS
   // ============================================
 
   const selectedBlock = computed(() => {
@@ -346,29 +152,19 @@ export const useEditorStore = defineStore('editor', () => {
     return blockIndex.value.get(selectedBlockId.value) || null
   })
 
-  // O(1) block lookup using index
   function findBlockById(id: string): SectionBlock | null {
     return blockIndex.value.get(id) || null
   }
 
-  // Helper to find parent of a block
-  function findParentBlock(blockId: string, blockList: SectionBlock[] = blocks.value, parent: SectionBlock | null = null): SectionBlock | null {
-    for (const block of blockList) {
-      if (block.id === blockId) return parent
-      // Check direct children (layout blocks)
-      if (block.children) {
-        // Check if blockId is a direct child of this block
-        const isDirectChild = block.children.some((child: SectionBlock) => child.id === blockId)
-        if (isDirectChild) return block
-        // Otherwise search deeper
-        const found = findParentBlock(blockId, block.children, block)
-        if (found) return found
-      }
-    }
-    return null
+  /**
+   * Find parent block using O(1) index lookup
+   */
+  function findParentBlock(blockId: string): SectionBlock | null {
+    const parentId = parentIndex.value.get(blockId)
+    if (parentId === undefined || parentId === null) return null
+    return blockIndex.value.get(parentId) || null
   }
 
-  // Helper to calculate the nesting depth of a block (0 = root level)
   function getBlockNestingDepth(blockId: string): number {
     let depth = 0
     let currentId = blockId
@@ -383,26 +179,295 @@ export const useEditorStore = defineStore('editor', () => {
     return depth
   }
 
-  // Check if a block type is a layout block (container/grid have depth restrictions, stack does not)
-  function isLayoutBlockType(type: SectionBlockType): boolean {
-    return type === 'container' || type === 'grid' || type === 'stack'
+  function isProtectedBlock(blockId: string): boolean {
+    const block = findBlockById(blockId)
+    return block ? isProtectedBlockType(block.type) : false
   }
 
-  // Check if a block type has depth restrictions (stack is allowed at any depth)
-  function hasDepthRestriction(type: SectionBlockType): boolean {
-    return type === 'container' || type === 'grid'
+  function isHeaderFooterChild(blockId: string): boolean {
+    const parent = findParentBlock(blockId)
+    return parent?.type === 'header' || parent?.type === 'footer'
   }
 
-  // Maximum nesting depth for layout blocks (0 = root, 1 = first child level, 2 = second child level)
-  // Note: Stack blocks are exempt from this restriction
-  const MAX_LAYOUT_NESTING_DEPTH = 2
-  const MAX_MENU_LIST_DEPTH = 2
-
-  function isMenuListBlock(block: SectionBlock | null): boolean {
-    if (!block || block.type !== 'grid') return false
-    const settings = block.settings as GridSettings
-    return settings.collectionType === 'menu-list'
+  function isListCollectionItem(blockId: string): boolean {
+    const block = findBlockById(blockId)
+    if (!block || block.type !== 'stack') return false
+    const parent = findParentBlock(blockId)
+    return isPrebuiltListGrid(parent)
   }
+
+  function isInsideListCollection(blockId: string): boolean {
+    const block = findBlockById(blockId)
+    if (!block) return false
+    const parent = findParentBlock(blockId)
+
+    if (block.type === 'stack' && parent && isPrebuiltListGrid(parent)) {
+      return true
+    }
+
+    if (parent && parent.type === 'stack') {
+      const grandparent = findParentBlock(parent.id)
+      if (isPrebuiltListGrid(grandparent)) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  function isChildInsideListItem(blockId: string): boolean {
+    const block = findBlockById(blockId)
+    if (!block) return false
+
+    let currentId = blockId
+    let parent = findParentBlock(currentId)
+
+    while (parent) {
+      if (parent.type === 'stack') {
+        const grandparent = findParentBlock(parent.id)
+        if (isPrebuiltListGrid(grandparent)) {
+          return true
+        }
+      }
+      currentId = parent.id
+      parent = findParentBlock(currentId)
+    }
+
+    return false
+  }
+
+  function isDirectChildOfGrid(blockId: string): boolean {
+    const parent = findParentBlock(blockId)
+    return parent?.type === 'grid'
+  }
+
+  function getParentGridColumns(blockId: string): number | null {
+    const parent = findParentBlock(blockId)
+    if (parent?.type === 'grid') {
+      const settings = parent.settings as { columns?: number }
+      return settings.columns || 2
+    }
+    return null
+  }
+
+  // ============================================
+  // VIEWPORT
+  // ============================================
+
+  const viewportWidth = computed(() => {
+    const widthMap: Record<ViewportSize, string> = {
+      desktop: '100%',
+      tablet: '768px',
+      mobile: '375px',
+    }
+    return widthMap[viewport.value]
+  })
+
+  const viewportAspectRatio = computed(() => {
+    const ratioMap: Record<ViewportSize, number | null> = {
+      desktop: null,
+      tablet: 4 / 3,
+      mobile: 9 / 19.5,
+    }
+    return ratioMap[viewport.value]
+  })
+
+  function setViewport(size: ViewportSize) {
+    viewport.value = size
+  }
+
+  function toggleSidebar() {
+    isSidebarCollapsed.value = !isSidebarCollapsed.value
+  }
+
+  function toggleInspector() {
+    isInspectorCollapsed.value = !isInspectorCollapsed.value
+  }
+
+  // ============================================
+  // CLIPBOARD
+  // ============================================
+
+  const clipboard = useClipboard({
+    findBlockById,
+    findParentBlock,
+    isProtectedBlock,
+    onPaste: (newBlock, parentId) => {
+      markAsChangedWithHistory()
+
+      if (parentId) {
+        const parent = findBlockById(parentId)
+        if (parent && canHaveChildren(parent.type)) {
+          if (!parent.children) parent.children = []
+          parent.children.push(newBlock)
+        }
+      } else {
+        const footerIndex = blocks.value.findIndex((b: SectionBlock) => b.type === 'footer')
+        if (footerIndex !== -1) {
+          blocks.value.splice(footerIndex, 0, newBlock)
+        } else {
+          blocks.value.push(newBlock)
+        }
+      }
+
+      selectedBlockId.value = newBlock.id
+      selectedItemId.value = null
+      rebuildBlockIndex()
+    },
+    onDelete: (blockId) => {
+      const parent = findParentBlock(blockId)
+      if (parent && parent.children) {
+        const index = parent.children.findIndex((b: SectionBlock) => b.id === blockId)
+        if (index !== -1) parent.children.splice(index, 1)
+      } else {
+        const rootIndex = blocks.value.findIndex((b: SectionBlock) => b.id === blockId)
+        if (rootIndex !== -1) blocks.value.splice(rootIndex, 1)
+      }
+    },
+    showToast: (type, message) => showToast(type, message),
+  })
+
+  // Wrap clipboard paste to handle history
+  function pasteBlock(parentId?: string) {
+    return clipboard.pasteBlock(parentId)
+  }
+
+  function pasteBlockStyles(blockId: string) {
+    markAsChangedWithHistory()
+    const result = clipboard.pasteBlockStyles(blockId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  // ============================================
+  // SHARED STYLES
+  // ============================================
+
+  const sharedStyles = useSharedStyles({
+    pageSettings,
+    blocks,
+    findBlockById,
+    getBlocksBySharedStyleId: (styleId: string) => {
+      // O(1) lookup using the shared style index
+      return sharedStyleIndex.value.get(styleId) || new Set()
+    },
+    onBeforeChange: markAsChangedWithHistory,
+    showToast,
+  })
+
+  // Wrapper functions for shared styles that modify blocks
+  function createSharedStyle(name: string, blockId: string) {
+    const result = sharedStyles.createSharedStyle(name, blockId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function applySharedStyle(blockId: string, styleId: string) {
+    const result = sharedStyles.applySharedStyle(blockId, styleId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function detachSharedStyle(blockId: string) {
+    const result = sharedStyles.detachSharedStyle(blockId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function updateSharedStyleFromBlock(blockId: string) {
+    const result = sharedStyles.updateSharedStyleFromBlock(blockId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function resetToSharedStyle(blockId: string) {
+    const result = sharedStyles.resetToSharedStyle(blockId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function renameSharedStyle(styleId: string, name: string) {
+    const result = sharedStyles.renameSharedStyle(styleId, name)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function deleteSharedStyle(styleId: string) {
+    const result = sharedStyles.deleteSharedStyle(styleId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  // ============================================
+  // INTERACTIONS
+  // ============================================
+
+  const interactions = useInteractions({
+    pageSettings,
+    findBlockById,
+    onBeforeChange: markAsChangedWithHistory,
+    showToast,
+  })
+
+  // Wrapper functions for interactions that modify blocks
+  function createInteraction(data: Parameters<typeof interactions.createInteraction>[0]) {
+    const result = interactions.createInteraction(data)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function updateInteraction(interactionId: string, updates: Parameters<typeof interactions.updateInteraction>[1]) {
+    const result = interactions.updateInteraction(interactionId, updates)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function updateInteractionStyles(interactionId: string, styles: Parameters<typeof interactions.updateInteractionStyles>[1]) {
+    const result = interactions.updateInteractionStyles(interactionId, styles)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function deleteInteraction(interactionId: string) {
+    const result = interactions.deleteInteraction(interactionId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function duplicateInteraction(interactionId: string) {
+    const result = interactions.duplicateInteraction(interactionId)
+    rebuildBlockIndex()
+    return result
+  }
+
+  function renameInteraction(interactionId: string, name: string) {
+    const result = interactions.renameInteraction(interactionId, name)
+    rebuildBlockIndex()
+    return result
+  }
+
+  // ============================================
+  // TRANSLATIONS
+  // ============================================
+
+  const translationsComposable = useTranslations({
+    blocks,
+    onBeforeChange: markAsChangedWithHistory,
+  })
+
+  // ============================================
+  // COLLABORATION
+  // ============================================
+
+  const collaboration = useCollaboration({
+    lastSavedAt: () => lastSavedAt.value,
+    onCollaboratorChange: () => {},
+    showToast: (type, title, desc) => showToast(type, title, desc),
+  })
+
+  // ============================================
+  // MENU LIST HELPERS
+  // ============================================
 
   function getParentMenuListLevel(parentId?: string): number {
     if (!parentId) return 0
@@ -430,238 +495,25 @@ export const useEditorStore = defineStore('editor', () => {
     return true
   }
 
-  // Helper to check if a block is protected (header/footer)
-  function isProtectedBlock(blockId: string): boolean {
-    const block = findBlockById(blockId)
-    return block?.type === 'header' || block?.type === 'footer'
-  }
-
-  // Helper to check if a block is a direct child of Header/Footer (Start, Middle, End stacks)
-  function isHeaderFooterChild(blockId: string): boolean {
-    const parent = findParentBlock(blockId)
-    return parent?.type === 'header' || parent?.type === 'footer'
-  }
-
-  // Helper to check if a block is a list/collection item (Stack directly inside Grid)
-  // Prebuilt list/collection names (from preset types)
-  // ONLY these grids should have shared style restrictions
-  const PREBUILT_LIST_NAMES = [
-    'Link List',
-    'Product List',
-    'Card List',
-    'Feature List',
-    'Social List',
-    'Testimonials',
-    'Menus List',
-    'FAQ List',
-    'Gallery',
-  ]
-
-  // Check if a Grid is a PREBUILT list/collection (has prebuilt name)
-  function isPrebuiltListGrid(grid: SectionBlock | null): boolean {
-    if (!grid || grid.type !== 'grid') return false
-    return PREBUILT_LIST_NAMES.includes(grid.name)
-  }
-
-  // Check if block is a list item in a PREBUILT list/collection
-  function isListCollectionItem(blockId: string): boolean {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'stack') return false
-    const parent = findParentBlock(blockId)
-    // ONLY return true if parent is a PREBUILT Grid
-    return isPrebuiltListGrid(parent)
-  }
-
-  // Helper to check if a block is inside a PREBUILT List/Collection pattern
-  function isInsideListCollection(blockId: string): boolean {
-    const block = findBlockById(blockId)
-    if (!block) return false
-
-    const parent = findParentBlock(blockId)
-
-    // Case 1: This block IS a Stack item inside a PREBUILT Grid
-    if (block.type === 'stack' && parent && isPrebuiltListGrid(parent)) {
-      return true
-    }
-
-    // Case 2: This block is inside a Stack which is inside a PREBUILT Grid
-    if (parent && parent.type === 'stack') {
-      const grandparent = findParentBlock(parent.id)
-      if (isPrebuiltListGrid(grandparent)) {
-        return true
-      }
-    }
-
-    return false
-  }
-
-  // Check if a block is a CHILD inside a PREBUILT list item (not the list item itself)
-  // This walks up the tree to find if any ancestor is a Stack with PREBUILT Grid parent
-  function isChildInsideListItem(blockId: string): boolean {
-    const block = findBlockById(blockId)
-    if (!block) return false
-
-    // Walk up the tree
-    let currentId = blockId
-    let parent = findParentBlock(currentId)
-
-    while (parent) {
-      // Check if parent is a Stack with a PREBUILT Grid grandparent (meaning parent is a list item)
-      if (parent.type === 'stack') {
-        const grandparent = findParentBlock(parent.id)
-        if (isPrebuiltListGrid(grandparent)) {
-          // Parent is a prebuilt list item, and we are inside it
-          return true
-        }
-      }
-      // Move up the tree
-      currentId = parent.id
-      parent = findParentBlock(currentId)
-    }
-
-    return false
-  }
-
-  // Check if a block is a direct child of a Grid (for grid item placement)
-  function isDirectChildOfGrid(blockId: string): boolean {
-    const parent = findParentBlock(blockId)
-    return parent?.type === 'grid'
-  }
-
-  // Get the parent Grid's column count for a block
-  function getParentGridColumns(blockId: string): number | null {
-    const parent = findParentBlock(blockId)
-    if (parent?.type === 'grid') {
-      const settings = parent.settings as { columns?: number }
-      return settings.columns || 2
-    }
-    return null
-  }
-
-  // Viewport width based on current viewport size
-  const viewportWidth = computed(() => {
-    const widthMap: Record<ViewportSize, string> = {
-      desktop: '100%',
-      tablet: '768px',
-      mobile: '375px',
-    }
-    return widthMap[viewport.value]
-  })
-
-  // Viewport aspect ratio for device simulation
-  const viewportAspectRatio = computed(() => {
-    const ratioMap: Record<ViewportSize, number | null> = {
-      desktop: null,
-      tablet: 4 / 3,
-      mobile: 9 / 19.5,
-    }
-    return ratioMap[viewport.value]
-  })
-
   // ============================================
-  // VIEWPORT & PANEL ACTIONS
-  // ============================================
-
-  function setViewport(size: ViewportSize) {
-    viewport.value = size
-  }
-
-  function toggleSidebar() {
-    isSidebarCollapsed.value = !isSidebarCollapsed.value
-  }
-
-  function toggleInspector() {
-    isInspectorCollapsed.value = !isInspectorCollapsed.value
-  }
-
-  // ============================================
-  // STYLE STATE ACTIONS
-  // ============================================
-
-  function setStyleState(state: StyleState) {
-    currentStyleState.value = state
-  }
-
-  // Check if a block type supports style states
-  function supportsStyleStates(blockType: SectionBlockType): boolean {
-    return STYLE_STATE_BLOCK_TYPES.includes(blockType)
-  }
-
-  // Reset the current state styles for a block (clear hover/pressed/focused overrides)
-  function resetStateStyles(blockId: string) {
-    const block = findBlockById(blockId)
-    if (!block) return
-
-    const state = currentStyleState.value
-    if (state === 'none') return
-
-    markAsChangedWithHistory()
-
-    const styles = block.styles as Record<string, unknown>
-    delete styles[state]
-
-    // If block has a shared style, also update the shared style
-    if (block.sharedStyleId) {
-      const sharedStyle = getSharedStyleById(block.sharedStyleId)
-      if (sharedStyle) {
-        const sharedStyles = sharedStyle.styles as Record<string, unknown>
-        delete sharedStyles[state]
-        sharedStyle.updatedAt = new Date().toISOString()
-        applySharedStyleToAllBlocks(sharedStyle)
-      }
-    }
-
-    rebuildBlockIndex()
-  }
-
-  // Check if a block has any state styles defined for the current state
-  function hasStateStyles(blockId: string): boolean {
-    const block = findBlockById(blockId)
-    if (!block) return false
-
-    const state = currentStyleState.value
-    if (state === 'none') return false
-
-    const styles = block.styles as Record<string, unknown>
-    const stateStyles = styles[state] as Record<string, unknown> | undefined
-    return stateStyles !== undefined && Object.keys(stateStyles).length > 0
-  }
-
-  // Check if a block has styles defined for a specific state
-  function hasStylesForState(blockId: string, state: 'hover' | 'pressed' | 'focused'): boolean {
-    const block = findBlockById(blockId)
-    if (!block) return false
-
-    const styles = block.styles as Record<string, unknown>
-    const stateStyles = styles[state] as Record<string, unknown> | undefined
-    return stateStyles !== undefined && Object.keys(stateStyles).length > 0
-  }
-
-  // ============================================
-  // BLOCK ACTIONS
+  // BLOCK OPERATIONS
   // ============================================
 
   function addBlock(type: SectionBlockType, index?: number, parentId?: string) {
-    // Don't allow adding header or footer blocks manually
     if (type === 'header' || type === 'footer') return null
 
-    // If adding to a parent block, check nesting depth for layout blocks (except Stack which has no limit)
     if (parentId && hasDepthRestriction(type)) {
       const parentDepth = getBlockNestingDepth(parentId)
-      // Parent is at depth N, so child will be at depth N+1
-      // We only allow container/grid blocks up to MAX_LAYOUT_NESTING_DEPTH
       if (parentDepth >= MAX_LAYOUT_NESTING_DEPTH) {
         console.warn(`Cannot add ${type} block at depth ${parentDepth + 1}. Maximum nesting depth for container/grid blocks is ${MAX_LAYOUT_NESTING_DEPTH + 1}. Use Stack for deeper nesting.`)
         return null
       }
     }
 
-    // Push to history before making changes
     markAsChangedWithHistory()
 
     const block = createSectionBlock(type)
 
-    // If adding to a parent block
     if (parentId) {
       const parent = findBlockById(parentId)
       if (parent && parent.children) {
@@ -678,7 +530,6 @@ export const useEditorStore = defineStore('editor', () => {
       return null
     }
 
-    // Adding to root level
     const footerIndex = blocks.value.findIndex((b: SectionBlock) => b.type === 'footer')
 
     if (index !== undefined) {
@@ -701,16 +552,13 @@ export const useEditorStore = defineStore('editor', () => {
     return block
   }
 
-  // Add a pre-built preset block (already constructed with children)
   function addPresetBlock(block: SectionBlock, index?: number, parentId?: string): SectionBlock | null {
     if (!applyMenuListLevel(block, parentId)) {
       return null
     }
 
-    // Push to history before making changes
     markAsChangedWithHistory()
 
-    // If adding to a parent block
     if (parentId) {
       const parent = findBlockById(parentId)
       if (parent && parent.children) {
@@ -727,7 +575,6 @@ export const useEditorStore = defineStore('editor', () => {
       return null
     }
 
-    // Adding to root level
     const footerIndex = blocks.value.findIndex((b: SectionBlock) => b.type === 'footer')
 
     if (index !== undefined) {
@@ -753,10 +600,8 @@ export const useEditorStore = defineStore('editor', () => {
   function deleteBlock(blockId: string) {
     if (isProtectedBlock(blockId)) return
 
-    // Push to history before making changes
     markAsChangedWithHistory()
 
-    // Try to delete from root level
     const rootIndex = blocks.value.findIndex((b: SectionBlock) => b.id === blockId)
     if (rootIndex !== -1) {
       blocks.value.splice(rootIndex, 1)
@@ -768,7 +613,6 @@ export const useEditorStore = defineStore('editor', () => {
       return
     }
 
-    // Try to delete from parent
     const parent = findParentBlock(blockId)
     if (parent && parent.children) {
       const index = parent.children.findIndex((b: SectionBlock) => b.id === blockId)
@@ -789,12 +633,10 @@ export const useEditorStore = defineStore('editor', () => {
     const block = findBlockById(blockId)
     if (!block) return null
 
-    // Push to history before making changes
     markAsChangedWithHistory()
 
     const newBlock = duplicateSectionBlock(block)
 
-    // Check if in root or parent
     const rootIndex = blocks.value.findIndex((b: SectionBlock) => b.id === blockId)
     if (rootIndex !== -1) {
       blocks.value.splice(rootIndex + 1, 0, newBlock)
@@ -814,328 +656,6 @@ export const useEditorStore = defineStore('editor', () => {
     return newBlock
   }
 
-  // ============================================
-  // CLIPBOARD OPERATIONS
-  // ============================================
-
-  // Copy block to clipboard
-  function copyBlock(blockId: string) {
-    const block = findBlockById(blockId)
-    if (!block || isProtectedBlock(blockId)) return
-
-    clipboardBlock.value = deepClone(block)
-    clipboardIsCut.value = false
-    toast.info('Block copied')
-  }
-
-  // Cut block to clipboard (will be deleted on paste)
-  function cutBlock(blockId: string) {
-    const block = findBlockById(blockId)
-    if (!block || isProtectedBlock(blockId)) return
-
-    clipboardBlock.value = deepClone(block)
-    clipboardIsCut.value = true
-    toast.info('Block cut')
-  }
-
-  // Paste block from clipboard
-  function pasteBlock(parentId?: string) {
-    if (!clipboardBlock.value) return null
-
-    // Create a new block from clipboard with new IDs
-    const newBlock = duplicateSectionBlock(clipboardBlock.value)
-
-    if (!applyMenuListLevel(newBlock, parentId)) {
-      return null
-    }
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    if (parentId) {
-      // Paste into a specific parent
-      const parent = findBlockById(parentId)
-      if (parent && canHaveChildren(parent.type)) {
-        if (!parent.children) parent.children = []
-        parent.children.push(newBlock)
-      }
-    } else {
-      // Paste at root level (before footer if exists)
-      const footerIndex = blocks.value.findIndex((b: SectionBlock) => b.type === 'footer')
-      if (footerIndex !== -1) {
-        blocks.value.splice(footerIndex, 0, newBlock)
-      } else {
-        blocks.value.push(newBlock)
-      }
-    }
-
-    // If it was a cut operation, delete the original block
-    if (clipboardIsCut.value && clipboardBlock.value) {
-      const originalId = clipboardBlock.value.id
-      // Find and delete the original (without adding to history again)
-      const originalBlock = findBlockById(originalId)
-      if (originalBlock) {
-        const parent = findParentBlock(originalId)
-        if (parent && parent.children) {
-          const index = parent.children.findIndex((b: SectionBlock) => b.id === originalId)
-          if (index !== -1) parent.children.splice(index, 1)
-        } else {
-          const rootIndex = blocks.value.findIndex((b: SectionBlock) => b.id === originalId)
-          if (rootIndex !== -1) blocks.value.splice(rootIndex, 1)
-        }
-      }
-      clipboardIsCut.value = false
-    }
-
-    selectedBlockId.value = newBlock.id
-    selectedItemId.value = null
-    rebuildBlockIndex()
-    toast.success('Block pasted')
-    return newBlock
-  }
-
-  // Copy block styles to clipboard
-  function copyBlockStyles(blockId: string) {
-    const block = findBlockById(blockId)
-    if (!block) return
-
-    clipboardStyles.value = deepClone(block.styles as Record<string, unknown>)
-    toast.info('Style copied')
-  }
-
-  // Paste styles from clipboard to a block
-  function pasteBlockStyles(blockId: string) {
-    if (!clipboardStyles.value) return
-
-    const block = findBlockById(blockId)
-    if (!block) return
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    // Merge styles (overwrite existing properties)
-    block.styles = { ...block.styles, ...deepClone(clipboardStyles.value) }
-    rebuildBlockIndex()
-    toast.success('Style applied')
-  }
-
-  // ============================================
-  // SHARED STYLES
-  // ============================================
-
-  // Get shared styles for a specific block type
-  function getSharedStylesForType(blockType: SectionBlockType): SharedStyle[] {
-    return (pageSettings.value.sharedStyles || []).filter(s => s.blockType === blockType)
-  }
-
-  // Get a shared style by ID
-  function getSharedStyleById(styleId: string): SharedStyle | undefined {
-    return (pageSettings.value.sharedStyles || []).find(s => s.id === styleId)
-  }
-
-  // Create a new shared style from a block
-  function createSharedStyle(name: string, blockId: string): SharedStyle | null {
-    const block = findBlockById(blockId)
-    if (!block) return null
-
-    const now = new Date().toISOString()
-    const newStyle: SharedStyle = {
-      id: generateId(),
-      name,
-      blockType: block.type,
-      styles: deepClone(block.styles) as SharedStyle['styles'],
-      settings: extractStyleSettings(block.type, block.settings as Record<string, unknown>),
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    // Add to page settings
-    if (!pageSettings.value.sharedStyles) {
-      pageSettings.value.sharedStyles = []
-    }
-    pageSettings.value.sharedStyles.push(newStyle)
-
-    // Link the block to this shared style
-    block.sharedStyleId = newStyle.id
-    rebuildBlockIndex()
-
-    toast.success('Shared style created')
-    return newStyle
-  }
-
-  // Apply a shared style to a block
-  function applySharedStyle(blockId: string, styleId: string) {
-    const block = findBlockById(blockId)
-    const style = getSharedStyleById(styleId)
-    if (!block || !style) return
-
-    // Only apply to same block type
-    if (block.type !== style.blockType) {
-      toast.error('Style type mismatch')
-      return
-    }
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    // Apply styles
-    block.styles = deepClone(style.styles) as typeof block.styles
-
-    // Apply settings (preserving content fields)
-    block.settings = applyStyleSettings(
-      block.type,
-      block.settings as Record<string, unknown>,
-      style.settings
-    ) as typeof block.settings
-
-    // Link the block
-    block.sharedStyleId = styleId
-    rebuildBlockIndex()
-
-    toast.success('Shared style applied')
-  }
-
-  // Detach a block from its shared style (keeps current styles)
-  function detachSharedStyle(blockId: string) {
-    const block = findBlockById(blockId)
-    if (!block || !block.sharedStyleId) return
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    delete block.sharedStyleId
-    rebuildBlockIndex()
-
-    toast.info('Style detached')
-  }
-
-  // Update a shared style from the current block's styles
-  function updateSharedStyleFromBlock(blockId: string) {
-    const block = findBlockById(blockId)
-    if (!block || !block.sharedStyleId) return
-
-    const style = getSharedStyleById(block.sharedStyleId)
-    if (!style) return
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    // Update the shared style
-    style.styles = deepClone(block.styles) as SharedStyle['styles']
-    style.settings = extractStyleSettings(block.type, block.settings as Record<string, unknown>)
-    style.updatedAt = new Date().toISOString()
-
-    // Apply to all blocks using this style
-    applySharedStyleToAllBlocks(style)
-    rebuildBlockIndex()
-
-    toast.success('Shared style updated')
-  }
-
-  // Reset a block to its shared style (discard local changes)
-  function resetToSharedStyle(blockId: string) {
-    const block = findBlockById(blockId)
-    if (!block || !block.sharedStyleId) return
-
-    const style = getSharedStyleById(block.sharedStyleId)
-    if (!style) return
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    // Reset to shared style
-    block.styles = deepClone(style.styles) as typeof block.styles
-    block.settings = applyStyleSettings(
-      block.type,
-      block.settings as Record<string, unknown>,
-      style.settings
-    ) as typeof block.settings
-    rebuildBlockIndex()
-
-    toast.info('Reset to shared style')
-  }
-
-  // Rename a shared style
-  function renameSharedStyle(styleId: string, name: string) {
-    const style = getSharedStyleById(styleId)
-    if (!style) return
-
-    markAsChangedWithHistory()
-    style.name = name
-    style.updatedAt = new Date().toISOString()
-  }
-
-  // Delete a shared style (detaches all blocks using it)
-  function deleteSharedStyle(styleId: string) {
-    const styles = pageSettings.value.sharedStyles
-    if (!styles) return
-
-    const index = styles.findIndex(s => s.id === styleId)
-    if (index === -1) return
-
-    // Push to history before making changes
-    markAsChangedWithHistory()
-
-    // Detach all blocks using this style
-    function detachFromBlocks(blockList: SectionBlock[]) {
-      for (const block of blockList) {
-        if (block.sharedStyleId === styleId) {
-          delete block.sharedStyleId
-        }
-        if (block.children) {
-          detachFromBlocks(block.children)
-        }
-      }
-    }
-    detachFromBlocks(blocks.value)
-
-    // Remove the style
-    styles.splice(index, 1)
-    rebuildBlockIndex()
-
-    toast.info('Shared style deleted')
-  }
-
-  // Helper: Apply a shared style to all blocks using it
-  function applySharedStyleToAllBlocks(style: SharedStyle) {
-    function applyToBlocks(blockList: SectionBlock[]) {
-      for (const block of blockList) {
-        if (block.sharedStyleId === style.id) {
-          block.styles = deepClone(style.styles) as typeof block.styles
-          block.settings = applyStyleSettings(
-            block.type,
-            block.settings as Record<string, unknown>,
-            style.settings
-          ) as typeof block.settings
-        }
-        if (block.children) {
-          applyToBlocks(block.children)
-        }
-      }
-    }
-    applyToBlocks(blocks.value)
-  }
-
-  // Check if a block has local overrides from its shared style
-  function blockHasSharedStyleOverrides(blockId: string): boolean {
-    const block = findBlockById(blockId)
-    if (!block || !block.sharedStyleId) return false
-
-    const style = getSharedStyleById(block.sharedStyleId)
-    if (!style) return false
-
-    return hasSharedStyleOverrides(
-      block.type,
-      block.settings as Record<string, unknown>,
-      block.styles as Record<string, unknown>,
-      style.settings,
-      style.styles as Record<string, unknown>
-    )
-  }
-
   function reorderBlocks(fromIndex: number, toIndex: number, parentId?: string) {
     const blockList = parentId ? findBlockById(parentId)?.children : blocks.value
     if (!blockList) return
@@ -1143,14 +663,12 @@ export const useEditorStore = defineStore('editor', () => {
     const block = blockList[fromIndex]
     if (!block || block.type === 'header' || block.type === 'footer') return
 
-    // For root level, protect header/footer positions
     if (!parentId) {
       if (toIndex === 0 && blocks.value[0]?.type === 'header') return
       const lastIndex = blocks.value.length - 1
       if (toIndex === lastIndex && blocks.value[lastIndex]?.type === 'footer') return
     }
 
-    // Push to history before making changes
     markAsChangedWithHistory()
 
     const [movedBlock] = blockList.splice(fromIndex, 1)
@@ -1160,7 +678,6 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  // Move a block from one parent to another
   function moveBlockToParent(blockId: string, newParentId: string, toIndex?: number) {
     const block = findBlockById(blockId)
     if (!block || block.type === 'header' || block.type === 'footer') return false
@@ -1168,17 +685,13 @@ export const useEditorStore = defineStore('editor', () => {
     const currentParent = findParentBlock(blockId)
     const newParent = findBlockById(newParentId)
 
-    // Can't move to same parent (use reorderBlocks instead)
     if (currentParent?.id === newParentId) return false
-
-    // New parent must be a layout block that can have children
     if (!newParent || !canHaveChildren(newParent.type)) return false
 
-    // Check nesting depth for layout blocks
     if (isLayoutBlockType(block.type)) {
       const newParentDepth = getBlockNestingDepth(newParentId)
       if (newParentDepth >= MAX_LAYOUT_NESTING_DEPTH) {
-        console.warn(`Cannot move layout block to depth ${newParentDepth + 1}. Maximum nesting depth for layout blocks is ${MAX_LAYOUT_NESTING_DEPTH + 1}.`)
+        console.warn(`Cannot move layout block to depth ${newParentDepth + 1}.`)
         return false
       }
     }
@@ -1187,24 +700,20 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
 
-    // Push to history before making changes
     markAsChangedWithHistory()
 
-    // Remove from current parent
     if (currentParent && currentParent.children) {
       const index = currentParent.children.findIndex((b: SectionBlock) => b.id === blockId)
       if (index !== -1) {
         currentParent.children.splice(index, 1)
       }
     } else {
-      // Remove from root level
       const rootIndex = blocks.value.findIndex((b: SectionBlock) => b.id === blockId)
       if (rootIndex !== -1) {
         blocks.value.splice(rootIndex, 1)
       }
     }
 
-    // Add to new parent
     if (!newParent.children) {
       newParent.children = []
     }
@@ -1218,22 +727,19 @@ export const useEditorStore = defineStore('editor', () => {
     return true
   }
 
-  // Move a block from a parent to root level
   function moveBlockToRoot(blockId: string, toIndex?: number) {
     const block = findBlockById(blockId)
     if (!block || block.type === 'header' || block.type === 'footer') return false
 
     const currentParent = findParentBlock(blockId)
-    if (!currentParent) return false // Already at root
+    if (!currentParent) return false
 
     if (!applyMenuListLevel(block)) {
       return false
     }
 
-    // Push to history before making changes
     markAsChangedWithHistory()
 
-    // Remove from current parent
     if (currentParent.children) {
       const index = currentParent.children.findIndex((b: SectionBlock) => b.id === blockId)
       if (index !== -1) {
@@ -1241,19 +747,15 @@ export const useEditorStore = defineStore('editor', () => {
       }
     }
 
-    // Add to root level
-    // Respect header/footer positions
     const hasHeader = blocks.value[0]?.type === 'header'
     const footerIndex = blocks.value.findIndex((b: SectionBlock) => b.type === 'footer')
 
     let insertIndex: number
     if (toIndex !== undefined) {
-      // Clamp to valid range
       const minIndex = hasHeader ? 1 : 0
       const maxIndex = footerIndex !== -1 ? footerIndex : blocks.value.length
       insertIndex = Math.max(minIndex, Math.min(toIndex, maxIndex))
     } else {
-      // Default: insert before footer or at end
       insertIndex = footerIndex !== -1 ? footerIndex : blocks.value.length
     }
 
@@ -1269,7 +771,6 @@ export const useEditorStore = defineStore('editor', () => {
     const block = blockList[blockIndex]
     if (!block || block.type === 'header' || block.type === 'footer') return
 
-    // Calculate minimum index (skip header at position 0)
     const minIndex = !parentId && blocks.value[0]?.type === 'header' ? 1 : 0
     if (blockIndex <= minIndex) return
 
@@ -1283,7 +784,6 @@ export const useEditorStore = defineStore('editor', () => {
     const block = blockList[blockIndex]
     if (!block || block.type === 'header' || block.type === 'footer') return
 
-    // Calculate maximum index (stop before footer)
     const footerIndex = !parentId ? blocks.value.findIndex((b: SectionBlock) => b.type === 'footer') : -1
     const maxIndex = footerIndex !== -1 ? footerIndex - 1 : blockList.length - 1
     if (blockIndex >= maxIndex) return
@@ -1294,10 +794,9 @@ export const useEditorStore = defineStore('editor', () => {
   function selectBlock(blockId: string | null, itemId: string | null = null) {
     selectedBlockId.value = blockId
     selectedItemId.value = itemId
-    // DEBUG: Log selection info
-    if (blockId) {
-      const block = blockIndex.value.get(blockId)
-      console.log('selectBlock:', blockId, 'found in index:', !!block, 'type:', block?.type, 'index size:', blockIndex.value.size)
+    // Clear span selection when selecting a different block
+    if (blockId !== selectedBlockId.value) {
+      selectedSpanId.value = null
     }
   }
 
@@ -1305,65 +804,105 @@ export const useEditorStore = defineStore('editor', () => {
     hoveredBlockId.value = blockId
   }
 
-  // Content fields that should NEVER be shared across list items
-  const CONTENT_FIELDS = new Set([
-    'content', 'label', 'url', 'src', 'alt', 'caption', 'placeholder',
-    'name', 'icon', 'buyLink', 'price', 'image', 'successMessage', 'errorMessage',
-    'copyrightText', 'navLinks', 'links', 'socialLinks', 'optionTypes', 'variants',
-  ])
+  // ============================================
+  // SPAN SELECTION & MANAGEMENT
+  // ============================================
 
-  // Check if settings contain only content fields (no shared settings)
-  function hasOnlyContentFields(settings: Record<string, unknown>): boolean {
-    return Object.keys(settings).every(key => CONTENT_FIELDS.has(key))
+  function selectSpan(spanId: string | null) {
+    selectedSpanId.value = spanId
   }
 
-  // Filter settings to only include non-content fields (for sharing across siblings)
-  function filterNonContentFields(settings: Record<string, unknown>): Record<string, unknown> {
-    const filtered: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(settings)) {
-      if (!CONTENT_FIELDS.has(key)) {
-        filtered[key] = value
-      }
+  function hoverSpan(spanId: string | null) {
+    hoveredSpanId.value = spanId
+  }
+
+  function createSpan(blockId: string, spanId: string, name: string): void {
+    const block = findBlockById(blockId)
+    if (!block) return
+    if (block.type !== 'text' && block.type !== 'heading') return
+
+    markAsChangedWithHistory()
+    const settings = block.settings as { spans?: Record<string, { id: string; name: string; styles: Record<string, unknown> }> }
+    if (!settings.spans) {
+      settings.spans = {}
     }
-    return filtered
+    settings.spans[spanId] = {
+      id: spanId,
+      name,
+      styles: {},
+    }
+    selectedSpanId.value = spanId
+  }
+
+  function updateSpanStyles(blockId: string, spanId: string, styles: Record<string, unknown>): void {
+    const block = findBlockById(blockId)
+    if (!block) return
+
+    const settings = block.settings as { spans?: Record<string, { styles: Record<string, unknown> }> }
+    if (!settings.spans || !settings.spans[spanId]) return
+
+    markAsChangedWithHistory()
+    Object.assign(settings.spans[spanId].styles, styles)
+  }
+
+  function updateSpanName(blockId: string, spanId: string, name: string): void {
+    const block = findBlockById(blockId)
+    if (!block) return
+
+    const settings = block.settings as { spans?: Record<string, { name: string }> }
+    if (!settings.spans || !settings.spans[spanId]) return
+
+    markAsChangedWithHistory()
+    settings.spans[spanId].name = name
+  }
+
+  function deleteSpan(blockId: string, spanId: string): void {
+    const block = findBlockById(blockId)
+    if (!block) return
+
+    const settings = block.settings as { spans?: Record<string, unknown> }
+    if (!settings.spans || !settings.spans[spanId]) return
+
+    markAsChangedWithHistory()
+    delete settings.spans[spanId]
+    if (selectedSpanId.value === spanId) {
+      selectedSpanId.value = null
+    }
+  }
+
+  function getSpanById(blockId: string, spanId: string): { id: string; name: string; styles: Record<string, unknown> } | null {
+    const block = findBlockById(blockId)
+    if (!block) return null
+
+    const settings = block.settings as { spans?: Record<string, { id: string; name: string; styles: Record<string, unknown> }> }
+    return settings.spans?.[spanId] || null
   }
 
   function updateBlockSettings(blockId: string, settings: Record<string, unknown>) {
     const block = findBlockById(blockId)
     if (block) {
-      // Push to history before making changes
       markAsChangedWithHistory()
 
       const blockSettings = block.settings as Record<string, unknown>
-
-      // Always apply ALL settings to this block first
       Object.assign(block.settings, settings)
 
-      // If block has a shared style, auto-update the shared style and propagate to all linked blocks
       if (block.sharedStyleId) {
-        const style = getSharedStyleById(block.sharedStyleId)
+        const style = sharedStyles.getSharedStyleById(block.sharedStyleId)
         if (style) {
-          // Update shared style settings (excluding content fields)
-          style.settings = extractStyleSettings(block.type, block.settings as Record<string, unknown>)
-          style.updatedAt = new Date().toISOString()
-          // Apply to all other blocks using this style
-          applySharedStyleToAllBlocks(style)
+          sharedStyles.updateSharedStyleFromBlock(blockId)
         }
       }
 
-      // If overwriteStyle is enabled, we're done (only this block updated)
       if (blockSettings.overwriteStyle) {
         rebuildBlockIndex()
         return
       }
 
-      // If settings contain only content fields, don't share with siblings
       if (hasOnlyContentFields(settings)) {
         rebuildBlockIndex()
         return
       }
 
-      // Filter out content fields for sharing with siblings
       const sharedSettings = filterNonContentFields(settings)
       if (Object.keys(sharedSettings).length === 0) {
         rebuildBlockIndex()
@@ -1372,10 +911,7 @@ export const useEditorStore = defineStore('editor', () => {
 
       const parent = findParentBlock(blockId)
 
-      // Case 1: This block IS a Stack item inside a PREBUILT Grid (List/Collection item wrapper)
-      // ONLY share settings for PREBUILT list types - NOT manually created Grid > Stack
       if (block.type === 'stack' && parent && isPrebuiltListGrid(parent) && parent.children) {
-        // Apply non-content settings to all sibling Stack items (except those with overwriteStyle)
         for (const siblingStack of parent.children) {
           if (siblingStack.type === 'stack' && siblingStack.id !== blockId) {
             const siblingSettings = siblingStack.settings as Record<string, unknown>
@@ -1388,22 +924,16 @@ export const useEditorStore = defineStore('editor', () => {
         return
       }
 
-      // Case 2: This block is inside a Stack which is inside a PREBUILT Grid (Grid > Stack > children)
-      // ONLY share settings for PREBUILT list types - NOT manually created Grid > Stack
       if (parent && parent.type === 'stack' && parent.children) {
         const grandparent = findParentBlock(parent.id)
         if (isPrebuiltListGrid(grandparent) && grandparent && grandparent.children) {
-          // Find the index of this block within its parent Stack
           const childIndex = parent.children.findIndex((c: SectionBlock) => c.id === blockId)
           if (childIndex !== -1) {
-            // Apply non-content settings to all sibling Stacks' children at the same index
             for (const siblingStack of grandparent.children) {
               if (siblingStack.type === 'stack' && siblingStack.children && siblingStack.children[childIndex]) {
                 const siblingChild = siblingStack.children[childIndex]
-                // Skip this block (already updated above)
                 if (siblingChild.id === blockId) continue
                 const siblingChildSettings = siblingChild.settings as Record<string, unknown>
-                // Only apply if same block type and not overwritten
                 if (siblingChild.type === block.type && !siblingChildSettings.overwriteStyle) {
                   Object.assign(siblingChild.settings, sharedSettings)
                 }
@@ -1415,7 +945,6 @@ export const useEditorStore = defineStore('editor', () => {
         }
       }
 
-      // Default: just this block (ALL non-prebuilt blocks already updated above)
       rebuildBlockIndex()
     }
   }
@@ -1423,55 +952,31 @@ export const useEditorStore = defineStore('editor', () => {
   function updateBlockStyles(blockId: string, styles: Record<string, unknown>, replaceAll = false) {
     const block = findBlockById(blockId)
     if (block) {
-      // Push to history before making changes
       markAsChangedWithHistory()
 
       const blockSettings = block.settings as Record<string, unknown>
-      const state = currentStyleState.value
 
-      // Helper to apply styles to a block
       const applyStyles = (targetBlock: typeof block) => {
-        // If editing a state (hover/pressed/focused), update state-specific styles
-        if (state !== 'none' && supportsStyleStates(targetBlock.type)) {
-          const targetStyles = targetBlock.styles as Record<string, unknown>
-          if (!targetStyles[state]) {
-            targetStyles[state] = {}
-          }
-          if (replaceAll) {
-            targetStyles[state] = { ...styles }
-          } else {
-            Object.assign(targetStyles[state] as Record<string, unknown>, styles)
-          }
+        if (replaceAll) {
+          targetBlock.styles = { ...styles }
         } else {
-          // Normal base style update
-          if (replaceAll) {
-            // Replace entire styles object (used for responsive style updates)
-            targetBlock.styles = { ...styles }
-          } else {
-            // Merge styles (default behavior)
-            Object.assign(targetBlock.styles, styles)
-          }
+          Object.assign(targetBlock.styles, styles)
         }
       }
 
-      // Apply styles to this block first
       applyStyles(block)
 
-      // If block has a shared style, auto-update the shared style and propagate to all linked blocks
       if (block.sharedStyleId) {
-        const style = getSharedStyleById(block.sharedStyleId)
+        const style = sharedStyles.getSharedStyleById(block.sharedStyleId)
         if (style) {
-          // Update shared style
-          style.styles = deepClone(block.styles) as SharedStyle['styles']
+          style.styles = deepClone(block.styles) as typeof style.styles
           style.updatedAt = new Date().toISOString()
-          // Apply to all other blocks using this style
-          applySharedStyleToAllBlocks(style)
+          sharedStyles.applySharedStyleToAllBlocks(style)
           rebuildBlockIndex()
           return
         }
       }
 
-      // If overwriteStyle is enabled, only update this block (already done above)
       if (blockSettings.overwriteStyle) {
         rebuildBlockIndex()
         return
@@ -1479,12 +984,8 @@ export const useEditorStore = defineStore('editor', () => {
 
       const parent = findParentBlock(blockId)
 
-      // Case 1: This block IS a Stack item inside a PREBUILT Grid (List/Collection item wrapper)
-      // ONLY apply shared styles for PREBUILT list types - NOT manually created Grid > Stack
       if (block.type === 'stack' && parent && isPrebuiltListGrid(parent) && parent.children) {
-        // Apply styles to all sibling Stack items (except those with overwriteStyle)
         for (const siblingStack of parent.children) {
-          // Skip current block (already applied above)
           if (siblingStack.id === blockId) continue
           if (siblingStack.type === 'stack') {
             const siblingSettings = siblingStack.settings as Record<string, unknown>
@@ -1497,22 +998,16 @@ export const useEditorStore = defineStore('editor', () => {
         return
       }
 
-      // Case 2: This block is inside a Stack which is inside a PREBUILT Grid (Grid > Stack > children)
-      // ONLY apply shared styles for PREBUILT list types - NOT manually created Grid > Stack
       if (parent && parent.type === 'stack' && parent.children) {
         const grandparent = findParentBlock(parent.id)
         if (isPrebuiltListGrid(grandparent) && grandparent && grandparent.children) {
-          // Find the index of this block within its parent Stack
           const childIndex = parent.children.findIndex((c: SectionBlock) => c.id === blockId)
           if (childIndex !== -1) {
-            // Apply styles to all sibling Stacks' children at the same index (except those with overwriteStyle)
             for (const siblingStack of grandparent.children) {
               if (siblingStack.type === 'stack' && siblingStack.children && siblingStack.children[childIndex]) {
                 const siblingChild = siblingStack.children[childIndex]
-                // Skip current block (already applied above)
                 if (siblingChild.id === blockId) continue
                 const siblingChildSettings = siblingChild.settings as Record<string, unknown>
-                // Only apply if same block type and not overwritten
                 if (siblingChild.type === block.type && !siblingChildSettings.overwriteStyle) {
                   applyStyles(siblingChild)
                 }
@@ -1524,7 +1019,6 @@ export const useEditorStore = defineStore('editor', () => {
         }
       }
 
-      // Default: styles already applied above, just rebuild index
       rebuildBlockIndex()
     }
   }
@@ -1532,7 +1026,6 @@ export const useEditorStore = defineStore('editor', () => {
   function updateBlockName(blockId: string, name: string) {
     const block = findBlockById(blockId)
     if (block) {
-      // Push to history before making changes
       markAsChangedWithHistory()
       block.name = name
       rebuildBlockIndex()
@@ -1543,15 +1036,7 @@ export const useEditorStore = defineStore('editor', () => {
   // CANVAS ACTIONS
   // ============================================
 
-  /**
-   * Update a child block's position within a canvas block
-   * This handles the responsive childPositions structure
-   */
-  function updateCanvasChildPosition(
-    parentId: string,
-    childId: string,
-    position: CanvasChildPosition
-  ) {
+  function updateCanvasChildPosition(parentId: string, childId: string, position: CanvasChildPosition) {
     const parent = findBlockById(parentId)
     if (!parent || parent.type !== 'canvas') return
 
@@ -1560,7 +1045,6 @@ export const useEditorStore = defineStore('editor', () => {
     const settings = parent.settings as CanvasSettings
     const viewportKey = viewport.value === 'desktop' ? 'desktop' : viewport.value === 'tablet' ? 'tablet' : 'mobile'
 
-    // Ensure the viewport key exists
     if (viewportKey === 'tablet') {
       if (!settings.childPositions.tablet) {
         settings.childPositions.tablet = {}
@@ -1579,7 +1063,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // ============================================
-  // HEADER ACTIONS
+  // HEADER ACTIONS (using useItemListOperations)
   // ============================================
 
   function updateHeaderSettings(blockId: string, settings: Partial<HeaderSettings>) {
@@ -1591,84 +1075,51 @@ export const useEditorStore = defineStore('editor', () => {
     rebuildBlockIndex()
   }
 
-  function addHeaderNavLink(blockId: string) {
+  function getHeaderNavLinkOperations(blockId: string) {
     const block = findBlockById(blockId)
     if (!block || block.type !== 'header') return null
 
-    markAsChangedWithHistory()
     const settings = block.settings as HeaderSettings
-    if (!settings.navLinks) settings.navLinks = []
-    const link = createHeaderNavLink()
-    settings.navLinks.push(link)
-    selectedItemId.value = link.id
-    rebuildBlockIndex()
-    return link
+
+    return useItemListOperations<HeaderNavLink>(
+      () => settings.navLinks || [],
+      (items) => { settings.navLinks = items },
+      createHeaderNavLink,
+      {
+        onBeforeChange: markAsChangedWithHistory,
+        onAfterAdd: (item) => { selectedItemId.value = item.id; rebuildBlockIndex() },
+        onAfterRemove: (id) => { if (selectedItemId.value === id) selectedItemId.value = null; rebuildBlockIndex() },
+      }
+    )
+  }
+
+  function addHeaderNavLink(blockId: string) {
+    const ops = getHeaderNavLinkOperations(blockId)
+    return ops?.add() ?? null
   }
 
   function deleteHeaderNavLink(blockId: string, linkId: string) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'header') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as HeaderSettings
-    if (!settings.navLinks) return
-    const index = settings.navLinks.findIndex((l: { id: string }) => l.id === linkId)
-    if (index !== -1) {
-      settings.navLinks.splice(index, 1)
-      if (selectedItemId.value === linkId) {
-        selectedItemId.value = null
-      }
-      rebuildBlockIndex()
-    }
+    const ops = getHeaderNavLinkOperations(blockId)
+    ops?.remove(linkId)
   }
 
   function reorderHeaderNavLinks(blockId: string, fromIndex: number, toIndex: number) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'header') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as HeaderSettings
-    if (!settings.navLinks) return
-    const [link] = settings.navLinks.splice(fromIndex, 1)
-    if (link) {
-      settings.navLinks.splice(toIndex, 0, link)
-      rebuildBlockIndex()
-    }
+    const ops = getHeaderNavLinkOperations(blockId)
+    ops?.reorder(fromIndex, toIndex)
   }
 
   function updateHeaderNavLink(blockId: string, linkId: string, updates: Partial<HeaderNavLink>) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'header') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as HeaderSettings
-    if (!settings.navLinks) return
-    const link = settings.navLinks.find((l: { id: string }) => l.id === linkId)
-    if (link) {
-      Object.assign(link, updates)
-      rebuildBlockIndex()
-    }
+    const ops = getHeaderNavLinkOperations(blockId)
+    ops?.update(linkId, updates)
   }
 
   function duplicateHeaderNavLink(blockId: string, linkId: string) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'header') return null
-
-    markAsChangedWithHistory()
-    const settings = block.settings as HeaderSettings
-    if (!settings.navLinks) return null
-    const index = settings.navLinks.findIndex((l: { id: string }) => l.id === linkId)
-    if (index === -1) return null
-
-    const original = settings.navLinks[index]
-    const newLink: HeaderNavLink = {
-      ...JSON.parse(JSON.stringify(original)),
-      id: crypto.randomUUID(),
+    const ops = getHeaderNavLinkOperations(blockId)
+    const newLink = ops?.duplicate(linkId)
+    if (newLink) {
+      selectedItemId.value = newLink.id
     }
-    settings.navLinks.splice(index + 1, 0, newLink)
-    selectedItemId.value = newLink.id
-    rebuildBlockIndex()
-    return newLink
+    return newLink ?? null
   }
 
   // ============================================
@@ -1684,84 +1135,70 @@ export const useEditorStore = defineStore('editor', () => {
     rebuildBlockIndex()
   }
 
-  function addFooterLink(blockId: string) {
+  function getFooterLinkOperations(blockId: string) {
     const block = findBlockById(blockId)
     if (!block || block.type !== 'footer') return null
 
-    markAsChangedWithHistory()
     const settings = block.settings as FooterSettings
-    if (!settings.links) settings.links = []
-    const link = createFooterLink()
-    settings.links.push(link)
-    selectedItemId.value = link.id
-    rebuildBlockIndex()
-    return link
+
+    return useItemListOperations<FooterLink>(
+      () => settings.links || [],
+      (items) => { settings.links = items },
+      createFooterLink,
+      {
+        onBeforeChange: markAsChangedWithHistory,
+        onAfterAdd: (item) => { selectedItemId.value = item.id; rebuildBlockIndex() },
+        onAfterRemove: (id) => { if (selectedItemId.value === id) selectedItemId.value = null; rebuildBlockIndex() },
+      }
+    )
+  }
+
+  function addFooterLink(blockId: string) {
+    const ops = getFooterLinkOperations(blockId)
+    return ops?.add() ?? null
   }
 
   function deleteFooterLink(blockId: string, linkId: string) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'footer') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as FooterSettings
-    if (!settings.links) return
-    const index = settings.links.findIndex((l: { id: string }) => l.id === linkId)
-    if (index !== -1) {
-      settings.links.splice(index, 1)
-      if (selectedItemId.value === linkId) {
-        selectedItemId.value = null
-      }
-      rebuildBlockIndex()
-    }
+    const ops = getFooterLinkOperations(blockId)
+    ops?.remove(linkId)
   }
 
   function reorderFooterLinks(blockId: string, fromIndex: number, toIndex: number) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'footer') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as FooterSettings
-    if (!settings.links) return
-    const [link] = settings.links.splice(fromIndex, 1)
-    if (link) {
-      settings.links.splice(toIndex, 0, link)
-      rebuildBlockIndex()
-    }
+    const ops = getFooterLinkOperations(blockId)
+    ops?.reorder(fromIndex, toIndex)
   }
 
   function updateFooterLink(blockId: string, linkId: string, updates: Partial<FooterLink>) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'footer') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as FooterSettings
-    if (!settings.links) return
-    const link = settings.links.find((l: { id: string }) => l.id === linkId)
-    if (link) {
-      Object.assign(link, updates)
-      rebuildBlockIndex()
-    }
+    const ops = getFooterLinkOperations(blockId)
+    ops?.update(linkId, updates)
   }
 
   function duplicateFooterLink(blockId: string, linkId: string) {
+    const ops = getFooterLinkOperations(blockId)
+    const newLink = ops?.duplicate(linkId)
+    if (newLink) {
+      selectedItemId.value = newLink.id
+    }
+    return newLink ?? null
+  }
+
+  // Footer Social Links
+  function getFooterSocialLinkOperations(blockId: string) {
     const block = findBlockById(blockId)
     if (!block || block.type !== 'footer') return null
 
-    markAsChangedWithHistory()
     const settings = block.settings as FooterSettings
-    if (!settings.links) return null
-    const index = settings.links.findIndex((l: { id: string }) => l.id === linkId)
-    if (index === -1) return null
 
-    const original = settings.links[index]
-    const newLink: FooterLink = {
-      ...JSON.parse(JSON.stringify(original)),
-      id: crypto.randomUUID(),
-    }
-    settings.links.splice(index + 1, 0, newLink)
-    selectedItemId.value = newLink.id
-    rebuildBlockIndex()
-    return newLink
+    return useItemListOperations<FooterSocialLink>(
+      () => settings.socialLinks || [],
+      (items) => { settings.socialLinks = items },
+      () => createFooterSocialLink('twitter'),
+      {
+        onBeforeChange: markAsChangedWithHistory,
+        onAfterAdd: (item) => { selectedItemId.value = item.id; rebuildBlockIndex() },
+        onAfterRemove: (id) => { if (selectedItemId.value === id) selectedItemId.value = null; rebuildBlockIndex() },
+      }
+    )
   }
 
   function addFooterSocialLink(blockId: string, platform: SocialPlatform = 'twitter') {
@@ -1779,74 +1216,31 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function deleteFooterSocialLink(blockId: string, linkId: string) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'footer') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as FooterSettings
-    if (!settings.socialLinks) return
-    const index = settings.socialLinks.findIndex((l: { id: string }) => l.id === linkId)
-    if (index !== -1) {
-      settings.socialLinks.splice(index, 1)
-      if (selectedItemId.value === linkId) {
-        selectedItemId.value = null
-      }
-      rebuildBlockIndex()
-    }
+    const ops = getFooterSocialLinkOperations(blockId)
+    ops?.remove(linkId)
   }
 
   function reorderFooterSocialLinks(blockId: string, fromIndex: number, toIndex: number) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'footer') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as FooterSettings
-    if (!settings.socialLinks) return
-    const [link] = settings.socialLinks.splice(fromIndex, 1)
-    if (link) {
-      settings.socialLinks.splice(toIndex, 0, link)
-      rebuildBlockIndex()
-    }
+    const ops = getFooterSocialLinkOperations(blockId)
+    ops?.reorder(fromIndex, toIndex)
   }
 
   function updateFooterSocialLink(blockId: string, linkId: string, updates: Partial<FooterSocialLink>) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'footer') return
-
-    markAsChangedWithHistory()
-    const settings = block.settings as FooterSettings
-    if (!settings.socialLinks) return
-    const link = settings.socialLinks.find((l: { id: string }) => l.id === linkId)
-    if (link) {
-      Object.assign(link, updates)
-      rebuildBlockIndex()
-    }
+    const ops = getFooterSocialLinkOperations(blockId)
+    ops?.update(linkId, updates)
   }
 
   function duplicateFooterSocialLink(blockId: string, linkId: string) {
-    const block = findBlockById(blockId)
-    if (!block || block.type !== 'footer') return null
-
-    markAsChangedWithHistory()
-    const settings = block.settings as FooterSettings
-    if (!settings.socialLinks) return null
-    const index = settings.socialLinks.findIndex((l: { id: string }) => l.id === linkId)
-    if (index === -1) return null
-
-    const original = settings.socialLinks[index]
-    const newLink: FooterSocialLink = {
-      ...JSON.parse(JSON.stringify(original)),
-      id: crypto.randomUUID(),
+    const ops = getFooterSocialLinkOperations(blockId)
+    const newLink = ops?.duplicate(linkId)
+    if (newLink) {
+      selectedItemId.value = newLink.id
     }
-    settings.socialLinks.splice(index + 1, 0, newLink)
-    selectedItemId.value = newLink.id
-    rebuildBlockIndex()
-    return newLink
+    return newLink ?? null
   }
 
   // ============================================
   // FORM FIELD ACTIONS
-  // Form fields are now child blocks of the form block
   // ============================================
 
   function addFormFieldBlock(formBlockId: string, type: FormFieldBlockType) {
@@ -1918,242 +1312,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // ============================================
-  // TRANSLATION ACTIONS
-  // ============================================
-
-  // Get list of available translation languages (excluding default)
-  const availableTranslations = computed(() => {
-    return Object.keys(translations.value.languages) as LanguageCode[]
-  })
-
-  // Check if currently editing a translation
-  const isEditingTranslation = computed(() => currentLanguage.value !== null)
-
-  // Set the default language
-  function setDefaultLanguage(langCode: LanguageCode) {
-    markAsChangedWithHistory()
-    translations.value.defaultLanguage = langCode
-  }
-
-  // Add a new translation language
-  function addTranslation(langCode: LanguageCode) {
-    if (translations.value.languages[langCode]) return // Already exists
-
-    markAsChangedWithHistory()
-
-    // Initialize with empty translations
-    translations.value.languages[langCode] = {
-      blocks: {},
-    }
-
-    // Copy current content as initial translation values
-    copyContentToTranslation(langCode)
-  }
-
-  // Remove a translation language
-  function removeTranslation(langCode: LanguageCode) {
-    if (!translations.value.languages[langCode]) return
-
-    markAsChangedWithHistory()
-    delete translations.value.languages[langCode]
-
-    // If currently viewing this language, switch back to default
-    if (currentLanguage.value === langCode) {
-      currentLanguage.value = null
-    }
-  }
-
-  // Switch to editing a specific language (null = default/source)
-  function setCurrentLanguage(langCode: LanguageCode | null) {
-    currentLanguage.value = langCode
-  }
-
-  // Copy all translatable content from blocks to a translation
-  function copyContentToTranslation(langCode: LanguageCode) {
-    if (!translations.value.languages[langCode]) return
-
-    const langTranslations = translations.value.languages[langCode]
-
-    // Traverse all blocks and extract translatable content
-    function extractTranslations(blockList: SectionBlock[]) {
-      for (const block of blockList) {
-        const translation: BlockTranslation = {}
-        const settings = block.settings as Record<string, unknown>
-
-        switch (block.type) {
-          case 'heading':
-          case 'text':
-            if (settings.content) translation.content = settings.content as string
-            break
-          case 'image':
-            if (settings.alt) translation.alt = settings.alt as string
-            if (settings.caption) translation.caption = settings.caption as string
-            break
-          case 'button':
-            if (settings.label) translation.label = settings.label as string
-            break
-          case 'header':
-            const headerSettings = settings as unknown as HeaderSettings
-            if (headerSettings.navLinks) {
-              translation.navLinks = headerSettings.navLinks.map((l: { id: string; label: string }) => ({ id: l.id, label: l.label }))
-            }
-            if (headerSettings.ctaButton?.label) {
-              translation.ctaButtonLabel = headerSettings.ctaButton.label
-            }
-            break
-          case 'footer':
-            const footerSettings = settings as unknown as FooterSettings
-            if (footerSettings.copyrightText) translation.copyrightText = footerSettings.copyrightText
-            if (footerSettings.links) {
-              translation.footerLinks = footerSettings.links.map((l: { id: string; label: string }) => ({ id: l.id, label: l.label }))
-            }
-            break
-          case 'form':
-            const formSettings = settings as unknown as FormSettings
-            if (formSettings.successMessage) translation.successMessage = formSettings.successMessage
-            if (formSettings.errorMessage) translation.errorMessage = formSettings.errorMessage
-            break
-          // Form field blocks - extract labels
-          case 'form-input':
-          case 'form-textarea':
-          case 'form-select':
-          case 'form-radio':
-          case 'form-checkbox':
-            if (settings.label) translation.label = settings.label as string
-            if (settings.placeholder) translation.placeholder = settings.placeholder as string
-            break
-          case 'form-button':
-            if (settings.label) translation.label = settings.label as string
-            break
-        }
-
-        // Only store if there's translatable content
-        if (Object.keys(translation).length > 0) {
-          langTranslations.blocks[block.id] = translation
-        }
-
-        // Process children
-        if (block.children) {
-          extractTranslations(block.children)
-        }
-      }
-    }
-
-    extractTranslations(blocks.value)
-  }
-
-  // Get translated content for a block in the current language
-  function getTranslatedContent(blockId: string, field: keyof BlockTranslation): string | undefined {
-    if (!currentLanguage.value) return undefined
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return undefined
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation) return undefined
-    return blockTranslation[field] as string | undefined
-  }
-
-  // Update translation for a specific block field
-  function updateBlockTranslation(blockId: string, field: keyof BlockTranslation, value: string) {
-    if (!currentLanguage.value) return
-
-    markAsChangedWithHistory()
-
-    let langTranslations = translations.value.languages[currentLanguage.value]
-
-    // Create language entry if it doesn't exist
-    if (!langTranslations) {
-      translations.value.languages[currentLanguage.value] = { blocks: {} }
-      langTranslations = translations.value.languages[currentLanguage.value]!
-    }
-
-    // Create block entry if it doesn't exist
-    if (!langTranslations.blocks[blockId]) {
-      langTranslations.blocks[blockId] = {}
-    }
-
-    // Update the field - use spread to ensure reactivity
-    langTranslations.blocks[blockId] = {
-      ...langTranslations.blocks[blockId],
-      [field]: value,
-    }
-  }
-
-  // Get translated nav link label for header
-  function getTranslatedNavLinkLabel(blockId: string, linkId: string): string | undefined {
-    if (!currentLanguage.value) return undefined
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return undefined
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation?.navLinks) return undefined
-    const link = blockTranslation.navLinks.find((l: { id: string; label?: string }) => l.id === linkId)
-    return link?.label
-  }
-
-  // Update translated nav link label for header
-  function updateTranslatedNavLinkLabel(blockId: string, linkId: string, label: string) {
-    if (!currentLanguage.value) return
-
-    markAsChangedWithHistory()
-
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return
-
-    if (!langTranslations.blocks[blockId]) {
-      langTranslations.blocks[blockId] = {}
-    }
-
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation.navLinks) {
-      blockTranslation.navLinks = []
-    }
-
-    const existingLink = blockTranslation.navLinks.find((l: { id: string; label?: string }) => l.id === linkId)
-    if (existingLink) {
-      existingLink.label = label
-    } else {
-      blockTranslation.navLinks.push({ id: linkId, label })
-    }
-  }
-
-  // Get translated footer link label
-  function getTranslatedFooterLinkLabel(blockId: string, linkId: string): string | undefined {
-    if (!currentLanguage.value) return undefined
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return undefined
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation?.footerLinks) return undefined
-    const link = blockTranslation.footerLinks.find((l: { id: string; label?: string }) => l.id === linkId)
-    return link?.label
-  }
-
-  // Update translated footer link label
-  function updateTranslatedFooterLinkLabel(blockId: string, linkId: string, label: string) {
-    if (!currentLanguage.value) return
-
-    markAsChangedWithHistory()
-
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return
-
-    if (!langTranslations.blocks[blockId]) {
-      langTranslations.blocks[blockId] = {}
-    }
-
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation.footerLinks) {
-      blockTranslation.footerLinks = []
-    }
-
-    const existingLink = blockTranslation.footerLinks.find((l: { id: string; label?: string }) => l.id === linkId)
-    if (existingLink) {
-      existingLink.label = label
-    } else {
-      blockTranslation.footerLinks.push({ id: linkId, label })
-    }
-  }
-
-  // ============================================
-  // THEME & LAYOUT ACTIONS
+  // THEME & LAYOUT
   // ============================================
 
   function applyTheme(themeId: string) {
@@ -2196,34 +1355,20 @@ export const useEditorStore = defineStore('editor', () => {
       if (content) {
         blocks.value = deepClone(content.blocks)
         pageSettings.value = deepClone(content.pageSettings)
-        // Load translations if they exist
-        if (content.translations) {
-          translations.value = deepClone(content.translations)
-        } else {
-          translations.value = {
-            defaultLanguage: DEFAULT_LANGUAGE,
-            languages: {},
-          }
-        }
+        translationsComposable.loadTranslations(content.translations)
       } else {
         blocks.value = []
         pageSettings.value = getDefaultPageSettings()
-        translations.value = {
-          defaultLanguage: DEFAULT_LANGUAGE,
-          languages: {},
-        }
+        translationsComposable.resetTranslations()
       }
       selectedBlockId.value = null
       selectedItemId.value = null
-      currentLanguage.value = null // Reset to default language
       hasUnsavedChanges.value = false
 
-      // Rebuild index and clear history for new project
       rebuildBlockIndex()
-      clearHistory()
+      history.clearHistory()
 
-      // Subscribe to realtime changes for collaboration
-      subscribeToProjectChanges(projectId)
+      collaboration.subscribeToProjectChanges(projectId)
 
       return true
     } catch (e) {
@@ -2247,7 +1392,7 @@ export const useEditorStore = defineStore('editor', () => {
       const success = await projectsStore.saveProjectContent(currentProjectId.value, {
         blocks: blocks.value,
         pageSettings: pageSettings.value,
-        translations: translations.value,
+        translations: translationsComposable.getTranslationsData(),
       })
 
       if (success) {
@@ -2270,67 +1415,67 @@ export const useEditorStore = defineStore('editor', () => {
     return {
       blocks: blocks.value,
       pageSettings: pageSettings.value,
-      translations: translations.value,
+      translations: translationsComposable.getTranslationsData(),
     }
   }
 
   function setProjectContent(content: ProjectContent) {
     blocks.value = content.blocks
     pageSettings.value = content.pageSettings
-    if (content.translations) {
-      translations.value = content.translations
-    } else {
-      translations.value = {
-        defaultLanguage: DEFAULT_LANGUAGE,
-        languages: {},
-      }
-    }
-    currentLanguage.value = null
+    translationsComposable.loadTranslations(content.translations)
     hasUnsavedChanges.value = false
     rebuildBlockIndex()
-    clearHistory()
+    history.clearHistory()
   }
 
   function resetEditor() {
-    // Unsubscribe from realtime changes
-    unsubscribeFromProjectChanges()
+    collaboration.unsubscribeFromProjectChanges()
 
     currentProjectId.value = null
     blocks.value = []
     pageSettings.value = getDefaultPageSettings()
-    translations.value = {
-      defaultLanguage: DEFAULT_LANGUAGE,
-      languages: {},
-    }
-    currentLanguage.value = null
+    translationsComposable.resetTranslations()
     selectedBlockId.value = null
     selectedItemId.value = null
     hasUnsavedChanges.value = false
     rebuildBlockIndex()
-    clearHistory()
+    history.clearHistory()
   }
 
   function markUnsavedChanges() {
     hasUnsavedChanges.value = true
   }
 
+  async function reloadProjectContent(): Promise<boolean> {
+    if (!currentProjectId.value) return false
+
+    if (hasUnsavedChanges.value) {
+      const confirmed = window.confirm(
+        'You have unsaved changes that will be lost. Do you want to reload anyway?'
+      )
+      if (!confirmed) return false
+    }
+
+    const success = await loadProject(currentProjectId.value, true)
+    if (success) {
+      collaboration.clearCollaboratorChanges()
+      toast.success('Project reloaded')
+    }
+    return success
+  }
+
   // ============================================
   // ANIMATION PREVIEW
   // ============================================
 
-  // Track which block is currently previewing animation
   const animationPreviewBlockId = ref<string | null>(null)
 
-  // Trigger animation preview for a block
   function triggerAnimationPreview(blockId: string) {
-    // Clear any existing preview
     animationPreviewBlockId.value = null
 
-    // Trigger new preview after a tick to ensure DOM updates
     setTimeout(() => {
       animationPreviewBlockId.value = blockId
 
-      // Auto-clear preview after animation completes
       const block = findBlockById(blockId)
       if (block) {
         const styles = block.styles as { animation?: { duration?: number; delay?: number } }
@@ -2344,7 +1489,6 @@ export const useEditorStore = defineStore('editor', () => {
     }, 10)
   }
 
-  // Check if a block is currently previewing animation
   function isAnimationPreviewing(blockId: string): boolean {
     return animationPreviewBlockId.value === blockId
   }
@@ -2370,10 +1514,10 @@ export const useEditorStore = defineStore('editor', () => {
     autoSaveEnabled,
     lastSavedAt,
     // Undo/Redo
-    canUndo,
-    canRedo,
-    undo,
-    redo,
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
+    undo: history.undo,
+    redo: history.redo,
     // Getters
     selectedBlock,
     viewportWidth,
@@ -2396,20 +1540,27 @@ export const useEditorStore = defineStore('editor', () => {
     // Panel actions
     toggleSidebar,
     toggleInspector,
-    // Style state actions
-    currentStyleState,
-    setStyleState,
-    supportsStyleStates,
-    resetStateStyles,
-    hasStateStyles,
-    hasStylesForState,
-    // Auto-save actions (deprecated - manual save only now)
+    // Interaction actions
+    getInteractions: interactions.getInteractions,
+    getInteractionsForBlock: interactions.getInteractionsForBlock,
+    getInteractionsTargetingBlock: interactions.getInteractionsTargetingBlock,
+    getInteractionById: interactions.getInteractionById,
+    createInteraction,
+    updateInteraction,
+    updateInteractionStyles,
+    deleteInteraction,
+    duplicateInteraction,
+    renameInteraction,
+    blockHasInteractions: interactions.blockHasInteractions,
+    getInteractionCount: interactions.getInteractionCount,
+    cleanupBlockInteractions: interactions.cleanupBlockInteractions,
+    // Auto-save actions
     cancelAutoSave,
     // Collaboration
-    hasCollaboratorChanges,
-    lastCollaboratorUpdate,
+    hasCollaboratorChanges: collaboration.hasCollaboratorChanges,
+    lastCollaboratorUpdate: collaboration.lastCollaboratorUpdate,
     reloadProjectContent,
-    unsubscribeFromProjectChanges,
+    unsubscribeFromProjectChanges: collaboration.unsubscribeFromProjectChanges,
     // Project actions
     loadProject,
     saveProject,
@@ -2422,16 +1573,16 @@ export const useEditorStore = defineStore('editor', () => {
     addPresetBlock,
     deleteBlock,
     duplicateBlock,
-    copyBlock,
-    cutBlock,
+    copyBlock: clipboard.copyBlock,
+    cutBlock: clipboard.cutBlock,
     pasteBlock,
-    copyBlockStyles,
+    copyBlockStyles: clipboard.copyBlockStyles,
     pasteBlockStyles,
-    hasClipboardBlock,
-    hasClipboardStyles,
+    hasClipboardBlock: clipboard.hasClipboardBlock,
+    hasClipboardStyles: clipboard.hasClipboardStyles,
     // Shared styles
-    getSharedStylesForType,
-    getSharedStyleById,
+    getSharedStylesForType: sharedStyles.getSharedStylesForType,
+    getSharedStyleById: sharedStyles.getSharedStyleById,
     createSharedStyle,
     applySharedStyle,
     detachSharedStyle,
@@ -2439,7 +1590,7 @@ export const useEditorStore = defineStore('editor', () => {
     resetToSharedStyle,
     renameSharedStyle,
     deleteSharedStyle,
-    blockHasSharedStyleOverrides,
+    blockHasSharedStyleOverrides: sharedStyles.blockHasSharedStyleOverrides,
     reorderBlocks,
     moveBlockToParent,
     moveBlockToRoot,
@@ -2447,6 +1598,16 @@ export const useEditorStore = defineStore('editor', () => {
     moveBlockDown,
     selectBlock,
     hoverBlock,
+    // Span actions
+    selectedSpanId,
+    hoveredSpanId,
+    selectSpan,
+    hoverSpan,
+    createSpan,
+    updateSpanStyles,
+    updateSpanName,
+    deleteSpan,
+    getSpanById,
     updateBlockSettings,
     updateBlockStyles,
     updateBlockName,
@@ -2482,21 +1643,21 @@ export const useEditorStore = defineStore('editor', () => {
     // Layout actions
     applyLayout,
     // Translation state
-    translations,
-    currentLanguage,
-    availableTranslations,
-    isEditingTranslation,
+    translations: translationsComposable.translations,
+    currentLanguage: translationsComposable.currentLanguage,
+    availableTranslations: translationsComposable.availableTranslations,
+    isEditingTranslation: translationsComposable.isEditingTranslation,
     // Translation actions
-    setDefaultLanguage,
-    addTranslation,
-    removeTranslation,
-    setCurrentLanguage,
-    getTranslatedContent,
-    updateBlockTranslation,
-    getTranslatedNavLinkLabel,
-    updateTranslatedNavLinkLabel,
-    getTranslatedFooterLinkLabel,
-    updateTranslatedFooterLinkLabel,
+    setDefaultLanguage: translationsComposable.setDefaultLanguage,
+    addTranslation: translationsComposable.addTranslation,
+    removeTranslation: translationsComposable.removeTranslation,
+    setCurrentLanguage: translationsComposable.setCurrentLanguage,
+    getTranslatedContent: translationsComposable.getTranslatedContent,
+    updateBlockTranslation: translationsComposable.updateBlockTranslation,
+    getTranslatedNavLinkLabel: translationsComposable.getTranslatedNavLinkLabel,
+    updateTranslatedNavLinkLabel: translationsComposable.updateTranslatedNavLinkLabel,
+    getTranslatedFooterLinkLabel: translationsComposable.getTranslatedFooterLinkLabel,
+    updateTranslatedFooterLinkLabel: translationsComposable.updateTranslatedFooterLinkLabel,
     // Animation preview
     animationPreviewBlockId,
     triggerAnimationPreview,

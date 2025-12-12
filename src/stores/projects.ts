@@ -6,7 +6,8 @@ import type { Project, ProjectIntegration, IntegrationProvider, ProjectContent, 
 import { getDefaultPageSettings } from '@/lib/editor-utils'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/stores/toast'
-import type { ProjectLayout } from '@/lib/layouts'
+import type { ProjectLayout, ColorPalette, StylePreset, LayoutStyle, UseCaseCategory } from '@/lib/layouts'
+import { generateProjectFromWizard } from '@/lib/layouts'
 
 export const useProjectsStore = defineStore('projects', () => {
   const toast = useToast()
@@ -177,6 +178,45 @@ export const useProjectsStore = defineStore('projects', () => {
       toast.error('Failed to create project', errorMessage)
       return null
     }
+  }
+
+  /**
+   * Create a project from wizard selections
+   */
+  interface WizardOptions {
+    title: string
+    description?: string
+    useCase: UseCaseCategory
+    sections: string[]
+    layoutStyle: LayoutStyle
+    palette: ColorPalette
+    style: StylePreset
+  }
+
+  async function createProjectFromWizard(options: WizardOptions): Promise<Project | null> {
+    const { title, description, useCase, sections, layoutStyle, palette, style } = options
+
+    // Generate project content from wizard selections
+    const generated = generateProjectFromWizard({
+      useCase,
+      sections,
+      layoutStyle,
+      palette,
+      style,
+    })
+
+    // Create project layout from generated content
+    const layout: ProjectLayout = {
+      id: 'wizard-generated',
+      name: title,
+      description: description || '',
+      useCase,
+      pageSettings: generated.pageSettings,
+      blocks: generated.blocks,
+    }
+
+    // Use the existing createProject method with the generated layout
+    return createProject(title, layout)
   }
 
   async function updateProject(id: string, updates: Partial<Project>): Promise<boolean> {
@@ -931,6 +971,7 @@ export const useProjectsStore = defineStore('projects', () => {
     // Actions - Projects
     fetchProjects,
     createProject,
+    createProjectFromWizard,
     updateProject,
     deleteProject,
     duplicateProject,

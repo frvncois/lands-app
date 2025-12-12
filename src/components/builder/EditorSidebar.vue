@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { Button, Combobox, Dropdown, DropdownItem, Icon, Tooltip } from '@/components/ui'
 import type { ComboboxItem } from '@/components/ui/Combobox.vue'
@@ -33,6 +33,17 @@ import type {
   FooterSettings,
   FormFieldBlockType,
 } from '@/types/editor'
+import {
+  PREBUILT_LIST_NAMES,
+  isPrebuiltListGrid,
+  isPrebuiltListItem,
+  isBlockInsidePrebuiltListItem as isBlockInsidePrebuiltListItemHelper,
+  getStackDisplayName,
+  getListItemTypeLabel,
+} from '@/stores/editor/helpers'
+// Recursive block tree component - can be used for simpler block tree rendering
+// Full integration requires migrating special handling for header/footer/form/list blocks
+import BlockTreeItem from '@/components/builder/BlockTreeItem.vue'
 
 const editorStore = useEditorStore()
 
@@ -42,14 +53,41 @@ const expandedBlocks = ref<Set<string>>(new Set())
 const showFormFieldDropdown = ref<string | null>(null)
 const showSocialDropdown = ref<string | null>(null)
 
-// Drag state
-const draggedBlockIndex = ref<number | null>(null)
-const dragOverBlockIndex = ref<number | null>(null)
-const draggedItemInfo = ref<{ blockId: string; itemIndex: number } | null>(null)
-const dragOverItemInfo = ref<{ blockId: string; itemIndex: number } | null>(null)
-// Child drag state: track the actual block being dragged for cross-parent support
-const draggedChildInfo = ref<{ parentId: string; childIndex: number; blockId: string } | null>(null)
-const dragOverChildInfo = ref<{ parentId: string; childIndex: number } | null>(null)
+// Consolidated drag state for better performance (single reactive object vs multiple refs)
+interface DragState {
+  // Top-level block dragging
+  blockIndex: number | null
+  overBlockIndex: number | null
+  // Item dragging within blocks
+  itemInfo: { blockId: string; itemIndex: number } | null
+  overItemInfo: { blockId: string; itemIndex: number } | null
+  // Child block dragging (supports cross-parent)
+  childInfo: { parentId: string; childIndex: number; blockId: string } | null
+  overChildInfo: { parentId: string; childIndex: number } | null
+  // Empty parent drop target
+  overEmptyParentId: string | null
+}
+
+const dragState = reactive<DragState>({
+  blockIndex: null,
+  overBlockIndex: null,
+  itemInfo: null,
+  overItemInfo: null,
+  childInfo: null,
+  overChildInfo: null,
+  overEmptyParentId: null,
+})
+
+// Helper to reset all drag state
+function resetDragState() {
+  dragState.blockIndex = null
+  dragState.overBlockIndex = null
+  dragState.itemInfo = null
+  dragState.overItemInfo = null
+  dragState.childInfo = null
+  dragState.overChildInfo = null
+  dragState.overEmptyParentId = null
+}
 
 // Form field block types for dropdown (now uses block types instead of field types)
 // These are now child blocks of the form block
@@ -322,61 +360,8 @@ function handleAddChildBlock(parentId: string, value: string) {
   childBlockDropdownRefs.value[parentId]?.close()
 }
 
-// Prebuilt list/collection names (from preset types)
-// These are the ONLY blocks where delete/duplicate/add block restrictions apply
-const PREBUILT_LIST_NAMES = [
-  'Link List',
-  'Product List',
-  'Card List',
-  'Feature List',
-  'Social List',
-  'Testimonials',
-  'Menus List',
-  'FAQ List',
-  'Gallery',
-]
-
-// Check if a Grid block is a PREBUILT List/Collection (has prebuilt name)
-function isPrebuiltListGrid(block: SectionBlock): boolean {
-  if (block.type !== 'grid') return false
-  // Must match a prebuilt list name - manually created Grid > Stack is NOT a list/collection
-  return PREBUILT_LIST_NAMES.includes(block.name)
-}
-
-// Get the item type label for a List/Collection grid (e.g., "product", "card", "link")
-function getListItemTypeLabel(grid: SectionBlock): string {
-  const name = grid.name.toLowerCase()
-  if (name.includes('product')) return 'product'
-  if (name.includes('card')) return 'card'
-  if (name.includes('link')) return 'link'
-  if (name.includes('feature')) return 'feature'
-  if (name.includes('social')) return 'social'
-  if (name.includes('testimonial')) return 'testimonial'
-  if (name.includes('menu')) return 'menu item'
-  if (name.includes('faq')) return 'faq'
-  return 'item'
-}
-
-// Get the display name for a stack item (from its "Title" heading content)
-function getStackDisplayName(stack: SectionBlock): string {
-  if (!stack.children || stack.children.length === 0) return stack.name
-
-  // Find a heading named "Title" or the first heading
-  const titleHeading = stack.children.find(c =>
-    c.type === 'heading' && c.name.toLowerCase() === 'title'
-  )
-
-  if (titleHeading) {
-    const settings = titleHeading.settings as { content?: string }
-    if (settings.content && settings.content.trim()) {
-      // Truncate long titles
-      const content = settings.content.trim()
-      return content.length > 25 ? content.slice(0, 25) + '...' : content
-    }
-  }
-
-  return stack.name
-}
+// Helper functions (PREBUILT_LIST_NAMES, isPrebuiltListGrid, getListItemTypeLabel, getStackDisplayName,
+// isPrebuiltListItem) are imported from @/stores/editor/helpers
 
 // Add a new list item by duplicating the last Stack child (so it's added at the end)
 function handleAddListItem(gridId: string) {
@@ -399,33 +384,9 @@ function handleAddListItem(gridId: string) {
   }
 }
 
-// Check if a child is a PREBUILT List/Collection item (Stack directly inside PREBUILT Grid)
-function isPrebuiltListItem(parentBlock: SectionBlock, child: SectionBlock): boolean {
-  return isPrebuiltListGrid(parentBlock) && child.type === 'stack'
-}
-
-// Check if a child block is INSIDE a PREBUILT List/Collection item (inside Stack that's inside PREBUILT Grid)
-// These blocks can only be hidden, not deleted/duplicated
+// Wrapper for isBlockInsidePrebuiltListItem helper (provides editorStore.findParentBlock)
 function isBlockInsidePrebuiltListItem(parentBlock: SectionBlock): boolean {
-  // Check if parent IS a prebuilt list item (Stack in PREBUILT Grid) - then all children are inside it
-  if (parentBlock.type === 'stack') {
-    const grandparent = editorStore.findParentBlock(parentBlock.id)
-    if (grandparent && isPrebuiltListGrid(grandparent)) {
-      return true
-    }
-  }
-  // Check up the tree for a prebuilt list grid
-  let current: SectionBlock | null = parentBlock
-  while (current) {
-    const parent = editorStore.findParentBlock(current.id)
-    if (!parent) break
-    // If we find a stack whose parent is a prebuilt grid, we're inside a prebuilt list item
-    if (current.type === 'stack' && isPrebuiltListGrid(parent)) {
-      return true
-    }
-    current = parent
-  }
-  return false
+  return isBlockInsidePrebuiltListItemHelper(parentBlock, editorStore.findParentBlock)
 }
 
 // Check if a child block is inside a PREBUILT List/Collection (either a list item or inside a list item)
@@ -476,7 +437,7 @@ function canDragChild(parentBlock: SectionBlock, child: SectionBlock): boolean {
 // Child block drag handlers (for layout block children)
 function handleChildDragStart(parentId: string, childIndex: number, blockId: string, event: DragEvent) {
   event.stopPropagation()
-  draggedChildInfo.value = { parentId, childIndex, blockId }
+  dragState.childInfo = { parentId, childIndex, blockId }
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
   }
@@ -485,10 +446,26 @@ function handleChildDragStart(parentId: string, childIndex: number, blockId: str
 function handleChildDragOver(parentId: string, childIndex: number, event: DragEvent) {
   event.preventDefault()
   event.stopPropagation()
-  if (!draggedChildInfo.value) return
 
   const targetParent = editorStore.findBlockById(parentId)
-  const isSameParent = draggedChildInfo.value.parentId === parentId
+
+  // Handle top-level block being dragged into a layout block
+  if (dragState.blockIndex !== null) {
+    const draggedBlock = editorStore.blocks[dragState.blockIndex]
+    // Don't allow header/footer to be moved into other blocks
+    if (draggedBlock && (draggedBlock.type === 'header' || draggedBlock.type === 'footer')) return
+    // Don't allow dropping into PREBUILT List/Collection grids
+    if (targetParent && isPrebuiltListGrid(targetParent)) return
+    // Don't allow dropping into itself
+    if (draggedBlock && draggedBlock.id === parentId) return
+
+    dragState.overChildInfo = { parentId, childIndex }
+    return
+  }
+
+  if (!dragState.childInfo) return
+
+  const isSameParent = dragState.childInfo.parentId === parentId
 
   // For PREBUILT List/Collection grids, only allow reordering within the same grid (not moving from outside)
   if (targetParent && isPrebuiltListGrid(targetParent)) {
@@ -496,73 +473,107 @@ function handleChildDragOver(parentId: string, childIndex: number, event: DragEv
   }
 
   // Allow drop if different position (same or different parent)
-  const isDifferentPosition = !isSameParent || draggedChildInfo.value.childIndex !== childIndex
+  const isDifferentPosition = !isSameParent || dragState.childInfo.childIndex !== childIndex
 
   if (isDifferentPosition) {
-    dragOverChildInfo.value = { parentId, childIndex }
+    dragState.overChildInfo = { parentId, childIndex }
   }
 }
 
 function handleChildDragLeave() {
-  dragOverChildInfo.value = null
+  dragState.overChildInfo = null
 }
 
 function handleChildDrop(parentId: string, childIndex: number) {
-  if (!draggedChildInfo.value) return
+  // Handle top-level block being dropped into a layout block
+  if (dragState.blockIndex !== null) {
+    const draggedBlock = editorStore.blocks[dragState.blockIndex]
+    if (draggedBlock && draggedBlock.type !== 'header' && draggedBlock.type !== 'footer') {
+      editorStore.moveBlockToParent(draggedBlock.id, parentId, childIndex)
+      expandedBlocks.value.add(parentId)
+    }
+    resetDragState()
+    return
+  }
 
-  const isSameParent = draggedChildInfo.value.parentId === parentId
+  if (!dragState.childInfo) return
+
+  const isSameParent = dragState.childInfo.parentId === parentId
 
   if (isSameParent) {
     // Same parent: reorder within
-    if (draggedChildInfo.value.childIndex !== childIndex) {
-      editorStore.reorderBlocks(draggedChildInfo.value.childIndex, childIndex, parentId)
+    if (dragState.childInfo.childIndex !== childIndex) {
+      editorStore.reorderBlocks(dragState.childInfo.childIndex, childIndex, parentId)
     }
   } else {
     // Different parent: move to new parent
-    editorStore.moveBlockToParent(draggedChildInfo.value.blockId, parentId, childIndex)
+    editorStore.moveBlockToParent(dragState.childInfo.blockId, parentId, childIndex)
   }
 
-  draggedChildInfo.value = null
-  dragOverChildInfo.value = null
+  dragState.childInfo = null
+  dragState.overChildInfo = null
 }
 
 function handleChildDragEnd() {
-  draggedChildInfo.value = null
-  dragOverChildInfo.value = null
+  dragState.childInfo = null
+  dragState.overChildInfo = null
 }
 
-// Track if dragging over an empty parent container
-const dragOverEmptyParentId = ref<string | null>(null)
+// Empty parent drop target is now in dragState.overEmptyParentId
 
 // Handle drag over empty parent container
 function handleEmptyParentDragOver(parentId: string, event: DragEvent) {
   event.preventDefault()
   event.stopPropagation()
-  if (!draggedChildInfo.value) return
 
   // Don't allow dropping onto PREBUILT List/Collection grids
   const targetParent = editorStore.findBlockById(parentId)
   if (targetParent && isPrebuiltListGrid(targetParent)) return
 
-  // Don't allow dropping onto own parent (already empty)
-  if (draggedChildInfo.value.parentId === parentId) return
+  // Handle top-level block being dragged into an empty layout block
+  if (dragState.blockIndex !== null) {
+    const draggedBlock = editorStore.blocks[dragState.blockIndex]
+    // Don't allow header/footer to be moved into other blocks
+    if (draggedBlock && (draggedBlock.type === 'header' || draggedBlock.type === 'footer')) return
+    // Don't allow dropping into itself
+    if (draggedBlock && draggedBlock.id === parentId) return
 
-  dragOverEmptyParentId.value = parentId
+    dragState.overEmptyParentId = parentId
+    return
+  }
+
+  if (!dragState.childInfo) return
+
+  // Don't allow dropping onto own parent (already empty)
+  if (dragState.childInfo.parentId === parentId) return
+
+  dragState.overEmptyParentId = parentId
 }
 
 function handleEmptyParentDragLeave() {
-  dragOverEmptyParentId.value = null
+  dragState.overEmptyParentId = null
 }
 
 function handleEmptyParentDrop(parentId: string) {
-  if (!draggedChildInfo.value) return
+  // Handle top-level block being dropped into an empty layout block
+  if (dragState.blockIndex !== null) {
+    const draggedBlock = editorStore.blocks[dragState.blockIndex]
+    if (draggedBlock && draggedBlock.type !== 'header' && draggedBlock.type !== 'footer') {
+      editorStore.moveBlockToParent(draggedBlock.id, parentId, 0)
+      expandedBlocks.value.add(parentId)
+    }
+    resetDragState()
+    return
+  }
+
+  if (!dragState.childInfo) return
 
   // Move to this empty parent at index 0
-  editorStore.moveBlockToParent(draggedChildInfo.value.blockId, parentId, 0)
+  editorStore.moveBlockToParent(dragState.childInfo.blockId, parentId, 0)
 
-  draggedChildInfo.value = null
-  dragOverChildInfo.value = null
-  dragOverEmptyParentId.value = null
+  dragState.childInfo = null
+  dragState.overChildInfo = null
+  dragState.overEmptyParentId = null
 }
 
 function handleDuplicateChildBlock(childId: string, event: MouseEvent) {
@@ -607,7 +618,7 @@ function handleSidebarClick(event: MouseEvent) {
 
 // Block drag handlers
 function handleBlockDragStart(index: number, event: DragEvent) {
-  draggedBlockIndex.value = index
+  dragState.blockIndex = index
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
   }
@@ -615,32 +626,31 @@ function handleBlockDragStart(index: number, event: DragEvent) {
 
 function handleBlockDragOver(index: number, event: DragEvent) {
   event.preventDefault()
-  if (draggedBlockIndex.value !== null && draggedBlockIndex.value !== index) {
-    dragOverBlockIndex.value = index
+  if (dragState.blockIndex !== null && dragState.blockIndex !== index) {
+    dragState.overBlockIndex = index
   }
 }
 
 function handleBlockDragLeave() {
-  dragOverBlockIndex.value = null
+  dragState.overBlockIndex = null
 }
 
 function handleBlockDrop(index: number) {
-  if (draggedBlockIndex.value !== null && draggedBlockIndex.value !== index) {
-    editorStore.reorderBlocks(draggedBlockIndex.value, index)
+  if (dragState.blockIndex !== null && dragState.blockIndex !== index) {
+    editorStore.reorderBlocks(dragState.blockIndex, index)
   }
-  draggedBlockIndex.value = null
-  dragOverBlockIndex.value = null
+  dragState.blockIndex = null
+  dragState.overBlockIndex = null
 }
 
 function handleBlockDragEnd() {
-  draggedBlockIndex.value = null
-  dragOverBlockIndex.value = null
+  resetDragState()
 }
 
 // Generic item drag handlers (for form fields, nav links, etc.)
 function handleItemDragStart(blockId: string, itemIndex: number, event: DragEvent) {
   event.stopPropagation()
-  draggedItemInfo.value = { blockId, itemIndex }
+  dragState.itemInfo = { blockId, itemIndex }
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move'
   }
@@ -649,26 +659,26 @@ function handleItemDragStart(blockId: string, itemIndex: number, event: DragEven
 function handleItemDragOver(blockId: string, itemIndex: number, event: DragEvent) {
   event.preventDefault()
   event.stopPropagation()
-  if (draggedItemInfo.value?.blockId === blockId && draggedItemInfo.value.itemIndex !== itemIndex) {
-    dragOverItemInfo.value = { blockId, itemIndex }
+  if (dragState.itemInfo?.blockId === blockId && dragState.itemInfo.itemIndex !== itemIndex) {
+    dragState.overItemInfo = { blockId, itemIndex }
   }
 }
 
 function handleItemDragLeave() {
-  dragOverItemInfo.value = null
+  dragState.overItemInfo = null
 }
 
 function handleItemDrop(blockId: string, itemIndex: number, reorderFn: (blockId: string, from: number, to: number) => void) {
-  if (draggedItemInfo.value?.blockId === blockId && draggedItemInfo.value.itemIndex !== itemIndex) {
-    reorderFn(blockId, draggedItemInfo.value.itemIndex, itemIndex)
+  if (dragState.itemInfo?.blockId === blockId && dragState.itemInfo.itemIndex !== itemIndex) {
+    reorderFn(blockId, dragState.itemInfo.itemIndex, itemIndex)
   }
-  draggedItemInfo.value = null
-  dragOverItemInfo.value = null
+  dragState.itemInfo = null
+  dragState.overItemInfo = null
 }
 
 function handleItemDragEnd() {
-  draggedItemInfo.value = null
-  dragOverItemInfo.value = null
+  dragState.itemInfo = null
+  dragState.overItemInfo = null
 }
 
 // Form field block handlers (form fields are now child blocks)
@@ -744,6 +754,12 @@ function canBlockExpand(block: SectionBlock): boolean {
     return true
   }
   return false
+}
+
+// Check if a block has interactions (either as trigger or target)
+function blockHasInteraction(blockId: string): boolean {
+  const interactions = editorStore.getInteractions()
+  return interactions.some(i => i.triggerBlockId === blockId || i.targetBlockId === blockId)
 }
 </script>
 
@@ -909,8 +925,8 @@ function canBlockExpand(block: SectionBlock): boolean {
                 editorStore.selectedBlockId === block.id && !editorStore.selectedItemId
                   ? 'bg-accent text-accent-foreground'
                   : 'text-foreground hover:bg-accent/50',
-                draggedBlockIndex === blockIndex ? 'opacity-50' : '',
-                dragOverBlockIndex === blockIndex ? 'border-t-2 border-primary' : '',
+                dragState.blockIndex === blockIndex ? 'opacity-50' : '',
+                dragState.overBlockIndex === blockIndex ? 'border-t-2 border-primary' : '',
               ]"
               @click="editorStore.selectBlock(block.id)"
               @contextmenu="handleBlockContextMenu(block.id, 'section', $event)"
@@ -928,52 +944,27 @@ function canBlockExpand(block: SectionBlock): boolean {
 
               <span class="flex-1 truncate font-medium leading-4" :class="isBlockHidden(block) ? 'opacity-50' : ''">{{ block.name }}</span>
 
+              <!-- Interaction indicator (purple dot) -->
+              <Tooltip v-if="blockHasInteraction(block.id)" text="Has interaction">
+                <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+              </Tooltip>
+
               <!-- Shared style indicator -->
               <Tooltip v-if="block.sharedStyleId" text="Has shared style">
                 <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
               </Tooltip>
 
-              <!-- Action buttons with fade background -->
-              <div
-                class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                :class="[
-                  editorStore.selectedBlockId === block.id && !editorStore.selectedItemId
-                    ? 'bg-gradient-to-r from-transparent to-accent'
-                    : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
-                ]"
-              >
-                <!-- Visibility toggle for header/footer -->
-                <Tooltip v-if="isProtectedBlock(block)" :text="isBlockHidden(block) ? 'Show' : 'Hide'">
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded hover:bg-accent hover:text-foreground transition-all"
-                    :class="isBlockHidden(block) ? 'text-muted-foreground' : ''"
-                    @click.stop="toggleBlockVisibility(block, $event)"
-                  >
-                    <Icon v-if="isBlockHidden(block)" name="app-hide" class="text-[10px] opacity-50" />
-                    <Icon v-else name="app-show" :size="10" />
-                  </button>
-                </Tooltip>
-
-                <!-- Duplicate block button -->
-                <Tooltip v-if="!isProtectedBlock(block)" text="Duplicate">
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                    @click.stop="handleDuplicateBlock(block.id, $event)"
-                  >
-                    <Icon name="layers-1" class="text-[10px]" />
-                  </button>
-                </Tooltip>
-
-                <!-- Delete block button -->
-                <Tooltip v-if="!isProtectedBlock(block)" text="Delete">
-                  <button
-                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                    @click.stop="handleDeleteBlock(block.id, $event)"
-                  >
-                    <Icon name="trash-3" class="text-[10px]" />
-                  </button>
-                </Tooltip>
-              </div>
+              <!-- Visibility toggle for header/footer -->
+              <Tooltip v-if="isProtectedBlock(block)" :text="isBlockHidden(block) ? 'Show' : 'Hide'">
+                <button
+                  class="w-5 h-5 flex items-center justify-center shrink-0 rounded opacity-0 group-hover:opacity-100 transition-all hover:bg-accent hover:text-foreground"
+                  :class="isBlockHidden(block) ? 'text-muted-foreground !opacity-100' : ''"
+                  @click.stop="toggleBlockVisibility(block, $event)"
+                >
+                  <Icon v-if="isBlockHidden(block)" name="app-hide" class="text-[10px] opacity-50" />
+                  <Icon v-else name="app-show" :size="10" />
+                </button>
+              </Tooltip>
             </div>
 
             <!-- Expanded content: Header children (Start, Middle, End stacks) -->
@@ -1017,8 +1008,8 @@ function canBlockExpand(block: SectionBlock): boolean {
                       editorStore.selectedBlockId === grandchild.id
                         ? 'bg-accent text-accent-foreground'
                         : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                      draggedChildInfo?.blockId === grandchild.id ? 'opacity-50' : '',
-                      dragOverChildInfo?.parentId === child.id && dragOverChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
+                      dragState.childInfo?.blockId === grandchild.id ? 'opacity-50' : '',
+                      dragState.overChildInfo?.parentId === child.id && dragState.overChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
                     ]"
                     @click="editorStore.selectBlock(grandchild.id)"
                     @contextmenu="handleBlockContextMenu(grandchild.id, 'child', $event)"
@@ -1032,32 +1023,14 @@ function canBlockExpand(block: SectionBlock): boolean {
                       <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
                     </div>
                     <span class="flex-1 truncate leading-4">{{ grandchild.name }}</span>
-                    <!-- Action buttons with fade background -->
-                    <div
-                      class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      :class="[
-                        editorStore.selectedBlockId === grandchild.id
-                          ? 'bg-gradient-to-r from-transparent to-accent'
-                          : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
-                      ]"
-                    >
-                      <Tooltip text="Duplicate">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="layers-1" class="text-[10px]" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip text="Delete">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="xmark" class="text-[10px]" />
-                        </button>
-                      </Tooltip>
-                    </div>
+                    <!-- Interaction indicator (purple dot) -->
+                    <Tooltip v-if="blockHasInteraction(grandchild.id)" text="Has interaction">
+                      <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                    </Tooltip>
+                    <!-- Shared style indicator -->
+                    <Tooltip v-if="grandchild.sharedStyleId" text="Has shared style">
+                      <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                    </Tooltip>
                   </div>
                   <!-- Add block to header stack -->
                   <SidebarBlockPicker
@@ -1109,8 +1082,8 @@ function canBlockExpand(block: SectionBlock): boolean {
                       editorStore.selectedBlockId === grandchild.id
                         ? 'bg-accent text-accent-foreground'
                         : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                      draggedChildInfo?.blockId === grandchild.id ? 'opacity-50' : '',
-                      dragOverChildInfo?.parentId === child.id && dragOverChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
+                      dragState.childInfo?.blockId === grandchild.id ? 'opacity-50' : '',
+                      dragState.overChildInfo?.parentId === child.id && dragState.overChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
                     ]"
                     @click="editorStore.selectBlock(grandchild.id)"
                     @contextmenu="handleBlockContextMenu(grandchild.id, 'child', $event)"
@@ -1124,32 +1097,14 @@ function canBlockExpand(block: SectionBlock): boolean {
                       <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
                     </div>
                     <span class="flex-1 truncate leading-4">{{ grandchild.name }}</span>
-                    <!-- Action buttons with fade background -->
-                    <div
-                      class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      :class="[
-                        editorStore.selectedBlockId === grandchild.id
-                          ? 'bg-gradient-to-r from-transparent to-accent'
-                          : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
-                      ]"
-                    >
-                      <Tooltip text="Duplicate">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                          @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="layers-1" class="text-[10px]" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip text="Delete">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                          @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                        >
-                          <Icon name="xmark" class="text-[10px]" />
-                        </button>
-                      </Tooltip>
-                    </div>
+                    <!-- Interaction indicator (purple dot) -->
+                    <Tooltip v-if="blockHasInteraction(grandchild.id)" text="Has interaction">
+                      <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                    </Tooltip>
+                    <!-- Shared style indicator -->
+                    <Tooltip v-if="grandchild.sharedStyleId" text="Has shared style">
+                      <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                    </Tooltip>
                   </div>
                   <!-- Add block to footer stack -->
                   <SidebarBlockPicker
@@ -1164,9 +1119,9 @@ function canBlockExpand(block: SectionBlock): boolean {
             <div v-if="expandedBlocks.has(block.id) && canHaveChildren(block.type) && block.type !== 'header' && block.type !== 'footer'" class="ml-5 mt-1 space-y-0.5">
               <!-- Empty drop zone for dragging blocks to empty parents -->
               <div
-                v-if="(!block.children || block.children.length === 0) && draggedChildInfo && !isPrebuiltListGrid(block)"
+                v-if="(!block.children || block.children.length === 0) && dragState.childInfo && !isPrebuiltListGrid(block)"
                 class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
-                :class="dragOverEmptyParentId === block.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
+                :class="dragState.overEmptyParentId === block.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
                 @dragover="handleEmptyParentDragOver(block.id, $event)"
                 @dragleave="handleEmptyParentDragLeave"
                 @drop.stop="handleEmptyParentDrop(block.id)"
@@ -1187,8 +1142,8 @@ function canBlockExpand(block: SectionBlock): boolean {
                     editorStore.selectedBlockId === child.id
                       ? 'bg-accent text-accent-foreground'
                       : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                    draggedChildInfo?.blockId === child.id ? 'opacity-50' : '',
-                    dragOverChildInfo?.parentId === block.id && dragOverChildInfo?.childIndex === childIndex ? 'border-t-2 border-primary' : '',
+                    dragState.childInfo?.blockId === child.id ? 'opacity-50' : '',
+                    dragState.overChildInfo?.parentId === block.id && dragState.overChildInfo?.childIndex === childIndex ? 'border-t-2 border-primary' : '',
                   ]"
                   @click="editorStore.selectBlock(child.id)"
                   @contextmenu="handleBlockContextMenu(child.id, 'child', $event)"
@@ -1210,59 +1165,32 @@ function canBlockExpand(block: SectionBlock): boolean {
                     <Icon :name="sectionBlockIcons[child.type]" :size="12" class="text-muted-foreground" />
                   </div>
                   <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(block, child) ? getStackDisplayName(child) : child.name }}</span>
+                  <!-- Interaction indicator (purple dot) -->
+                  <Tooltip v-if="blockHasInteraction(child.id)" text="Has interaction">
+                    <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                  </Tooltip>
                   <Tooltip v-if="child.sharedStyleId" text="Has shared style">
                     <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                   </Tooltip>
-                  <!-- Action buttons with fade background -->
-                  <div
-                    class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    :class="[
-                      editorStore.selectedBlockId === child.id
-                        ? 'bg-gradient-to-r from-transparent to-accent'
-                        : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar',
-                      isChildBlockHidden(child) ? '!opacity-100' : ''
-                    ]"
-                  >
-                    <!-- List/Collection items (Stack items in Grid) and blocks inside them - only visibility toggle -->
-                    <template v-if="isPrebuiltListItem(block, child) || isBlockInsidePrebuiltListItem(block)">
-                      <Tooltip :text="isChildBlockHidden(child) ? 'Show' : 'Hide'">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground"
-                          @click.stop="toggleChildVisibility(child.id, $event)"
-                        >
-                          <Icon v-if="isChildBlockHidden(child)" name="app-hide" class="text-[10px] opacity-50" />
-                          <Icon v-else name="app-show" :size="10" />
-                        </button>
-                      </Tooltip>
-                    </template>
-                    <!-- Regular block actions: duplicate, delete -->
-                    <template v-else>
-                      <Tooltip text="Duplicate">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                          @click.stop="handleDuplicateChildBlock(child.id, $event)"
-                        >
-                          <Icon name="layers-1" class="text-[10px]" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip text="Delete">
-                        <button
-                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                          @click.stop="handleDeleteChildBlock(child.id, $event)"
-                        >
-                          <Icon name="xmark" class="text-[10px]" />
-                        </button>
-                      </Tooltip>
-                    </template>
-                  </div>
+                  <!-- Visibility toggle for list/collection items -->
+                  <Tooltip v-if="isPrebuiltListItem(block, child) || isBlockInsidePrebuiltListItem(block)" :text="isChildBlockHidden(child) ? 'Show' : 'Hide'">
+                    <button
+                      class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100"
+                      :class="isChildBlockHidden(child) ? '!opacity-100' : ''"
+                      @click.stop="toggleChildVisibility(child.id, $event)"
+                    >
+                      <Icon v-if="isChildBlockHidden(child)" name="app-hide" class="text-[10px] opacity-50" />
+                      <Icon v-else name="app-show" :size="10" />
+                    </button>
+                  </Tooltip>
                 </div>
                 <!-- Nested children of this child (level 2 - grandchildren) -->
                 <div v-if="expandedBlocks.has(child.id) && canHaveChildren(child.type)" class="ml-6 mt-0.5 space-y-0.5">
                   <!-- Empty drop zone for dragging blocks to empty parents -->
                   <div
-                    v-if="(!child.children || child.children.length === 0) && draggedChildInfo && !isPrebuiltListGrid(child)"
+                    v-if="(!child.children || child.children.length === 0) && dragState.childInfo && !isPrebuiltListGrid(child)"
                     class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
-                    :class="dragOverEmptyParentId === child.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
+                    :class="dragState.overEmptyParentId === child.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
                     @dragover="handleEmptyParentDragOver(child.id, $event)"
                     @dragleave="handleEmptyParentDragLeave"
                     @drop.stop="handleEmptyParentDrop(child.id)"
@@ -1283,8 +1211,8 @@ function canBlockExpand(block: SectionBlock): boolean {
                         editorStore.selectedBlockId === grandchild.id
                           ? 'bg-accent text-accent-foreground'
                           : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                        draggedChildInfo?.blockId === grandchild.id ? 'opacity-50' : '',
-                        dragOverChildInfo?.parentId === child.id && dragOverChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
+                        dragState.childInfo?.blockId === grandchild.id ? 'opacity-50' : '',
+                        dragState.overChildInfo?.parentId === child.id && dragState.overChildInfo?.childIndex === grandchildIndex ? 'border-t-2 border-primary' : '',
                       ]"
                       @click="editorStore.selectBlock(grandchild.id)"
                       @contextmenu="handleBlockContextMenu(grandchild.id, 'child', $event)"
@@ -1306,78 +1234,32 @@ function canBlockExpand(block: SectionBlock): boolean {
                         <Icon :name="sectionBlockIcons[grandchild.type]" :size="12" class="text-muted-foreground" />
                       </div>
                       <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(child, grandchild) ? getStackDisplayName(grandchild) : grandchild.name }}</span>
+                      <!-- Interaction indicator (purple dot) -->
+                      <Tooltip v-if="blockHasInteraction(grandchild.id)" text="Has interaction">
+                        <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                      </Tooltip>
                       <Tooltip v-if="grandchild.sharedStyleId" text="Has shared style">
                         <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                       </Tooltip>
-                      <!-- Action buttons with fade background -->
-                      <div
-                        class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        :class="[
-                          editorStore.selectedBlockId === grandchild.id
-                            ? 'bg-gradient-to-r from-transparent to-accent'
-                            : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar',
-                          isChildBlockHidden(grandchild) ? '!opacity-100' : ''
-                        ]"
-                      >
-                        <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
-                        <template v-if="isPrebuiltListItem(child, grandchild)">
-                          <Tooltip text="Duplicate">
-                            <button
-                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                              @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
-                            >
-                              <Icon name="layers-1" class="text-[10px]" />
-                            </button>
-                          </Tooltip>
-                          <Tooltip text="Delete">
-                            <button
-                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                              @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                            >
-                              <Icon name="xmark" class="text-[10px]" />
-                            </button>
-                          </Tooltip>
-                        </template>
-                        <!-- Blocks inside list items - only visibility toggle -->
-                        <template v-else-if="isBlockInsidePrebuiltListItem(child)">
-                          <Tooltip :text="isChildBlockHidden(grandchild) ? 'Show' : 'Hide'">
-                            <button
-                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground"
-                              @click.stop="toggleChildVisibility(grandchild.id, $event)"
-                            >
-                              <Icon v-if="isChildBlockHidden(grandchild)" name="app-hide" class="text-[10px] opacity-50" />
-                              <Icon v-else name="app-show" :size="10" />
-                            </button>
-                          </Tooltip>
-                        </template>
-                        <!-- Regular block actions: duplicate, delete -->
-                        <template v-else>
-                          <Tooltip text="Duplicate">
-                            <button
-                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                              @click.stop="handleDuplicateChildBlock(grandchild.id, $event)"
-                            >
-                              <Icon name="layers-1" class="text-[10px]" />
-                            </button>
-                          </Tooltip>
-                          <Tooltip text="Delete">
-                            <button
-                              class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                              @click.stop="handleDeleteChildBlock(grandchild.id, $event)"
-                            >
-                              <Icon name="xmark" class="text-[10px]" />
-                            </button>
-                          </Tooltip>
-                        </template>
-                      </div>
+                      <!-- Visibility toggle for blocks inside list items -->
+                      <Tooltip v-if="isBlockInsidePrebuiltListItem(child)" :text="isChildBlockHidden(grandchild) ? 'Show' : 'Hide'">
+                        <button
+                          class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100"
+                          :class="isChildBlockHidden(grandchild) ? '!opacity-100' : ''"
+                          @click.stop="toggleChildVisibility(grandchild.id, $event)"
+                        >
+                          <Icon v-if="isChildBlockHidden(grandchild)" name="app-hide" class="text-[10px] opacity-50" />
+                          <Icon v-else name="app-show" :size="10" />
+                        </button>
+                      </Tooltip>
                     </div>
                     <!-- Level 3 children (great-grandchildren) -->
                     <div v-if="expandedBlocks.has(grandchild.id) && canHaveChildren(grandchild.type)" class="ml-6 mt-0.5 space-y-0.5">
                       <!-- Empty drop zone for dragging blocks to empty parents -->
                       <div
-                        v-if="(!grandchild.children || grandchild.children.length === 0) && draggedChildInfo && !isPrebuiltListGrid(grandchild)"
+                        v-if="(!grandchild.children || grandchild.children.length === 0) && dragState.childInfo && !isPrebuiltListGrid(grandchild)"
                         class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
-                        :class="dragOverEmptyParentId === grandchild.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
+                        :class="dragState.overEmptyParentId === grandchild.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
                         @dragover="handleEmptyParentDragOver(grandchild.id, $event)"
                         @dragleave="handleEmptyParentDragLeave"
                         @drop.stop="handleEmptyParentDrop(grandchild.id)"
@@ -1398,8 +1280,8 @@ function canBlockExpand(block: SectionBlock): boolean {
                               editorStore.selectedBlockId === greatgrandchild.id
                                 ? 'bg-accent text-accent-foreground'
                                 : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                              draggedChildInfo?.blockId === greatgrandchild.id ? 'opacity-50' : '',
-                              dragOverChildInfo?.parentId === grandchild.id && dragOverChildInfo?.childIndex === greatgrandchildIndex ? 'border-t-2 border-primary' : '',
+                              dragState.childInfo?.blockId === greatgrandchild.id ? 'opacity-50' : '',
+                              dragState.overChildInfo?.parentId === grandchild.id && dragState.overChildInfo?.childIndex === greatgrandchildIndex ? 'border-t-2 border-primary' : '',
                             ]"
                             @click="editorStore.selectBlock(greatgrandchild.id)"
                             @contextmenu="handleBlockContextMenu(greatgrandchild.id, 'child', $event)"
@@ -1421,70 +1303,24 @@ function canBlockExpand(block: SectionBlock): boolean {
                               <Icon :name="sectionBlockIcons[greatgrandchild.type]" :size="12" class="text-muted-foreground" />
                             </div>
                             <span class="flex-1 truncate leading-4">{{ isPrebuiltListItem(grandchild, greatgrandchild) ? getStackDisplayName(greatgrandchild) : greatgrandchild.name }}</span>
+                            <!-- Interaction indicator (purple dot) -->
+                            <Tooltip v-if="blockHasInteraction(greatgrandchild.id)" text="Has interaction">
+                              <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                            </Tooltip>
                             <Tooltip v-if="greatgrandchild.sharedStyleId" text="Has shared style">
                               <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                             </Tooltip>
-                            <!-- Action buttons with fade background -->
-                            <div
-                              class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                              :class="[
-                                editorStore.selectedBlockId === greatgrandchild.id
-                                  ? 'bg-gradient-to-r from-transparent to-accent'
-                                  : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar',
-                                isChildBlockHidden(greatgrandchild) ? '!opacity-100' : ''
-                              ]"
-                            >
-                              <!-- List/Collection item actions (Stack items in Grid) - duplicate and delete only -->
-                              <template v-if="isPrebuiltListItem(grandchild, greatgrandchild)">
-                                <Tooltip text="Duplicate">
-                                  <button
-                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                                    @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
-                                  >
-                                    <Icon name="layers-1" class="text-[10px]" />
-                                  </button>
-                                </Tooltip>
-                                <Tooltip text="Delete">
-                                  <button
-                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                                    @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
-                                  >
-                                    <Icon name="xmark" class="text-[10px]" />
-                                  </button>
-                                </Tooltip>
-                              </template>
-                              <!-- Blocks inside list items - only visibility toggle -->
-                              <template v-else-if="isBlockInsidePrebuiltListItem(grandchild)">
-                                <Tooltip :text="isChildBlockHidden(greatgrandchild) ? 'Show' : 'Hide'">
-                                  <button
-                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground"
-                                    @click.stop="toggleChildVisibility(greatgrandchild.id, $event)"
-                                  >
-                                    <Icon v-if="isChildBlockHidden(greatgrandchild)" name="app-hide" class="text-[10px] opacity-50" />
-                                    <Icon v-else name="app-show" :size="10" />
-                                  </button>
-                                </Tooltip>
-                              </template>
-                              <!-- Regular block actions: duplicate, delete -->
-                              <template v-else>
-                                <Tooltip text="Duplicate">
-                                  <button
-                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                                    @click.stop="handleDuplicateChildBlock(greatgrandchild.id, $event)"
-                                  >
-                                    <Icon name="layers-1" class="text-[10px]" />
-                                  </button>
-                                </Tooltip>
-                                <Tooltip text="Delete">
-                                  <button
-                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                                    @click.stop="handleDeleteChildBlock(greatgrandchild.id, $event)"
-                                  >
-                                    <Icon name="xmark" class="text-[10px]" />
-                                  </button>
-                                </Tooltip>
-                              </template>
-                            </div>
+                            <!-- Visibility toggle for blocks inside list items -->
+                            <Tooltip v-if="isBlockInsidePrebuiltListItem(grandchild)" :text="isChildBlockHidden(greatgrandchild) ? 'Show' : 'Hide'">
+                              <button
+                                class="w-5 h-5 flex items-center justify-center shrink-0 rounded transition-all text-muted-foreground hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100"
+                                :class="isChildBlockHidden(greatgrandchild) ? '!opacity-100' : ''"
+                                @click.stop="toggleChildVisibility(greatgrandchild.id, $event)"
+                              >
+                                <Icon v-if="isChildBlockHidden(greatgrandchild)" name="app-hide" class="text-[10px] opacity-50" />
+                                <Icon v-else name="app-show" :size="10" />
+                              </button>
+                            </Tooltip>
                           </div>
                           <!-- Level 4 children - for layout blocks at greatgrandchild level (e.g., Stack inside Stack) -->
                           <div v-if="expandedBlocks.has(greatgrandchild.id) && canHaveChildren(greatgrandchild.type)" class="ml-6 mt-0.5 space-y-0.5">
@@ -1504,35 +1340,13 @@ function canBlockExpand(block: SectionBlock): boolean {
                                 <Icon :name="sectionBlockIcons[level4child.type]" :size="12" class="text-muted-foreground" />
                               </div>
                               <span class="flex-1 truncate leading-4">{{ level4child.name }}</span>
+                              <!-- Interaction indicator (purple dot) -->
+                              <Tooltip v-if="blockHasInteraction(level4child.id)" text="Has interaction">
+                                <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
+                              </Tooltip>
                               <Tooltip v-if="level4child.sharedStyleId" text="Has shared style">
                                 <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                               </Tooltip>
-                              <!-- Action buttons with fade background -->
-                              <div
-                                class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pl-6 pr-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                :class="[
-                                  editorStore.selectedBlockId === level4child.id
-                                    ? 'bg-gradient-to-r from-transparent to-accent'
-                                    : 'bg-gradient-to-r from-transparent via-sidebar/80 to-sidebar'
-                                ]"
-                              >
-                                <Tooltip text="Duplicate">
-                                  <button
-                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-all"
-                                    @click.stop="handleDuplicateChildBlock(level4child.id, $event)"
-                                  >
-                                    <Icon name="layers-1" class="text-[10px]" />
-                                  </button>
-                                </Tooltip>
-                                <Tooltip text="Delete">
-                                  <button
-                                    class="w-5 h-5 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition-all"
-                                    @click.stop="handleDeleteChildBlock(level4child.id, $event)"
-                                  >
-                                    <Icon name="xmark" class="text-[10px]" />
-                                  </button>
-                                </Tooltip>
-                              </div>
                             </div>
                             <!-- Add block to level 4 layout block -->
                             <SidebarBlockPicker

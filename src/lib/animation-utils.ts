@@ -139,6 +139,40 @@ export const animationFinalStates: Record<AnimationPreset, string> = {
   'slide-right': 'transform: translateX(0);',
 }
 
+// Pre-parsed initial states as style objects (avoids runtime string parsing)
+export const animationInitialStyleObjects: Record<AnimationPreset, Record<string, string>> = {
+  'none': {},
+  'fade-in': { opacity: '0' },
+  'fade-up': { opacity: '0', transform: 'translateY(30px)' },
+  'fade-down': { opacity: '0', transform: 'translateY(-30px)' },
+  'fade-left': { opacity: '0', transform: 'translateX(30px)' },
+  'fade-right': { opacity: '0', transform: 'translateX(-30px)' },
+  'zoom-in': { opacity: '0', transform: 'scale(0.9)' },
+  'zoom-out': { opacity: '0', transform: 'scale(1.1)' },
+  'rotate-in': { opacity: '0', transform: 'rotate(-10deg) scale(0.95)' },
+  'slide-up': { transform: 'translateY(100%)' },
+  'slide-down': { transform: 'translateY(-100%)' },
+  'slide-left': { transform: 'translateX(100%)' },
+  'slide-right': { transform: 'translateX(-100%)' },
+}
+
+// Pre-parsed final states as style objects (avoids runtime string parsing)
+export const animationFinalStyleObjects: Record<AnimationPreset, Record<string, string>> = {
+  'none': {},
+  'fade-in': { opacity: '1' },
+  'fade-up': { opacity: '1', transform: 'translateY(0)' },
+  'fade-down': { opacity: '1', transform: 'translateY(0)' },
+  'fade-left': { opacity: '1', transform: 'translateX(0)' },
+  'fade-right': { opacity: '1', transform: 'translateX(0)' },
+  'zoom-in': { opacity: '1', transform: 'scale(1)' },
+  'zoom-out': { opacity: '1', transform: 'scale(1)' },
+  'rotate-in': { opacity: '1', transform: 'rotate(0) scale(1)' },
+  'slide-up': { transform: 'translateY(0)' },
+  'slide-down': { transform: 'translateY(0)' },
+  'slide-left': { transform: 'translateX(0)' },
+  'slide-right': { transform: 'translateX(0)' },
+}
+
 // ============================================
 // CSS GENERATION
 // ============================================

@@ -6,6 +6,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useUserStore } from '@/stores/user'
 import { Button, Badge, Command, Dropdown, Icon } from '@/components/ui'
 import ProjectTranslate from '@/components/modal/ProjectTranslate.vue'
+import ProjectPublished from '@/components/modal/ProjectPublished.vue'
 import { getLanguageByCode } from '@/lib/languages'
 import type { LanguageCode } from '@/types/editor'
 
@@ -18,6 +19,7 @@ const userStore = useUserStore()
 const showCommand = ref(false)
 const isPublishing = ref(false)
 const showTranslateModal = ref(false)
+const showPublishedModal = ref(false)
 
 // Translation helpers
 const currentLanguageDisplay = computed(() => {
@@ -151,7 +153,10 @@ async function handlePublish() {
     }
 
     // Publish (or republish) the project
-    await projectsStore.publishProject(projectId.value)
+    const success = await projectsStore.publishProject(projectId.value)
+    if (success) {
+      showPublishedModal.value = true
+    }
   } finally {
     isPublishing.value = false
   }
@@ -291,10 +296,10 @@ function handleCommandSelect(item: any) {
         <div class="h-5 w-px bg-border"></div>
 
         <!-- Language Selector -->
-        <Dropdown>
+        <Dropdown width="min-w-48">
           <template #trigger="{ toggle }">
             <button
-              class="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+              class="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors whitespace-nowrap"
               @click="toggle"
             >
               <Icon name="globe-1" class="text-sm" />
@@ -304,10 +309,9 @@ function handleCommandSelect(item: any) {
           </template>
 
           <!-- Default language option -->
-          <Dropdown.Item
-            :icon="editorStore.currentLanguage === null ? 'checkmark' : ''"
-            @click="handleLanguageChange(null)"
-          >
+          <Dropdown.Item @click="handleLanguageChange(null)">
+            <span v-if="editorStore.currentLanguage === null" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
+            <span v-else class="w-1.5 h-1.5 shrink-0"></span>
             <span>Default ({{ getLanguageByCode(editorStore.translations.defaultLanguage)?.name }})</span>
           </Dropdown.Item>
 
@@ -317,9 +321,10 @@ function handleCommandSelect(item: any) {
             <Dropdown.Item
               v-for="langCode in editorStore.availableTranslations"
               :key="langCode"
-              :icon="editorStore.currentLanguage === langCode ? 'checkmark' : ''"
               @click="handleLanguageChange(langCode)"
             >
+              <span v-if="editorStore.currentLanguage === langCode" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
+              <span v-else class="w-1.5 h-1.5 shrink-0"></span>
               <span>{{ getLanguageByCode(langCode)?.name }}</span>
             </Dropdown.Item>
           </template>
@@ -410,5 +415,14 @@ function handleCommandSelect(item: any) {
   <!-- Translation Modal -->
   <ProjectTranslate
     v-model:open="showTranslateModal"
+  />
+
+  <!-- Published Modal -->
+  <ProjectPublished
+    v-if="currentProject"
+    v-model:open="showPublishedModal"
+    :project-id="currentProject.id"
+    :project-slug="currentProject.slug"
+    :custom-domain="currentProject.customDomain"
   />
 </template>

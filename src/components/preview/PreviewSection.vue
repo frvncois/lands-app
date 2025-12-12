@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import DOMPurify from 'dompurify'
 import { useEditorStore } from '@/stores/editor'
 import type {
   SectionBlock,
@@ -31,12 +32,10 @@ import type {
   AnimationSettings,
   BaseBlockStyles,
   IconStyles,
-  StateStyles,
 } from '@/types/editor'
-import { STYLE_STATE_BLOCK_TYPES } from '@/types/editor'
 import {
-  animationInitialStates,
-  animationFinalStates,
+  animationInitialStyleObjects,
+  animationFinalStyleObjects,
   getAnimationKeyframeName,
   getAnimationCSSValue,
 } from '@/lib/animation-utils'
@@ -129,46 +128,30 @@ function playAnimation() {
   })
 }
 
-// Compute animation inline styles
+// Compute animation inline styles (using pre-parsed style objects for performance)
 const animationStyles = computed(() => {
   if (!supportsAnimation.value || !blockAnimation.value?.enabled) {
     return {}
   }
 
   const settings = blockAnimation.value
-  const styles: Record<string, string> = {}
 
   // For hover trigger, we use CSS transitions instead of animations
   if (settings.trigger === 'hover') {
-    styles.transition = `all ${settings.duration}ms ${settings.easing}`
-    return styles
+    return { transition: `all ${settings.duration}ms ${settings.easing}` }
   }
 
   // For page-load and in-view triggers, apply initial state and animation
   if (isAnimating.value) {
     // Apply the CSS animation
-    styles.animation = getAnimationCSSValue(settings)
-  } else {
-    // Apply initial state (before animation plays)
-    const initialState = animationInitialStates[settings.preset]
-    if (initialState) {
-      // Parse the initial state CSS and apply
-      const rules = initialState.split(';').filter(r => r.trim())
-      rules.forEach(rule => {
-        const [prop, val] = rule.split(':').map(s => s.trim())
-        if (prop && val) {
-          // Convert CSS property to camelCase
-          const camelProp = prop.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
-          styles[camelProp] = val
-        }
-      })
-    }
+    return { animation: getAnimationCSSValue(settings) }
   }
 
-  return styles
+  // Apply initial state (before animation plays) - use pre-parsed object
+  return { ...animationInitialStyleObjects[settings.preset] }
 })
 
-// Hover animation styles (applied on hover)
+// Hover animation styles (applied on hover) - use pre-parsed object
 const hoverAnimationStyles = computed(() => {
   if (!supportsAnimation.value || !blockAnimation.value?.enabled) {
     return {}
@@ -177,21 +160,8 @@ const hoverAnimationStyles = computed(() => {
   const settings = blockAnimation.value
   if (settings.trigger !== 'hover') return {}
 
-  const styles: Record<string, string> = {}
-  const finalState = animationFinalStates[settings.preset]
-
-  if (finalState) {
-    const rules = finalState.split(';').filter(r => r.trim())
-    rules.forEach(rule => {
-      const [prop, val] = rule.split(':').map(s => s.trim())
-      if (prop && val) {
-        const camelProp = prop.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
-        styles[camelProp] = val
-      }
-    })
-  }
-
-  return styles
+  // Return pre-parsed style object directly
+  return { ...animationFinalStyleObjects[settings.preset] }
 })
 
 // Mouse enter/leave handlers with hover animation support
@@ -584,6 +554,15 @@ function getBlockTranslation(field: string): string | undefined {
   return (blockTranslation as Record<string, unknown>)[field] as string | undefined
 }
 
+// Sanitize HTML content to prevent XSS attacks
+function sanitizeHtml(html: string | undefined): string {
+  if (!html) return ''
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['b', 'i', 'u', 'em', 'strong', 'a', 'br', 'span', 'p', 'ul', 'ol', 'li'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+  })
+}
+
 const displayHeadingContent = computed(() => {
   if (!headingSettings.value) return ''
   // Access reactive state directly for proper tracking
@@ -591,9 +570,9 @@ const displayHeadingContent = computed(() => {
   if (lang) {
     const langTranslations = editorStore.translations.languages[lang]
     const translated = langTranslations?.blocks[props.block.id]?.content
-    if (translated !== undefined) return translated
+    if (translated !== undefined) return sanitizeHtml(translated)
   }
-  return headingSettings.value.content
+  return sanitizeHtml(headingSettings.value.content)
 })
 
 const displayTextContent = computed(() => {
@@ -602,9 +581,9 @@ const displayTextContent = computed(() => {
   if (lang) {
     const langTranslations = editorStore.translations.languages[lang]
     const translated = langTranslations?.blocks[props.block.id]?.content
-    if (translated !== undefined) return translated
+    if (translated !== undefined) return sanitizeHtml(translated)
   }
-  return textSettings.value.content
+  return sanitizeHtml(textSettings.value.content)
 })
 
 const displayButtonLabel = computed(() => {
@@ -1279,17 +1258,6 @@ const blockStyles = computed(() => {
 
   const css: Record<string, string> = {}
 
-  // Check if we're editing a state style for THIS block
-  const currentState = editorStore.currentStyleState
-  const isEditingStateForThisBlock = currentState !== 'none' &&
-    editorStore.selectedBlockId === props.block.id &&
-    STYLE_STATE_BLOCK_TYPES.includes(props.block.type)
-
-  // Get state styles if editing a state
-  const stateStylesBeingEdited = isEditingStateForThisBlock
-    ? (allStyles[currentState] as StateStyles | undefined)
-    : undefined
-
   // Padding (responsive) - use em
   if (styles.padding) {
     const p = styles.padding as { top?: string; right?: string; bottom?: string; left?: string }
@@ -1309,18 +1277,7 @@ const blockStyles = computed(() => {
   }
 
   // Background (responsive)
-  // For blocks with state styles, use CSS custom properties so :hover/:active/:focus can override
-  const supportsStates = STYLE_STATE_BLOCK_TYPES.includes(props.block.type)
-  if (supportsStates) {
-    // Set base background as CSS variable, state styles will override via CSS
-    if (styles.backgroundColor) {
-      css['--base-bg'] = styles.backgroundColor as string
-    }
-    // If editing a state, show that state's background directly
-    if (stateStylesBeingEdited?.backgroundColor) {
-      css['--base-bg'] = stateStylesBeingEdited.backgroundColor
-    }
-  } else if (styles.backgroundColor) {
+  if (styles.backgroundColor) {
     css.backgroundColor = styles.backgroundColor as string
   }
   if (styles.backgroundImage) {
@@ -1366,17 +1323,8 @@ const blockStyles = computed(() => {
     const pxNum = parseFloat(pxValue)
     css.fontSize = pxToEm(pxNum)
   }
-  // Color: For blocks with state styles, use CSS custom properties so :hover/:active/:focus can override
-  if (supportsStates) {
-    // Set base color as CSS variable
-    if (allStyles.color) {
-      css['--base-color'] = allStyles.color as string
-    }
-    // If editing a state, show that state's color directly
-    if (stateStylesBeingEdited?.color) {
-      css['--base-color'] = stateStylesBeingEdited.color
-    }
-  } else if (allStyles.color) {
+  // Color
+  if (allStyles.color) {
     css.color = allStyles.color as string
   }
   if (allStyles.alignment) css.textAlign = allStyles.alignment as string
@@ -1413,53 +1361,132 @@ const blockStyles = computed(() => {
     css.mixBlendMode = styles.mixBlendMode as string
   }
 
-  // Add state style CSS custom properties if this block supports them
-  if (STYLE_STATE_BLOCK_TYPES.includes(props.block.type)) {
-    // Access state styles from allStyles to ensure reactivity
-    const hoverStyles = allStyles.hover as StateStyles | undefined
-    const pressedStyles = allStyles.pressed as StateStyles | undefined
-    const focusedStyles = allStyles.focused as StateStyles | undefined
+  // Note: Position styles are handled separately in wrapperStyles to keep outline/label working
 
-    const processStateStyles = (state: 'hover' | 'pressed' | 'focused', stateStyles: StateStyles | undefined) => {
-      if (!stateStyles) return
+  return css
+})
 
-      if (stateStyles.backgroundColor) {
-        css[`--${state}-bg`] = stateStyles.backgroundColor
-      }
-      if (stateStyles.color) {
-        css[`--${state}-color`] = stateStyles.color
-      }
-      if (stateStyles.opacity !== undefined) {
-        css[`--${state}-opacity`] = String(Number(stateStyles.opacity) / 100)
-      }
-      if (stateStyles.transform) {
-        css[`--${state}-transform`] = stateStyles.transform
-      }
-      if (stateStyles.border) {
-        const b = stateStyles.border
-        if (b.color) css[`--${state}-border-color`] = b.color
-        if (b.width) css[`--${state}-border-width`] = pxToEm(b.width)
-        if (b.radius) css[`--${state}-border-radius`] = pxToEm(b.radius)
-      }
-      if (stateStyles.shadow?.enabled) {
-        const s = stateStyles.shadow
-        css[`--${state}-shadow`] = `${pxToEm(s.x || '0')} ${pxToEm(s.y || '0')} ${pxToEm(s.blur || '0')} ${s.color || 'rgba(0,0,0,0.1)'}`
-      }
-    }
+// Compute wrapper/position styles (applied to outer section for proper outline/label positioning)
+const wrapperStyles = computed(() => {
+  const rawStyles = props.block.styles as BaseBlockStyles
+  if (!rawStyles) return {}
 
-    processStateStyles('hover', hoverStyles)
-    processStateStyles('pressed', pressedStyles)
-    processStateStyles('focused', focusedStyles)
+  const styles = getResponsiveStyles(rawStyles, editorStore.viewport)
+  const css: Record<string, string> = {}
+
+  // Position (responsive) - applied to wrapper so outline/label follow the element
+  if (styles.position && styles.position !== 'relative') {
+    css.position = styles.position as string
+  }
+  if (styles.zIndex !== undefined && styles.zIndex !== '' && styles.zIndex !== '0') {
+    css.zIndex = String(styles.zIndex)
+  }
+  if (styles.top !== undefined && styles.top !== '') {
+    css.top = pxToEm(styles.top as string)
+  }
+  if (styles.right !== undefined && styles.right !== '') {
+    css.right = pxToEm(styles.right as string)
+  }
+  if (styles.bottom !== undefined && styles.bottom !== '') {
+    css.bottom = pxToEm(styles.bottom as string)
+  }
+  if (styles.left !== undefined && styles.left !== '') {
+    css.left = pxToEm(styles.left as string)
   }
 
   return css
 })
 
-// Check if block supports state styles (heading, text, button, image, video, form inputs)
-// This is used to apply the .has-state-styles class which enables CSS variable-based styling
-const supportsStateStyles = computed(() => {
-  return STYLE_STATE_BLOCK_TYPES.includes(props.block.type)
+// ============================================
+// SPAN STYLES & INTERACTION
+// ============================================
+
+// Get spans from text/heading block settings
+const blockSpans = computed(() => {
+  if (props.block.type !== 'text' && props.block.type !== 'heading') return {}
+  const settings = props.block.settings as { spans?: Record<string, { id: string; name: string; styles: Record<string, unknown> }> }
+  return settings.spans || {}
 })
+
+// Generate CSS for all spans in this block
+const spanStylesCSS = computed(() => {
+  const spans = blockSpans.value
+  if (Object.keys(spans).length === 0) return ''
+
+  let css = ''
+  for (const [spanId, span] of Object.entries(spans)) {
+    const styles = span.styles
+    const selector = `[data-block-id="${props.block.id}"] .ld-styled-span[data-span-id="${spanId}"]`
+    let styleStr = ''
+
+    if (styles.color) styleStr += `color: ${styles.color};`
+    if (styles.backgroundColor) styleStr += `background-color: ${styles.backgroundColor};`
+    if (styles.fontWeight) styleStr += `font-weight: ${styles.fontWeight};`
+    if (styles.fontStyle) styleStr += `font-style: ${styles.fontStyle};`
+    if (styles.textDecoration && styles.textDecoration !== 'none') styleStr += `text-decoration: ${styles.textDecoration};`
+    if (styles.fontSize) {
+      const pxValue = fontSizeMap[styles.fontSize as string] || `${styles.fontSize}px`
+      styleStr += `font-size: ${pxToEm(parseFloat(pxValue))};`
+    }
+    if (styles.fontFamily) styleStr += `font-family: ${styles.fontFamily};`
+    if (styles.letterSpacing) styleStr += `letter-spacing: ${pxToEm(styles.letterSpacing as string)};`
+    if (styles.padding) styleStr += `padding: ${styles.padding};`
+    if (styles.borderRadius) styleStr += `border-radius: ${pxToEm(styles.borderRadius as string)};`
+    if (styles.border) {
+      const b = styles.border as { width?: string; color?: string; style?: string }
+      if (b.width) styleStr += `border: ${pxToEm(b.width)} ${b.style || 'solid'} ${b.color || 'currentColor'};`
+    }
+    if (styles.opacity && styles.opacity !== '100') styleStr += `opacity: ${parseFloat(styles.opacity as string) / 100};`
+    if (styles.mixBlendMode && styles.mixBlendMode !== 'normal') styleStr += `mix-blend-mode: ${styles.mixBlendMode};`
+
+    if (styleStr) {
+      css += `${selector} { ${styleStr} }\n`
+    }
+  }
+
+  // Add hover/selection outline styles for spans
+  const selectedId = editorStore.selectedSpanId
+  const hoveredId = editorStore.hoveredSpanId
+
+  if (selectedId && spans[selectedId]) {
+    css += `[data-block-id="${props.block.id}"] .ld-styled-span[data-span-id="${selectedId}"] { outline: 2px solid var(--color-primary); outline-offset: 2px; }\n`
+  }
+  if (hoveredId && spans[hoveredId] && hoveredId !== selectedId) {
+    css += `[data-block-id="${props.block.id}"] .ld-styled-span[data-span-id="${hoveredId}"] { outline: 1px solid var(--color-primary); outline-offset: 1px; opacity: 0.8; }\n`
+  }
+
+  return css
+})
+
+// Handle span click (select span)
+function handleSpanClick(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (target.classList.contains('ld-styled-span')) {
+    const spanId = target.getAttribute('data-span-id')
+    if (spanId) {
+      event.stopPropagation()
+      editorStore.selectSpan(spanId)
+    }
+  }
+}
+
+// Handle span hover
+function handleSpanMouseOver(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (target.classList.contains('ld-styled-span')) {
+    const spanId = target.getAttribute('data-span-id')
+    if (spanId) {
+      editorStore.hoverSpan(spanId)
+    }
+  }
+}
+
+function handleSpanMouseOut(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (target.classList.contains('ld-styled-span')) {
+    editorStore.hoverSpan(null)
+  }
+}
 
 // Helper to get image-specific styles
 function getImageStyles(): Record<string, string> {
@@ -1579,9 +1606,11 @@ function getButtonClasses(variant?: string, size?: string): string[] {
   <section
     v-if="!isHeaderFooterHidden && (!isBlockHidden || !isInsideListCollection)"
     ref="sectionRef"
-    class="relative w-full cursor-pointer overflow-visible"
+    class="w-full cursor-pointer overflow-visible"
+    :class="{ 'relative': !wrapperStyles.position }"
     data-preview-block
-    :style="animationStyles"
+    :data-block-id="block.id"
+    :style="{ ...animationStyles, ...wrapperStyles }"
     @click="handleClick"
     @contextmenu="handleContextMenu"
     @mouseenter="handleMouseEnter"
@@ -1590,7 +1619,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- Hover outline -->
     <div
       v-if="isHovered && !isSelected"
-      class="absolute inset-0 border-1 border-primary/40 rounded-lg pointer-events-none z-10"
+      class="absolute inset-0 border-1 border-primary/40 pointer-events-none z-10"
     />
 
     <!-- Selection outline -->
@@ -1605,7 +1634,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       :draggable="canDragBlock"
       class="absolute left-0 flex border items-center px-1.5 h-5 text-[10px] font-mono uppercase backdrop-blur-xs z-20 whitespace-nowrap pointer-events-auto"
       :class="[
-        labelShowBelow ? 'top-full mt-0.5 rounded-b' : 'bottom-full mb-0.5 rounded-t',
+        labelShowBelow ? 'top-full rounded-b' : 'bottom-full rounded-t',
         isSelected ? 'bg-indigo-600 border-indigo-500/10 text-blue-100' : 'bg-indigo-600/50 border-indigo-500/10 text-blue-100',
         canDragBlock || isInsideCanvas ? 'cursor-grab active:cursor-grabbing' : '',
         isCanvasDragging ? 'cursor-grabbing' : ''
@@ -2179,14 +2208,16 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           'text-3xl': headingSettings?.level === 'h4',
           'text-2xl': headingSettings?.level === 'h5',
           'text-xl': headingSettings?.level === 'h6',
-        } : {},
-        { 'has-state-styles': supportsStateStyles }
+        } : {}
       ]"
       :style="blockStyles"
       contenteditable="true"
       @blur="handleHeadingEdit($event)"
       @keydown.escape="handleEscapeKey($event)"
       @paste="handlePasteClean($event)"
+      @click="handleSpanClick"
+      @mouseover="handleSpanMouseOver"
+      @mouseout="handleSpanMouseOut"
       :key="`heading-${editorStore.currentLanguage || 'default'}`"
       v-html="displayHeadingContent || 'Heading'"
     />
@@ -2199,19 +2230,21 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       :ref="(el: any) => { if (block.type === 'text') editableRef = el }"
       :key="`text-${editorStore.currentLanguage || 'default'}`"
       class="prose prose-neutral max-w-none outline-none"
-      :class="{ 'has-state-styles': supportsStateStyles }"
       :style="blockStyles"
       contenteditable="true"
       @blur="handleTextEdit($event)"
       @keydown.escape="handleEscapeKey($event)"
       @paste="handlePasteClean($event)"
+      @click="handleSpanClick"
+      @mouseover="handleSpanMouseOver"
+      @mouseout="handleSpanMouseOut"
       v-html="displayTextContent || 'Enter your text here...'"
     ></div>
 
     <!-- ============================================ -->
     <!-- IMAGE BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'image'" class="flex justify-center" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
+    <div v-else-if="block.type === 'image'" class="flex justify-center" :style="blockStyles">
       <img v-if="imageSettings?.src" :src="imageSettings.src" :alt="displayImageAlt || ''" class="max-w-full h-auto" :style="getImageStyles()" />
       <div v-else class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center">
         <Icon name="content-image" class="text-4xl text-muted-foreground" />
@@ -2221,7 +2254,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ============================================ -->
     <!-- VIDEO BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'video'" class="flex justify-center" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
+    <div v-else-if="block.type === 'video'" class="flex justify-center" :style="blockStyles">
       <video v-if="videoSettings?.src" :src="videoSettings.src" :autoplay="videoSettings.autoplay" :loop="videoSettings.loop" :muted="videoSettings.muted" :controls="videoSettings.controls" class="max-w-full" :style="getVideoStyles()"></video>
       <div v-else class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center">
         <Icon name="play" class="text-4xl text-muted-foreground" />
@@ -2234,7 +2267,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <div v-else-if="block.type === 'button'" class="flex py-2" :class="{ 'justify-start': getButtonAlignment() === 'left', 'justify-center': !getButtonAlignment() || getButtonAlignment() === 'center', 'justify-end': getButtonAlignment() === 'right' }">
       <span
         :key="`button-${editorStore.currentLanguage || 'default'}`"
-        :class="[...getButtonClasses(buttonSettings?.variant, buttonSettings?.size), 'outline-none focus:ring-2 focus:ring-primary/20', { 'has-state-styles': supportsStateStyles }]"
+        :class="[...getButtonClasses(buttonSettings?.variant, buttonSettings?.size), 'outline-none focus:ring-2 focus:ring-primary/20']"
         :style="blockStyles"
         contenteditable="true"
         @blur="handleButtonEdit($event)"
@@ -2359,7 +2392,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         :placeholder="formInputSettings?.placeholder"
         :required="formInputSettings?.required"
         class="px-4 py-2 border border-input bg-background"
-        :class="{ 'has-state-styles': supportsStateStyles }"
         :style="blockStyles"
       />
     </div>
@@ -2375,7 +2407,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         :rows="formTextareaSettings?.rows || 4"
         :required="formTextareaSettings?.required"
         class="px-4 py-2 border border-input bg-background resize-none"
-        :class="{ 'has-state-styles': supportsStateStyles }"
         :style="blockStyles"
       ></textarea>
     </div>
@@ -2389,7 +2420,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       <select
         :required="formSelectSettings?.required"
         class="px-4 py-2 border border-input bg-background"
-        :class="{ 'has-state-styles': supportsStateStyles }"
         :style="blockStyles"
       >
         <option v-if="formSelectSettings?.placeholder" value="" disabled selected>{{ formSelectSettings.placeholder }}</option>
@@ -2400,7 +2430,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Radio -->
-    <div v-else-if="block.type === 'form-radio'" class="flex flex-col gap-1.5" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
+    <div v-else-if="block.type === 'form-radio'" class="flex flex-col gap-1.5" :style="blockStyles">
       <label v-if="formRadioSettings?.label" class="text-sm font-medium">
         {{ formRadioSettings.label }}
         <span v-if="formRadioSettings?.required" class="text-destructive">*</span>
@@ -2414,7 +2444,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Checkbox -->
-    <div v-else-if="block.type === 'form-checkbox'" class="flex flex-col gap-1.5" :class="{ 'has-state-styles': supportsStateStyles }" :style="blockStyles">
+    <div v-else-if="block.type === 'form-checkbox'" class="flex flex-col gap-1.5" :style="blockStyles">
       <label v-if="formCheckboxSettings?.label" class="text-sm font-medium">
         {{ formCheckboxSettings.label }}
         <span v-if="formCheckboxSettings?.required" class="text-destructive">*</span>
@@ -2437,8 +2467,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           formButtonSettings?.variant === 'secondary' ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' :
           formButtonSettings?.variant === 'outline' ? 'border border-input bg-transparent hover:bg-accent' :
           'bg-primary text-primary-foreground hover:bg-primary/90',
-          formButtonSettings?.fullWidth ? 'w-full' : '',
-          { 'has-state-styles': supportsStateStyles }
+          formButtonSettings?.fullWidth ? 'w-full' : ''
         ]"
         :style="blockStyles"
       >
@@ -2632,51 +2661,12 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <InlineFormatToolbar
       v-if="block.type === 'heading' || block.type === 'text'"
       :target-element="editableRef"
+      :block-id="block.id"
       @format="handleInlineFormat"
     />
+
+    <!-- Inject span styles for this block -->
+    <component v-if="spanStylesCSS" :is="'style'" v-html="spanStylesCSS" />
   </section>
 </template>
 
-<style>
-/* State styles - apply base and hover/active/focus styles via CSS custom properties
-   Using CSS variables allows :hover/:active/:focus pseudo-classes to override inline styles
-   Note: Not scoped because these styles need to apply to dynamically classed elements */
-.has-state-styles {
-  /* Apply base color and background from CSS variables (set in inline style) */
-  background-color: var(--base-bg, transparent);
-  color: var(--base-color, inherit);
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
-}
-
-.has-state-styles:hover {
-  /* Hover styles override base, fallback to base if not set */
-  background-color: var(--hover-bg, var(--base-bg, transparent));
-  color: var(--hover-color, var(--base-color, inherit));
-  border-color: var(--hover-border-color);
-  box-shadow: var(--hover-shadow);
-  opacity: var(--hover-opacity);
-  transform: var(--hover-transform);
-}
-
-.has-state-styles:active {
-  /* Pressed styles override hover, fallback to hover then base */
-  background-color: var(--pressed-bg, var(--hover-bg, var(--base-bg, transparent)));
-  color: var(--pressed-color, var(--hover-color, var(--base-color, inherit)));
-  border-color: var(--pressed-border-color, var(--hover-border-color));
-  box-shadow: var(--pressed-shadow, var(--hover-shadow));
-  opacity: var(--pressed-opacity, var(--hover-opacity));
-  transform: var(--pressed-transform, var(--hover-transform));
-}
-
-.has-state-styles:focus,
-.has-state-styles:focus-visible {
-  /* Focus styles, no cascading - just focused or base */
-  background-color: var(--focused-bg, var(--base-bg, transparent));
-  color: var(--focused-color, var(--base-color, inherit));
-  border-color: var(--focused-border-color);
-  box-shadow: var(--focused-shadow);
-  opacity: var(--focused-opacity);
-  transform: var(--focused-transform);
-  outline: none;
-}
-</style>
