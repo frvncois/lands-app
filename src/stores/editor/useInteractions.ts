@@ -7,6 +7,7 @@ import type {
   InteractionEffect,
   InteractionEasing,
   InteractionStyles,
+  ScrollAnimationConfig,
 } from '@/types/editor'
 import { generateId } from '@/lib/editor-utils'
 import { deepClone } from './helpers'
@@ -38,11 +39,11 @@ export function useInteractions(options: UseInteractionsOptions) {
   }
 
   /**
-   * Get interactions where a specific block is the target
+   * Get interactions where a specific block is a target
    */
   function getInteractionsTargetingBlock(blockId: string): Interaction[] {
     return (pageSettings.value.interactions || []).filter(
-      i => i.targetBlockId === blockId
+      i => i.targetBlockIds.includes(blockId)
     )
   }
 
@@ -60,12 +61,14 @@ export function useInteractions(options: UseInteractionsOptions) {
     name: string
     trigger: InteractionTrigger
     triggerBlockId: string
-    targetBlockId: string
+    targetBlockIds: string[]
     effectType?: InteractionEffect
     duration?: string
     easing?: InteractionEasing
     delay?: string
     styles?: InteractionStyles
+    scrollConfig?: ScrollAnimationConfig
+    fromStyles?: InteractionStyles
   }): Interaction | null {
     // Validate trigger block exists
     const triggerBlock = findBlockById(data.triggerBlockId)
@@ -74,10 +77,10 @@ export function useInteractions(options: UseInteractionsOptions) {
       return null
     }
 
-    // Validate target block exists
-    const targetBlock = findBlockById(data.targetBlockId)
-    if (!targetBlock) {
-      showToast('error', 'Target block not found')
+    // Validate at least one target block exists
+    const validTargetIds = data.targetBlockIds.filter(id => findBlockById(id) !== null)
+    if (validTargetIds.length === 0) {
+      showToast('error', 'No valid target blocks found')
       return null
     }
 
@@ -87,12 +90,14 @@ export function useInteractions(options: UseInteractionsOptions) {
       name: data.name,
       trigger: data.trigger,
       triggerBlockId: data.triggerBlockId,
-      targetBlockId: data.targetBlockId,
+      targetBlockIds: validTargetIds,
       effectType: data.effectType || 'transition',
       duration: data.duration || '300ms',
       easing: data.easing || 'ease',
       delay: data.delay,
       styles: data.styles || {},
+      scrollConfig: data.scrollConfig,
+      fromStyles: data.fromStyles,
       createdAt: now,
       updatedAt: now,
     }
@@ -277,37 +282,55 @@ export function useInteractions(options: UseInteractionsOptions) {
 
   /**
    * Clean up interactions when a block is deleted
-   * (removes interactions where deleted block is trigger or target)
+   * - Removes interactions where deleted block is the trigger
+   * - Removes deleted block from targetBlockIds arrays
+   * - Removes interactions that have no remaining targets
    */
   function cleanupBlockInteractions(blockId: string): void {
     const interactions = pageSettings.value.interactions
     if (!interactions) return
 
-    // Find interactions to remove (where block is trigger or target)
-    const toRemove = interactions.filter(
-      i => i.triggerBlockId === blockId || i.targetBlockId === blockId
+    // Find interactions to process
+    const affectedInteractions = interactions.filter(
+      i => i.triggerBlockId === blockId || i.targetBlockIds.includes(blockId)
     )
 
-    if (toRemove.length === 0) return
+    if (affectedInteractions.length === 0) return
 
     onBeforeChange()
 
-    for (const interaction of toRemove) {
-      // Remove from trigger block's interactionIds
-      if (interaction.triggerBlockId !== blockId) {
-        const triggerBlock = findBlockById(interaction.triggerBlockId)
-        if (triggerBlock?.interactionIds) {
-          const idx = triggerBlock.interactionIds.indexOf(interaction.id)
-          if (idx !== -1) {
-            triggerBlock.interactionIds.splice(idx, 1)
-          }
+    for (const interaction of affectedInteractions) {
+      // If the deleted block is the trigger, remove the whole interaction
+      if (interaction.triggerBlockId === blockId) {
+        const index = interactions.findIndex(i => i.id === interaction.id)
+        if (index !== -1) {
+          interactions.splice(index, 1)
         }
+        continue
       }
 
-      // Remove the interaction
-      const index = interactions.findIndex(i => i.id === interaction.id)
-      if (index !== -1) {
-        interactions.splice(index, 1)
+      // If the deleted block is a target, remove it from targetBlockIds
+      const targetIdx = interaction.targetBlockIds.indexOf(blockId)
+      if (targetIdx !== -1) {
+        interaction.targetBlockIds.splice(targetIdx, 1)
+
+        // If no targets remain, remove the interaction entirely
+        if (interaction.targetBlockIds.length === 0) {
+          // Remove from trigger block's interactionIds
+          const triggerBlock = findBlockById(interaction.triggerBlockId)
+          if (triggerBlock?.interactionIds) {
+            const idx = triggerBlock.interactionIds.indexOf(interaction.id)
+            if (idx !== -1) {
+              triggerBlock.interactionIds.splice(idx, 1)
+            }
+          }
+
+          // Remove the interaction
+          const index = interactions.findIndex(i => i.id === interaction.id)
+          if (index !== -1) {
+            interactions.splice(index, 1)
+          }
+        }
       }
     }
   }

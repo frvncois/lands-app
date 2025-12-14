@@ -166,7 +166,7 @@ export default {
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
+        class="fixed inset-0 z-[9999] flex items-start justify-center pt-[20vh]"
       >
         <!-- Backdrop -->
         <div

@@ -14,11 +14,14 @@ const editorStore = useEditorStore()
 
 // Ref for the preview container (for scoping interaction triggers)
 const previewContainerRef = ref<HTMLElement | null>(null)
+// Ref for the scroll container (for scroll-based interactions)
+const scrollContainerRef = ref<HTMLElement | null>(null)
 
-// Setup interaction triggers (click, load, appear)
+// Setup interaction triggers (click, load, appear, scroll)
 const { refresh: refreshInteractionTriggers } = useInteractionTriggers({
   interactions: () => editorStore.getInteractions(),
   containerRef: previewContainerRef,
+  scrollContainerRef: scrollContainerRef,
 })
 
 // Custom font loading
@@ -125,15 +128,20 @@ const interactionsKey = computed(() =>
     id: i.id,
     trigger: i.trigger,
     triggerBlockId: i.triggerBlockId,
-    targetBlockId: i.targetBlockId,
+    targetBlockIds: i.targetBlockIds,
     duration: i.duration,
     easing: i.easing,
     delay: i.delay,
     styles: i.styles,
+    scrollConfig: i.scrollConfig,
+    fromStyles: i.fromStyles,
     updatedAt: i.updatedAt,
   })))
 )
-watch(interactionsKey, () => loadInteractionCSS())
+watch(interactionsKey, () => {
+  loadInteractionCSS()
+  refreshInteractionTriggers()
+})
 
 // Load fonts and interactions on mount
 onMounted(() => {
@@ -407,9 +415,11 @@ function handleSectionDrop(event: DragEvent) {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full overflow-hidden">
-    <!-- Preview area -->
+  <!-- clip-path creates containing block for fixed elements without breaking scroll -->
+  <div class="flex-1 flex flex-col h-full overflow-hidden" style="clip-path: inset(0);">
+    <!-- Preview area (scroll container for scroll-based interactions) -->
     <div
+      ref="scrollContainerRef"
       class="flex-1 overflow-auto transition-colors [&>*]:min-h-full"
       :class="isDragOver ? 'bg-primary/5' : ''"
       @click="handlePreviewClick"

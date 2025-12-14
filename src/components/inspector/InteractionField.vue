@@ -136,9 +136,10 @@ function getTriggerLabel(trigger: Interaction['trigger']): string {
                   <span class="flex-1 truncate">{{ interaction.name }}</span>
 
                   <!-- Target indicator -->
-                  <Tooltip text="Target block">
+                  <Tooltip text="Target blocks">
                     <span class="text-[10px] text-muted-foreground">
-                      {{ interaction.targetBlockId === blockId ? 'self' : 'other' }}
+                      {{ interaction.targetBlockIds.includes(blockId) ? 'self' : 'other' }}
+                      {{ interaction.targetBlockIds.length > 1 ? `+${interaction.targetBlockIds.length - 1}` : '' }}
                     </span>
                   </Tooltip>
                 </button>

@@ -63,7 +63,7 @@ export function useBlockTree() {
 
   function blockHasInteraction(blockId: string): boolean {
     const interactions = editorStore.getInteractions()
-    return interactions.some(i => i.triggerBlockId === blockId || i.targetBlockId === blockId)
+    return interactions.some(i => i.triggerBlockId === blockId || i.targetBlockIds.includes(blockId))
   }
 
   // Auto-expand ancestors when selection changes

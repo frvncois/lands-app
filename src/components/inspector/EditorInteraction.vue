@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { Icon } from '@/components/ui'
 import InspectorSection from './InspectorSection.vue'
@@ -9,15 +9,14 @@ import SelectInput from './SelectInput.vue'
 import SegmentedControl from './SegmentedControl.vue'
 import SliderInput from './SliderInput.vue'
 import ColorInput from './ColorInput.vue'
-import BlockSelector from './BlockSelector.vue'
 import type {
   InteractionTrigger,
   InteractionEffect,
   InteractionEasing,
   InteractionStyles,
   BorderStyle,
+  ScrollAnimationConfig,
 } from '@/types/editor'
-import { BorderSection } from './sections'
 
 const props = defineProps<{
   interactionId?: string  // Existing interaction to edit
@@ -34,21 +33,29 @@ const editorStore = useEditorStore()
 // Form state
 const name = ref('')
 const trigger = ref<InteractionTrigger>('hover')
-const targetBlockId = ref('')
+const targetBlockIds = ref<string[]>([])
 const effectType = ref<InteractionEffect>('transition')
 const duration = ref('300')
 const easing = ref<InteractionEasing>('ease')
 const delay = ref('0')
 const styles = ref<InteractionStyles>({})
+const fromStyles = ref<InteractionStyles>({})
+const scrollConfig = ref<ScrollAnimationConfig>({ startOffset: 0, endOffset: 100 })
 const isAddStyleMenuOpen = ref(false)
 
 // From/To toggle for styles section
 const styleMode = ref<'from' | 'to'>('to')
 
-// Get the target block and its styles (for "From" section)
+// Check if current trigger is scroll-based
+const isScrollTrigger = computed(() =>
+  trigger.value === 'while-scrolling' || trigger.value === 'page-scroll'
+)
+
+// Get the first target block and its styles (for "From" section)
+// Note: For multi-target, From styles apply to all targets uniformly
 const targetBlock = computed(() => {
-  if (!targetBlockId.value) return null
-  return editorStore.findBlockById(targetBlockId.value)
+  if (!targetBlockIds.value.length) return null
+  return editorStore.findBlockById(targetBlockIds.value[0]!)
 })
 
 const targetBlockStyles = computed(() => {
@@ -56,16 +63,36 @@ const targetBlockStyles = computed(() => {
   return targetBlock.value.styles || {}
 })
 
-// Update target block styles (for "From" changes)
+// Update target block styles (for "From" changes) - applies to all targets
 function updateTargetBlockStyle(key: string, value: unknown) {
-  if (!targetBlockId.value) return
-  editorStore.updateBlockStyles(targetBlockId.value, { [key]: value })
+  if (!targetBlockIds.value.length) return
+  // Update all target blocks
+  for (const blockId of targetBlockIds.value) {
+    editorStore.updateBlockStyles(blockId, { [key]: value })
+  }
 }
 
 // Get a specific style value from the target block
 function getTargetBlockStyleValue(key: string): unknown {
   const styles = targetBlockStyles.value as Record<string, unknown>
   return styles[key]
+}
+
+// Get the "from" style value - uses fromStyles for scroll triggers, target block styles otherwise
+function getFromStyleValue(key: string): unknown {
+  if (isScrollTrigger.value) {
+    return (fromStyles.value as Record<string, unknown>)[key]
+  }
+  return getTargetBlockStyleValue(key)
+}
+
+// Update the "from" style - uses fromStyles for scroll triggers, target block styles otherwise
+function handleFromStyleUpdate(key: string, value: unknown) {
+  if (isScrollTrigger.value) {
+    updateFromStyle(key as keyof InteractionStyles, value)
+  } else {
+    updateTargetBlockStyle(key, value)
+  }
 }
 
 // Load existing interaction data
@@ -79,22 +106,28 @@ watch(existingInteraction, (interaction) => {
   if (interaction) {
     name.value = interaction.name
     trigger.value = interaction.trigger
-    targetBlockId.value = interaction.targetBlockId
+    targetBlockIds.value = [...interaction.targetBlockIds]
     effectType.value = interaction.effectType
     duration.value = interaction.duration.replace('ms', '')
     easing.value = interaction.easing
     delay.value = interaction.delay?.replace('ms', '') || '0'
     styles.value = { ...interaction.styles }
+    fromStyles.value = interaction.fromStyles ? { ...interaction.fromStyles } : {}
+    scrollConfig.value = interaction.scrollConfig
+      ? { ...interaction.scrollConfig }
+      : { startOffset: 0, endOffset: 100 }
   } else {
     // Defaults for new interaction
     name.value = 'New Interaction'
     trigger.value = 'hover'
-    targetBlockId.value = props.triggerBlockId // Default to same block
+    targetBlockIds.value = [props.triggerBlockId] // Default to same block
     effectType.value = 'transition'
     duration.value = '300'
     easing.value = 'ease'
     delay.value = '0'
     styles.value = {}
+    fromStyles.value = {}
+    scrollConfig.value = { startOffset: 0, endOffset: 100 }
   }
 }, { immediate: true })
 
@@ -104,6 +137,8 @@ const triggerOptions = [
   { value: 'click', label: 'Click', icon: 'app-pressed' },
   { value: 'load', label: 'Page Load', icon: 'style-page-load' },
   { value: 'appear', label: 'Appear', icon: 'app-show' },
+  { value: 'while-scrolling', label: 'While Scrolling', icon: 'scroll-down' },
+  { value: 'page-scroll', label: 'Page Scroll', icon: 'layers-1' },
 ]
 
 // Effect type options
@@ -125,13 +160,12 @@ const easingOptions = [
 // Active style sections (what user has chosen to configure)
 const activeStyleSections = ref<string[]>([])
 
-// Available style sections to add - using normal style icons
+// Available style sections to add
 const availableStyleSections = [
-  { id: 'background', label: 'Background', icon: 'style-color' },
+  { id: 'size', label: 'Size', icon: 'rulers' },
   { id: 'border', label: 'Border', icon: 'style-border-top' },
   { id: 'opacity', label: 'Opacity', icon: 'app-show' },
   { id: 'transform', label: 'Transform', icon: 'style-animation' },
-  { id: 'color', label: 'Text Color', icon: 'style-typography' },
 ]
 
 // Add a style section
@@ -149,8 +183,9 @@ function removeStyleSection(sectionId: string) {
     // Also remove the related style properties
     const newStyles = { ...styles.value }
     switch (sectionId) {
-      case 'background':
-        delete newStyles.backgroundColor
+      case 'size':
+        delete newStyles.width
+        delete newStyles.height
         break
       case 'border':
         delete newStyles.border
@@ -159,50 +194,69 @@ function removeStyleSection(sectionId: string) {
         delete newStyles.opacity
         break
       case 'transform':
-        delete newStyles.transform
         delete newStyles.scale
         delete newStyles.rotate
+        delete newStyles.blur
         delete newStyles.translateX
         delete newStyles.translateY
-        break
-      case 'color':
-        delete newStyles.color
         break
     }
     styles.value = newStyles
   }
 }
 
-// Update style property
+// Update style property (to styles)
 function updateStyle(key: keyof InteractionStyles, value: unknown) {
   styles.value = { ...styles.value, [key]: value }
 }
 
-// Preview the interaction animation
+// Update from style property (for scroll animations)
+function updateFromStyle(key: keyof InteractionStyles, value: unknown) {
+  fromStyles.value = { ...fromStyles.value, [key]: value }
+}
+
+// Update scroll config
+function updateScrollConfig(key: keyof ScrollAnimationConfig, value: number) {
+  scrollConfig.value = { ...scrollConfig.value, [key]: value }
+}
+
+// Preview the interaction animation on all targets
 function handlePreview() {
-  if (!targetBlockId.value || Object.keys(styles.value).length === 0) return
-  editorStore.previewInteractionStyles(
-    targetBlockId.value,
-    styles.value,
-    `${duration.value}ms`,
-    easing.value,
-    delay.value ? `${delay.value}ms` : undefined
-  )
+  if (!targetBlockIds.value.length || Object.keys(styles.value).length === 0) return
+  // Preview on all target blocks
+  for (const blockId of targetBlockIds.value) {
+    editorStore.previewInteractionStyles(
+      blockId,
+      styles.value,
+      `${duration.value}ms`,
+      easing.value,
+      delay.value ? `${delay.value}ms` : undefined
+    )
+  }
 }
 
 // Save interaction (create or update) - exposed for parent to call
 function save() {
+  // Build scroll-specific fields only for scroll triggers
+  const scrollFields = isScrollTrigger.value
+    ? {
+        scrollConfig: scrollConfig.value,
+        fromStyles: Object.keys(fromStyles.value).length > 0 ? fromStyles.value : undefined,
+      }
+    : {}
+
   if (props.interactionId) {
     // Update existing
     editorStore.updateInteraction(props.interactionId, {
       name: name.value,
       trigger: trigger.value,
-      targetBlockId: targetBlockId.value,
+      targetBlockIds: targetBlockIds.value,
       effectType: effectType.value,
       duration: `${duration.value}ms`,
       easing: easing.value,
       delay: delay.value ? `${delay.value}ms` : undefined,
       styles: styles.value,
+      ...scrollFields,
     })
     emit('close')
   } else {
@@ -211,12 +265,13 @@ function save() {
       name: name.value,
       trigger: trigger.value,
       triggerBlockId: props.triggerBlockId,
-      targetBlockId: targetBlockId.value,
+      targetBlockIds: targetBlockIds.value,
       effectType: effectType.value,
       duration: `${duration.value}ms`,
       easing: easing.value,
       delay: delay.value ? `${delay.value}ms` : undefined,
       styles: styles.value,
+      ...scrollFields,
     })
     if (newInteraction) {
       emit('created', newInteraction.id)
@@ -232,16 +287,64 @@ defineExpose({ save })
 watch(existingInteraction, (interaction) => {
   if (interaction) {
     const sections: string[] = []
-    if (interaction.styles.backgroundColor) sections.push('background')
+    if (interaction.styles.width || interaction.styles.height) sections.push('size')
     if (interaction.styles.border) sections.push('border')
     if (interaction.styles.opacity !== undefined) sections.push('opacity')
-    if (interaction.styles.transform || interaction.styles.scale || interaction.styles.rotate || interaction.styles.translateX || interaction.styles.translateY) {
+    if (interaction.styles.scale || interaction.styles.rotate || interaction.styles.blur || interaction.styles.translateX || interaction.styles.translateY) {
       sections.push('transform')
     }
-    if (interaction.styles.color) sections.push('color')
     activeStyleSections.value = sections
   }
 }, { immediate: true })
+
+// ============================================
+// TARGET BLOCK SELECTION MODE
+// ============================================
+
+const isSelectingTarget = ref(false)
+
+// Start target selection mode - clicking blocks in preview will add them
+function startTargetSelection() {
+  isSelectingTarget.value = true
+  editorStore.startInteractionTargetSelection((blockId: string) => {
+    // Toggle the block in targets
+    if (targetBlockIds.value.includes(blockId)) {
+      // Already selected - remove it (but keep at least one)
+      if (targetBlockIds.value.length > 1) {
+        targetBlockIds.value = targetBlockIds.value.filter(id => id !== blockId)
+      }
+    } else {
+      // Add to targets
+      targetBlockIds.value = [...targetBlockIds.value, blockId]
+    }
+  })
+}
+
+// Stop target selection mode
+function stopTargetSelection() {
+  isSelectingTarget.value = false
+  editorStore.stopInteractionTargetSelection()
+}
+
+// Remove a specific block from targets
+function removeTargetBlock(blockId: string) {
+  if (targetBlockIds.value.length > 1) {
+    targetBlockIds.value = targetBlockIds.value.filter(id => id !== blockId)
+  }
+}
+
+// Get block name for display
+function getBlockName(blockId: string): string {
+  const block = editorStore.findBlockById(blockId)
+  return block?.name || 'Unknown Block'
+}
+
+// Cleanup on unmount - stop selection mode if active
+onUnmounted(() => {
+  if (isSelectingTarget.value) {
+    stopTargetSelection()
+  }
+})
 </script>
 
 <template>
@@ -261,32 +364,93 @@ watch(existingInteraction, (interaction) => {
       <!-- Trigger Section -->
       <InspectorSection title="When" icon="style-when">
         <InspectorField label="Trigger">
-          <div class="grid grid-cols-2 gap-2">
+          <div class="grid grid-cols-3 gap-2">
             <button
               v-for="option in triggerOptions"
               :key="option.value"
               type="button"
-              class="flex items-center gap-2 px-3 py-2 text-xs rounded-lg border transition-colors"
+              class="flex flex-col items-center gap-1.5 px-2 py-2.5 text-[10px] rounded-lg border transition-colors"
               :class="trigger === option.value
                 ? 'border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400'
                 : 'border-border hover:bg-muted/50 text-muted-foreground'"
               @click="trigger = option.value as InteractionTrigger"
             >
-              <Icon :name="option.icon" :size="14" />
-              <span>{{ option.label }}</span>
+              <Icon :name="option.icon" :size="16" />
+              <span class="leading-tight text-center">{{ option.label }}</span>
             </button>
           </div>
         </InspectorField>
+
+        <!-- Scroll Range (only for scroll triggers) -->
+        <template v-if="isScrollTrigger">
+          <div class="mt-3 pt-3 border-t border-border/50">
+            <p class="text-[10px] text-muted-foreground mb-3">
+              {{ trigger === 'while-scrolling'
+                ? 'Animates based on element position in viewport'
+                : 'Animates based on page scroll position' }}
+            </p>
+            <InspectorField label="Start" horizontal>
+              <SliderInput
+                :model-value="String(scrollConfig.startOffset || 0)"
+                :min="0"
+                :max="100"
+                :step="5"
+                unit="%"
+                @update:model-value="updateScrollConfig('startOffset', Number($event))"
+              />
+            </InspectorField>
+            <InspectorField label="End" horizontal>
+              <SliderInput
+                :model-value="String(scrollConfig.endOffset || 100)"
+                :min="0"
+                :max="100"
+                :step="5"
+                unit="%"
+                @update:model-value="updateScrollConfig('endOffset', Number($event))"
+              />
+            </InspectorField>
+          </div>
+        </template>
       </InspectorSection>
 
       <!-- Target Section -->
       <InspectorSection title="Applied to" icon="style-applied-to">
-        <InspectorField label="Target Block">
-          <BlockSelector
-            v-model="targetBlockId"
-            :current-block-id="triggerBlockId"
-          />
-        </InspectorField>
+        <!-- Selected target blocks list -->
+        <div v-if="targetBlockIds.length > 0" class="space-y-1.5 mb-3">
+          <div
+            v-for="blockId in targetBlockIds"
+            :key="blockId"
+            class="flex items-center gap-2 px-2.5 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-lg group"
+          >
+            <Icon name="cube" :size="12" class="text-violet-500 shrink-0" />
+            <span class="flex-1 text-xs text-foreground truncate">{{ getBlockName(blockId) }}</span>
+            <button
+              v-if="targetBlockIds.length > 1"
+              type="button"
+              class="p-0.5 rounded hover:bg-destructive/20 opacity-0 group-hover:opacity-100 transition-opacity"
+              @click="removeTargetBlock(blockId)"
+            >
+              <Icon name="xmark" :size="10" class="text-muted-foreground hover:text-destructive" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Selection mode button -->
+        <button
+          type="button"
+          class="w-full flex items-center justify-center gap-2 py-2 text-xs border border-dashed rounded-lg transition-colors"
+          :class="isSelectingTarget
+            ? 'text-violet-500 border-violet-500 bg-violet-500/10'
+            : 'text-muted-foreground border-border hover:border-violet-500/50 hover:text-violet-500'"
+          @click="isSelectingTarget ? stopTargetSelection() : startTargetSelection()"
+        >
+          <Icon :name="isSelectingTarget ? 'checkmark' : 'plus'" :size="12" />
+          <span>{{ isSelectingTarget ? 'Done selecting' : 'Select a block to target' }}</span>
+        </button>
+
+        <p v-if="isSelectingTarget" class="text-[10px] text-violet-500 mt-2 text-center">
+          Click on blocks in the preview to add or remove them
+        </p>
       </InspectorSection>
 
       <!-- Effect Section -->
@@ -341,44 +505,73 @@ watch(existingInteraction, (interaction) => {
           />
         </div>
 
-        <!-- FROM: Target block's current styles -->
+        <!-- FROM: Starting styles (scroll triggers use fromStyles, others use target block styles) -->
         <template v-if="styleMode === 'from'">
-          <div v-if="!targetBlockId" class="text-xs text-muted-foreground text-center py-4">
-            Select a target block first
+          <div v-if="!targetBlockIds.length" class="text-xs text-muted-foreground text-center py-4">
+            Select target blocks first
           </div>
           <div v-else-if="activeStyleSections.length === 0" class="text-xs text-muted-foreground text-center py-4">
             Add style properties below to configure the starting state
           </div>
           <div v-else class="space-y-3">
-            <!-- Background -->
-            <div v-if="activeStyleSections.includes('background')">
-              <InspectorField label="Background" horizontal>
-                <ColorInput
-                  :model-value="(getTargetBlockStyleValue('backgroundColor') as string) || ''"
-                  swatch-only
-                  @update:model-value="updateTargetBlockStyle('backgroundColor', $event)"
+            <!-- Info text for scroll triggers -->
+            <p v-if="isScrollTrigger" class="text-[10px] text-muted-foreground -mt-1 mb-2">
+              Starting styles at {{ scrollConfig.startOffset }}% scroll position
+            </p>
+
+            <!-- Size -->
+            <div v-if="activeStyleSections.includes('size')" class="space-y-2">
+              <InspectorField label="Width" horizontal>
+                <TextInput
+                  :model-value="(getFromStyleValue('width') as string) || ''"
+                  placeholder="auto"
+                  @update:model-value="handleFromStyleUpdate('width', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Height" horizontal>
+                <TextInput
+                  :model-value="(getFromStyleValue('height') as string) || ''"
+                  placeholder="auto"
+                  @update:model-value="handleFromStyleUpdate('height', $event)"
                 />
               </InspectorField>
             </div>
 
             <!-- Border -->
-            <div v-if="activeStyleSections.includes('border')">
-              <BorderSection
-                :model-value="(getTargetBlockStyleValue('border') as BorderStyle) || {}"
-                @update:model-value="updateTargetBlockStyle('border', $event)"
-              />
+            <div v-if="activeStyleSections.includes('border')" class="space-y-2">
+              <InspectorField label="Width" horizontal>
+                <TextInput
+                  :model-value="(getFromStyleValue('border') as BorderStyle)?.width || ''"
+                  placeholder="0px"
+                  @update:model-value="handleFromStyleUpdate('border', { ...(getFromStyleValue('border') as BorderStyle || {}), width: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Rounded" horizontal>
+                <TextInput
+                  :model-value="(getFromStyleValue('border') as BorderStyle)?.radius || ''"
+                  placeholder="0px"
+                  @update:model-value="handleFromStyleUpdate('border', { ...(getFromStyleValue('border') as BorderStyle || {}), radius: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Color" horizontal>
+                <ColorInput
+                  :model-value="(getFromStyleValue('border') as BorderStyle)?.color || ''"
+                  swatch-only
+                  @update:model-value="handleFromStyleUpdate('border', { ...(getFromStyleValue('border') as BorderStyle || {}), color: $event })"
+                />
+              </InspectorField>
             </div>
 
             <!-- Opacity -->
             <div v-if="activeStyleSections.includes('opacity')">
               <InspectorField label="Opacity" horizontal>
                 <SliderInput
-                  :model-value="String(getTargetBlockStyleValue('opacity') || '100')"
+                  :model-value="String(getFromStyleValue('opacity') || '100')"
                   :min="0"
                   :max="100"
                   :step="5"
                   unit="%"
-                  @update:model-value="updateTargetBlockStyle('opacity', $event)"
+                  @update:model-value="handleFromStyleUpdate('opacity', $event)"
                 />
               </InspectorField>
             </div>
@@ -387,52 +580,51 @@ watch(existingInteraction, (interaction) => {
             <div v-if="activeStyleSections.includes('transform')" class="space-y-2">
               <InspectorField label="Scale" horizontal>
                 <SliderInput
-                  :model-value="String(getTargetBlockStyleValue('scale') || '1')"
+                  :model-value="String(getFromStyleValue('scale') || '1')"
                   :min="0"
                   :max="2"
                   :step="0.05"
-                  @update:model-value="updateTargetBlockStyle('scale', $event)"
+                  @update:model-value="handleFromStyleUpdate('scale', $event)"
                 />
               </InspectorField>
               <InspectorField label="Rotate" horizontal>
                 <SliderInput
-                  :model-value="String(getTargetBlockStyleValue('rotate') || '0')"
+                  :model-value="String(getFromStyleValue('rotate') || '0')"
                   :min="-180"
                   :max="180"
                   :step="5"
                   unit="deg"
-                  @update:model-value="updateTargetBlockStyle('rotate', $event)"
+                  @update:model-value="handleFromStyleUpdate('rotate', $event)"
                 />
               </InspectorField>
-              <InspectorField label="Move X" horizontal>
+              <InspectorField label="Translate X" horizontal>
                 <SliderInput
-                  :model-value="String(getTargetBlockStyleValue('translateX') || '0')"
-                  :min="-100"
-                  :max="100"
+                  :model-value="String(getFromStyleValue('translateX') || '0')"
+                  :min="-200"
+                  :max="200"
                   :step="5"
                   unit="px"
-                  @update:model-value="updateTargetBlockStyle('translateX', $event)"
+                  @update:model-value="handleFromStyleUpdate('translateX', $event)"
                 />
               </InspectorField>
-              <InspectorField label="Move Y" horizontal>
+              <InspectorField label="Translate Y" horizontal>
                 <SliderInput
-                  :model-value="String(getTargetBlockStyleValue('translateY') || '0')"
-                  :min="-100"
-                  :max="100"
+                  :model-value="String(getFromStyleValue('translateY') || '0')"
+                  :min="-200"
+                  :max="200"
                   :step="5"
                   unit="px"
-                  @update:model-value="updateTargetBlockStyle('translateY', $event)"
+                  @update:model-value="handleFromStyleUpdate('translateY', $event)"
                 />
               </InspectorField>
-            </div>
-
-            <!-- Text Color -->
-            <div v-if="activeStyleSections.includes('color')">
-              <InspectorField label="Text Color" horizontal>
-                <ColorInput
-                  :model-value="(getTargetBlockStyleValue('color') as string) || ''"
-                  swatch-only
-                  @update:model-value="updateTargetBlockStyle('color', $event)"
+              <InspectorField label="Blur" horizontal>
+                <SliderInput
+                  :model-value="String(getFromStyleValue('blur') || '0')"
+                  :min="0"
+                  :max="20"
+                  :step="1"
+                  unit="px"
+                  @update:model-value="handleFromStyleUpdate('blur', $event)"
                 />
               </InspectorField>
             </div>
@@ -443,26 +635,33 @@ watch(existingInteraction, (interaction) => {
         <template v-else>
           <!-- Active style sections -->
           <div v-if="activeStyleSections.length > 0" class="space-y-3">
-            <!-- Background -->
-            <div v-if="activeStyleSections.includes('background')" class="relative">
+            <!-- Size -->
+            <div v-if="activeStyleSections.includes('size')" class="relative space-y-2">
               <button
                 type="button"
                 class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
-                @click="removeStyleSection('background')"
+                @click="removeStyleSection('size')"
               >
                 <Icon name="xmark" :size="10" class="text-muted-foreground" />
               </button>
-              <InspectorField label="Background" horizontal>
-                <ColorInput
-                  :model-value="styles.backgroundColor || ''"
-                  swatch-only
-                  @update:model-value="updateStyle('backgroundColor', $event)"
+              <InspectorField label="Width" horizontal>
+                <TextInput
+                  :model-value="styles.width || ''"
+                  placeholder="auto"
+                  @update:model-value="updateStyle('width', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Height" horizontal>
+                <TextInput
+                  :model-value="styles.height || ''"
+                  placeholder="auto"
+                  @update:model-value="updateStyle('height', $event)"
                 />
               </InspectorField>
             </div>
 
             <!-- Border -->
-            <div v-if="activeStyleSections.includes('border')" class="relative">
+            <div v-if="activeStyleSections.includes('border')" class="relative space-y-2">
               <button
                 type="button"
                 class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
@@ -470,10 +669,27 @@ watch(existingInteraction, (interaction) => {
               >
                 <Icon name="xmark" :size="10" class="text-muted-foreground" />
               </button>
-              <BorderSection
-                :model-value="styles.border || {}"
-                @update:model-value="updateStyle('border', $event)"
-              />
+              <InspectorField label="Width" horizontal>
+                <TextInput
+                  :model-value="styles.border?.width || ''"
+                  placeholder="0px"
+                  @update:model-value="updateStyle('border', { ...styles.border, width: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Rounded" horizontal>
+                <TextInput
+                  :model-value="styles.border?.radius || ''"
+                  placeholder="0px"
+                  @update:model-value="updateStyle('border', { ...styles.border, radius: $event })"
+                />
+              </InspectorField>
+              <InspectorField label="Color" horizontal>
+                <ColorInput
+                  :model-value="styles.border?.color || ''"
+                  swatch-only
+                  @update:model-value="updateStyle('border', { ...styles.border, color: $event })"
+                />
+              </InspectorField>
             </div>
 
             <!-- Opacity -->
@@ -525,42 +741,34 @@ watch(existingInteraction, (interaction) => {
                   @update:model-value="updateStyle('rotate', $event)"
                 />
               </InspectorField>
-              <InspectorField label="Move X" horizontal>
+              <InspectorField label="Translate X" horizontal>
                 <SliderInput
                   :model-value="styles.translateX || '0'"
-                  :min="-100"
-                  :max="100"
+                  :min="-200"
+                  :max="200"
                   :step="5"
                   unit="px"
                   @update:model-value="updateStyle('translateX', $event)"
                 />
               </InspectorField>
-              <InspectorField label="Move Y" horizontal>
+              <InspectorField label="Translate Y" horizontal>
                 <SliderInput
                   :model-value="styles.translateY || '0'"
-                  :min="-100"
-                  :max="100"
+                  :min="-200"
+                  :max="200"
                   :step="5"
                   unit="px"
                   @update:model-value="updateStyle('translateY', $event)"
                 />
               </InspectorField>
-            </div>
-
-            <!-- Text Color -->
-            <div v-if="activeStyleSections.includes('color')" class="relative">
-              <button
-                type="button"
-                class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
-                @click="removeStyleSection('color')"
-              >
-                <Icon name="xmark" :size="10" class="text-muted-foreground" />
-              </button>
-              <InspectorField label="Text Color" horizontal>
-                <ColorInput
-                  :model-value="styles.color || ''"
-                  swatch-only
-                  @update:model-value="updateStyle('color', $event)"
+              <InspectorField label="Blur" horizontal>
+                <SliderInput
+                  :model-value="styles.blur || '0'"
+                  :min="0"
+                  :max="20"
+                  :step="1"
+                  unit="px"
+                  @update:model-value="updateStyle('blur', $event)"
                 />
               </InspectorField>
             </div>
@@ -626,8 +834,8 @@ watch(existingInteraction, (interaction) => {
         <button
           type="button"
           class="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30 rounded-lg transition-colors"
-          :disabled="!targetBlockId || activeStyleSections.length === 0"
-          :class="{ 'opacity-50 cursor-not-allowed': !targetBlockId || activeStyleSections.length === 0 }"
+          :disabled="!targetBlockIds.length || activeStyleSections.length === 0"
+          :class="{ 'opacity-50 cursor-not-allowed': !targetBlockIds.length || activeStyleSections.length === 0 }"
           @click="handlePreview"
         >
           <Icon name="control-play" :size="14" />

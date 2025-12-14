@@ -2,10 +2,28 @@
  * Interaction CSS utilities
  *
  * Generates CSS for the interaction system - transitions and animations
- * triggered by hover, click, load, or appear events.
+ * triggered by hover, click, load, appear, while-scrolling, or page-scroll events.
  */
 
 import type { Interaction, InteractionStyles, InteractionEasing } from '@/types/editor'
+
+/**
+ * Check if CSS Scroll-Driven Animations are supported
+ */
+export function supportsScrollDrivenAnimations(): boolean {
+  if (typeof window === 'undefined' || typeof CSS === 'undefined') return false
+  return CSS.supports('animation-timeline', 'scroll()')
+}
+
+/**
+ * Normalize duration string to include unit
+ */
+function normalizeDuration(duration: string): string {
+  if (duration.includes('ms') || duration.includes('s')) {
+    return duration
+  }
+  return `${duration}ms`
+}
 
 /**
  * Convert InteractionEasing to CSS easing function
@@ -74,6 +92,13 @@ function stylesToCSS(styles: InteractionStyles): string {
     cssProperties.push(`box-shadow: ${x} ${y} ${blur} ${color}`)
   } else if (styles.shadow && styles.shadow.enabled === false) {
     cssProperties.push('box-shadow: none')
+  }
+
+  // Blur filter
+  if (styles.blur) {
+    const blurValue = String(styles.blur)
+    const blurCSS = blurValue.includes('px') ? blurValue : `${blurValue}px`
+    cssProperties.push(`filter: blur(${blurCSS})`)
   }
 
   // Transform - build composite transform
@@ -147,6 +172,7 @@ function getTransitionProperties(styles: InteractionStyles): string[] {
   }
   if (styles.opacity !== undefined) properties.push('opacity')
   if (styles.shadow) properties.push('box-shadow')
+  if (styles.blur) properties.push('filter')
   if (styles.scale || styles.rotate || styles.translateX || styles.translateY || styles.transform) {
     properties.push('transform')
   }
@@ -162,12 +188,11 @@ function getTransitionProperties(styles: InteractionStyles): string[] {
 }
 
 /**
- * Generate CSS for a single hover interaction
+ * Generate CSS for a single hover interaction (supports multiple targets)
  */
 function generateHoverCSS(interaction: Interaction): string {
   const triggerSelector = `[data-block-id="${interaction.triggerBlockId}"]`
-  const targetSelector = `[data-block-id="${interaction.targetBlockId}"]`
-  const isSelfTarget = interaction.triggerBlockId === interaction.targetBlockId
+  const targetBlockIds = interaction.targetBlockIds
 
   const duration = interaction.duration.includes('ms') || interaction.duration.includes('s')
     ? interaction.duration
@@ -188,45 +213,50 @@ function generateHoverCSS(interaction: Interaction): string {
 
   let css = ''
 
-  // Add transition to target element
-  css += `${targetSelector} {
+  for (const targetBlockId of targetBlockIds) {
+    const targetSelector = `[data-block-id="${targetBlockId}"]`
+    const isSelfTarget = interaction.triggerBlockId === targetBlockId
+
+    // Add transition to target element
+    css += `${targetSelector} {
   transition: ${transitionValue};
 }\n`
 
-  if (isSelfTarget) {
-    // Simple case: hover on self
-    css += `${triggerSelector}:hover {
+    if (isSelfTarget) {
+      // Simple case: hover on self
+      css += `${triggerSelector}:hover {
   ${styleCSS};
 }\n`
-  } else {
-    // Cross-block: trigger affects another block
-    // Handle various DOM relationships
+    } else {
+      // Cross-block: trigger affects another block
+      // Handle various DOM relationships
 
-    // Case 1: Target is a descendant of trigger
-    css += `${triggerSelector}:hover ${targetSelector} {
-  ${styleCSS};
-}\n`
-
-    // Case 2: Target is a sibling (general sibling combinator)
-    css += `${triggerSelector}:hover ~ ${targetSelector} {
+      // Case 1: Target is a descendant of trigger
+      css += `${triggerSelector}:hover ${targetSelector} {
   ${styleCSS};
 }\n`
 
-    // Case 3: Use a parent container with has() for more complex cases
-    // This allows targeting any block when hovering over any other block
-    css += `.lands-preview:has(${triggerSelector}:hover) ${targetSelector} {
+      // Case 2: Target is a sibling (general sibling combinator)
+      css += `${triggerSelector}:hover ~ ${targetSelector} {
   ${styleCSS};
 }\n`
+
+      // Case 3: Use a parent container with has() for more complex cases
+      // This allows targeting any block when hovering over any other block
+      css += `.lands-preview:has(${triggerSelector}:hover) ${targetSelector} {
+  ${styleCSS};
+}\n`
+    }
   }
 
   return css
 }
 
 /**
- * Generate CSS for a click interaction (uses active state + JS toggle class)
+ * Generate CSS for a click interaction (uses active state + JS toggle class, supports multiple targets)
  */
 function generateClickCSS(interaction: Interaction): string {
-  const targetSelector = `[data-block-id="${interaction.targetBlockId}"]`
+  const targetBlockIds = interaction.targetBlockIds
 
   const duration = interaction.duration.includes('ms') || interaction.duration.includes('s')
     ? interaction.duration
@@ -245,21 +275,28 @@ function generateClickCSS(interaction: Interaction): string {
 
   const styleCSS = stylesToCSS(interaction.styles)
 
+  let css = ''
+
   // For click interactions, we use a class that's toggled via JavaScript
   // The class format is: interaction-active-{interactionId}
-  return `${targetSelector} {
+  for (const targetBlockId of targetBlockIds) {
+    const targetSelector = `[data-block-id="${targetBlockId}"]`
+    css += `${targetSelector} {
   transition: ${transitionValue};
 }
 ${targetSelector}.interaction-active-${interaction.id} {
   ${styleCSS};
 }\n`
+  }
+
+  return css
 }
 
 /**
- * Generate CSS for a load animation
+ * Generate CSS for a load animation (supports multiple targets)
  */
 function generateLoadCSS(interaction: Interaction): string {
-  const targetSelector = `[data-block-id="${interaction.targetBlockId}"]`
+  const targetBlockIds = interaction.targetBlockIds
 
   const duration = interaction.duration.includes('ms') || interaction.duration.includes('s')
     ? interaction.duration
@@ -274,24 +311,30 @@ function generateLoadCSS(interaction: Interaction): string {
   const styleCSS = stylesToCSS(interaction.styles)
   const animationName = `interaction-load-${interaction.id}`
 
-  return `@keyframes ${animationName} {
+  let css = `@keyframes ${animationName} {
   from {
     /* Initial state - opposite of target styles */
   }
   to {
     ${styleCSS};
   }
-}
-${targetSelector} {
+}\n`
+
+  for (const targetBlockId of targetBlockIds) {
+    const targetSelector = `[data-block-id="${targetBlockId}"]`
+    css += `${targetSelector} {
   animation: ${animationName} ${duration} ${easing} ${delay} forwards;
 }\n`
+  }
+
+  return css
 }
 
 /**
- * Generate CSS for an appear animation (triggered by intersection observer)
+ * Generate CSS for an appear animation (triggered by intersection observer, supports multiple targets)
  */
 function generateAppearCSS(interaction: Interaction): string {
-  const targetSelector = `[data-block-id="${interaction.targetBlockId}"]`
+  const targetBlockIds = interaction.targetBlockIds
 
   const duration = interaction.duration.includes('ms') || interaction.duration.includes('s')
     ? interaction.duration
@@ -310,13 +353,116 @@ function generateAppearCSS(interaction: Interaction): string {
 
   const styleCSS = stylesToCSS(interaction.styles)
 
+  let css = ''
+
   // Appear uses a class that's added via IntersectionObserver
-  return `${targetSelector} {
+  for (const targetBlockId of targetBlockIds) {
+    const targetSelector = `[data-block-id="${targetBlockId}"]`
+    css += `${targetSelector} {
   transition: ${transitionValue};
 }
 ${targetSelector}.interaction-visible-${interaction.id} {
   ${styleCSS};
 }\n`
+  }
+
+  return css
+}
+
+/**
+ * Generate CSS for "while-scrolling" animation (element in viewport, supports multiple targets)
+ * Uses CSS scroll-driven animations with JS fallback marker
+ */
+function generateWhileScrollingCSS(interaction: Interaction): string {
+  const targetBlockIds = interaction.targetBlockIds
+  const animationName = `interaction-scroll-${interaction.id}`
+
+  const fromCSS = interaction.fromStyles
+    ? stylesToCSS(interaction.fromStyles)
+    : '/* from: current styles */'
+  const toCSS = stylesToCSS(interaction.styles)
+
+  const startOffset = interaction.scrollConfig?.startOffset ?? 0
+  const endOffset = interaction.scrollConfig?.endOffset ?? 100
+
+  let css = `/* Scroll-driven animation (while-scrolling): ${interaction.name} */
+@keyframes ${animationName} {
+  from {
+    ${fromCSS};
+  }
+  to {
+    ${toCSS};
+  }
+}\n`
+
+  for (const targetBlockId of targetBlockIds) {
+    const targetSelector = `[data-block-id="${targetBlockId}"]`
+    css += `
+/* Modern browsers with CSS scroll-driven animations */
+@supports (animation-timeline: view()) {
+  ${targetSelector} {
+    animation: ${animationName} linear both;
+    animation-timeline: view();
+    animation-range: entry ${startOffset}% cover ${endOffset}%;
+  }
+}
+
+/* Fallback: element gets data attribute for JS handling */
+${targetSelector}[data-scroll-animation="${interaction.id}"] {
+  transition: all 0.1s linear;
+}
+`
+  }
+
+  return css
+}
+
+/**
+ * Generate CSS for "page-scroll" animation (page position, supports multiple targets)
+ * Uses CSS scroll-driven animations with JS fallback marker
+ */
+function generatePageScrollCSS(interaction: Interaction): string {
+  const targetBlockIds = interaction.targetBlockIds
+  const animationName = `interaction-page-scroll-${interaction.id}`
+
+  const fromCSS = interaction.fromStyles
+    ? stylesToCSS(interaction.fromStyles)
+    : '/* from: current styles */'
+  const toCSS = stylesToCSS(interaction.styles)
+
+  const startOffset = interaction.scrollConfig?.startOffset ?? 0
+  const endOffset = interaction.scrollConfig?.endOffset ?? 100
+
+  let css = `/* Page scroll animation: ${interaction.name} */
+@keyframes ${animationName} {
+  from {
+    ${fromCSS};
+  }
+  to {
+    ${toCSS};
+  }
+}\n`
+
+  for (const targetBlockId of targetBlockIds) {
+    const targetSelector = `[data-block-id="${targetBlockId}"]`
+    css += `
+/* Modern browsers with CSS scroll-driven animations */
+@supports (animation-timeline: scroll()) {
+  ${targetSelector} {
+    animation: ${animationName} linear both;
+    animation-timeline: scroll(root);
+    animation-range: ${startOffset}% ${endOffset}%;
+  }
+}
+
+/* Fallback: element gets data attribute for JS handling */
+${targetSelector}[data-page-scroll-animation="${interaction.id}"] {
+  transition: all 0.1s linear;
+}
+`
+  }
+
+  return css
 }
 
 /**
@@ -348,6 +494,12 @@ export function generateInteractionCSS(interactions: Interaction[]): string {
       case 'appear':
         cssBlocks.push(generateAppearCSS(interaction))
         break
+      case 'while-scrolling':
+        cssBlocks.push(generateWhileScrollingCSS(interaction))
+        break
+      case 'page-scroll':
+        cssBlocks.push(generatePageScrollCSS(interaction))
+        break
     }
   }
 
@@ -360,10 +512,14 @@ export function generateInteractionCSS(interactions: Interaction[]): string {
 export function getJSInteractions(interactions: Interaction[]): {
   click: Interaction[]
   appear: Interaction[]
+  whileScrolling: Interaction[]
+  pageScroll: Interaction[]
 } {
   return {
     click: interactions.filter(i => i.trigger === 'click'),
     appear: interactions.filter(i => i.trigger === 'appear'),
+    whileScrolling: interactions.filter(i => i.trigger === 'while-scrolling'),
+    pageScroll: interactions.filter(i => i.trigger === 'page-scroll'),
   }
 }
 

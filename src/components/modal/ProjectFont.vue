@@ -136,7 +136,7 @@ function loadFontPreview(fontFamily: string) {
   <Teleport to="body">
     <div
       v-if="open"
-      class="fixed inset-0 z-50 flex items-center justify-center"
+      class="fixed inset-0 z-[9999] flex items-center justify-center"
     >
       <!-- Backdrop -->
       <div

@@ -111,6 +111,7 @@ export type SharedSection =
   | 'opacity'
   | 'position'
   | 'display'
+  | 'transform'
 
 // Typography section defaults (per block type)
 export interface TypographyDefaults {
@@ -201,7 +202,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'typography', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'typography', 'spacing', 'border', 'opacity', 'transform', 'position'],
     typographyDefaults: {
       defaultFontSize: '36px',
       defaultFontWeight: 'bold',
@@ -224,7 +225,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'typography', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'typography', 'spacing', 'border', 'opacity', 'transform', 'position'],
     typographyDefaults: {
       defaultFontSize: '16px',
       defaultFontWeight: 'normal',
@@ -267,7 +268,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         videoKey: 'backgroundVideo',
       },
     ],
-    sections: ['size', 'display', 'typography', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'display', 'typography', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   image: {
@@ -332,7 +333,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   video: {
@@ -385,7 +386,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   icon: {
@@ -435,7 +436,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   divider: {
@@ -477,7 +478,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'opacity', 'transform', 'position'],
   },
 
   // Layout blocks
@@ -516,7 +517,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         icon: 'layout-stack',
       },
     ],
-    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   container: {
@@ -531,7 +532,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         videoKey: 'backgroundVideo',
       },
     ],
-    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   stack: {
@@ -551,7 +552,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         icon: 'layout-stack',
       },
     ],
-    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   canvas: {
@@ -566,7 +567,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         videoKey: 'backgroundVideo',
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   // Form blocks
@@ -633,7 +634,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   'form-textarea': {
@@ -700,7 +701,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   'form-button': {
@@ -748,7 +749,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 
   'form-label': {
@@ -805,7 +806,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['spacing', 'opacity', 'position'],
+    sections: ['spacing', 'opacity', 'transform', 'position'],
   },
 
   form: {
@@ -852,7 +853,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         videoKey: 'backgroundVideo',
       },
     ],
-    sections: ['display', 'spacing', 'border', 'opacity', 'position'],
+    sections: ['display', 'spacing', 'border', 'opacity', 'transform', 'position'],
   },
 }
 

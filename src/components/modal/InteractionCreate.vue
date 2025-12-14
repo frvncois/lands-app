@@ -46,7 +46,7 @@ async function handleCreate() {
       name: interactionName.value.trim(),
       trigger: 'hover',
       triggerBlockId: props.blockId,
-      targetBlockId: props.blockId,
+      targetBlockIds: [props.blockId],
       effectType: 'transition',
       duration: '300ms',
       easing: 'ease',

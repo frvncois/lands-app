@@ -257,6 +257,13 @@ export interface CoreBlockStyles {
   right?: string
   bottom?: string
   left?: string
+  // Transform
+  rotate?: string
+  scale?: string
+  translateX?: string
+  translateY?: string
+  // Filter effects
+  blur?: string
 }
 
 export interface BaseBlockStyles extends CoreBlockStyles {
@@ -854,7 +861,19 @@ export interface SharedStyle {
 // ============================================
 
 // Trigger types for interactions
-export type InteractionTrigger = 'hover' | 'click' | 'load' | 'appear'
+export type InteractionTrigger =
+  | 'hover'
+  | 'click'
+  | 'load'
+  | 'appear'
+  | 'while-scrolling'  // Element's viewport position (0% entering → 100% leaving)
+  | 'page-scroll'      // Page scroll position (0% top → 100% bottom)
+
+// Scroll animation configuration (for scroll-based triggers)
+export interface ScrollAnimationConfig {
+  startOffset?: number  // 0-100, when animation starts (default: 0)
+  endOffset?: number    // 0-100, when animation completes (default: 100)
+}
 
 // Effect types for interactions
 export type InteractionEffect = 'transition' | 'animation'
@@ -871,6 +890,7 @@ export interface InteractionStyles {
   // Visual effects
   opacity?: number | string
   shadow?: ShadowStyle
+  blur?: string
   // Transform
   transform?: string
   scale?: string
@@ -898,7 +918,7 @@ export interface Interaction {
   triggerBlockId: string      // Block that triggers the interaction
 
   // Target configuration
-  targetBlockId: string       // Block that receives style changes (can be same or different)
+  targetBlockIds: string[]    // Blocks that receive style changes (can include trigger block)
 
   // Effect configuration
   effectType: InteractionEffect
@@ -908,6 +928,12 @@ export interface Interaction {
 
   // Style changes to apply when triggered
   styles: InteractionStyles
+
+  // Scroll-specific configuration (for 'while-scrolling' and 'page-scroll' triggers)
+  scrollConfig?: ScrollAnimationConfig
+
+  // Initial styles for scroll animations (element's starting state)
+  fromStyles?: InteractionStyles
 
   // Metadata
   createdAt: string

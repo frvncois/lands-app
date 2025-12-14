@@ -65,6 +65,11 @@ export const useEditorStore = defineStore('editor', () => {
   const hoveredBlockId = ref<string | null>(null)
   const selectedSpanId = ref<string | null>(null)
   const hoveredSpanId = ref<string | null>(null)
+
+  // Interaction target selection mode - when active, clicking blocks adds them to targets
+  const interactionTargetSelectionMode = ref(false)
+  const interactionTargetSelectionCallback = ref<((blockId: string) => void) | null>(null)
+
   const isLoading = ref(false)
   const isSaving = ref(false)
   const saveStartedAt = ref<number | null>(null) // Track when save started
@@ -730,6 +735,26 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // ============================================
+  // INTERACTION TARGET SELECTION MODE
+  // ============================================
+
+  function startInteractionTargetSelection(callback: (blockId: string) => void) {
+    interactionTargetSelectionMode.value = true
+    interactionTargetSelectionCallback.value = callback
+  }
+
+  function stopInteractionTargetSelection() {
+    interactionTargetSelectionMode.value = false
+    interactionTargetSelectionCallback.value = null
+  }
+
+  function handleInteractionTargetClick(blockId: string) {
+    if (interactionTargetSelectionMode.value && interactionTargetSelectionCallback.value) {
+      interactionTargetSelectionCallback.value(blockId)
+    }
+  }
+
+  // ============================================
   // SPAN SELECTION & MANAGEMENT
   // ============================================
 
@@ -1031,8 +1056,8 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
 
-    // Check for stuck save (if save has been running for more than 60 seconds, force reset)
-    const STUCK_SAVE_THRESHOLD = 60000 // 60 seconds
+    // Check for stuck save (if save has been running for more than 45 seconds, force reset)
+    const STUCK_SAVE_THRESHOLD = 45000 // 45 seconds
     if (isSaving.value && saveStartedAt.value) {
       const elapsed = Date.now() - saveStartedAt.value
       if (elapsed > STUCK_SAVE_THRESHOLD) {
@@ -1053,17 +1078,18 @@ export const useEditorStore = defineStore('editor', () => {
     isSaving.value = true
     saveStartedAt.value = Date.now()
 
-    try {
+    // Helper function to attempt save with timeout
+    const attemptSave = async (): Promise<boolean> => {
       const projectsStore = useProjectsStore()
 
-      // Create a timeout promise for 30 seconds
+      // Create a timeout promise for 20 seconds
       const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error('Save operation timed out')), 30000)
+        setTimeout(() => reject(new Error('Save operation timed out')), 20000)
       })
 
       // Race between save and timeout
-      const success = await Promise.race([
-        projectsStore.saveProjectContent(currentProjectId.value, {
+      return Promise.race([
+        projectsStore.saveProjectContent(currentProjectId.value!, {
           blocks: blocks.value,
           pageSettings: pageSettings.value,
           translations: translationsComposable.getTranslationsData(),
@@ -1071,19 +1097,62 @@ export const useEditorStore = defineStore('editor', () => {
         }),
         timeoutPromise,
       ])
+    }
+
+    try {
+      // First attempt
+      let success = await attemptSave()
 
       if (success) {
         hasUnsavedChanges.value = false
         lastSavedAt.value = new Date().toISOString()
-      } else {
-        toast.error('Failed to save changes', 'Please try again or check your connection')
+        return true
       }
-      return success
+
+      // First attempt failed, try recovery and retry
+      console.log('Save failed, attempting connection recovery...')
+      const { recoverConnection } = await import('@/lib/supabase/client')
+      await recoverConnection()
+
+      // Second attempt after recovery
+      success = await attemptSave()
+
+      if (success) {
+        hasUnsavedChanges.value = false
+        lastSavedAt.value = new Date().toISOString()
+        toast.success('Changes saved', 'Connection recovered automatically')
+        return true
+      }
+
+      toast.error('Failed to save changes', 'Please check your connection and try again')
+      return false
     } catch (e) {
-      console.error('Failed to save project:', e)
-      toast.error(e instanceof Error && e.message === 'Save operation timed out'
-        ? 'Save timed out. Please try again.'
-        : 'Failed to save changes')
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error'
+      console.error('Failed to save project:', errorMessage)
+
+      // If timed out, try recovery and one more save
+      if (errorMessage === 'Save operation timed out') {
+        console.log('Save timed out, attempting connection recovery...')
+        try {
+          const { recoverConnection } = await import('@/lib/supabase/client')
+          await recoverConnection()
+
+          // Final attempt after recovery
+          const success = await attemptSave()
+          if (success) {
+            hasUnsavedChanges.value = false
+            lastSavedAt.value = new Date().toISOString()
+            toast.success('Changes saved', 'Connection recovered automatically')
+            return true
+          }
+        } catch (retryError) {
+          console.error('Retry after recovery also failed:', retryError)
+        }
+
+        toast.error('Save timed out', 'Please check your internet connection and try again')
+      } else {
+        toast.error('Failed to save changes', errorMessage)
+      }
       return false
     } finally {
       isSaving.value = false
@@ -1179,64 +1248,113 @@ export const useEditorStore = defineStore('editor', () => {
   // INTERACTION PREVIEW
   // ============================================
 
-  const previewingInteractionId = ref<string | null>(null)
+  // Timer refs for proper cleanup (prevents race conditions)
+  const previewTimerIds = ref<{
+    startTimer: ReturnType<typeof setTimeout> | null
+    clearTimer: ReturnType<typeof setTimeout> | null
+  }>({ startTimer: null, clearTimer: null })
+
   const previewingInteractionData = ref<{
     targetBlockId: string
     styles: InteractionStyles
+    fromStyles?: InteractionStyles
     duration: string
     easing: string
     delay?: string
   } | null>(null)
 
+  /**
+   * Parse duration string to milliseconds
+   * Handles: "300ms", "0.5s", "300", "0.5"
+   */
+  function parseDurationToMs(duration: string): number {
+    const trimmed = duration.trim().toLowerCase()
+    if (trimmed.endsWith('ms')) {
+      return parseFloat(trimmed.slice(0, -2))
+    }
+    if (trimmed.endsWith('s')) {
+      return parseFloat(trimmed.slice(0, -1)) * 1000
+    }
+    const num = parseFloat(trimmed)
+    if (isNaN(num)) return 300 // Default fallback
+    return num >= 10 ? num : num * 1000
+  }
+
+  /**
+   * Clear all preview timers to prevent race conditions
+   */
+  function clearPreviewTimers() {
+    if (previewTimerIds.value.startTimer) {
+      clearTimeout(previewTimerIds.value.startTimer)
+      previewTimerIds.value.startTimer = null
+    }
+    if (previewTimerIds.value.clearTimer) {
+      clearTimeout(previewTimerIds.value.clearTimer)
+      previewTimerIds.value.clearTimer = null
+    }
+  }
+
+  /**
+   * Cancel current preview (for cleanup on unmount or new preview)
+   */
+  function cancelInteractionPreview() {
+    clearPreviewTimers()
+    previewingInteractionData.value = null
+  }
+
   function triggerInteractionPreview(interactionId: string) {
     const interaction = interactions.getInteractionById(interactionId)
     if (!interaction) return
 
-    // Use the previewInteractionStyles function with the interaction data
-    previewInteractionStyles(
-      interaction.targetBlockId,
-      interaction.styles,
-      interaction.duration,
-      interaction.easing,
-      interaction.delay
-    )
+    // Preview on all target blocks
+    for (const targetBlockId of interaction.targetBlockIds) {
+      previewInteractionStyles(
+        targetBlockId,
+        interaction.styles,
+        interaction.duration,
+        interaction.easing,
+        interaction.delay,
+        interaction.fromStyles
+      )
+    }
   }
 
-  // Preview interaction with direct style data (works before saving)
+  /**
+   * Preview interaction with direct style data
+   * Properly handles timer cleanup to prevent race conditions
+   */
   function previewInteractionStyles(
     targetBlockId: string,
     styles: InteractionStyles,
     duration: string,
     easing: string,
-    delay?: string
+    delay?: string,
+    fromStyles?: InteractionStyles
   ) {
-    // Reset first
-    previewingInteractionData.value = null
+    // Cancel any in-progress preview first
+    cancelInteractionPreview()
 
-    setTimeout(() => {
+    // Small delay for DOM reset (single frame)
+    previewTimerIds.value.startTimer = setTimeout(() => {
       previewingInteractionData.value = {
         targetBlockId,
         styles,
+        fromStyles,
         duration,
         easing,
         delay,
       }
 
-      // Calculate total duration including delay
-      const durationMs = parseInt(duration || '300')
-      const delayMs = parseInt(delay || '0')
-      const totalTime = durationMs + delayMs + 100
+      // Calculate total time with proper duration parsing
+      const durationMs = parseDurationToMs(duration || '300ms')
+      const delayMs = delay ? parseDurationToMs(delay) : 0
+      const totalTime = durationMs + delayMs + 100 // buffer for completion
 
       // Auto-clear after animation completes
-      setTimeout(() => {
+      previewTimerIds.value.clearTimer = setTimeout(() => {
         previewingInteractionData.value = null
       }, totalTime)
-    }, 10)
-  }
-
-  function getPreviewingInteraction() {
-    if (!previewingInteractionId.value) return null
-    return interactions.getInteractionById(previewingInteractionId.value)
+    }, 16) // Single frame delay
   }
 
   function getPreviewingInteractionData() {
@@ -1348,6 +1466,11 @@ export const useEditorStore = defineStore('editor', () => {
     moveBlockDown,
     selectBlock,
     hoverBlock,
+    // Interaction target selection mode
+    interactionTargetSelectionMode,
+    startInteractionTargetSelection,
+    stopInteractionTargetSelection,
+    handleInteractionTargetClick,
     // Components
     components,
     createComponent,
@@ -1396,11 +1519,10 @@ export const useEditorStore = defineStore('editor', () => {
     triggerAnimationPreview,
     isAnimationPreviewing,
     // Interaction preview
-    previewingInteractionId,
     previewingInteractionData,
     triggerInteractionPreview,
     previewInteractionStyles,
-    getPreviewingInteraction,
+    cancelInteractionPreview,
     getPreviewingInteractionData,
     isInteractionPreviewing,
   }

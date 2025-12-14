@@ -1,21 +1,26 @@
 /**
  * Composable for handling JavaScript-based interaction triggers
  *
- * Handles: click (toggle), load (on mount), appear (intersection observer)
+ * Handles: click (toggle), load (on mount), appear (intersection observer),
+ * while-scrolling (element viewport position), page-scroll (page scroll position)
  */
 
 import { onMounted, onUnmounted, watch, type Ref } from 'vue'
 import type { Interaction } from '@/types/editor'
+import { useScrollAnimations } from '@/composables/useScrollAnimations'
+import { supportsScrollDrivenAnimations } from '@/lib/interaction-utils'
 
 interface UseInteractionTriggersOptions {
   /** Reactive array of interactions */
   interactions: () => Interaction[]
   /** Container element ref to scope the interactions */
   containerRef?: Ref<HTMLElement | null>
+  /** Scroll container element ref (for nested scroll contexts like the editor) */
+  scrollContainerRef?: Ref<HTMLElement | null>
 }
 
 export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
-  const { interactions, containerRef } = options
+  const { interactions, containerRef, scrollContainerRef } = options
 
   // Track active click states (for toggle behavior)
   const activeClickStates = new Map<string, boolean>()
@@ -26,6 +31,15 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
   // Track intersection observers
   const intersectionObservers = new Map<string, IntersectionObserver>()
 
+  // Track scroll animation state
+  // Force JS mode when we have a scroll container (nested scroll context like the editor)
+  const scrollAnimations = useScrollAnimations({
+    get scrollContainer() { return scrollContainerRef?.value ?? null },
+    forceJS: !!scrollContainerRef,
+  })
+  let scrollRAFId: number | null = null
+  let isScrollListenerActive = false
+
   /**
    * Get the container element (scoped or document)
    */
@@ -34,7 +48,7 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
   }
 
   /**
-   * Setup click interaction handlers
+   * Setup click interaction handlers (supports multiple targets)
    */
   function setupClickInteractions() {
     const container = getContainer()
@@ -42,9 +56,14 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
 
     for (const interaction of clickInteractions) {
       const triggerElement = container.querySelector(`[data-block-id="${interaction.triggerBlockId}"]`)
-      const targetElement = container.querySelector(`[data-block-id="${interaction.targetBlockId}"]`)
+      if (!triggerElement) continue
 
-      if (!triggerElement || !targetElement) continue
+      // Get all target elements
+      const targetElements = interaction.targetBlockIds
+        .map(id => container.querySelector(`[data-block-id="${id}"]`))
+        .filter((el): el is Element => el !== null)
+
+      if (targetElements.length === 0) continue
 
       // Skip if already setup
       if (clickListeners.has(interaction.id)) continue
@@ -57,12 +76,14 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
         const newState = !isActive
         activeClickStates.set(interaction.id, newState)
 
-        // Toggle the class on target
+        // Toggle the class on all target elements
         const className = `interaction-active-${interaction.id}`
-        if (newState) {
-          targetElement.classList.add(className)
-        } else {
-          targetElement.classList.remove(className)
+        for (const targetElement of targetElements) {
+          if (newState) {
+            targetElement.classList.add(className)
+          } else {
+            targetElement.classList.remove(className)
+          }
         }
       }
 
@@ -83,37 +104,43 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
   }
 
   /**
-   * Setup load interaction animations
+   * Setup load interaction animations (supports multiple targets)
    */
   function setupLoadInteractions() {
     const container = getContainer()
     const loadInteractions = interactions().filter(i => i.trigger === 'load')
 
     for (const interaction of loadInteractions) {
-      const targetElement = container.querySelector(`[data-block-id="${interaction.targetBlockId}"]`)
-      if (!targetElement) continue
-
-      // The CSS already has the animation, just ensure it plays
+      // The CSS already has the animation for all targets, just ensure it plays
       // For load animations, the CSS @keyframes is applied directly
       // No additional JS needed as CSS handles it
+      for (const targetBlockId of interaction.targetBlockIds) {
+        const targetElement = container.querySelector(`[data-block-id="${targetBlockId}"]`)
+        if (!targetElement) continue
+        // Animation is handled by CSS
+      }
     }
   }
 
   /**
-   * Setup appear interaction observers
+   * Setup appear interaction observers (supports multiple targets)
    */
   function setupAppearInteractions() {
     const container = getContainer()
     const appearInteractions = interactions().filter(i => i.trigger === 'appear')
 
     for (const interaction of appearInteractions) {
-      const targetElement = container.querySelector(`[data-block-id="${interaction.targetBlockId}"]`)
-      if (!targetElement) continue
-
       // Skip if already setup
       if (intersectionObservers.has(interaction.id)) continue
 
       const className = `interaction-visible-${interaction.id}`
+
+      // Get all target elements
+      const targetElements = interaction.targetBlockIds
+        .map(id => container.querySelector(`[data-block-id="${id}"]`))
+        .filter((el): el is Element => el !== null)
+
+      if (targetElements.length === 0) continue
 
       const observer = new IntersectionObserver(
         (entries) => {
@@ -131,7 +158,10 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
         }
       )
 
-      observer.observe(targetElement)
+      // Observe all target elements
+      for (const targetElement of targetElements) {
+        observer.observe(targetElement)
+      }
       intersectionObservers.set(interaction.id, observer)
     }
   }
@@ -147,6 +177,64 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
   }
 
   /**
+   * Setup scroll-based interaction animations (while-scrolling and page-scroll)
+   * Uses CSS scroll-driven animations where supported, with JS fallback
+   * Always uses JS when in a nested scroll container (like the editor)
+   * Supports multiple targets
+   */
+  function setupScrollInteractions() {
+    // If we have a scroll container ref, we're in the editor - always use JS
+    // CSS scroll-driven animations don't work properly with nested scroll containers
+    const useJS = !!scrollContainerRef || !supportsScrollDrivenAnimations()
+
+    if (!useJS) {
+      // CSS scroll-driven animations are supported and we're not in nested context
+      return
+    }
+
+    const container = getContainer()
+    const scrollInteractions = interactions().filter(
+      i => i.trigger === 'while-scrolling' || i.trigger === 'page-scroll'
+    )
+
+    if (scrollInteractions.length === 0) return
+
+    // Register elements with the scroll animations composable
+    for (const interaction of scrollInteractions) {
+      for (const targetBlockId of interaction.targetBlockIds) {
+        const targetElement = container.querySelector(`[data-block-id="${targetBlockId}"]`) as HTMLElement | null
+        if (!targetElement) continue
+
+        scrollAnimations.register(interaction, targetElement)
+
+        // Add data attribute for fallback CSS targeting
+        if (interaction.trigger === 'while-scrolling') {
+          targetElement.setAttribute('data-scroll-animation', interaction.id)
+        } else {
+          targetElement.setAttribute('data-page-scroll-animation', interaction.id)
+        }
+      }
+    }
+
+    // The scroll animations composable handles the requestAnimationFrame loop
+  }
+
+  /**
+   * Cleanup scroll interaction animations
+   */
+  function cleanupScrollInteractions() {
+    scrollAnimations.clear()
+
+    // Remove data attributes
+    const container = getContainer()
+    const elements = container.querySelectorAll('[data-scroll-animation], [data-page-scroll-animation]')
+    for (const el of elements) {
+      el.removeAttribute('data-scroll-animation')
+      el.removeAttribute('data-page-scroll-animation')
+    }
+  }
+
+  /**
    * Reset appear interactions (remove visible classes)
    */
   function resetAppearInteractions() {
@@ -154,11 +242,12 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
     const appearInteractions = interactions().filter(i => i.trigger === 'appear')
 
     for (const interaction of appearInteractions) {
-      const targetElement = container.querySelector(`[data-block-id="${interaction.targetBlockId}"]`)
-      if (!targetElement) continue
-
       const className = `interaction-visible-${interaction.id}`
-      targetElement.classList.remove(className)
+      for (const targetBlockId of interaction.targetBlockIds) {
+        const targetElement = container.querySelector(`[data-block-id="${targetBlockId}"]`)
+        if (!targetElement) continue
+        targetElement.classList.remove(className)
+      }
     }
   }
 
@@ -171,6 +260,7 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
       setupClickInteractions()
       setupLoadInteractions()
       setupAppearInteractions()
+      setupScrollInteractions()
     })
   }
 
@@ -180,6 +270,7 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
   function cleanupAll() {
     cleanupClickInteractions()
     cleanupAppearInteractions()
+    cleanupScrollInteractions()
   }
 
   /**
@@ -202,7 +293,7 @@ export function useInteractionTriggers(options: UseInteractionTriggersOptions) {
 
   // Watch for interaction changes
   watch(
-    () => JSON.stringify(interactions().map(i => ({ id: i.id, trigger: i.trigger, triggerBlockId: i.triggerBlockId, targetBlockId: i.targetBlockId }))),
+    () => JSON.stringify(interactions().map(i => ({ id: i.id, trigger: i.trigger, triggerBlockId: i.triggerBlockId, targetBlockIds: i.targetBlockIds }))),
     () => {
       refresh()
     }

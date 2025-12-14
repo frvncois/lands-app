@@ -30,6 +30,7 @@ import {
   PositionSection,
   TypographySection,
   DisplaySection,
+  TransformSection,
 } from './sections'
 
 const {
@@ -485,6 +486,21 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
         :mix-blend-mode="responsiveStyles.mixBlendMode"
         @update:opacity="updateBlockStyles({ opacity: $event })"
         @update:mix-blend-mode="updateBlockStyles({ mixBlendMode: $event })"
+      />
+
+      <!-- Transform Section -->
+      <TransformSection
+        v-else-if="section === 'transform'"
+        :rotate="responsiveStyles.rotate"
+        :scale="responsiveStyles.scale"
+        :translate-x="responsiveStyles.translateX"
+        :translate-y="responsiveStyles.translateY"
+        :blur="responsiveStyles.blur"
+        @update:rotate="updateBlockStyles({ rotate: $event })"
+        @update:scale="updateBlockStyles({ scale: $event })"
+        @update:translate-x="updateBlockStyles({ translateX: $event })"
+        @update:translate-y="updateBlockStyles({ translateY: $event })"
+        @update:blur="updateBlockStyles({ blur: $event })"
       />
 
       <!-- Position Section -->

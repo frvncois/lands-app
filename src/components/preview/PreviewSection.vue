@@ -650,6 +650,13 @@ const displayImageCaption = computed(() => {
 // Event handlers
 function handleClick(event: MouseEvent) {
   event.stopPropagation()
+
+  // If in interaction target selection mode, add this block to targets instead of selecting
+  if (editorStore.interactionTargetSelectionMode) {
+    editorStore.handleInteractionTargetClick(props.block.id)
+    return
+  }
+
   editorStore.selectBlock(props.block.id)
 }
 
@@ -1351,6 +1358,31 @@ const blockStyles = computed(() => {
     css.clipPath = 'inset(0 0 0 0)'
   }
 
+  // Transform (responsive) - rotate, scale, translate
+  const transforms: string[] = []
+  if (styles.rotate && styles.rotate !== '0') {
+    transforms.push(`rotate(${styles.rotate}deg)`)
+  }
+  if (styles.scale && styles.scale !== '100') {
+    // Scale is stored as percentage (100 = 1x), convert to decimal
+    const scaleValue = Number(styles.scale) / 100
+    transforms.push(`scale(${scaleValue})`)
+  }
+  if (styles.translateX && styles.translateX !== '0') {
+    transforms.push(`translateX(${styles.translateX}px)`)
+  }
+  if (styles.translateY && styles.translateY !== '0') {
+    transforms.push(`translateY(${styles.translateY}px)`)
+  }
+  if (transforms.length > 0) {
+    css.transform = transforms.join(' ')
+  }
+
+  // Filter (responsive) - blur
+  if (styles.blur && styles.blur !== '0') {
+    css.filter = `blur(${styles.blur}px)`
+  }
+
   // Note: Position styles are handled separately in wrapperStyles to keep outline/label working
 
   return css
@@ -1397,6 +1429,24 @@ const wrapperStyles = computed(() => {
 
   return css
 })
+
+// Check if this block has fixed or sticky positioning (blocks scroll events)
+const isFixedOrSticky = computed(() => {
+  const pos = wrapperStyles.value.position
+  return pos === 'fixed' || pos === 'sticky'
+})
+
+// Handle wheel events on fixed/sticky elements to propagate scroll to parent container
+function handleWheel(event: WheelEvent) {
+  if (!isFixedOrSticky.value) return
+
+  // Find the scroll container and manually scroll it
+  const scrollContainer = sectionRef.value?.closest('.overflow-auto')
+  if (scrollContainer) {
+    scrollContainer.scrollTop += event.deltaY
+    scrollContainer.scrollLeft += event.deltaX
+  }
+}
 
 // ============================================
 // SPAN STYLES & INTERACTION
@@ -1571,8 +1621,11 @@ function getVideoStyles(): Record<string, string> {
   <section
     v-if="!isBlockHidden"
     ref="sectionRef"
-    class="w-full cursor-pointer overflow-visible"
-    :class="{ 'relative': !wrapperStyles.position }"
+    class="w-full overflow-visible"
+    :class="[
+      { 'relative': !wrapperStyles.position },
+      editorStore.interactionTargetSelectionMode ? 'cursor-crosshair' : 'cursor-pointer'
+    ]"
     data-preview-block
     :data-block-id="block.id"
     :style="{ ...animationStyles, ...wrapperStyles, ...interactionPreviewStyles }"
@@ -1580,11 +1633,13 @@ function getVideoStyles(): Record<string, string> {
     @contextmenu="handleContextMenu"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
+    @wheel="handleWheel"
   >
-    <!-- Hover outline -->
+    <!-- Hover outline - violet when in target selection mode -->
     <div
       v-if="isHovered && !isSelected"
-      class="absolute inset-0 border-1 border-primary/40 pointer-events-none z-10"
+      class="absolute inset-0 border-1 pointer-events-none z-10"
+      :class="editorStore.interactionTargetSelectionMode ? 'border-violet-500 bg-violet-500/5' : 'border-primary/40'"
     />
 
     <!-- Selection outline -->

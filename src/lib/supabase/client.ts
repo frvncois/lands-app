@@ -31,6 +31,20 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
 // Connection health check utility
 let lastHealthCheck = Date.now()
 let isConnectionHealthy = true
+let isRecovering = false
+
+// Listeners for connection state changes
+type ConnectionListener = (isHealthy: boolean) => void
+const connectionListeners = new Set<ConnectionListener>()
+
+export function onConnectionChange(listener: ConnectionListener) {
+  connectionListeners.add(listener)
+  return () => connectionListeners.delete(listener)
+}
+
+function notifyConnectionChange(isHealthy: boolean) {
+  connectionListeners.forEach(listener => listener(isHealthy))
+}
 
 /**
  * Check if Supabase connection is healthy by making a simple query
@@ -38,21 +52,42 @@ let isConnectionHealthy = true
  */
 export async function checkConnectionHealth(): Promise<boolean> {
   try {
+    // Create timeout promise
+    const timeoutPromise = new Promise<{ error: { message: string; code: string } }>((_, reject) => {
+      setTimeout(() => reject(new Error('Health check timed out')), 10000)
+    })
+
     // Simple query to check connection
-    const { error } = await supabase.from('profiles').select('id').limit(1).maybeSingle()
+    const queryPromise = supabase
+      .from('profiles')
+      .select('id')
+      .limit(1)
+      .maybeSingle()
+
+    // Race between query and timeout
+    const { error } = await Promise.race([queryPromise, timeoutPromise])
 
     if (error && (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('fetch'))) {
       console.warn('Supabase connection unhealthy:', error.message)
-      isConnectionHealthy = false
+      if (isConnectionHealthy) {
+        isConnectionHealthy = false
+        notifyConnectionChange(false)
+      }
       return false
     }
 
     lastHealthCheck = Date.now()
-    isConnectionHealthy = true
+    if (!isConnectionHealthy) {
+      isConnectionHealthy = true
+      notifyConnectionChange(true)
+    }
     return true
   } catch (e) {
     console.error('Supabase health check failed:', e)
-    isConnectionHealthy = false
+    if (isConnectionHealthy) {
+      isConnectionHealthy = false
+      notifyConnectionChange(false)
+    }
     return false
   }
 }
@@ -63,6 +98,7 @@ export async function checkConnectionHealth(): Promise<boolean> {
 export function getConnectionStatus() {
   return {
     isHealthy: isConnectionHealthy,
+    isRecovering,
     lastCheck: lastHealthCheck,
     timeSinceCheck: Date.now() - lastHealthCheck,
   }
@@ -84,6 +120,51 @@ export async function refreshSession(): Promise<boolean> {
   } catch (e) {
     console.error('Session refresh error:', e)
     return false
+  }
+}
+
+/**
+ * Full connection recovery - refresh session and verify connection
+ * Returns true if recovery successful
+ */
+export async function recoverConnection(): Promise<boolean> {
+  if (isRecovering) {
+    console.log('Recovery already in progress...')
+    return false
+  }
+
+  isRecovering = true
+  console.log('Starting connection recovery...')
+
+  try {
+    // Step 1: Try to refresh the session
+    const refreshed = await refreshSession()
+    if (!refreshed) {
+      console.warn('Session refresh failed during recovery')
+    }
+
+    // Step 2: Reconnect realtime channels
+    try {
+      await supabase.realtime.disconnect()
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await supabase.realtime.connect()
+      console.log('Realtime reconnected')
+    } catch (e) {
+      console.warn('Realtime reconnection error:', e)
+    }
+
+    // Step 3: Verify connection is healthy
+    const healthy = await checkConnectionHealth()
+
+    if (healthy) {
+      console.log('Connection recovery successful')
+      return true
+    } else {
+      console.warn('Connection still unhealthy after recovery attempt')
+      return false
+    }
+  } finally {
+    isRecovering = false
   }
 }
 
@@ -115,21 +196,19 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState === 'visible') {
       const timeSinceCheck = Date.now() - lastHealthCheck
-      // If more than 1 minute since last check, re-check
-      if (timeSinceCheck > 60000) {
-        console.log('Tab became visible, checking connection health...')
-        const healthy = await checkConnectionHealth()
-        if (!healthy) {
-          console.log('Connection unhealthy, attempting session refresh...')
-          await refreshSession()
-        }
+      // If more than 30 seconds since last check, do full recovery
+      if (timeSinceCheck > 30000) {
+        console.log('Tab became visible after being idle, recovering connection...')
+        await recoverConnection()
       }
     }
   })
 
   // Also check on online event (browser coming back online)
   window.addEventListener('online', async () => {
-    console.log('Browser came online, checking connection...')
-    await checkConnectionHealth()
+    console.log('Browser came online, recovering connection...')
+    // Wait a moment for network to stabilize
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    await recoverConnection()
   })
 }

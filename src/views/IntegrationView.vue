@@ -304,7 +304,7 @@ async function disconnectIntegration() {
     <Teleport to="body">
       <div
         v-if="showConnectModal && selectedIntegration"
-        class="fixed inset-0 z-50 flex items-center justify-center"
+        class="fixed inset-0 z-[9999] flex items-center justify-center"
       >
         <div class="absolute inset-0 bg-black/50" @click="showConnectModal = false"></div>
         <div class="relative bg-card border border-border rounded-lg shadow-xl w-full max-w-md p-6">
@@ -402,7 +402,7 @@ async function disconnectIntegration() {
     <Teleport to="body">
       <div
         v-if="showDisconnectModal && selectedIntegration"
-        class="fixed inset-0 z-50 flex items-center justify-center"
+        class="fixed inset-0 z-[9999] flex items-center justify-center"
       >
         <div class="absolute inset-0 bg-black/50" @click="showDisconnectModal = false"></div>
         <div class="relative bg-card border border-border rounded-lg shadow-xl w-full max-w-md p-6">
