@@ -5,22 +5,26 @@ import { useEditorStore } from '@/stores/editor'
 import type {
   SectionBlock,
   SectionBlockType,
-  HeaderSettings,
-  FooterSettings,
   ContainerSettings,
   ContainerStyles,
   GridSettings,
+  GridStyles,
   StackSettings,
+  StackStyles,
+  FormStyles,
   DividerSettings,
   HeadingSettings,
   TextSettings,
   ImageSettings,
   VideoSettings,
   ButtonSettings,
+  ButtonStyles,
   IconSettings,
   VariantsSettings,
   VariantsStyles,
   FormSettings,
+  FormLabelSettings,
+  FormLabelStyles,
   FormInputSettings,
   FormTextareaSettings,
   FormSelectSettings,
@@ -42,7 +46,7 @@ import {
 import { getResponsiveStyles } from '@/lib/style-utils'
 
 // SectionBlockType is used for addBlock calls
-import { socialPlatformIcons, sectionBlockLabels, sectionBlockIcons, canHaveChildren, createPresetBlock, presetTypes, presetLabels, presetIcons, blocksByCategory, maskShapeClipPaths, type PresetType } from '@/lib/editor-utils'
+import { socialPlatformIcons, sectionBlockLabels, sectionBlockIcons, canHaveChildren, blocksByCategory, maskShapeClipPaths } from '@/lib/editor-utils'
 import type { MaskShape } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
@@ -98,9 +102,9 @@ const blockAnimation = computed((): AnimationSettings | undefined => {
   return styles?.animation
 })
 
-// Check if this block supports animation (exclude header/footer)
+// Check if this block supports animation
 const supportsAnimation = computed(() => {
-  return props.block.type !== 'header' && props.block.type !== 'footer'
+  return true
 })
 
 // Check if animation preview is active for this block
@@ -113,6 +117,67 @@ watch(isPreviewingAnimation, (isPreviewing) => {
   if (isPreviewing && blockAnimation.value?.enabled) {
     playAnimation()
   }
+})
+
+// ============================================
+// INTERACTION PREVIEW
+// ============================================
+
+// Check if this block is being interaction-previewed
+const isPreviewingInteraction = computed(() => {
+  return editorStore.isInteractionPreviewing(props.block.id)
+})
+
+// Get interaction preview styles (applies transition + target styles)
+const interactionPreviewStyles = computed(() => {
+  const previewData = editorStore.getPreviewingInteractionData()
+  if (!previewData || previewData.targetBlockId !== props.block.id) {
+    return {}
+  }
+
+  const { styles, duration, easing, delay } = previewData
+  const css: Record<string, string> = {}
+
+  // Add transition
+  const delayValue = delay ? parseInt(delay) : 0
+  css.transition = `all ${duration} ${easing} ${delayValue}ms`
+
+  // Apply target styles
+  if (styles.backgroundColor) {
+    css.backgroundColor = styles.backgroundColor
+  }
+  if (styles.opacity !== undefined) {
+    css.opacity = String(Number(styles.opacity) / 100)
+  }
+  if (styles.color) {
+    css.color = styles.color
+  }
+  if (styles.border) {
+    if (styles.border.width) css.borderWidth = styles.border.width
+    if (styles.border.color) css.borderColor = styles.border.color
+    if (styles.border.radius) css.borderRadius = styles.border.radius
+    if (styles.border.style) css.borderStyle = styles.border.style
+  }
+
+  // Transform properties
+  const transforms: string[] = []
+  if (styles.scale && styles.scale !== '1') {
+    transforms.push(`scale(${styles.scale})`)
+  }
+  if (styles.rotate && styles.rotate !== '0') {
+    transforms.push(`rotate(${styles.rotate}deg)`)
+  }
+  if (styles.translateX && styles.translateX !== '0') {
+    transforms.push(`translateX(${styles.translateX}px)`)
+  }
+  if (styles.translateY && styles.translateY !== '0') {
+    transforms.push(`translateY(${styles.translateY}px)`)
+  }
+  if (transforms.length > 0) {
+    css.transform = transforms.join(' ')
+  }
+
+  return css
 })
 
 // Play animation
@@ -355,14 +420,6 @@ function handleBlockPickerSelectBlock(type: SectionBlockType) {
   }
 }
 
-function handleBlockPickerSelectPreset(type: PresetType) {
-  const block = createPresetBlock(type)
-  const inserted = editorStore.addPresetBlock(block, undefined, props.block.id)
-  if (inserted) {
-    editorStore.selectBlock(inserted.id)
-  }
-}
-
 // Quick add layout blocks (for container empty state)
 function handleAddLayoutBlock(type: 'stack' | 'grid' | 'canvas') {
   const block = editorStore.addBlock(type, undefined, props.block.id)
@@ -371,29 +428,11 @@ function handleAddLayoutBlock(type: 'stack' | 'grid' | 'canvas') {
   }
 }
 
-// Add list/collection preset (Grid with Stack children)
-function handleAddListCollection() {
-  const block = createPresetBlock('preset-card-list')
-  const inserted = editorStore.addPresetBlock(block, undefined, props.block.id)
-  if (inserted) {
-    editorStore.selectBlock(inserted.id)
-  }
-}
-
 // Add content block inside layout block
 function handleAddContentBlock(type: SectionBlockType) {
   const block = editorStore.addBlock(type, undefined, props.block.id)
   if (block) {
     editorStore.selectBlock(block.id)
-  }
-}
-
-// Add preset inside layout block
-function handleAddPresetInside(type: PresetType) {
-  const block = createPresetBlock(type)
-  const inserted = editorStore.addPresetBlock(block, undefined, props.block.id)
-  if (inserted) {
-    editorStore.selectBlock(inserted.id)
   }
 }
 
@@ -430,14 +469,12 @@ onUnmounted(() => {
   scrollContainerRef?.removeEventListener('scroll', updateLabelPosition)
 })
 
-// Check if this is a protected block (header/footer)
-const isProtectedBlock = computed(() => props.block.type === 'header' || props.block.type === 'footer')
+// Check if this is a protected block (none currently)
+const isProtectedBlock = computed(() => false)
 
 // Check if block can have children
 const isLayoutBlock = computed(() => canHaveChildren(props.block.type))
 
-// Check if this block is inside a List/Collection (Grid > Stack pattern)
-const isInsideListCollection = computed(() => editorStore.isInsideListCollection(props.block.id))
 
 // Check if this block IS a list item (Stack directly inside Grid) - these can be dragged for reordering
 const isListItem = computed(() => {
@@ -466,20 +503,7 @@ const isBlockHidden = computed(() => {
   return !!settings.isHidden
 })
 
-// Check if header/footer is hidden (should completely hide in preview)
-const isHeaderFooterHidden = computed(() => {
-  if (props.block.type === 'header') {
-    return !!(props.block.settings as HeaderSettings)?.isHidden
-  }
-  if (props.block.type === 'footer') {
-    return !!(props.block.settings as FooterSettings)?.isHidden
-  }
-  return false
-})
-
 // Type guards for settings
-const headerSettings = computed(() => props.block.type === 'header' ? props.block.settings as HeaderSettings : null)
-const footerSettings = computed(() => props.block.type === 'footer' ? props.block.settings as FooterSettings : null)
 const containerSettings = computed(() => props.block.type === 'container' ? props.block.settings as ContainerSettings : null)
 const gridSettings = computed(() => props.block.type === 'grid' ? props.block.settings as GridSettings : null)
 
@@ -511,6 +535,8 @@ const variantsSettings = computed(() => props.block.type === 'variants' ? props.
 const variantsStyles = computed(() => props.block.type === 'variants' ? props.block.styles as VariantsStyles : null)
 const formSettings = computed(() => props.block.type === 'form' ? props.block.settings as FormSettings : null)
 // Form field block settings
+const formLabelSettings = computed(() => props.block.type === 'form-label' ? props.block.settings as FormLabelSettings : null)
+const formLabelStyles = computed(() => props.block.type === 'form-label' ? props.block.styles as FormLabelStyles : null)
 const formInputSettings = computed(() => props.block.type === 'form-input' ? props.block.settings as FormInputSettings : null)
 const formTextareaSettings = computed(() => props.block.type === 'form-textarea' ? props.block.settings as FormTextareaSettings : null)
 const formSelectSettings = computed(() => props.block.type === 'form-select' ? props.block.settings as FormSelectSettings : null)
@@ -619,58 +645,6 @@ const displayImageCaption = computed(() => {
   return imageSettings.value.caption
 })
 
-// Header translations
-const displayHeaderCtaLabel = computed(() => {
-  if (!headerSettings.value?.ctaButton) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const translated = langTranslations?.blocks[props.block.id]?.ctaButtonLabel
-    if (translated !== undefined) return translated
-  }
-  return headerSettings.value.ctaButton.label
-})
-
-function getDisplayNavLinkLabel(linkId: string): string {
-  if (!headerSettings.value) return ''
-  const link = headerSettings.value.navLinks.find(l => l.id === linkId)
-  if (!link) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const navLinks = langTranslations?.blocks[props.block.id]?.navLinks
-    const translatedLink = navLinks?.find(l => l.id === linkId)
-    if (translatedLink?.label !== undefined) return translatedLink.label
-  }
-  return link.label
-}
-
-// Footer translations
-const displayFooterCopyright = computed(() => {
-  if (!footerSettings.value) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const translated = langTranslations?.blocks[props.block.id]?.copyrightText
-    if (translated !== undefined) return translated
-  }
-  return footerSettings.value.copyrightText
-})
-
-function getDisplayFooterLinkLabel(linkId: string): string {
-  if (!footerSettings.value) return ''
-  const link = footerSettings.value.links.find(l => l.id === linkId)
-  if (!link) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const footerLinks = langTranslations?.blocks[props.block.id]?.footerLinks
-    const translatedLink = footerLinks?.find(l => l.id === linkId)
-    if (translatedLink?.label !== undefined) return translatedLink.label
-  }
-  return link.label
-}
-
 // Form translations - note: form now uses child blocks for fields, submit button is a form-button block
 
 // Event handlers
@@ -681,6 +655,10 @@ function handleClick(event: MouseEvent) {
 
 function handleDuplicate() {
   editorStore.duplicateBlock(props.block.id)
+}
+
+function handleCreateComponent() {
+  editorStore.createComponent(props.block.id)
 }
 
 function handleDelete() {
@@ -1067,10 +1045,9 @@ function getColumnResizeHandlePosition(columnIndex: number): string {
   return `calc(${percentPosition}% + ${gapCount * gap - gap / 2}px)`
 }
 
-// Check if drag event contains valid block or preset type (for adding new blocks)
+// Check if drag event contains valid block type (for adding new blocks)
 function isValidNewBlockDragType(event: DragEvent): boolean {
-  return event.dataTransfer?.types.includes('application/x-section-type') ||
-         event.dataTransfer?.types.includes('application/x-preset-type') || false
+  return event.dataTransfer?.types.includes('application/x-section-type') || false
 }
 
 // Check if drag event contains block move data
@@ -1158,23 +1135,7 @@ function handleDrop(event: DragEvent) {
     return
   }
 
-  // Check if this is a List/Collection Grid - these don't accept new blocks
-  const isListCollectionGrid = props.block.type === 'grid' &&
-    props.block.children?.some(c => c.type === 'stack')
-  if (isListCollectionGrid) return
-
-  // Check for preset type
-  const presetType = event.dataTransfer?.getData('application/x-preset-type') as PresetType
-  if (presetType && presetTypes.includes(presetType)) {
-    const block = createPresetBlock(presetType)
-    const inserted = editorStore.addPresetBlock(block, dropIndex ?? undefined, props.block.id)
-    if (inserted) {
-      editorStore.selectBlock(inserted.id)
-    }
-    return
-  }
-
-  // Otherwise check for section type
+  // Check for section type
   const sectionType = event.dataTransfer?.getData('application/x-section-type')
   if (sectionType) {
     const block = editorStore.addBlock(sectionType as SectionBlockType, dropIndex ?? undefined, props.block.id)
@@ -1219,9 +1180,11 @@ function getHeightStyle(height?: string): string | undefined {
   // Handle legacy string values
   if (height === 'full') return '100vh'
   if (height === 'half') return '50vh'
-  // Handle numeric percentage values from slider
+  // If value already has a unit (px, %, vh, vw, em, rem, etc.), return as-is
+  if (/[a-z%]/i.test(height)) return height
+  // Handle plain numeric values (legacy) - assume px
   const num = parseFloat(height)
-  if (!isNaN(num) && num > 0) return `${num}vh`
+  if (!isNaN(num) && num > 0) return `${num}px`
   return undefined
 }
 
@@ -1240,8 +1203,18 @@ const fontSizeMap: Record<string, string> = {
 }
 
 // Helper to convert px value to em (based on 16px base)
+// Preserves non-px units (%, em, rem, vh, vw, etc.)
 function pxToEm(value: string | number): string {
-  const px = typeof value === 'string' ? parseFloat(value) : value
+  if (typeof value === 'number') {
+    if (value === 0) return '0'
+    return `${value / 16}em`
+  }
+  // If value already has a non-px unit, return as-is
+  if (/%|em|rem|vh|vw|svh|svw|ch|vmin|vmax/.test(value)) {
+    return value
+  }
+  // Parse px value or plain number
+  const px = parseFloat(value)
   if (isNaN(px) || px === 0) return '0'
   return `${px / 16}em`
 }
@@ -1304,7 +1277,9 @@ const blockStyles = computed(() => {
       if (activeSides.has('bottom')) css.borderBottom = borderValue
       if (activeSides.has('left')) css.borderLeft = borderValue
     }
-    if (b.radius && b.radius !== '0') css.borderRadius = pxToEm(b.radius)
+    if (b.radius && b.radius !== '0') {
+      css.borderRadius = pxToEm(b.radius)
+    }
   }
 
   // Shadow (responsive) - use em for offsets and blur
@@ -1318,10 +1293,10 @@ const blockStyles = computed(() => {
   // Typography styles (non-responsive for now) - fontSize uses em
   if (allStyles.fontSize) {
     const size = allStyles.fontSize as string
-    const pxValue = fontSizeMap[size] || `${size}px`
-    // Convert px string to em
-    const pxNum = parseFloat(pxValue)
-    css.fontSize = pxToEm(pxNum)
+    // If it's a Tailwind class (xs, sm, base, etc.), convert to px first
+    // Otherwise pass directly to pxToEm which handles all units (px, em, rem, vh, etc.)
+    const value = fontSizeMap[size] || size
+    css.fontSize = pxToEm(value)
   }
   // Color
   if (allStyles.color) {
@@ -1336,12 +1311,14 @@ const blockStyles = computed(() => {
   if (allStyles.letterSpacing) css.letterSpacing = pxToEm(allStyles.letterSpacing as string)
 
   // Border radius (direct, non-responsive for now) - use em
-  if (allStyles.borderRadius) css.borderRadius = pxToEm(allStyles.borderRadius as string)
+  if (allStyles.borderRadius) {
+    css.borderRadius = pxToEm(allStyles.borderRadius as string)
+  }
 
   // Flexbox properties for layout blocks (non-responsive for now)
   if (allStyles.flexDirection) css.flexDirection = allStyles.flexDirection as string
-  if (allStyles.justifyContent) css.justifyContent = allStyles.justifyContent as string
-  if (allStyles.alignItems) css.alignItems = allStyles.alignItems as string
+  if (allStyles.justifyContent !== undefined) css.justifyContent = allStyles.justifyContent as string
+  if (allStyles.alignItems !== undefined) css.alignItems = allStyles.alignItems as string
   if (allStyles.flexWrap) css.flexWrap = allStyles.flexWrap as string
   if (allStyles.gap) css.gap = pxToEm(allStyles.gap as string)
 
@@ -1359,6 +1336,19 @@ const blockStyles = computed(() => {
   }
   if (styles.mixBlendMode && styles.mixBlendMode !== 'normal') {
     css.mixBlendMode = styles.mixBlendMode as string
+  }
+
+  // Size (responsive) - width and height
+  if (styles.width) {
+    css.width = getHeightStyle(styles.width as string) || 'auto'
+  }
+  if (styles.height) {
+    css.minHeight = getHeightStyle(styles.height as string) || 'auto'
+  }
+
+  // Overflow (responsive) - uses clip-path instead of overflow
+  if (styles.overflow === 'hidden') {
+    css.clipPath = 'inset(0 0 0 0)'
   }
 
   // Note: Position styles are handled separately in wrapperStyles to keep outline/label working
@@ -1394,6 +1384,17 @@ const wrapperStyles = computed(() => {
     css.left = pxToEm(styles.left as string)
   }
 
+  // Flex child properties (responsive)
+  if (styles.flexGrow !== undefined && styles.flexGrow !== '' && styles.flexGrow !== '0') {
+    css.flexGrow = String(styles.flexGrow)
+  }
+  if (styles.flexShrink !== undefined && styles.flexShrink !== '') {
+    css.flexShrink = String(styles.flexShrink)
+  }
+  if (styles.flexBasis !== undefined && styles.flexBasis !== '' && styles.flexBasis !== 'auto') {
+    css.flexBasis = styles.flexBasis as string
+  }
+
   return css
 })
 
@@ -1425,13 +1426,15 @@ const spanStylesCSS = computed(() => {
     if (styles.fontStyle) styleStr += `font-style: ${styles.fontStyle};`
     if (styles.textDecoration && styles.textDecoration !== 'none') styleStr += `text-decoration: ${styles.textDecoration};`
     if (styles.fontSize) {
-      const pxValue = fontSizeMap[styles.fontSize as string] || `${styles.fontSize}px`
-      styleStr += `font-size: ${pxToEm(parseFloat(pxValue))};`
+      const value = fontSizeMap[styles.fontSize as string] || styles.fontSize as string
+      styleStr += `font-size: ${pxToEm(value)};`
     }
     if (styles.fontFamily) styleStr += `font-family: ${styles.fontFamily};`
     if (styles.letterSpacing) styleStr += `letter-spacing: ${pxToEm(styles.letterSpacing as string)};`
     if (styles.padding) styleStr += `padding: ${styles.padding};`
-    if (styles.borderRadius) styleStr += `border-radius: ${pxToEm(styles.borderRadius as string)};`
+    if (styles.borderRadius) {
+      styleStr += `border-radius: ${pxToEm(styles.borderRadius as string)}; overflow: hidden;`
+    }
     if (styles.border) {
       const b = styles.border as { width?: string; color?: string; style?: string }
       if (b.width) styleStr += `border: ${pxToEm(b.width)} ${b.style || 'solid'} ${b.color || 'currentColor'};`
@@ -1501,6 +1504,7 @@ function getImageStyles(): Record<string, string> {
   // Border radius - use em
   if (styles?.borderRadius && styles.borderRadius !== '0') {
     css.borderRadius = pxToEm(styles.borderRadius as string)
+    css.overflow = 'hidden'
   }
 
   // Width - supports percentage or px (converted to em)
@@ -1551,6 +1555,7 @@ function getVideoStyles(): Record<string, string> {
   // Border radius - use em, default to 0
   if (styles?.borderRadius && styles.borderRadius !== '0') {
     css.borderRadius = pxToEm(styles.borderRadius as string)
+    css.overflow = 'hidden'
   }
   // Apply mask shape
   const mask = styles?.mask as MaskShape | undefined
@@ -1560,57 +1565,17 @@ function getVideoStyles(): Record<string, string> {
   return css
 }
 
-// Helper for button alignment
-function getButtonAlignment(): string | undefined {
-  const styles = props.block.styles as Record<string, unknown>
-  return styles?.textAlign as string | undefined
-}
-
-function getButtonClasses(variant?: string, size?: string): string[] {
-  const classes = ['inline-flex', 'items-center', 'gap-2', 'font-medium', 'transition-colors']
-
-  switch (variant) {
-    case 'primary':
-      classes.push('bg-primary', 'text-primary-foreground', 'hover:bg-primary/90')
-      break
-    case 'secondary':
-      classes.push('bg-secondary', 'text-secondary-foreground', 'hover:bg-secondary/80')
-      break
-    case 'outline':
-      classes.push('border', 'border-input', 'bg-background', 'hover:bg-accent')
-      break
-    case 'ghost':
-      classes.push('hover:bg-accent', 'hover:text-accent-foreground')
-      break
-    default:
-      classes.push('bg-primary', 'text-primary-foreground', 'hover:bg-primary/90')
-  }
-
-  switch (size) {
-    case 'sm':
-      classes.push('text-sm', 'px-4', 'py-2')
-      break
-    case 'lg':
-      classes.push('text-lg', 'px-8', 'py-3')
-      break
-    default:
-      classes.push('text-base', 'px-6', 'py-3')
-  }
-
-  return classes
-}
 </script>
 
 <template>
-  <!-- Hide completely if isHidden is true for List/Collection items or header/footer -->
   <section
-    v-if="!isHeaderFooterHidden && (!isBlockHidden || !isInsideListCollection)"
+    v-if="!isBlockHidden"
     ref="sectionRef"
     class="w-full cursor-pointer overflow-visible"
     :class="{ 'relative': !wrapperStyles.position }"
     data-preview-block
     :data-block-id="block.id"
-    :style="{ ...animationStyles, ...wrapperStyles }"
+    :style="{ ...animationStyles, ...wrapperStyles, ...interactionPreviewStyles }"
     @click="handleClick"
     @contextmenu="handleContextMenu"
     @mouseenter="handleMouseEnter"
@@ -1648,85 +1613,34 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- ============================================ -->
-    <!-- HEADER BLOCK -->
-    <!-- ============================================ -->
-    <div v-if="block.type === 'header' && !headerSettings?.isHidden" class="flex" :style="{ ...blockStyles, gap: `${headerSettings?.gap || 16}px`, height: headerSettings?.height ? `${headerSettings.height}px` : undefined }">
-      <!-- Render Start/Middle/End stacks as children -->
-      <template v-if="block.children && block.children.length > 0">
-        <PreviewSection
-          v-for="(child, childIndex) in block.children"
-          :key="child.id"
-          :block="child"
-          :index="childIndex"
-          :total="block.children.length"
-        />
-      </template>
-      <!-- Fallback: show placeholders if no children -->
-      <template v-else>
-        <div class="flex-1 flex items-center gap-2">
-          <span class="text-sm text-muted-foreground">Start</span>
-        </div>
-        <div class="flex-1 flex items-center justify-center gap-2">
-          <span class="text-sm text-muted-foreground">Middle</span>
-        </div>
-        <div class="flex-1 flex items-center justify-end gap-2">
-          <span class="text-sm text-muted-foreground">End</span>
-        </div>
-      </template>
-    </div>
-
-    <!-- ============================================ -->
-    <!-- FOOTER BLOCK -->
-    <!-- ============================================ -->
-    <div v-else-if="block.type === 'footer' && !footerSettings?.isHidden" class="flex" :style="{ ...blockStyles, gap: `${footerSettings?.gap || 16}px` }">
-      <!-- Render Start/Middle/End stacks as children -->
-      <template v-if="block.children && block.children.length > 0">
-        <PreviewSection
-          v-for="(child, childIndex) in block.children"
-          :key="child.id"
-          :block="child"
-          :index="childIndex"
-          :total="block.children.length"
-        />
-      </template>
-      <!-- Fallback: show placeholders if no children -->
-      <template v-else>
-        <div class="flex-1 flex items-center gap-2">
-          <span class="text-sm text-muted-foreground">Start</span>
-        </div>
-        <div class="flex-1 flex items-center justify-center gap-2">
-          <span class="text-sm text-muted-foreground">Middle</span>
-        </div>
-        <div class="flex-1 flex items-center justify-end gap-2">
-          <span class="text-sm text-muted-foreground">End</span>
-        </div>
-      </template>
-    </div>
-
-    <!-- ============================================ -->
     <!-- CONTAINER BLOCK -->
     <!-- ============================================ -->
     <div
-      v-else-if="block.type === 'container'"
-      class="relative flex min-h-[80px] transition-colors "
+      v-if="block.type === 'container'"
+      class="relative flex transition-colors "
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
       :style="{
         ...blockStyles,
         flexDirection: (block.styles as ContainerStyles).flexDirection || 'column',
-        maxWidth: containerSettings?.maxWidth ? `${containerSettings.maxWidth}px` : undefined,
-        marginLeft: blockStyles.marginLeft || (containerSettings?.maxWidth ? 'auto' : undefined),
-        marginRight: blockStyles.marginRight || (containerSettings?.maxWidth ? 'auto' : undefined),
-        minHeight: getHeightStyle(containerSettings?.height),
+        justifyContent: (block.styles as ContainerStyles)?.justifyContent || 'flex-start',
+        alignItems: (block.styles as ContainerStyles)?.alignItems || 'stretch',
         backgroundColor: containerSettings?.backgroundType && containerSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
-        backgroundImage: containerSettings?.backgroundType === 'image' && containerSettings?.backgroundImage ? `url(${containerSettings.backgroundImage})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
       }"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
     >
+      <!-- Background Image with effects -->
+      <div
+        v-if="containerSettings?.backgroundType === 'image' && containerSettings?.backgroundImage"
+        class="absolute inset-0 bg-cover bg-center pointer-events-none"
+        :style="{
+          backgroundImage: `url(${containerSettings.backgroundImage})`,
+          opacity: (containerSettings.backgroundImageOpacity ?? 100) / 100,
+          filter: `blur(${containerSettings.backgroundImageBlur ?? 0}px) saturate(${containerSettings.backgroundImageSaturation ?? 100}%)`,
+        }"
+      />
       <!-- Background Video -->
       <video
         v-if="containerSettings?.backgroundType === 'video' && containerSettings?.backgroundVideo"
@@ -1765,7 +1679,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       </template>
       <div
         v-else
-        class="relative z-10 flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50"
+        class="relative z-30 flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50"
       >
         <div class="flex items-center gap-2">
           <button
@@ -1795,15 +1709,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
             </div>
             <span class="text-xs">Canvas</span>
           </button>
-          <button
-            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
-            @click.stop="handleAddListCollection"
-          >
-            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
-              <Icon name="list-slider" :size="20" class="text-muted-foreground" />
-            </div>
-            <span class="text-xs">List</span>
-          </button>
         </div>
       </div>
     </div>
@@ -1816,15 +1721,23 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       v-else-if="block.type === 'grid' && gridSettings?.isSlider"
       class="relative "
       :style="{
+        width: blockStyles.width,
         marginTop: blockStyles.marginTop,
         marginRight: blockStyles.marginRight,
         marginBottom: blockStyles.marginBottom,
         marginLeft: blockStyles.marginLeft,
-        backgroundImage: gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage ? `url(${gridSettings.backgroundImage})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
       }"
     >
+      <!-- Background Image with effects -->
+      <div
+        v-if="gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage"
+        class="absolute inset-0 bg-cover bg-center pointer-events-none"
+        :style="{
+          backgroundImage: `url(${gridSettings.backgroundImage})`,
+          opacity: (gridSettings.backgroundImageOpacity ?? 100) / 100,
+          filter: `blur(${gridSettings.backgroundImageBlur ?? 0}px) saturate(${gridSettings.backgroundImageSaturation ?? 100}%)`,
+        }"
+      />
       <!-- Background Video -->
       <video
         v-if="gridSettings?.backgroundType === 'video' && gridSettings?.backgroundVideo"
@@ -1839,7 +1752,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       <div
         :ref="(el) => sliderRefs.set(block.id, el as HTMLElement)"
         :data-block-id="block.id"
-        class="relative z-10 flex overflow-x-auto snap-x snap-mandatory scroll-smooth min-h-[80px] transition-colors scrollbar-hide"
+        class="relative z-10 flex overflow-x-auto snap-x snap-mandatory scroll-smooth transition-colors scrollbar-hide"
         :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
         :style="{
           ...blockStyles,
@@ -1847,8 +1760,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           marginRight: undefined,
           marginBottom: undefined,
           marginLeft: undefined,
-          gap: `${gridSettings?.gap || 16}px`,
-          minHeight: getHeightStyle(gridSettings?.height),
+          gap: (block.styles as GridStyles)?.gap || '16px',
           backgroundColor: gridSettings?.backgroundType && gridSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor
         }"
         @dragenter="handleDragEnter"
@@ -1864,7 +1776,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
             :key="child.id"
             class="relative flex-shrink-0 snap-start"
             :style="{
-              width: `calc((100% - ${(gridSettings.slidesPerView || 1) - 1} * ${gridSettings?.gap || 16}px) / ${gridSettings.slidesPerView || 1})`,
+              width: `calc((100% - ${(gridSettings.slidesPerView || 1) - 1} * ${(block.styles as GridStyles)?.gap || '16px'}) / ${gridSettings.slidesPerView || 1})`,
             }"
             @dragover="handleChildDragOver(childIndex, $event)"
             @dragleave="handleChildDragLeave"
@@ -1906,16 +1818,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
                   @click="handleAddContentBlock(type)"
                 >
                   {{ sectionBlockLabels[type] }}
-                </DropdownItem>
-                <div class="my-1 border-t border-border" />
-                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
-                <DropdownItem
-                  v-for="type in presetTypes"
-                  :key="type"
-                  :icon="presetIcons[type]"
-                  @click="handleAddPresetInside(type)"
-                >
-                  {{ presetLabels[type] }}
                 </DropdownItem>
               </div>
             </Dropdown>
@@ -1962,15 +1864,23 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       v-else-if="block.type === 'grid'"
       class="relative "
       :style="{
+        width: blockStyles.width,
         marginTop: blockStyles.marginTop,
         marginRight: blockStyles.marginRight,
         marginBottom: blockStyles.marginBottom,
         marginLeft: blockStyles.marginLeft,
-        backgroundImage: gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage ? `url(${gridSettings.backgroundImage})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
       }"
     >
+      <!-- Background Image with effects -->
+      <div
+        v-if="gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage"
+        class="absolute inset-0 bg-cover bg-center pointer-events-none"
+        :style="{
+          backgroundImage: `url(${gridSettings.backgroundImage})`,
+          opacity: (gridSettings.backgroundImageOpacity ?? 100) / 100,
+          filter: `blur(${gridSettings.backgroundImageBlur ?? 0}px) saturate(${gridSettings.backgroundImageSaturation ?? 100}%)`,
+        }"
+      />
       <!-- Background Video -->
       <video
         v-if="gridSettings?.backgroundType === 'video' && gridSettings?.backgroundVideo"
@@ -1984,7 +1894,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       <!-- Grid container -->
       <div
         :data-block-id="block.id"
-        class="relative z-10 grid min-h-[80px] transition-colors"
+        class="relative z-10 grid transition-colors"
         :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
         :style="{
           ...blockStyles,
@@ -1994,8 +1904,9 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           marginLeft: undefined,
           gridTemplateColumns,
           'grid-auto-rows': 'minmax(80px, auto)',
-          gap: `${gridSettings?.gap || 16}px`,
-          minHeight: getHeightStyle(gridSettings?.height),
+          gap: (block.styles as GridStyles)?.gap || '16px',
+          justifyItems: (block.styles as GridStyles)?.justifyItems || 'flex-start',
+          alignItems: (block.styles as GridStyles)?.alignItems || 'flex-start',
           backgroundColor: gridSettings?.backgroundType && gridSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor
         }"
         @dragenter="handleDragEnter"
@@ -2007,7 +1918,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           <div
             v-for="(child, childIndex) in block.children"
             :key="child.id"
-            class="relative"
+            class="relative min-w-0"
             :style="getGridItemStyles(child)"
             @dragover="handleChildDragOver(childIndex, $event)"
             @dragleave="handleChildDragLeave"
@@ -2051,16 +1962,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
                 >
                   {{ sectionBlockLabels[type] }}
                 </DropdownItem>
-                <div class="my-1 border-t border-border" />
-                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
-                <DropdownItem
-                  v-for="type in presetTypes"
-                  :key="type"
-                  :icon="presetIcons[type]"
-                  @click="handleAddPresetInside(type)"
-                >
-                  {{ presetLabels[type] }}
-                </DropdownItem>
               </div>
             </Dropdown>
           </div>
@@ -2086,23 +1987,31 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- ============================================ -->
     <div
       v-else-if="block.type === 'stack'"
-      class="relative flex min-h-[80px] transition-colors"
+      class="relative flex transition-colors"
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
       :style="{
         ...blockStyles,
-        flexDirection: stackSettings?.direction === 'horizontal' ? 'row' : 'column',
-        gap: `${stackSettings?.gap || 16}px`,
-        minHeight: getHeightStyle(stackSettings?.height),
+        flexDirection: (block.styles as StackStyles)?.flexDirection || 'column',
+        justifyContent: (block.styles as StackStyles)?.justifyContent || 'flex-start',
+        alignItems: (block.styles as StackStyles)?.alignItems || 'stretch',
+        gap: (block.styles as StackStyles)?.gap || '16px',
         backgroundColor: stackSettings?.backgroundType && stackSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
-        backgroundImage: stackSettings?.backgroundType === 'image' && stackSettings?.backgroundImage ? `url(${stackSettings.backgroundImage})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
       }"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
     >
+      <!-- Background Image with effects -->
+      <div
+        v-if="stackSettings?.backgroundType === 'image' && stackSettings?.backgroundImage"
+        class="absolute inset-0 bg-cover bg-center pointer-events-none"
+        :style="{
+          backgroundImage: `url(${stackSettings.backgroundImage})`,
+          opacity: (stackSettings.backgroundImageOpacity ?? 100) / 100,
+          filter: `blur(${stackSettings.backgroundImageBlur ?? 0}px) saturate(${stackSettings.backgroundImageSaturation ?? 100}%)`,
+        }"
+      />
       <!-- Background Video -->
       <video
         v-if="stackSettings?.backgroundType === 'video' && stackSettings?.backgroundVideo"
@@ -2118,14 +2027,13 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           v-for="(child, childIndex) in block.children"
           :key="child.id"
           class="relative z-10"
-          :class="stackSettings?.direction === 'horizontal' ? '' : 'w-full'"
           @dragover="handleChildDragOver(childIndex, $event)"
           @dragleave="handleChildDragLeave"
         >
           <!-- Drop indicator -->
           <div
             v-if="childDropIndex === childIndex"
-            :class="stackSettings?.direction === 'horizontal'
+            :class="(block.styles as StackStyles)?.flexDirection === 'row'
               ? 'absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
               : 'absolute left-0 right-0 -top-2 h-1 bg-primary rounded-full z-10'"
           />
@@ -2137,7 +2045,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
           <!-- Drop indicator after last child -->
           <div
             v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
-            :class="stackSettings?.direction === 'horizontal'
+            :class="(block.styles as StackStyles)?.flexDirection === 'row'
               ? 'absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
               : 'absolute left-0 right-0 -bottom-2 h-1 bg-primary rounded-full z-10'"
           />
@@ -2145,7 +2053,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       </template>
       <div
         v-else
-        class="relative z-10 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
+        class="relative z-30 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
       >
         <Dropdown align="left" width="min-w-48" :close-on-click="true">
           <template #trigger="{ toggle }">
@@ -2163,16 +2071,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
               @click="handleAddContentBlock(type)"
             >
               {{ sectionBlockLabels[type] }}
-            </DropdownItem>
-            <div class="my-1 border-t border-border" />
-            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
-            <DropdownItem
-              v-for="type in presetTypes"
-              :key="type"
-              :icon="presetIcons[type]"
-              @click="handleAddPresetInside(type)"
-            >
-              {{ presetLabels[type] }}
             </DropdownItem>
           </div>
         </Dropdown>
@@ -2212,6 +2110,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       ]"
       :style="blockStyles"
       contenteditable="true"
+      spellcheck="false"
       @blur="handleHeadingEdit($event)"
       @keydown.escape="handleEscapeKey($event)"
       @paste="handlePasteClean($event)"
@@ -2232,6 +2131,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       class="prose prose-neutral max-w-none outline-none"
       :style="blockStyles"
       contenteditable="true"
+      spellcheck="false"
       @blur="handleTextEdit($event)"
       @keydown.escape="handleEscapeKey($event)"
       @paste="handlePasteClean($event)"
@@ -2262,21 +2162,35 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- ============================================ -->
-    <!-- BUTTON BLOCK -->
+    <!-- BUTTON BLOCK (rendered as <a> wrapper with container-like styling) -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'button'" class="flex py-2" :class="{ 'justify-start': getButtonAlignment() === 'left', 'justify-center': !getButtonAlignment() || getButtonAlignment() === 'center', 'justify-end': getButtonAlignment() === 'right' }">
+    <a
+      v-else-if="block.type === 'button'"
+      :href="buttonSettings?.url || '#'"
+      :target="buttonSettings?.newTab ? '_blank' : undefined"
+      :rel="buttonSettings?.newTab ? 'noopener noreferrer' : undefined"
+      class="inline-flex transition-colors cursor-pointer no-underline"
+      :style="{
+        ...blockStyles,
+        flexDirection: (block.styles as ButtonStyles)?.flexDirection || 'row',
+        justifyContent: (block.styles as ButtonStyles)?.justifyContent || 'center',
+        alignItems: (block.styles as ButtonStyles)?.alignItems || 'center',
+        gap: (block.styles as ButtonStyles)?.gap || '8px',
+        color: (block.styles as ButtonStyles)?.color || (block.styles as ButtonStyles)?.textColor || undefined,
+      }"
+      @click.prevent.stop
+    >
       <span
         :key="`button-${editorStore.currentLanguage || 'default'}`"
-        :class="[...getButtonClasses(buttonSettings?.variant, buttonSettings?.size), 'outline-none focus:ring-2 focus:ring-primary/20']"
-        :style="blockStyles"
+        class="outline-none"
         contenteditable="true"
+        spellcheck="false"
         @blur="handleButtonEdit($event)"
         @keydown.enter.prevent="($event.target as HTMLElement).blur()"
         @keydown.escape="handleEscapeKey($event)"
         @paste="handlePasteClean($event)"
-        @click.stop
       >{{ displayButtonLabel || 'Click me' }}</span>
-    </div>
+    </a>
 
     <!-- ============================================ -->
     <!-- ICON BLOCK -->
@@ -2300,7 +2214,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         class="space-y-2"
       >
         <div class="text-xs font-medium text-foreground/80">{{ optionType.name }}</div>
-        <div class="flex flex-wrap" :style="{ gap: `${variantsStyles?.gap || '8'}px` }">
+        <div class="flex flex-wrap" :style="{ gap: variantsStyles?.gap ? `${variantsStyles.gap}px` : '8px' }">
           <!-- Dropdown -->
           <template v-if="optionType.displayStyle === 'dropdown'">
             <select
@@ -2364,7 +2278,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- FORM BLOCK -->
     <!-- Form now renders child blocks (form-input, form-textarea, etc.) -->
     <!-- ============================================ -->
-    <form v-else-if="block.type === 'form'" class="flex flex-col" :style="{ ...blockStyles, gap: formSettings?.gap ? `${formSettings.gap}px` : '16px' }" @submit.prevent>
+    <form v-else-if="block.type === 'form'" class="flex" :style="{ ...blockStyles, flexDirection: (block.styles as FormStyles)?.flexDirection || 'column', justifyContent: (block.styles as FormStyles)?.justifyContent || 'flex-start', alignItems: (block.styles as FormStyles)?.alignItems || 'stretch', gap: (block.styles as FormStyles)?.gap || '16px' }" @submit.prevent>
       <PreviewSection
         v-for="(child, childIndex) in block.children || []"
         :key="child.id"
@@ -2381,12 +2295,22 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <!-- FORM FIELD BLOCKS -->
     <!-- These are rendered as children of form blocks -->
     <!-- ============================================ -->
+    <!-- Form Label -->
+    <span
+      v-else-if="block.type === 'form-label'"
+      :class="[
+        formLabelStyles?.fontSize ? `text-${formLabelStyles.fontSize}` : 'text-sm',
+        formLabelStyles?.fontWeight === 'bold' ? 'font-bold' : formLabelStyles?.fontWeight === 'semibold' ? 'font-semibold' : formLabelStyles?.fontWeight === 'medium' ? 'font-medium' : 'font-normal',
+      ]"
+      :style="{
+        ...blockStyles,
+        color: formLabelStyles?.color,
+        textAlign: formLabelStyles?.textAlign,
+      }"
+    >{{ formLabelSettings?.content }}</span>
+
     <!-- Form Input -->
-    <div v-else-if="block.type === 'form-input'" class="flex flex-col gap-1.5">
-      <label v-if="formInputSettings?.label" class="text-sm font-medium">
-        {{ formInputSettings.label }}
-        <span v-if="formInputSettings?.required" class="text-destructive">*</span>
-      </label>
+    <div v-else-if="block.type === 'form-input'">
       <input
         :type="formInputSettings?.inputType || 'text'"
         :placeholder="formInputSettings?.placeholder"
@@ -2397,11 +2321,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Textarea -->
-    <div v-else-if="block.type === 'form-textarea'" class="flex flex-col gap-1.5">
-      <label v-if="formTextareaSettings?.label" class="text-sm font-medium">
-        {{ formTextareaSettings.label }}
-        <span v-if="formTextareaSettings?.required" class="text-destructive">*</span>
-      </label>
+    <div v-else-if="block.type === 'form-textarea'">
       <textarea
         :placeholder="formTextareaSettings?.placeholder"
         :rows="formTextareaSettings?.rows || 4"
@@ -2412,11 +2332,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Select (Dropdown) -->
-    <div v-else-if="block.type === 'form-select'" class="flex flex-col gap-1.5">
-      <label v-if="formSelectSettings?.label" class="text-sm font-medium">
-        {{ formSelectSettings.label }}
-        <span v-if="formSelectSettings?.required" class="text-destructive">*</span>
-      </label>
+    <div v-else-if="block.type === 'form-select'">
       <select
         :required="formSelectSettings?.required"
         class="px-4 py-2 border border-input bg-background"
@@ -2430,11 +2346,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Radio -->
-    <div v-else-if="block.type === 'form-radio'" class="flex flex-col gap-1.5" :style="blockStyles">
-      <label v-if="formRadioSettings?.label" class="text-sm font-medium">
-        {{ formRadioSettings.label }}
-        <span v-if="formRadioSettings?.required" class="text-destructive">*</span>
-      </label>
+    <div v-else-if="block.type === 'form-radio'" :style="blockStyles">
       <div :class="formRadioSettings?.layout === 'horizontal' ? 'flex flex-wrap gap-4' : 'flex flex-col gap-2'">
         <label v-for="option in formRadioSettings?.options || []" :key="option.id" class="flex items-center gap-2 text-sm cursor-pointer">
           <input type="radio" :name="block.id" :value="option.value" :required="formRadioSettings?.required" />
@@ -2444,11 +2356,7 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     </div>
 
     <!-- Form Checkbox -->
-    <div v-else-if="block.type === 'form-checkbox'" class="flex flex-col gap-1.5" :style="blockStyles">
-      <label v-if="formCheckboxSettings?.label" class="text-sm font-medium">
-        {{ formCheckboxSettings.label }}
-        <span v-if="formCheckboxSettings?.required" class="text-destructive">*</span>
-      </label>
+    <div v-else-if="block.type === 'form-checkbox'" :style="blockStyles">
       <div :class="formCheckboxSettings?.layout === 'horizontal' ? 'flex flex-wrap gap-4' : 'flex flex-col gap-2'">
         <label v-for="option in formCheckboxSettings?.options || []" :key="option.id" class="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" :name="`${block.id}_${option.value}`" :value="option.value" />
@@ -2485,17 +2393,25 @@ function getButtonClasses(variant?: string, size?: string): string[] {
       :class="isDropTarget ? 'ring-2 ring-primary ring-dashed' : ''"
       :style="{
         ...blockStyles,
-        minHeight: getHeightStyle(canvasSettings?.minHeight) || '400px',
+        minHeight: blockStyles.minHeight || '400px',
         backgroundColor: canvasSettings?.backgroundType && canvasSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
-        backgroundImage: canvasSettings?.backgroundType === 'image' && canvasSettings?.backgroundImage ? `url(${canvasSettings.backgroundImage})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
       }"
       @dragenter="handleDragEnter"
       @dragover="handleDragOver"
       @dragleave="handleDragLeave"
       @drop="handleDrop"
     >
+      <!-- Background Image with effects -->
+      <div
+        v-if="canvasSettings?.backgroundType === 'image' && canvasSettings?.backgroundImage"
+        class="absolute inset-0 bg-cover bg-center pointer-events-none"
+        :style="{
+          backgroundImage: `url(${canvasSettings.backgroundImage})`,
+          opacity: (canvasSettings.backgroundImageOpacity ?? 100) / 100,
+          filter: `blur(${canvasSettings.backgroundImageBlur ?? 0}px) saturate(${canvasSettings.backgroundImageSaturation ?? 100}%)`,
+        }"
+      />
+
       <!-- Background Video -->
       <video
         v-if="canvasSettings?.backgroundType === 'video' && canvasSettings?.backgroundVideo"
@@ -2549,16 +2465,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
               @click="handleAddContentBlock(type)"
             >
               {{ sectionBlockLabels[type] }}
-            </DropdownItem>
-            <div class="my-1 border-t border-border" />
-            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">List / Collection</p>
-            <DropdownItem
-              v-for="type in presetTypes"
-              :key="type"
-              :icon="presetIcons[type]"
-              @click="handleAddPresetInside(type)"
-            >
-              {{ presetLabels[type] }}
             </DropdownItem>
           </div>
         </Dropdown>
@@ -2640,6 +2546,13 @@ function getButtonClasses(variant?: string, size?: string): string[] {
         Duplicate
       </ContextMenuItem>
       <ContextMenuItem
+        icon="package"
+        @click="handleCreateComponent"
+      >
+        Create component
+      </ContextMenuItem>
+      <ContextMenuDivider />
+      <ContextMenuItem
         icon="app-delete"
         shortcut="⌫"
         destructive
@@ -2654,7 +2567,6 @@ function getButtonClasses(variant?: string, size?: string): string[] {
     <BlockPicker
       v-model:open="isBlockPickerOpen"
       @select-block="handleBlockPickerSelectBlock"
-      @select-preset="handleBlockPickerSelectPreset"
     />
 
     <!-- Inline Format Toolbar for heading/text blocks -->

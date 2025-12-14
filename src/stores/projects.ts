@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase } from '@/lib/supabase'
+import { supabase, refreshSession } from '@/lib/supabase'
 import type { Json } from '@/lib/supabase/types'
 import type { Project, ProjectIntegration, IntegrationProvider, ProjectContent, Collaborator, CollaboratorInvite, CollaboratorRole } from '@/types/project'
 import { getDefaultPageSettings } from '@/lib/editor-utils'
@@ -105,15 +105,38 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function createProject(title: string, layout?: ProjectLayout): Promise<Project | null> {
+  async function createProject(title: string, layout?: ProjectLayout, customSlug?: string, retryCount = 0): Promise<Project | null> {
+    const MAX_RETRIES = 1
     const userStore = useUserStore()
+
     if (!userStore.authUser) {
       error.value = 'You must be logged in to create a project'
       console.error('createProject: No authenticated user')
       return null
     }
 
-    const slug = title
+    // Check session health before attempting create
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      console.error('createProject: No active session')
+
+      // Try to refresh session
+      if (retryCount < MAX_RETRIES) {
+        console.log('Attempting to refresh session...')
+        const refreshed = await refreshSession()
+        if (refreshed) {
+          console.log('Session refreshed, retrying create...')
+          return createProject(title, layout, customSlug, retryCount + 1)
+        }
+      }
+
+      error.value = 'Your session has expired. Please refresh the page and log in again.'
+      toast.error('Session expired', 'Please refresh and log in again')
+      return null
+    }
+
+    // Use custom slug if provided, otherwise generate from title
+    const slug = customSlug || title
       .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '')
@@ -147,6 +170,21 @@ export const useProjectsStore = defineStore('projects', () => {
 
       if (insertError) {
         console.error('createProject: Insert error', insertError)
+
+        // Check for auth-related errors and retry
+        const isAuthError = insertError.code === 'PGRST301' ||
+          insertError.message?.includes('JWT') ||
+          insertError.message?.includes('expired')
+
+        if (isAuthError && retryCount < MAX_RETRIES) {
+          console.log('Auth error during create, attempting session refresh...')
+          const refreshed = await refreshSession()
+          if (refreshed) {
+            console.log('Session refreshed, retrying create...')
+            return createProject(title, layout, customSlug, retryCount + 1)
+          }
+        }
+
         throw insertError
       }
 
@@ -315,9 +353,15 @@ export const useProjectsStore = defineStore('projects', () => {
       if (fetchError && fetchError.code !== 'PGRST116') throw fetchError
 
       if (data) {
+        // Extract translations and components from page_settings (they're stored embedded)
+        const rawPageSettings = data.page_settings as Record<string, unknown> | null
+        const { translations, components, ...pageSettings } = rawPageSettings || {}
+
         const content: ProjectContent = {
           blocks: data.blocks as unknown as ProjectContent['blocks'],
-          pageSettings: data.page_settings as unknown as ProjectContent['pageSettings'],
+          pageSettings: pageSettings as unknown as ProjectContent['pageSettings'],
+          translations: translations as ProjectContent['translations'],
+          components: components as ProjectContent['components'],
         }
         projectContents.value.set(projectId, content)
         return content
@@ -336,15 +380,37 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function saveProjectContent(projectId: string, content: ProjectContent): Promise<boolean> {
+  async function saveProjectContent(projectId: string, content: ProjectContent, retryCount = 0): Promise<boolean> {
+    const MAX_RETRIES = 1
+
+    // Check if user is authenticated before attempting save
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      console.error('saveProjectContent: No active session')
+
+      // Try to refresh session
+      if (retryCount < MAX_RETRIES) {
+        console.log('Attempting to refresh session...')
+        const refreshed = await refreshSession()
+        if (refreshed) {
+          console.log('Session refreshed, retrying save...')
+          return saveProjectContent(projectId, content, retryCount + 1)
+        }
+      }
+
+      error.value = 'Your session has expired. Please refresh the page and log in again.'
+      toast.error('Session expired', 'Please refresh and log in again')
+      return false
+    }
+
     // Store previous state for rollback
     const previousContent = projectContents.value.get(projectId)
     const projectIndex = projects.value.findIndex(p => p.id === projectId)
     const previousProject = projectIndex !== -1 ? { ...projects.value[projectIndex] } as Project : null
 
-    // Optimistic update
-    const contentSnapshot: ProjectContent = JSON.parse(JSON.stringify(content))
-    projectContents.value.set(projectId, contentSnapshot)
+    // Create a clean copy for optimistic update (avoid JSON.parse/stringify for performance)
+    // Just store a reference - the actual data is already plain objects
+    projectContents.value.set(projectId, content)
 
     if (projectIndex !== -1) {
       const current = projects.value[projectIndex]
@@ -355,13 +421,20 @@ export const useProjectsStore = defineStore('projects', () => {
     }
 
     try {
+      // Prepare page_settings with translations and components embedded
+      const pageSettingsWithExtra = {
+        ...content.pageSettings,
+        translations: content.translations,
+        components: content.components,
+      }
+
       const { error: upsertError } = await supabase
         .from('project_content')
         .upsert(
           {
             project_id: projectId,
             blocks: content.blocks as unknown as Json,
-            page_settings: content.pageSettings as unknown as Json,
+            page_settings: pageSettingsWithExtra as unknown as Json,
             updated_at: new Date().toISOString(),
           },
           {
@@ -369,7 +442,35 @@ export const useProjectsStore = defineStore('projects', () => {
           }
         )
 
-      if (upsertError) throw upsertError
+      if (upsertError) {
+        // Check for auth-related errors and retry
+        const isAuthError = upsertError.code === 'PGRST301' ||
+          upsertError.message?.includes('JWT') ||
+          upsertError.message?.includes('expired')
+
+        if (isAuthError && retryCount < MAX_RETRIES) {
+          console.log('Auth error during save, attempting session refresh...')
+          const refreshed = await refreshSession()
+          if (refreshed) {
+            // Restore state before retry
+            if (previousContent) {
+              projectContents.value.set(projectId, previousContent)
+            }
+            if (previousProject && projectIndex !== -1) {
+              projects.value[projectIndex] = previousProject
+            }
+            console.log('Session refreshed, retrying save...')
+            return saveProjectContent(projectId, content, retryCount + 1)
+          }
+        }
+
+        if (isAuthError) {
+          console.error('saveProjectContent: Auth error during save', upsertError)
+          error.value = 'Your session has expired. Please refresh the page.'
+          toast.error('Session expired', 'Please refresh the page')
+        }
+        throw upsertError
+      }
 
       // Also update project's updated_at
       await supabase
@@ -389,6 +490,7 @@ export const useProjectsStore = defineStore('projects', () => {
         projects.value[projectIndex] = previousProject
       }
 
+      console.error('Failed to save project content:', e)
       error.value = e instanceof Error ? e.message : 'Failed to save project content'
       return false
     }

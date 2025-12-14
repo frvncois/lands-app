@@ -6,10 +6,6 @@ import {
   sectionBlockIcons,
   blocksByCategory,
   categoryLabels,
-  presetLabels,
-  presetIcons,
-  presetTypes,
-  type PresetType,
 } from '@/lib/editor-utils'
 import { Icon } from '@/components/ui'
 
@@ -22,7 +18,6 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:open': [value: boolean]
   selectBlock: [type: SectionBlockType]
-  selectPreset: [type: PresetType]
 }>()
 
 const searchQuery = ref('')
@@ -32,15 +27,14 @@ const containerRef = ref<HTMLElement | null>(null)
 
 interface BlockItem {
   id: string
-  type: 'block' | 'preset'
-  blockType?: SectionBlockType
-  presetType?: PresetType
+  type: 'block'
+  blockType: SectionBlockType
   label: string
   icon: string
   category: string
 }
 
-// Build list of all available blocks and presets
+// Build list of all available blocks
 const allItems = computed<BlockItem[]>(() => {
   const items: BlockItem[] = []
 
@@ -65,18 +59,6 @@ const allItems = computed<BlockItem[]>(() => {
       label: sectionBlockLabels[blockType],
       icon: sectionBlockIcons[blockType],
       category: 'Content',
-    })
-  }
-
-  // List/Collection presets
-  for (const presetType of presetTypes) {
-    items.push({
-      id: `preset-${presetType}`,
-      type: 'preset',
-      presetType,
-      label: presetLabels[presetType],
-      icon: presetIcons[presetType],
-      category: 'List / Collection',
     })
   }
 
@@ -109,7 +91,7 @@ const groupedItems = computed(() => {
 })
 
 // Category order for consistent display
-const categoryOrder = ['Layout', 'Content', 'List / Collection']
+const categoryOrder = ['Layout', 'Content']
 
 const orderedGroups = computed(() => {
   const result: { name: string; items: BlockItem[] }[] = []
@@ -129,11 +111,7 @@ function close() {
 }
 
 function handleSelect(item: BlockItem) {
-  if (item.type === 'block' && item.blockType) {
-    emit('selectBlock', item.blockType)
-  } else if (item.type === 'preset' && item.presetType) {
-    emit('selectPreset', item.presetType)
-  }
+  emit('selectBlock', item.blockType)
   close()
 }
 

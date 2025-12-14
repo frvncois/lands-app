@@ -4,8 +4,6 @@ import type {
   LanguageCode,
   ProjectTranslations,
   BlockTranslation,
-  HeaderSettings,
-  FooterSettings,
   FormSettings,
 } from '@/types/editor'
 import { DEFAULT_LANGUAGE } from '@/lib/languages'
@@ -65,22 +63,6 @@ export function useTranslations(options: UseTranslationsOptions) {
             break
           case 'button':
             if (settings.label) translation.label = settings.label as string
-            break
-          case 'header':
-            const headerSettings = settings as unknown as HeaderSettings
-            if (headerSettings.navLinks) {
-              translation.navLinks = headerSettings.navLinks.map(l => ({ id: l.id, label: l.label }))
-            }
-            if (headerSettings.ctaButton?.label) {
-              translation.ctaButtonLabel = headerSettings.ctaButton.label
-            }
-            break
-          case 'footer':
-            const footerSettings = settings as unknown as FooterSettings
-            if (footerSettings.copyrightText) translation.copyrightText = footerSettings.copyrightText
-            if (footerSettings.links) {
-              translation.footerLinks = footerSettings.links.map(l => ({ id: l.id, label: l.label }))
-            }
             break
           case 'form':
             const formSettings = settings as unknown as FormSettings
@@ -195,88 +177,6 @@ export function useTranslations(options: UseTranslationsOptions) {
   }
 
   /**
-   * Get translated nav link label for header
-   */
-  function getTranslatedNavLinkLabel(blockId: string, linkId: string): string | undefined {
-    if (!currentLanguage.value) return undefined
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return undefined
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation?.navLinks) return undefined
-    const link = blockTranslation.navLinks.find(l => l.id === linkId)
-    return link?.label
-  }
-
-  /**
-   * Update translated nav link label for header
-   */
-  function updateTranslatedNavLinkLabel(blockId: string, linkId: string, label: string) {
-    if (!currentLanguage.value) return
-
-    onBeforeChange()
-
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return
-
-    if (!langTranslations.blocks[blockId]) {
-      langTranslations.blocks[blockId] = {}
-    }
-
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation.navLinks) {
-      blockTranslation.navLinks = []
-    }
-
-    const existingLink = blockTranslation.navLinks.find(l => l.id === linkId)
-    if (existingLink) {
-      existingLink.label = label
-    } else {
-      blockTranslation.navLinks.push({ id: linkId, label })
-    }
-  }
-
-  /**
-   * Get translated footer link label
-   */
-  function getTranslatedFooterLinkLabel(blockId: string, linkId: string): string | undefined {
-    if (!currentLanguage.value) return undefined
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return undefined
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation?.footerLinks) return undefined
-    const link = blockTranslation.footerLinks.find(l => l.id === linkId)
-    return link?.label
-  }
-
-  /**
-   * Update translated footer link label
-   */
-  function updateTranslatedFooterLinkLabel(blockId: string, linkId: string, label: string) {
-    if (!currentLanguage.value) return
-
-    onBeforeChange()
-
-    const langTranslations = translations.value.languages[currentLanguage.value]
-    if (!langTranslations) return
-
-    if (!langTranslations.blocks[blockId]) {
-      langTranslations.blocks[blockId] = {}
-    }
-
-    const blockTranslation = langTranslations.blocks[blockId]
-    if (!blockTranslation.footerLinks) {
-      blockTranslation.footerLinks = []
-    }
-
-    const existingLink = blockTranslation.footerLinks.find(l => l.id === linkId)
-    if (existingLink) {
-      existingLink.label = label
-    } else {
-      blockTranslation.footerLinks.push({ id: linkId, label })
-    }
-  }
-
-  /**
    * Reset translations to initial state
    */
   function resetTranslations() {
@@ -317,10 +217,6 @@ export function useTranslations(options: UseTranslationsOptions) {
     setCurrentLanguage,
     getTranslatedContent,
     updateBlockTranslation,
-    getTranslatedNavLinkLabel,
-    updateTranslatedNavLinkLabel,
-    getTranslatedFooterLinkLabel,
-    updateTranslatedFooterLinkLabel,
     resetTranslations,
     loadTranslations,
     getTranslationsData,

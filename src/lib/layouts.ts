@@ -1,4 +1,4 @@
-import type { SectionBlock, PageSettings, HeaderSettings, FooterSettings, UseCaseCategory, ButtonSettings } from '@/types/editor'
+import type { SectionBlock, PageSettings, UseCaseCategory, ButtonSettings } from '@/types/editor'
 import {
   createSectionBlock,
   getDefaultPageSettings,
@@ -579,21 +579,9 @@ export function generateProjectFromWizard(selections: WizardSelections): Generat
     return createSectionFromId(sectionId, layoutStyle, palette, style)
   })
 
-  // Wrap with header and footer
-  const header = createSectionBlock('header')
-  const footer = createSectionBlock('footer')
-
-  // Apply palette colors to header/footer
-  if (header.styles) {
-    header.styles.backgroundColor = palette.colors.background
-  }
-  if (footer.styles) {
-    footer.styles.backgroundColor = palette.colors.secondary
-  }
-
   return {
     pageSettings,
-    blocks: [header, ...sectionBlocks, footer],
+    blocks: sectionBlocks,
   }
 }
 
@@ -1228,29 +1216,6 @@ function createGenericSection(name: string, layoutStyle: LayoutStyle, palette: C
   }
 }
 
-// Create default header block with Start/Middle/End stacks
-function createHeaderBlock(settings?: Partial<HeaderSettings>): SectionBlock {
-  const header = createSectionBlock('header')
-  if (settings) {
-    header.settings = { ...header.settings, ...settings }
-  }
-  return header
-}
-
-// Create default footer block with Start/Middle/End stacks
-function createFooterBlock(settings?: Partial<FooterSettings>): SectionBlock {
-  const footer = createSectionBlock('footer')
-  if (settings) {
-    footer.settings = { ...footer.settings, ...settings }
-  }
-  return footer
-}
-
-// Wrap layout blocks with header and footer
-function wrapWithHeaderFooter(blocks: SectionBlock[]): SectionBlock[] {
-  return [createHeaderBlock(), ...blocks, createFooterBlock()]
-}
-
 // ============================================
 // LAYOUT TEMPLATES
 // ============================================
@@ -1575,7 +1540,7 @@ export function getLayoutsByUseCase(_useCase: UseCaseCategory): ProjectLayout[] 
       useCase: layout.useCase,
       layoutId: layout.id,
     },
-    blocks: wrapWithHeaderFooter(layout.blocks),
+    blocks: layout.blocks,
   }))
 }
 
@@ -1583,7 +1548,7 @@ export function getLayoutById(id: string): ProjectLayout | undefined {
   const layout = LAYOUTS.find(l => l.id === id)
   if (!layout) return undefined
 
-  // Return a copy with header and footer added, and useCase/layoutId in pageSettings
+  // Return a copy with useCase/layoutId in pageSettings
   return {
     ...layout,
     pageSettings: {
@@ -1591,7 +1556,7 @@ export function getLayoutById(id: string): ProjectLayout | undefined {
       useCase: layout.useCase,
       layoutId: layout.id,
     },
-    blocks: wrapWithHeaderFooter(layout.blocks),
+    blocks: layout.blocks,
   }
 }
 
@@ -1604,7 +1569,7 @@ export function getBlankLayout(): ProjectLayout {
       useCase: undefined,
       layoutId: 'blank',
     },
-    blocks: wrapWithHeaderFooter([]), // Just header and footer
+    blocks: [],
   }
 }
 
@@ -1618,6 +1583,6 @@ export function getStylesForUseCase(_useCase: UseCaseCategory): ProjectLayout[] 
       useCase: layout.useCase,
       layoutId: layout.id,
     },
-    blocks: wrapWithHeaderFooter(layout.blocks),
+    blocks: layout.blocks,
   }))
 }

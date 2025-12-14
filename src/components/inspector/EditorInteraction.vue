@@ -15,6 +15,7 @@ import type {
   InteractionEffect,
   InteractionEasing,
   InteractionStyles,
+  BorderStyle,
 } from '@/types/editor'
 import { BorderSection } from './sections'
 
@@ -40,6 +41,32 @@ const easing = ref<InteractionEasing>('ease')
 const delay = ref('0')
 const styles = ref<InteractionStyles>({})
 const isAddStyleMenuOpen = ref(false)
+
+// From/To toggle for styles section
+const styleMode = ref<'from' | 'to'>('to')
+
+// Get the target block and its styles (for "From" section)
+const targetBlock = computed(() => {
+  if (!targetBlockId.value) return null
+  return editorStore.findBlockById(targetBlockId.value)
+})
+
+const targetBlockStyles = computed(() => {
+  if (!targetBlock.value) return {}
+  return targetBlock.value.styles || {}
+})
+
+// Update target block styles (for "From" changes)
+function updateTargetBlockStyle(key: string, value: unknown) {
+  if (!targetBlockId.value) return
+  editorStore.updateBlockStyles(targetBlockId.value, { [key]: value })
+}
+
+// Get a specific style value from the target block
+function getTargetBlockStyleValue(key: string): unknown {
+  const styles = targetBlockStyles.value as Record<string, unknown>
+  return styles[key]
+}
 
 // Load existing interaction data
 const existingInteraction = computed(() => {
@@ -149,6 +176,18 @@ function removeStyleSection(sectionId: string) {
 // Update style property
 function updateStyle(key: keyof InteractionStyles, value: unknown) {
   styles.value = { ...styles.value, [key]: value }
+}
+
+// Preview the interaction animation
+function handlePreview() {
+  if (!targetBlockId.value || Object.keys(styles.value).length === 0) return
+  editorStore.previewInteractionStyles(
+    targetBlockId.value,
+    styles.value,
+    `${duration.value}ms`,
+    easing.value,
+    delay.value ? `${delay.value}ms` : undefined
+  )
 }
 
 // Save interaction (create or update) - exposed for parent to call
@@ -290,132 +329,245 @@ watch(existingInteraction, (interaction) => {
 
       <!-- Styles Section -->
       <InspectorSection title="Styles" icon="style-color">
-        <!-- Active style sections -->
-        <div v-if="activeStyleSections.length > 0" class="space-y-3">
-          <!-- Background -->
-          <div v-if="activeStyleSections.includes('background')" class="relative">
-            <button
-              type="button"
-              class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
-              @click="removeStyleSection('background')"
-            >
-              <Icon name="xmark" :size="10" class="text-muted-foreground" />
-            </button>
-            <InspectorField label="Background" horizontal>
-              <ColorInput
-                :model-value="styles.backgroundColor || ''"
-                swatch-only
-                @update:model-value="updateStyle('backgroundColor', $event)"
-              />
-            </InspectorField>
-          </div>
-
-          <!-- Border -->
-          <div v-if="activeStyleSections.includes('border')" class="relative">
-            <button
-              type="button"
-              class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
-              @click="removeStyleSection('border')"
-            >
-              <Icon name="xmark" :size="10" class="text-muted-foreground" />
-            </button>
-            <BorderSection
-              :model-value="styles.border || {}"
-              @update:model-value="updateStyle('border', $event)"
-            />
-          </div>
-
-          <!-- Opacity -->
-          <div v-if="activeStyleSections.includes('opacity')" class="relative">
-            <button
-              type="button"
-              class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
-              @click="removeStyleSection('opacity')"
-            >
-              <Icon name="xmark" :size="10" class="text-muted-foreground" />
-            </button>
-            <InspectorField label="Opacity" horizontal>
-              <SliderInput
-                :model-value="String(styles.opacity || '100')"
-                :min="0"
-                :max="100"
-                :step="5"
-                unit="%"
-                @update:model-value="updateStyle('opacity', $event)"
-              />
-            </InspectorField>
-          </div>
-
-          <!-- Transform -->
-          <div v-if="activeStyleSections.includes('transform')" class="relative space-y-2">
-            <button
-              type="button"
-              class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
-              @click="removeStyleSection('transform')"
-            >
-              <Icon name="xmark" :size="10" class="text-muted-foreground" />
-            </button>
-            <InspectorField label="Scale" horizontal>
-              <SliderInput
-                :model-value="styles.scale || '1'"
-                :min="0"
-                :max="2"
-                :step="0.05"
-                @update:model-value="updateStyle('scale', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Rotate" horizontal>
-              <SliderInput
-                :model-value="styles.rotate || '0'"
-                :min="-180"
-                :max="180"
-                :step="5"
-                unit="deg"
-                @update:model-value="updateStyle('rotate', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Move X" horizontal>
-              <SliderInput
-                :model-value="styles.translateX || '0'"
-                :min="-100"
-                :max="100"
-                :step="5"
-                unit="px"
-                @update:model-value="updateStyle('translateX', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Move Y" horizontal>
-              <SliderInput
-                :model-value="styles.translateY || '0'"
-                :min="-100"
-                :max="100"
-                :step="5"
-                unit="px"
-                @update:model-value="updateStyle('translateY', $event)"
-              />
-            </InspectorField>
-          </div>
-
-          <!-- Text Color -->
-          <div v-if="activeStyleSections.includes('color')" class="relative">
-            <button
-              type="button"
-              class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
-              @click="removeStyleSection('color')"
-            >
-              <Icon name="xmark" :size="10" class="text-muted-foreground" />
-            </button>
-            <InspectorField label="Text Color" horizontal>
-              <ColorInput
-                :model-value="styles.color || ''"
-                swatch-only
-                @update:model-value="updateStyle('color', $event)"
-              />
-            </InspectorField>
-          </div>
+        <!-- From/To Toggle -->
+        <div class="mb-3">
+          <SegmentedControl
+            :options="[
+              { value: 'from', label: 'From' },
+              { value: 'to', label: 'To' },
+            ]"
+            :model-value="styleMode"
+            @update:model-value="styleMode = $event as 'from' | 'to'"
+          />
         </div>
 
-        <!-- Add style property button -->
+        <!-- FROM: Target block's current styles -->
+        <template v-if="styleMode === 'from'">
+          <div v-if="!targetBlockId" class="text-xs text-muted-foreground text-center py-4">
+            Select a target block first
+          </div>
+          <div v-else-if="activeStyleSections.length === 0" class="text-xs text-muted-foreground text-center py-4">
+            Add style properties below to configure the starting state
+          </div>
+          <div v-else class="space-y-3">
+            <!-- Background -->
+            <div v-if="activeStyleSections.includes('background')">
+              <InspectorField label="Background" horizontal>
+                <ColorInput
+                  :model-value="(getTargetBlockStyleValue('backgroundColor') as string) || ''"
+                  swatch-only
+                  @update:model-value="updateTargetBlockStyle('backgroundColor', $event)"
+                />
+              </InspectorField>
+            </div>
+
+            <!-- Border -->
+            <div v-if="activeStyleSections.includes('border')">
+              <BorderSection
+                :model-value="(getTargetBlockStyleValue('border') as BorderStyle) || {}"
+                @update:model-value="updateTargetBlockStyle('border', $event)"
+              />
+            </div>
+
+            <!-- Opacity -->
+            <div v-if="activeStyleSections.includes('opacity')">
+              <InspectorField label="Opacity" horizontal>
+                <SliderInput
+                  :model-value="String(getTargetBlockStyleValue('opacity') || '100')"
+                  :min="0"
+                  :max="100"
+                  :step="5"
+                  unit="%"
+                  @update:model-value="updateTargetBlockStyle('opacity', $event)"
+                />
+              </InspectorField>
+            </div>
+
+            <!-- Transform -->
+            <div v-if="activeStyleSections.includes('transform')" class="space-y-2">
+              <InspectorField label="Scale" horizontal>
+                <SliderInput
+                  :model-value="String(getTargetBlockStyleValue('scale') || '1')"
+                  :min="0"
+                  :max="2"
+                  :step="0.05"
+                  @update:model-value="updateTargetBlockStyle('scale', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Rotate" horizontal>
+                <SliderInput
+                  :model-value="String(getTargetBlockStyleValue('rotate') || '0')"
+                  :min="-180"
+                  :max="180"
+                  :step="5"
+                  unit="deg"
+                  @update:model-value="updateTargetBlockStyle('rotate', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Move X" horizontal>
+                <SliderInput
+                  :model-value="String(getTargetBlockStyleValue('translateX') || '0')"
+                  :min="-100"
+                  :max="100"
+                  :step="5"
+                  unit="px"
+                  @update:model-value="updateTargetBlockStyle('translateX', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Move Y" horizontal>
+                <SliderInput
+                  :model-value="String(getTargetBlockStyleValue('translateY') || '0')"
+                  :min="-100"
+                  :max="100"
+                  :step="5"
+                  unit="px"
+                  @update:model-value="updateTargetBlockStyle('translateY', $event)"
+                />
+              </InspectorField>
+            </div>
+
+            <!-- Text Color -->
+            <div v-if="activeStyleSections.includes('color')">
+              <InspectorField label="Text Color" horizontal>
+                <ColorInput
+                  :model-value="(getTargetBlockStyleValue('color') as string) || ''"
+                  swatch-only
+                  @update:model-value="updateTargetBlockStyle('color', $event)"
+                />
+              </InspectorField>
+            </div>
+          </div>
+        </template>
+
+        <!-- TO: Interaction target styles -->
+        <template v-else>
+          <!-- Active style sections -->
+          <div v-if="activeStyleSections.length > 0" class="space-y-3">
+            <!-- Background -->
+            <div v-if="activeStyleSections.includes('background')" class="relative">
+              <button
+                type="button"
+                class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
+                @click="removeStyleSection('background')"
+              >
+                <Icon name="xmark" :size="10" class="text-muted-foreground" />
+              </button>
+              <InspectorField label="Background" horizontal>
+                <ColorInput
+                  :model-value="styles.backgroundColor || ''"
+                  swatch-only
+                  @update:model-value="updateStyle('backgroundColor', $event)"
+                />
+              </InspectorField>
+            </div>
+
+            <!-- Border -->
+            <div v-if="activeStyleSections.includes('border')" class="relative">
+              <button
+                type="button"
+                class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
+                @click="removeStyleSection('border')"
+              >
+                <Icon name="xmark" :size="10" class="text-muted-foreground" />
+              </button>
+              <BorderSection
+                :model-value="styles.border || {}"
+                @update:model-value="updateStyle('border', $event)"
+              />
+            </div>
+
+            <!-- Opacity -->
+            <div v-if="activeStyleSections.includes('opacity')" class="relative">
+              <button
+                type="button"
+                class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
+                @click="removeStyleSection('opacity')"
+              >
+                <Icon name="xmark" :size="10" class="text-muted-foreground" />
+              </button>
+              <InspectorField label="Opacity" horizontal>
+                <SliderInput
+                  :model-value="String(styles.opacity || '100')"
+                  :min="0"
+                  :max="100"
+                  :step="5"
+                  unit="%"
+                  @update:model-value="updateStyle('opacity', $event)"
+                />
+              </InspectorField>
+            </div>
+
+            <!-- Transform -->
+            <div v-if="activeStyleSections.includes('transform')" class="relative space-y-2">
+              <button
+                type="button"
+                class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
+                @click="removeStyleSection('transform')"
+              >
+                <Icon name="xmark" :size="10" class="text-muted-foreground" />
+              </button>
+              <InspectorField label="Scale" horizontal>
+                <SliderInput
+                  :model-value="styles.scale || '1'"
+                  :min="0"
+                  :max="2"
+                  :step="0.05"
+                  @update:model-value="updateStyle('scale', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Rotate" horizontal>
+                <SliderInput
+                  :model-value="styles.rotate || '0'"
+                  :min="-180"
+                  :max="180"
+                  :step="5"
+                  unit="deg"
+                  @update:model-value="updateStyle('rotate', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Move X" horizontal>
+                <SliderInput
+                  :model-value="styles.translateX || '0'"
+                  :min="-100"
+                  :max="100"
+                  :step="5"
+                  unit="px"
+                  @update:model-value="updateStyle('translateX', $event)"
+                />
+              </InspectorField>
+              <InspectorField label="Move Y" horizontal>
+                <SliderInput
+                  :model-value="styles.translateY || '0'"
+                  :min="-100"
+                  :max="100"
+                  :step="5"
+                  unit="px"
+                  @update:model-value="updateStyle('translateY', $event)"
+                />
+              </InspectorField>
+            </div>
+
+            <!-- Text Color -->
+            <div v-if="activeStyleSections.includes('color')" class="relative">
+              <button
+                type="button"
+                class="absolute -top-1 -right-1 p-0.5 rounded bg-muted hover:bg-destructive/20 transition-colors z-10"
+                @click="removeStyleSection('color')"
+              >
+                <Icon name="xmark" :size="10" class="text-muted-foreground" />
+              </button>
+              <InspectorField label="Text Color" horizontal>
+                <ColorInput
+                  :model-value="styles.color || ''"
+                  swatch-only
+                  @update:model-value="updateStyle('color', $event)"
+                />
+              </InspectorField>
+            </div>
+          </div>
+        </template>
+
+        <!-- Add style property button (shown in both modes) -->
         <div class="mt-3">
           <div class="relative">
             <button
@@ -468,6 +620,20 @@ watch(existingInteraction, (interaction) => {
           </div>
         </div>
       </InspectorSection>
+
+      <!-- Preview Button -->
+      <div class="px-4 py-3 border-t border-sidebar-border">
+        <button
+          type="button"
+          class="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium text-violet-600 dark:text-violet-400 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30 rounded-lg transition-colors"
+          :disabled="!targetBlockId || activeStyleSections.length === 0"
+          :class="{ 'opacity-50 cursor-not-allowed': !targetBlockId || activeStyleSections.length === 0 }"
+          @click="handlePreview"
+        >
+          <Icon name="control-play" :size="14" />
+          <span>Preview</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>

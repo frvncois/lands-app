@@ -1,7 +1,6 @@
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import type {
-  SectionBlock,
   BaseBlockStyles,
   CoreBlockStyles,
 } from '@/types/editor'
@@ -9,7 +8,6 @@ import {
   getResponsiveStyles,
   setViewportStyleOverrides,
 } from '@/lib/style-utils'
-import { PREBUILT_LIST_NAMES } from '@/stores/editor/helpers'
 
 /**
  * Composable providing common functionality for block inspectors.
@@ -36,26 +34,11 @@ export function useBlockInspector() {
     return selectedBlock.value.styles as Record<string, unknown>
   })
 
-  // Check if selected block is inside a List/Collection
-  const isInListCollection = computed(() => {
-    if (!selectedBlock.value) return false
-    return editorStore.isInsideListCollection(selectedBlock.value.id)
-  })
-
   // Check if selected block is inside a flex container
   const isInFlexContainer = computed(() => {
     if (!selectedBlock.value) return false
     const parent = editorStore.findParentBlock(selectedBlock.value.id)
     return parent?.type === 'stack' || parent?.type === 'container'
-  })
-
-  // Check if selected block IS a PREBUILT List/Collection item
-  const isListCollectionItem = computed(() => {
-    if (!selectedBlock.value) return false
-    if (selectedBlock.value.type !== 'stack') return false
-    const parent = editorStore.findParentBlock(selectedBlock.value.id)
-    if (!parent || parent.type !== 'grid') return false
-    return PREBUILT_LIST_NAMES.includes(parent.name)
   })
 
   // Check if selected block is a direct child of a Grid
@@ -70,13 +53,6 @@ export function useBlockInspector() {
     return editorStore.getParentGridColumns(selectedBlock.value.id)
   })
 
-  // Get overwriteStyle setting from selected block
-  const hasOverwriteStyle = computed(() => {
-    if (!selectedBlock.value) return false
-    const settings = selectedBlock.value.settings as Record<string, unknown>
-    return !!settings.overwriteStyle
-  })
-
   // Update block settings
   function updateBlockSettings(settings: Record<string, unknown>) {
     if (!selectedBlock.value) return
@@ -88,7 +64,7 @@ export function useBlockInspector() {
     if (!selectedBlock.value) return
 
     // For core styles, apply viewport-aware update
-    const coreStyleKeys = ['padding', 'margin', 'backgroundColor', 'backgroundImage', 'backgroundPosition', 'backgroundSize', 'border', 'shadow']
+    const coreStyleKeys = ['padding', 'margin', 'backgroundColor', 'backgroundImage', 'backgroundPosition', 'backgroundSize', 'border', 'shadow', 'width', 'height']
     const hasCoreStyles = Object.keys(styles).some(key => coreStyleKeys.includes(key))
 
     if (hasCoreStyles && currentViewport.value !== 'desktop') {
@@ -97,16 +73,6 @@ export function useBlockInspector() {
       editorStore.updateBlockStyles(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true)
     } else {
       editorStore.updateBlockStyles(selectedBlock.value.id, styles)
-    }
-  }
-
-  // Toggle overwriteStyle
-  function toggleOverwriteStyle(value: boolean) {
-    if (!selectedBlock.value) return
-    const block = editorStore.findBlockById(selectedBlock.value.id)
-    if (block) {
-      (block.settings as Record<string, unknown>).overwriteStyle = value
-      editorStore.rebuildBlockIndex()
     }
   }
 
@@ -120,16 +86,12 @@ export function useBlockInspector() {
     responsiveStyles,
     effectiveBlockStyles,
     // Computed checks
-    isInListCollection,
     isInFlexContainer,
-    isListCollectionItem,
     isChildOfGrid,
     parentGridColumns,
-    hasOverwriteStyle,
     // Actions
     updateBlockSettings,
     updateBlockStyles,
-    toggleOverwriteStyle,
     // Re-export store for direct access
     editorStore,
   }

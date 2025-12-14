@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { fontWeightOptions, alignmentOptions } from '@/lib/editor-utils'
+import { useFontOptions } from '../composables'
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
 import SelectInput from '../SelectInput.vue'
-import FontSizeSlider from '../FontSizeSlider.vue'
+import SizeInput from '../SizeInput.vue'
 import SliderInput from '../SliderInput.vue'
 import SegmentedControl from '../SegmentedControl.vue'
 import ColorInput from '../ColorInput.vue'
@@ -29,7 +29,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   defaultFontFamily: 'Inter',
-  defaultFontSize: 'base',
+  defaultFontSize: '16px',
   defaultFontWeight: 'normal',
 })
 
@@ -45,15 +45,7 @@ const emit = defineEmits<{
   'update:color': [value: string]
 }>()
 
-const fontFamilyOptions = computed(() => props.fontOptions ?? [
-  { value: 'Inter', label: 'Inter' },
-  { value: 'Roboto', label: 'Roboto' },
-  { value: 'Open Sans', label: 'Open Sans' },
-  { value: 'Lato', label: 'Lato' },
-  { value: 'Poppins', label: 'Poppins' },
-  { value: 'Montserrat', label: 'Montserrat' },
-  { value: 'system-ui', label: 'System' },
-])
+const { fontFamilyOptions: defaultFontOptions } = useFontOptions({ includeInherit: true })
 
 function toggleFontStyle() {
   emit('update:fontStyle', props.fontStyle === 'italic' ? 'normal' : 'italic')
@@ -72,14 +64,15 @@ function toggleStrikethrough() {
   <InspectorSection title="Typography" icon="style-color">
     <InspectorField label="Font Family" horizontal>
       <SelectInput
-        :options="fontFamilyOptions"
+        :options="fontOptions ?? defaultFontOptions"
         :model-value="fontFamily || defaultFontFamily"
         @update:model-value="emit('update:fontFamily', $event)"
       />
     </InspectorField>
     <InspectorField label="Font Size" horizontal>
-      <FontSizeSlider
-        :model-value="fontSize || defaultFontSize"
+      <SizeInput
+        :model-value="fontSize"
+        :placeholder="defaultFontSize"
         @update:model-value="emit('update:fontSize', $event)"
       />
     </InspectorField>
@@ -131,11 +124,9 @@ function toggleStrikethrough() {
       </div>
     </InspectorField>
     <InspectorField label="Line Height" horizontal>
-      <SliderInput
-        :model-value="lineHeight || '1.5'"
-        :min="1"
-        :max="2.5"
-        :step="0.1"
+      <SizeInput
+        :model-value="lineHeight"
+        placeholder="1.5"
         @update:model-value="emit('update:lineHeight', $event)"
       />
     </InspectorField>

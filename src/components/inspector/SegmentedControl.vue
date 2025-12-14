@@ -13,7 +13,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="flex p-1 bg-secondary rounded-md">
+  <div class="flex justify-between p-1 bg-secondary rounded-md">
     <template v-for="option in options" :key="option.value">
       <!-- Icon only mode: wrap in Tooltip -->
       <Tooltip v-if="iconOnly && option.label" :text="option.label">

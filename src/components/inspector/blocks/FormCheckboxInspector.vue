@@ -8,11 +8,11 @@ import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
 import TextInput from '../TextInput.vue'
 import SegmentedControl from '../SegmentedControl.vue'
-import FontSizeSlider from '../FontSizeSlider.vue'
+import SizeInput from '../SizeInput.vue'
 import ColorInput from '../ColorInput.vue'
 import ToggleInput from '../ToggleInput.vue'
 import Icon from '@/components/ui/Icon.vue'
-import { SpacingSection, BorderSection, OpacitySection, PositionSection } from '../sections'
+import { SizeSection, SpacingSection, BorderSection, OpacitySection, PositionSection } from '../sections'
 
 const {
   selectedBlock,
@@ -105,11 +105,20 @@ function addOption() {
       </div>
     </InspectorSection>
 
+    <!-- Size Section -->
+    <SizeSection
+      :width="responsiveStyles.width"
+      :height="responsiveStyles.height"
+      @update:width="updateBlockStyles({ width: $event })"
+      @update:height="updateBlockStyles({ height: $event })"
+    />
+
     <!-- Style Section -->
     <InspectorSection title="Style" icon="style-color">
       <InspectorField label="Font Size" horizontal>
-        <FontSizeSlider
-          :model-value="styles.fontSize || 'base'"
+        <SizeInput
+          :model-value="styles.fontSize"
+          placeholder="16px"
           @update:model-value="updateBlockStyles({ fontSize: $event })"
         />
       </InspectorField>

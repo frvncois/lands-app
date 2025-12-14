@@ -73,7 +73,7 @@ const showVariantsModal = ref(false)
       </InspectorField>
       <InspectorField label="Gap" horizontal>
         <SliderInput
-          :model-value="styles.gap || '8'"
+          :model-value="styles.gap ?? '8'"
           :min="0"
           :max="24"
           :step="4"

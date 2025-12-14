@@ -24,6 +24,10 @@ function handleInput(event: Event) {
     :placeholder="placeholder"
     class="w-full px-2.5 py-1.5 text-xs bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/25 focus:bg-background transition-colors resize-none"
     rows="3"
+    spellcheck="false"
+    autocomplete="off"
+    autocorrect="off"
+    autocapitalize="off"
     @input="handleInput"
   />
   <div v-else class="flex w-full">
@@ -35,6 +39,10 @@ function handleInput(event: Event) {
       :class="[
         suffix ? 'rounded-l-lg border-r-0' : 'rounded-lg'
       ]"
+      spellcheck="false"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
       @input="handleInput"
     />
     <span

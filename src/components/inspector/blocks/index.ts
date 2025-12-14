@@ -17,7 +17,6 @@ export { default as VariantsInspector } from './VariantsInspector.vue'
 
 // Layout blocks
 export { default as ContainerInspector } from './ContainerInspector.vue'
-export { default as GridInspector } from './GridInspector.vue'
 export { default as StackInspector } from './StackInspector.vue'
 
 // Special blocks

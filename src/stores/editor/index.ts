@@ -9,25 +9,13 @@ export { useInteractions, type UseInteractionsOptions } from './useInteractions'
 
 // Helpers
 export {
-  PREBUILT_LIST_NAMES,
-  CONTENT_FIELDS,
   MAX_LAYOUT_NESTING_DEPTH,
-  MAX_MENU_LIST_DEPTH,
   deepClone,
   findBlockInTree,
   findParentInTree,
   isLayoutBlockType,
   hasDepthRestriction,
   isProtectedBlockType,
-  isPrebuiltListGrid,
-  isMenuListBlock,
-  isHeaderFooterStack,
-  isPrebuiltListItem,
-  isBlockInsidePrebuiltListItem,
-  hasOnlyContentFields,
-  filterNonContentFields,
-  getStackDisplayName,
-  getListItemTypeLabel,
   buildBlockIndex,
   buildBlockIndexes,
 } from './helpers'

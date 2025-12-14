@@ -47,14 +47,8 @@ function handleKeyDown(e: KeyboardEvent) {
 
   const selectedBlock = editorStore.selectedBlock
 
-  // Don't allow keyboard shortcuts on protected blocks:
-  // - Children inside list/collection items
-  // - List/collection items themselves (Stack in Grid)
-  // - Header/footer stacks (Start, Middle, End)
-  const isInsideListItem = selectedBlock ? editorStore.isChildInsideListItem(selectedBlock.id) : false
-  const isListItem = selectedBlock ? editorStore.isListCollectionItem(selectedBlock.id) : false
-  const isHeaderFooterStack = selectedBlock ? editorStore.isHeaderFooterChild(selectedBlock.id) : false
-  const isBlockProtected = isInsideListItem || isListItem || isHeaderFooterStack
+  // Check if block is protected (none currently)
+  const isBlockProtected = false
 
   // Delete - Delete selected block
   // Blocked for children inside list items and header/footer stacks

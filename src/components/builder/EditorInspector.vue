@@ -2,150 +2,47 @@
 import { computed, ref, defineAsyncComponent, type Component } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import type { SectionBlockType } from '@/types/editor'
-import { useProjectsStore } from '@/stores/projects'
-import { useProjectStore } from '@/stores/project'
-import { useRoute, RouterLink } from 'vue-router'
 import {
   sectionBlockLabels,
   sectionBlockIcons,
-  formFieldBlockLabels,
-  formInputTypeOptions,
-  socialPlatformLabels,
-  socialPlatformIcons,
-  maxWidthOptions,
-  blockHeightOptions,
-  alignmentOptions,
-  buttonVariantOptions,
-  buttonSizeOptions,
-  headingLevelOptions,
-  isFormFieldBlock,
-  generateId,
-  // Flexbox options
-  justifyContentOptions,
-  alignItemsOptions,
-  flexDirectionOptions,
-  flexWrapOptions,
-  justifyItemsOptions,
-  // Flex child options
   flexBasisOptions,
-  // Opacity & Blend
   mixBlendModeOptions,
-  // Mask shapes
-  maskShapes,
-  maskShapeLabels,
-  // Font options
-  fontWeightOptions,
 } from '@/lib/editor-utils'
-import { getStylesForUseCase } from '@/lib/layouts'
-import { planHasFeature } from '@/types/project'
 import {
   getResponsiveStyles,
   setViewportStyleOverrides,
-  hasViewportOverride,
-  getInheritedValue,
 } from '@/lib/style-utils'
 import type {
-  PageSettings,
-  HeaderSettings,
-  HeaderStyles,
-  HeaderNavLink,
-  FooterSettings,
-  FooterStyles,
-  FooterLink,
-  FooterSocialLink,
-  FormSettings,
-  FormStyles,
-  FormInputSettings,
-  FormInputStyles,
-  FormTextareaSettings,
-  FormTextareaStyles,
-  FormSelectSettings,
-  FormSelectStyles,
-  FormRadioSettings,
-  FormRadioStyles,
-  FormCheckboxSettings,
-  FormCheckboxStyles,
-  FormButtonSettings,
-  FormButtonStyles,
-  FormSelectOption,
-  HeadingSettings,
-  TextSettings,
-  ImageSettings,
-  ButtonSettings,
-  DividerSettings,
   BaseBlockStyles,
   CoreBlockStyles,
-  HeadingStyles,
-  TextStyles,
-  ImageStyles,
-  VideoSettings,
-  VideoStyles,
-  IconSettings,
-  IconStyles,
   VariantsSettings,
-  VariantsStyles,
-  VariantOptionValue,
-  ContainerSettings,
-  ContainerStyles,
-  GridSettings,
-  GridStyles,
-  StackSettings,
-  StackStyles,
-  ButtonStyles,
   AnimationSettings,
-  CanvasSettings,
   GoogleFont,
 } from '@/types/editor'
 
 import InspectorSection from '@/components/inspector/InspectorSection.vue'
 import InspectorField from '@/components/inspector/InspectorField.vue'
-import SegmentedControl from '@/components/inspector/SegmentedControl.vue'
 import BoxModelInput from '@/components/inspector/BoxModelInput.vue'
-import ColorInput from '@/components/inspector/ColorInput.vue'
 import SelectInput from '@/components/inspector/SelectInput.vue'
 import SliderInput from '@/components/inspector/SliderInput.vue'
-import FontSizeSlider from '@/components/inspector/FontSizeSlider.vue'
-import TextInput from '@/components/inspector/TextInput.vue'
-import ImageInput from '@/components/inspector/ImageInput.vue'
-import ToggleInput from '@/components/inspector/ToggleInput.vue'
 import BorderInput from '@/components/inspector/BorderInput.vue'
 import AnimationSection from '@/components/inspector/AnimationSection.vue'
 import SharedStyleField from '@/components/inspector/SharedStyleField.vue'
 import InteractionField from '@/components/inspector/InteractionField.vue'
 import EditorInteraction from '@/components/inspector/EditorInteraction.vue'
 import SpanInspector from '@/components/inspector/SpanInspector.vue'
-// New decomposed inspector components (Phase 2 refactoring)
 import PageInspector from '@/components/inspector/PageInspector.vue'
+import DynamicBlockInspector from '@/components/inspector/DynamicBlockInspector.vue'
+import { hasInspectorConfig, usesCustomInspector } from '@/components/inspector/inspector-config'
 
-// Lazy-loaded block inspectors
-const blockInspectorMap: Partial<Record<SectionBlockType, Component>> = {
-  heading: defineAsyncComponent(() => import('@/components/inspector/blocks/HeadingInspector.vue')),
-  text: defineAsyncComponent(() => import('@/components/inspector/blocks/TextInspector.vue')),
-  image: defineAsyncComponent(() => import('@/components/inspector/blocks/ImageInspector.vue')),
-  video: defineAsyncComponent(() => import('@/components/inspector/blocks/VideoInspector.vue')),
-  button: defineAsyncComponent(() => import('@/components/inspector/blocks/ButtonInspector.vue')),
-  divider: defineAsyncComponent(() => import('@/components/inspector/blocks/DividerInspector.vue')),
-  icon: defineAsyncComponent(() => import('@/components/inspector/blocks/IconInspector.vue')),
+// Custom block inspectors (only for blocks with complex logic that can't be config-driven)
+const customBlockInspectorMap: Partial<Record<SectionBlockType, Component>> = {
   variants: defineAsyncComponent(() => import('@/components/inspector/blocks/VariantsInspector.vue')),
-  container: defineAsyncComponent(() => import('@/components/inspector/blocks/ContainerInspector.vue')),
-  grid: defineAsyncComponent(() => import('@/components/inspector/blocks/GridInspector.vue')),
-  stack: defineAsyncComponent(() => import('@/components/inspector/blocks/StackInspector.vue')),
-  header: defineAsyncComponent(() => import('@/components/inspector/blocks/HeaderInspector.vue')),
-  footer: defineAsyncComponent(() => import('@/components/inspector/blocks/FooterInspector.vue')),
-  form: defineAsyncComponent(() => import('@/components/inspector/blocks/FormInspector.vue')),
-  canvas: defineAsyncComponent(() => import('@/components/inspector/blocks/CanvasInspector.vue')),
-  'form-input': defineAsyncComponent(() => import('@/components/inspector/blocks/FormInputInspector.vue')),
-  'form-textarea': defineAsyncComponent(() => import('@/components/inspector/blocks/FormTextareaInspector.vue')),
   'form-select': defineAsyncComponent(() => import('@/components/inspector/blocks/FormSelectInspector.vue')),
   'form-radio': defineAsyncComponent(() => import('@/components/inspector/blocks/FormRadioInspector.vue')),
   'form-checkbox': defineAsyncComponent(() => import('@/components/inspector/blocks/FormCheckboxInspector.vue')),
-  'form-button': defineAsyncComponent(() => import('@/components/inspector/blocks/FormButtonInspector.vue')),
-  // freeform uses container inspector (same layout-style settings)
-  freeform: defineAsyncComponent(() => import('@/components/inspector/blocks/ContainerInspector.vue')),
 }
 
-// Consolidated helpers (Phase 4)
-import { PREBUILT_LIST_NAMES } from '@/stores/editor/helpers'
 import ProjectFont from '@/components/modal/ProjectFont.vue'
 import ProductVariants from '@/components/modal/ProductVariants.vue'
 import SharedStyleCreate from '@/components/modal/SharedStyleCreate.vue'
@@ -155,24 +52,8 @@ import Tooltip from '@/components/ui/Tooltip.vue'
 import Button from '@/components/ui/Button.vue'
 
 const editorStore = useEditorStore()
-const projectsStore = useProjectsStore()
-const projectStore = useProjectStore()
-const route = useRoute()
-
-// Project plan checks
-const projectId = computed(() => route.params.projectId as string)
-const currentProject = computed(() => projectsStore.getProjectById(projectId.value))
-const canUseCustomFonts = computed(() => {
-  if (!currentProject.value) return false
-  return planHasFeature(currentProject.value.plan, 'customFonts')
-})
-const canUseCustomCode = computed(() => {
-  if (!currentProject.value) return false
-  return planHasFeature(currentProject.value.plan, 'customCode')
-})
 
 const selectedBlock = computed(() => editorStore.selectedBlock)
-const selectedItemId = computed(() => editorStore.selectedItemId)
 const selectedSpanId = computed(() => editorStore.selectedSpanId)
 const pageSettings = computed(() => editorStore.pageSettings)
 
@@ -185,12 +66,21 @@ const selectedSpan = computed(() => {
 // Get the inspector component for the current block type
 const CurrentBlockInspector = computed(() => {
   if (!selectedBlock.value) return null
-  return blockInspectorMap[selectedBlock.value.type] || null
+  const blockType = selectedBlock.value.type
+
+  // Check if this block type uses a custom inspector (complex logic)
+  if (usesCustomInspector(blockType)) {
+    return customBlockInspectorMap[blockType] || null
+  }
+
+  // Check if this block type has a config-driven inspector
+  if (hasInspectorConfig(blockType)) {
+    return DynamicBlockInspector
+  }
+
+  return null
 })
 const currentViewport = computed(() => editorStore.viewport)
-
-// SEO settings from project store
-const seoSettings = computed(() => projectStore.settings.seo)
 
 // Get responsive styles for the current viewport (merged/cascaded)
 const responsiveStyles = computed((): CoreBlockStyles => {
@@ -198,36 +88,11 @@ const responsiveStyles = computed((): CoreBlockStyles => {
   return getResponsiveStyles(selectedBlock.value.styles as BaseBlockStyles, currentViewport.value)
 })
 
-// Get effective styles for the block
-const effectiveBlockStyles = computed(() => {
-  if (!selectedBlock.value) return {}
-  return selectedBlock.value.styles as Record<string, unknown>
-})
-
-// Check if selected block is inside a List/Collection (Grid > Stack pattern)
-const isInListCollection = computed(() => {
-  if (!selectedBlock.value) return false
-  return editorStore.isInsideListCollection(selectedBlock.value.id)
-})
-
 // Check if selected block is inside a flex container (Stack or Container)
 const isInFlexContainer = computed(() => {
   if (!selectedBlock.value) return false
   const parent = editorStore.findParentBlock(selectedBlock.value.id)
   return parent?.type === 'stack' || parent?.type === 'container'
-})
-
-// PREBUILT_LIST_NAMES is imported from @/stores/editor/helpers
-
-// Check if selected block IS a PREBUILT List/Collection item (Stack directly inside PREBUILT Grid)
-// This is different from isInListCollection - this checks if the block itself is the list item
-const isListCollectionItem = computed(() => {
-  if (!selectedBlock.value) return false
-  if (selectedBlock.value.type !== 'stack') return false
-  const parent = editorStore.findParentBlock(selectedBlock.value.id)
-  // ONLY return true if parent is a PREBUILT Grid
-  if (!parent || parent.type !== 'grid') return false
-  return PREBUILT_LIST_NAMES.includes(parent.name)
 })
 
 // Check if selected block is a direct child of a Grid
@@ -242,12 +107,6 @@ const parentGridColumns = computed(() => {
   return editorStore.getParentGridColumns(selectedBlock.value.id)
 })
 
-// Get overwriteStyle setting from selected block
-const hasOverwriteStyle = computed(() => {
-  if (!selectedBlock.value) return false
-  const settings = selectedBlock.value.settings as Record<string, unknown>
-  return !!settings.overwriteStyle
-})
 
 // Breadcrumb item type
 interface BreadcrumbItem {
@@ -282,37 +141,7 @@ const breadcrumbPath = computed<BreadcrumbItem[]>(() => {
 
   path.push(...ancestors)
 
-  // Add item if selected (form field, nav link, etc.)
-  if (selectedItemId.value && selectedBlock.value) {
-    const block = selectedBlock.value
-    const settings = block.settings as Record<string, unknown>
-
-    // Header nav link
-    if (block.type === 'header' && Array.isArray(settings.navLinks)) {
-      const link = (settings.navLinks as HeaderNavLink[]).find(l => l.id === selectedItemId.value)
-      if (link) {
-        path.push({ id: `item:${link.id}`, label: link.label || 'Nav Link', icon: 'list-link' })
-      }
-    }
-
-    // Footer link
-    if (block.type === 'footer' && Array.isArray(settings.links)) {
-      const link = (settings.links as FooterLink[]).find(l => l.id === selectedItemId.value)
-      if (link) {
-        path.push({ id: `item:${link.id}`, label: link.label || 'Footer Link', icon: 'list-link' })
-      }
-    }
-
-    // Footer social
-    if (block.type === 'footer' && Array.isArray(settings.socialLinks)) {
-      const social = (settings.socialLinks as FooterSocialLink[]).find(l => l.id === selectedItemId.value)
-      if (social) {
-        path.push({ id: `item:${social.id}`, label: socialPlatformLabels[social.platform], icon: socialPlatformIcons[social.platform] })
-      }
-    }
-
-    // Form field blocks are now child blocks, so they're handled by the parent block traversal above
-  }
+  // Form field blocks are now child blocks, so they're handled by the parent block traversal above
 
   // Add span if selected
   if (selectedSpanId.value && selectedSpan.value) {
@@ -344,52 +173,7 @@ function handleCloseSpanInspector() {
   editorStore.selectSpan(null)
 }
 
-// Check section types
-const isHeaderSection = computed(() => selectedBlock.value?.type === 'header')
-const isFooterSection = computed(() => selectedBlock.value?.type === 'footer')
-const isFormSection = computed(() => selectedBlock.value?.type === 'form')
-const isCanvasSection = computed(() => selectedBlock.value?.type === 'canvas')
-
-// Get selected items from blocks
-const selectedHeaderNavLink = computed(() => {
-  if (!isHeaderSection.value || !selectedItemId.value) return null
-  const settings = selectedBlock.value?.settings as HeaderSettings
-  return settings.navLinks.find(l => l.id === selectedItemId.value)
-})
-
-const selectedFooterLink = computed(() => {
-  if (!isFooterSection.value || !selectedItemId.value) return null
-  const settings = selectedBlock.value?.settings as FooterSettings
-  return settings.links.find(l => l.id === selectedItemId.value)
-})
-
-const selectedFooterSocialLink = computed(() => {
-  if (!isFooterSection.value || !selectedItemId.value) return null
-  const settings = selectedBlock.value?.settings as FooterSettings
-  return settings.socialLinks.find(l => l.id === selectedItemId.value)
-})
-
-// Check if selected block is a form field block
-const isFormFieldSection = computed(() => {
-  return selectedBlock.value ? isFormFieldBlock(selectedBlock.value.type) : false
-})
-
-// Layout styles
-const currentUseCase = computed(() => pageSettings.value.useCase)
-const currentLayoutId = computed(() => pageSettings.value.layoutId)
-
-const layoutStyles = computed(() => {
-  if (!currentUseCase.value) return []
-  return getStylesForUseCase(currentUseCase.value)
-})
-
-const hasLayoutStyles = computed(() => layoutStyles.value.length > 0)
-
 // Update functions
-function updatePageSetting<K extends keyof PageSettings>(key: K, value: PageSettings[K]) {
-  editorStore.updatePageSettings({ [key]: value })
-}
-
 function updateBlockSettings(settings: Record<string, unknown>) {
   if (!selectedBlock.value) return
   editorStore.updateBlockSettings(selectedBlock.value.id, settings)
@@ -412,66 +196,6 @@ function updateBlockStyles(styles: Record<string, unknown>) {
     editorStore.updateBlockStyles(selectedBlock.value.id, styles)
   }
 }
-
-// Toggle overwriteStyle directly on the block (doesn't sync with siblings)
-function toggleOverwriteStyle(value: boolean) {
-  if (!selectedBlock.value) return
-  const block = editorStore.findBlockById(selectedBlock.value.id)
-  if (block) {
-    (block.settings as Record<string, unknown>).overwriteStyle = value
-    editorStore.rebuildBlockIndex()
-  }
-}
-
-function updateHeaderNavLinkField<K extends keyof HeaderNavLink>(key: K, value: HeaderNavLink[K]) {
-  if (!selectedBlock.value || !selectedHeaderNavLink.value) return
-  editorStore.updateHeaderNavLink(selectedBlock.value.id, selectedHeaderNavLink.value.id, { [key]: value })
-}
-
-function updateFooterLinkField<K extends keyof FooterLink>(key: K, value: FooterLink[K]) {
-  if (!selectedBlock.value || !selectedFooterLink.value) return
-  editorStore.updateFooterLink(selectedBlock.value.id, selectedFooterLink.value.id, { [key]: value })
-}
-
-function updateFooterSocialLinkField<K extends keyof FooterSocialLink>(key: K, value: FooterSocialLink[K]) {
-  if (!selectedBlock.value || !selectedFooterSocialLink.value) return
-  editorStore.updateFooterSocialLink(selectedBlock.value.id, selectedFooterSocialLink.value.id, { [key]: value })
-}
-
-// Form field blocks are now regular blocks, use updateBlockSettings to update them
-
-function handleLayoutStyleClick(layoutId: string) {
-  editorStore.applyLayout(layoutId)
-}
-
-// Font family options
-const fontFamilyOptions = [
-  { value: 'Inter', label: 'Inter' },
-  { value: 'Roboto', label: 'Roboto' },
-  { value: 'Open Sans', label: 'Open Sans' },
-  { value: 'Lato', label: 'Lato' },
-  { value: 'Poppins', label: 'Poppins' },
-  { value: 'Montserrat', label: 'Montserrat' },
-  { value: 'system-ui', label: 'System' },
-]
-
-// Combined font options (default + custom + Google fonts)
-const combinedFontOptions = computed(() => {
-  const customFonts = pageSettings.value.customFonts || []
-  const googleFonts = pageSettings.value.googleFonts || []
-
-  const customOptions = customFonts.map(font => ({
-    value: font.name,
-    label: `${font.name} (Custom)`
-  }))
-
-  const googleOptions = googleFonts.map(font => ({
-    value: font.family,
-    label: font.family
-  }))
-
-  return [...fontFamilyOptions, ...googleOptions, ...customOptions]
-})
 
 // Google Fonts modal state
 const showGoogleFontsModal = ref(false)
@@ -513,180 +237,11 @@ function handleSaveInteraction() {
 
 // Google Fonts handlers
 function handleGoogleFontsUpdate(fonts: GoogleFont[]) {
-  updatePageSetting('googleFonts', fonts)
-}
-
-function removeGoogleFont(family: string) {
-  const currentFonts = pageSettings.value.googleFonts || []
-  updatePageSetting('googleFonts', currentFonts.filter(f => f.family !== family))
-}
-
-// Font upload ref and handlers
-const fontInputRef = ref<HTMLInputElement | null>(null)
-
-function triggerFontUpload() {
-  fontInputRef.value?.click()
-}
-
-async function handleFontUpload(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-
-  // Get font name from filename (remove extension)
-  const fontName = file.name.replace(/\.(woff2?|ttf|otf)$/i, '')
-
-  // Create a URL for the font file (in production, upload to storage)
-  const fontUrl = URL.createObjectURL(file)
-
-  // Add to custom fonts
-  const newFont = {
-    id: generateId(),
-    name: fontName,
-    url: fontUrl
-  }
-
-  const currentFonts = pageSettings.value.customFonts || []
-  updatePageSetting('customFonts', [...currentFonts, newFont])
-
-  // Reset input
-  input.value = ''
-}
-
-function removeCustomFont(fontId: string) {
-  const currentFonts = pageSettings.value.customFonts || []
-  const updatedFonts = currentFonts.filter(f => f.id !== fontId)
-  updatePageSetting('customFonts', updatedFonts)
-
-  // If the removed font was selected, reset to default
-  const removedFont = currentFonts.find(f => f.id === fontId)
-  if (removedFont && pageSettings.value.fontFamily === removedFont.name) {
-    updatePageSetting('fontFamily', 'Inter')
-  }
+  editorStore.updatePageSettings({ googleFonts: fonts })
 }
 
 // Hovered breadcrumb item for expand animation
 const hoveredBreadcrumbId = ref<string | null>(null)
-
-// ============================================
-// TRANSLATION-AWARE CONTENT HELPERS
-// ============================================
-
-// Get display value for translatable content fields
-function getTranslatableContent(field: 'content' | 'label' | 'attribution' | 'source' | 'submitLabel' | 'placeholder' | 'buttonLabel' | 'copyrightText' | 'ctaButtonLabel', fallback: string = ''): string {
-  if (!selectedBlock.value) return fallback
-
-  // If editing a translation, get from translations
-  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
-    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
-    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
-    if (blockTranslation && (blockTranslation as Record<string, unknown>)[field] !== undefined) {
-      return (blockTranslation as Record<string, unknown>)[field] as string
-    }
-  }
-
-  // Otherwise return source content
-  const settings = selectedBlock.value.settings as Record<string, unknown>
-  return (settings[field] as string) ?? fallback
-}
-
-// Update translatable content - routes to translation or source based on mode
-function updateTranslatableContent(field: 'content' | 'label' | 'attribution' | 'source' | 'submitLabel' | 'placeholder' | 'buttonLabel' | 'copyrightText' | 'ctaButtonLabel', value: string) {
-  if (!selectedBlock.value) return
-
-  if (editorStore.isEditingTranslation) {
-    // Update translation
-    editorStore.updateBlockTranslation(selectedBlock.value.id, field, value)
-  } else {
-    // Update source content
-    updateBlockSettings({ [field]: value })
-  }
-}
-
-// For header CTA button label
-function getHeaderCtaLabel(): string {
-  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return ''
-  const settings = selectedBlock.value.settings as HeaderSettings
-
-  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
-    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
-    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
-    if (blockTranslation?.ctaButtonLabel !== undefined) {
-      return blockTranslation.ctaButtonLabel
-    }
-  }
-
-  return settings.ctaButton?.label ?? ''
-}
-
-function updateHeaderCtaLabel(value: string) {
-  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return
-  const settings = selectedBlock.value.settings as HeaderSettings
-
-  if (editorStore.isEditingTranslation) {
-    editorStore.updateBlockTranslation(selectedBlock.value.id, 'ctaButtonLabel', value)
-  } else {
-    updateBlockSettings({ ctaButton: { ...settings.ctaButton, label: value } })
-  }
-}
-
-// For header nav link labels
-function getNavLinkLabel(linkId: string): string {
-  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return ''
-  const settings = selectedBlock.value.settings as HeaderSettings
-  const link = settings.navLinks.find(l => l.id === linkId)
-  if (!link) return ''
-
-  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
-    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
-    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
-    const translatedLink = blockTranslation?.navLinks?.find(l => l.id === linkId)
-    if (translatedLink?.label !== undefined) {
-      return translatedLink.label
-    }
-  }
-
-  return link.label
-}
-
-function updateNavLinkLabel(linkId: string, value: string) {
-  if (!selectedBlock.value || selectedBlock.value.type !== 'header') return
-
-  if (editorStore.isEditingTranslation) {
-    editorStore.updateTranslatedNavLinkLabel(selectedBlock.value.id, linkId, value)
-  } else {
-    updateHeaderNavLinkField('label', value)
-  }
-}
-
-// For footer link labels
-function getFooterLinkLabel(linkId: string): string {
-  if (!selectedBlock.value || selectedBlock.value.type !== 'footer') return ''
-  const settings = selectedBlock.value.settings as FooterSettings
-  const link = settings.links.find(l => l.id === linkId)
-  if (!link) return ''
-
-  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
-    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
-    const blockTranslation = langTranslations?.blocks[selectedBlock.value.id]
-    const translatedLink = blockTranslation?.footerLinks?.find(l => l.id === linkId)
-    if (translatedLink?.label !== undefined) {
-      return translatedLink.label
-    }
-  }
-
-  return link.label
-}
-
-function updateFooterLinkLabel(linkId: string, value: string) {
-  if (!selectedBlock.value || selectedBlock.value.type !== 'footer') return
-
-  if (editorStore.isEditingTranslation) {
-    editorStore.updateTranslatedFooterLinkLabel(selectedBlock.value.id, linkId, value)
-  } else {
-    updateFooterLinkField('label', value)
-  }
-}
 
 // ============================================
 // ANIMATION HELPERS
@@ -710,11 +265,9 @@ function handleAnimationPreview() {
   editorStore.triggerAnimationPreview(selectedBlock.value.id)
 }
 
-// Check if block supports animation (exclude header/footer which are special)
+// Check if block supports animation
 const blockSupportsAnimation = computed(() => {
-  if (!selectedBlock.value) return false
-  const type = selectedBlock.value.type
-  return type !== 'header' && type !== 'footer'
+  return !!selectedBlock.value
 })
 </script>
 
@@ -824,64 +377,6 @@ const blockSupportsAnimation = computed(() => {
       <div class="flex-1 overflow-y-auto overflow-x-hidden">
         <!-- Page Settings (when nothing selected) -->
         <PageInspector v-if="!selectedBlock" />
-
-        <!-- Header Nav Link Inspector -->
-        <template v-else-if="selectedHeaderNavLink">
-          <InspectorSection title="Navigation Link" icon="list-link">
-            <InspectorField label="Label">
-              <TextInput
-                :model-value="getNavLinkLabel(selectedHeaderNavLink.id)"
-                placeholder="Link text"
-                @update:model-value="updateNavLinkLabel(selectedHeaderNavLink.id, $event)"
-              />
-            </InspectorField>
-            <InspectorField label="URL">
-              <TextInput
-                :model-value="selectedHeaderNavLink.url"
-                placeholder="https://..."
-                @update:model-value="updateHeaderNavLinkField('url', $event)"
-              />
-            </InspectorField>
-          </InspectorSection>
-        </template>
-
-        <!-- Footer Link Inspector -->
-        <template v-else-if="selectedFooterLink">
-          <InspectorSection title="Footer Link" icon="list-link">
-            <InspectorField label="Label">
-              <TextInput
-                :model-value="getFooterLinkLabel(selectedFooterLink.id)"
-                placeholder="Link text"
-                @update:model-value="updateFooterLinkLabel(selectedFooterLink.id, $event)"
-              />
-            </InspectorField>
-            <InspectorField label="URL">
-              <TextInput
-                :model-value="selectedFooterLink.url"
-                placeholder="https://..."
-                @update:model-value="updateFooterLinkField('url', $event)"
-              />
-            </InspectorField>
-          </InspectorSection>
-        </template>
-
-        <!-- Footer Social Link Inspector -->
-        <template v-else-if="selectedFooterSocialLink">
-          <InspectorSection title="Social Link" icon="list-link">
-            <InspectorField label="Platform">
-              <div class="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-md">
-                <span class="text-sm text-foreground">{{ socialPlatformLabels[selectedFooterSocialLink.platform] }}</span>
-              </div>
-            </InspectorField>
-            <InspectorField label="URL">
-              <TextInput
-                :model-value="selectedFooterSocialLink.url"
-                placeholder="https://..."
-                @update:model-value="updateFooterSocialLinkField('url', $event)"
-              />
-            </InspectorField>
-          </InspectorSection>
-        </template>
 
         <!-- Span Inspector (when a span is selected) -->
         <template v-else-if="selectedSpan && selectedBlock">

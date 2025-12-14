@@ -9,9 +9,6 @@
 // ============================================
 
 export type SectionBlockType =
-  // Special (fixed)
-  | 'header'
-  | 'footer'
   // Layout
   | 'container'
   | 'grid'
@@ -227,6 +224,9 @@ export type MixBlendMode =
 
 // Core style properties (can be overridden per viewport)
 export interface CoreBlockStyles {
+  // Size
+  width?: string
+  height?: string
   // Spacing
   padding?: Spacing
   margin?: Spacing
@@ -504,27 +504,31 @@ export interface VideoStyles extends BaseBlockStyles {
   mask?: MaskShape
 }
 
-// Button
+// Button (rendered as <a> wrapper with container-like options)
 export interface ButtonSettings extends SharedBlockSettings {
   label: string
   url: string
   newTab?: boolean
-  variant: ButtonVariant
-  size: ButtonSize
   iconLeft?: string
   iconRight?: string
-  fullWidth?: boolean
 }
 
 export interface ButtonStyles extends BaseBlockStyles {
   backgroundColor?: string
   textColor?: string
+  color?: string
   hoverBackgroundColor?: string
   hoverTextColor?: string
-  borderRadius?: string
   fontSize?: FontSize
+  fontWeight?: FontWeight
   lineHeight?: string
   letterSpacing?: string
+  textAlign?: Alignment
+  // Flexbox properties (like container)
+  flexDirection?: FlexDirection
+  justifyContent?: JustifyContent
+  alignItems?: AlignItems
+  gap?: string
 }
 
 // Icon
@@ -765,7 +769,8 @@ export interface CanvasSettings extends SharedBlockSettings {
   backgroundImage?: string
   backgroundVideo?: string
   // Size
-  minHeight?: string // e.g., '100vh', '600px'
+  width?: string
+  height?: string
   aspectRatio?: AspectRatio
   // Child positions (responsive - per viewport)
   childPositions: ResponsiveCanvasChildPositions

@@ -9,7 +9,7 @@ import InspectorField from './InspectorField.vue'
 import TextInput from './TextInput.vue'
 import SegmentedControl from './SegmentedControl.vue'
 import SelectInput from './SelectInput.vue'
-import FontSizeSlider from './FontSizeSlider.vue'
+import SizeInput from './SizeInput.vue'
 import SliderInput from './SliderInput.vue'
 import ColorInput from './ColorInput.vue'
 import Icon from '@/components/ui/Icon.vue'
@@ -17,6 +17,7 @@ import Tooltip from '@/components/ui/Tooltip.vue'
 import { SpacingSection, BorderSection, OpacitySection } from './sections'
 import SharedStyleField from './SharedStyleField.vue'
 import InteractionField from './InteractionField.vue'
+import { useFontOptions } from './composables'
 
 const props = defineProps<{
   blockId: string
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const editorStore = useEditorStore()
+const { fontFamilyOptions } = useFontOptions({ includeInherit: true })
 
 // Get the parent block
 const parentBlock = computed(() => {
@@ -41,38 +43,6 @@ const span = computed(() => {
 
 const spanStyles = computed(() => {
   return (span.value?.styles || {}) as SpanStyles
-})
-
-// Get page settings for font options
-const pageSettings = computed(() => editorStore.pageSettings)
-
-// Font options
-const fontFamilyOptions = computed(() => {
-  const customFonts = pageSettings.value.customFonts || []
-  const googleFonts = pageSettings.value.googleFonts || []
-
-  const baseOptions = [
-    { value: '', label: 'Inherit' },
-    { value: 'Inter', label: 'Inter' },
-    { value: 'Roboto', label: 'Roboto' },
-    { value: 'Open Sans', label: 'Open Sans' },
-    { value: 'Lato', label: 'Lato' },
-    { value: 'Poppins', label: 'Poppins' },
-    { value: 'Montserrat', label: 'Montserrat' },
-    { value: 'system-ui', label: 'System' },
-  ]
-
-  const customOptions = customFonts.map(font => ({
-    value: font.name,
-    label: `${font.name} (Custom)`
-  }))
-
-  const googleOptions = googleFonts.map(font => ({
-    value: font.family,
-    label: font.family
-  }))
-
-  return [...baseOptions, ...googleOptions, ...customOptions]
 })
 
 // Update span name
@@ -170,8 +140,9 @@ function handleClose() {
         />
       </InspectorField>
       <InspectorField label="Font Size" horizontal>
-        <FontSizeSlider
-          :model-value="spanStyles.fontSize || 'base'"
+        <SizeInput
+          :model-value="spanStyles.fontSize || ''"
+          placeholder="inherit"
           @update:model-value="updateStyles({ fontSize: $event as SpanStyles['fontSize'] })"
         />
       </InspectorField>

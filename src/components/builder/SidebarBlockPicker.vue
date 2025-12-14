@@ -6,29 +6,30 @@ import {
   sectionBlockIcons,
   blocksByCategory,
   categoryLabels,
-  presetLabels,
-  presetIcons,
-  presetTypes,
-  type PresetType,
+  formFieldBlockTypes,
+  formFieldBlockLabels,
 } from '@/lib/editor-utils'
 import { Button, Icon } from '@/components/ui'
 
-export type BlockPickerMode = 'all' | 'nested' | 'content-only' | 'form-fields' | 'header-footer-stack'
+export type BlockPickerMode = 'all' | 'nested' | 'content-only' | 'form' | 'header-footer-stack'
 
 interface Props {
   mode?: BlockPickerMode
   triggerLabel?: string
   triggerIcon?: string
+  autoOpen?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   mode: 'all',
   triggerLabel: 'Add block',
   triggerIcon: 'plus',
+  autoOpen: false,
 })
 
 const emit = defineEmits<{
   select: [value: string]
+  close: []
 }>()
 
 const isOpen = ref(false)
@@ -38,18 +39,32 @@ const dropdownRef = ref<HTMLElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const dropdownPosition = ref({ top: 0, left: 0 })
 
+// Extended category type for form mode
+type ExtendedCategory = BlockCategory | 'form-fields'
+
 // Categories to show based on mode
-const categories = computed<BlockCategory[]>(() => {
+const categories = computed<ExtendedCategory[]>(() => {
   switch (props.mode) {
     case 'content-only':
     case 'header-footer-stack':
       return ['content']
+    case 'form':
+      return ['form-fields', 'content', 'layout']
     case 'nested':
       return ['layout', 'content'] // Stack shown under layout
     default:
       return ['layout', 'content']
   }
 })
+
+// Extended category labels
+const extendedCategoryLabels: Record<ExtendedCategory, string> = {
+  ...categoryLabels,
+  'form-fields': 'Form Fields',
+}
+
+// Content blocks allowed in forms (subset of content blocks)
+const formContentBlocks: SectionBlockType[] = ['heading', 'text', 'image']
 
 // Get available block types based on mode
 const availableBlockTypes = computed(() => {
@@ -58,6 +73,9 @@ const availableBlockTypes = computed(() => {
       return ['button', 'text', 'image'] as SectionBlockType[]
     case 'content-only':
       return blocksByCategory.content
+    case 'form':
+      // Form fields + content blocks (heading, text, image) + stack
+      return [...formFieldBlockTypes, ...formContentBlocks, 'stack'] as SectionBlockType[]
     case 'nested':
       // Only Stack from layout, plus all content blocks
       return ['stack', ...blocksByCategory.content] as SectionBlockType[]
@@ -66,41 +84,52 @@ const availableBlockTypes = computed(() => {
   }
 })
 
-// Show presets based on mode
-const showPresets = computed(() => {
-  return props.mode === 'all' || props.mode === 'nested'
-})
+
+// Extended blocks by category (including form-fields)
+const extendedBlocksByCategory: Record<ExtendedCategory, SectionBlockType[]> = {
+  ...blocksByCategory,
+  'form-fields': formFieldBlockTypes,
+}
 
 // Filtered blocks by search query
 const filteredBlocksByCategory = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
-  const result: Record<BlockCategory, SectionBlockType[]> = { layout: [], content: [] }
+  const result: Record<ExtendedCategory, SectionBlockType[]> = { layout: [], content: [], 'form-fields': [] }
 
   for (const category of categories.value) {
-    const types = (blocksByCategory[category] || []).filter(type =>
+    // For form mode, filter content to only show formContentBlocks
+    let categoryTypes = extendedBlocksByCategory[category] || []
+    if (props.mode === 'form' && category === 'content') {
+      categoryTypes = formContentBlocks
+    }
+    if (props.mode === 'form' && category === 'layout') {
+      categoryTypes = ['stack'] as SectionBlockType[]
+    }
+
+    const types = categoryTypes.filter(type =>
       availableBlockTypes.value.includes(type) &&
-      (!query || sectionBlockLabels[type].toLowerCase().includes(query))
+      (!query || getBlockLabel(type).toLowerCase().includes(query))
     )
     result[category] = types
   }
   return result
 })
 
-// Filtered presets by search query
-const filteredPresetTypes = computed(() => {
-  if (!showPresets.value) return []
-  const query = searchQuery.value.toLowerCase().trim()
-  if (!query) return presetTypes
-  return presetTypes.filter(preset =>
-    presetLabels[preset].toLowerCase().includes(query)
-  )
-})
+// Get the display label for a block type
+function getBlockLabel(type: SectionBlockType): string {
+  // Use form field labels for form field types
+  if (formFieldBlockTypes.includes(type)) {
+    return formFieldBlockLabels[type] || sectionBlockLabels[type]
+  }
+  return sectionBlockLabels[type]
+}
+
 
 // Check if there are any results
 const hasSearchResults = computed(() => {
   return filteredBlocksByCategory.value.layout.length > 0 ||
          filteredBlocksByCategory.value.content.length > 0 ||
-         filteredPresetTypes.value.length > 0
+         filteredBlocksByCategory.value['form-fields'].length > 0
 })
 
 function updatePosition() {
@@ -141,6 +170,7 @@ function open() {
 function close() {
   isOpen.value = false
   searchQuery.value = ''
+  emit('close')
 }
 
 function handleSelect(value: string) {
@@ -172,6 +202,13 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('resize', updatePosition)
   window.addEventListener('scroll', updatePosition, true)
+
+  // Auto-open if prop is set
+  if (props.autoOpen) {
+    nextTick(() => {
+      open()
+    })
+  }
 })
 
 onUnmounted(() => {
@@ -182,7 +219,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="triggerRef">
+  <div v-if="!autoOpen" ref="triggerRef">
     <Button
       variant="dotted"
       size="sm"
@@ -238,7 +275,7 @@ onUnmounted(() => {
             <template v-for="category in categories" :key="category">
               <div v-if="filteredBlocksByCategory[category].length > 0" class="flex flex-col items-start mb-3.5">
                 <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
-                  {{ categoryLabels[category] }}
+                  {{ extendedCategoryLabels[category] }}
                 </div>
                 <div class="grid grid-cols-2 gap-1 w-full">
                   <button
@@ -248,29 +285,12 @@ onUnmounted(() => {
                     @click="handleSelect(type)"
                   >
                     <Icon :name="sectionBlockIcons[type]" :size="18" class="text-muted-foreground" />
-                    <span class="text-[10px] text-center leading-tight">{{ sectionBlockLabels[type] }}</span>
+                    <span class="text-[10px] text-center leading-tight">{{ getBlockLabel(type) }}</span>
                   </button>
                 </div>
               </div>
             </template>
 
-            <!-- List / Collection presets -->
-            <div v-if="filteredPresetTypes.length > 0" class="flex flex-col items-start">
-              <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
-                List / Collection
-              </div>
-              <div class="grid grid-cols-2 gap-1 w-full">
-                <button
-                  v-for="preset in filteredPresetTypes"
-                  :key="preset"
-                  class="flex flex-col items-center gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent transition-colors"
-                  @click="handleSelect(preset)"
-                >
-                  <Icon :name="presetIcons[preset]" :size="18" class="text-muted-foreground" />
-                  <span class="text-[10px] text-center leading-tight">{{ presetLabels[preset] }}</span>
-                </button>
-              </div>
-            </div>
           </template>
         </div>
       </div>
