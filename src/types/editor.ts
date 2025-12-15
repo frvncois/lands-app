@@ -189,6 +189,319 @@ export interface GradientStyle {
 }
 
 // ============================================
+// EFFECTS SYSTEM
+// ============================================
+
+// Easing options including expressive curves
+export type EffectEasing =
+  | 'linear'
+  | 'ease'
+  | 'ease-in'
+  | 'ease-out'
+  | 'ease-in-out'
+  // Quad
+  | 'ease-in-quad'
+  | 'ease-out-quad'
+  | 'ease-in-out-quad'
+  // Cubic
+  | 'ease-in-cubic'
+  | 'ease-out-cubic'
+  | 'ease-in-out-cubic'
+  // Quart
+  | 'ease-in-quart'
+  | 'ease-out-quart'
+  | 'ease-in-out-quart'
+  // Expo
+  | 'ease-in-expo'
+  | 'ease-out-expo'
+  | 'ease-in-out-expo'
+  // Back (overshoot)
+  | 'ease-in-back'
+  | 'ease-out-back'
+  | 'ease-in-out-back'
+  // Elastic & Bounce
+  | 'ease-out-elastic'
+  | 'ease-out-bounce'
+
+// Transform origin positions
+export type TransformOrigin =
+  | 'center'
+  | 'top'
+  | 'top-right'
+  | 'right'
+  | 'bottom-right'
+  | 'bottom'
+  | 'bottom-left'
+  | 'left'
+  | 'top-left'
+
+// Effect preset names for quick setup
+export type EffectPreset =
+  // Fade
+  | 'fade-in'
+  | 'fade-out'
+  // Slide
+  | 'slide-up'
+  | 'slide-down'
+  | 'slide-left'
+  | 'slide-right'
+  // Zoom
+  | 'zoom-in'
+  | 'zoom-out'
+  // Flip (3D)
+  | 'flip-x'
+  | 'flip-y'
+  // Rotate
+  | 'rotate-in'
+  | 'rotate-out'
+  // Bounce
+  | 'bounce-in'
+  | 'bounce-out'
+  // Blur
+  | 'blur-in'
+  | 'blur-out'
+  // Scale
+  | 'scale-up'
+  | 'scale-down'
+  // Combos
+  | 'fade-up'
+  | 'fade-down'
+  | 'fade-left'
+  | 'fade-right'
+  | 'fade-zoom-in'
+  | 'fade-zoom-out'
+  // Custom
+  | 'custom'
+
+// Base effect state (from/to properties)
+export interface EffectState {
+  // Opacity (0-100)
+  opacity?: number
+
+  // Size
+  width?: string
+  height?: string
+
+  // Transform - Scale
+  scale?: number
+  scaleX?: number
+  scaleY?: number
+
+  // Transform - Translate
+  translateX?: string
+  translateY?: string
+  translateZ?: string
+
+  // Transform - Rotate (3D)
+  rotate?: string    // Z-axis rotation (2D)
+  rotateX?: string   // X-axis rotation (3D flip)
+  rotateY?: string   // Y-axis rotation (3D flip)
+
+  // Transform - Skew
+  skewX?: string
+  skewY?: string
+
+  // Filters
+  blur?: string
+  brightness?: number      // 0-200 (100 = normal)
+  contrast?: number        // 0-200 (100 = normal)
+  saturate?: number        // 0-200 (100 = normal)
+  grayscale?: number       // 0-100
+  hueRotate?: number       // 0-360 degrees
+
+  // Backdrop filter (glassmorphism)
+  backdropBlur?: string
+
+  // Colors (for color transitions)
+  backgroundColor?: string
+  color?: string
+  borderColor?: string
+
+  // Border
+  borderWidth?: string
+  borderRadius?: string
+
+  // Spacing
+  paddingTop?: string
+  paddingRight?: string
+  paddingBottom?: string
+  paddingLeft?: string
+  marginTop?: string
+  marginRight?: string
+  marginBottom?: string
+  marginLeft?: string
+
+  // Box shadow
+  shadowX?: string
+  shadowY?: string
+  shadowBlur?: string
+  shadowSpread?: string
+  shadowColor?: string
+}
+
+// Keyframe for multi-step animations
+export interface EffectKeyframe extends EffectState {
+  offset: number // 0-100 (percentage through animation)
+  easing?: EffectEasing // easing to next keyframe
+}
+
+// Stagger configuration for children animations
+export interface StaggerConfig {
+  enabled?: boolean
+  amount?: number      // delay between each child in ms
+  from?: 'first' | 'last' | 'center' | 'edges' // stagger direction
+  grid?: {             // for grid layouts
+    columns?: number
+    direction?: 'row' | 'column' | 'diagonal'
+  }
+}
+
+// Child effect override - allows different effects for specific children
+export interface ChildEffectOverride {
+  childId: string
+  // Override from/to states for this child
+  from?: EffectState
+  to?: EffectState
+  // Override timing for this child
+  delay?: number
+  duration?: number
+  easing?: EffectEasing
+  // Preset for this child (overrides from/to)
+  preset?: EffectPreset
+  // Scroll-specific overrides
+  parallax?: {
+    enabled?: boolean
+    speed?: number
+    direction?: 'vertical' | 'horizontal' | 'both'
+  }
+  horizontal?: {
+    enabled?: boolean
+    distance?: string
+  }
+  scrollRange?: {
+    start?: number
+    end?: number
+    relativeTo?: 'page' | 'parent' | 'self'
+  }
+}
+
+// Base effect configuration
+export interface BaseEffect {
+  enabled?: boolean
+
+  // Simple from/to animation
+  from?: EffectState
+  to?: EffectState
+
+  // OR multi-step keyframes (overrides from/to if set)
+  keyframes?: EffectKeyframe[]
+
+  // Preset (auto-populates from/to when selected)
+  preset?: EffectPreset
+
+  // Timing
+  duration?: number // in ms
+  delay?: number // in ms
+  easing?: EffectEasing
+
+  // Transform settings
+  transformOrigin?: TransformOrigin
+  perspective?: string // for 3D effects (e.g., "1000px")
+
+  // Children
+  applyToChildren?: boolean
+  stagger?: StaggerConfig
+  // Per-child effect overrides (different effects for specific children)
+  childOverrides?: ChildEffectOverride[]
+
+  // Performance hints
+  willChange?: boolean // add will-change CSS hint
+}
+
+// Hover effect
+export interface HoverEffect extends BaseEffect {
+  type: 'hover'
+}
+
+// Scroll effect with advanced options
+export interface ScrollEffect extends BaseEffect {
+  type: 'scroll'
+
+  // Trigger point in viewport
+  trigger?: 'top' | 'center' | 'bottom'
+
+  // Scrub: link animation directly to scroll position
+  scrub?: boolean | number // true or smoothing value in ms
+
+  // Parallax: element moves at different speed than scroll
+  parallax?: {
+    enabled?: boolean
+    speed?: number     // multiplier: 0.5 = half speed, 2 = double speed
+    direction?: 'vertical' | 'horizontal' | 'both'
+  }
+
+  // Pin: element sticks while scrolling through range
+  pin?: {
+    enabled?: boolean
+    duration?: string  // scroll distance to pin (e.g., "500px", "100vh")
+    spacing?: boolean  // add spacing to prevent content jump
+  }
+
+  // Horizontal scroll: convert vertical scroll to horizontal movement
+  horizontal?: {
+    enabled?: boolean
+    distance?: string  // how far to move horizontally
+  }
+
+  // Scroll range configuration
+  scrollRange?: {
+    start?: number      // percentage (0-100) when effect starts
+    end?: number        // percentage (0-100) when effect ends
+    relativeTo?: 'page' | 'parent' | 'self'  // what the percentage is relative to
+  }
+}
+
+// Appear effect (on page load or when element enters viewport)
+export interface AppearEffect extends BaseEffect {
+  type: 'appear'
+
+  // Trigger type
+  trigger?: 'load' | 'inView'
+
+  // Only animate once (or repeat every time element enters view)
+  once?: boolean
+
+  // Threshold: how much of element must be visible (0-1)
+  threshold?: number
+
+  // Root margin: trigger earlier/later (e.g., "-100px" triggers 100px before visible)
+  rootMargin?: string
+}
+
+// Loop effect (continuous animation)
+export interface LoopEffect extends BaseEffect {
+  type: 'loop'
+
+  // Loop controls
+  loop?: boolean          // Enable looping (default true)
+  reverse?: boolean       // Reverse animation on each loop (ping-pong)
+
+  // Start trigger
+  startTrigger?: 'inView' | 'hover' | 'load'
+
+  // Stop trigger
+  stopTrigger?: 'never' | 'outOfView' | 'hover'
+}
+
+// Combined effects for a block
+export interface BlockEffects {
+  hover?: HoverEffect
+  scroll?: ScrollEffect
+  appear?: AppearEffect
+  loop?: LoopEffect
+}
+
+// ============================================
 // SHARED BLOCK SETTINGS
 // ============================================
 
@@ -237,8 +550,10 @@ export interface CoreBlockStyles {
   backgroundImage?: string
   backgroundPosition?: string
   backgroundSize?: string
+  backgroundGradient?: GradientStyle
   // Border
   border?: BorderStyle
+  borderRadius?: string
   // Shadow
   shadow?: ShadowStyle
   // Flexbox child properties
@@ -248,7 +563,7 @@ export interface CoreBlockStyles {
   // Visual effects
   opacity?: number | string
   mixBlendMode?: string
-  // Overflow (uses clip-path instead of overflow)
+  // Overflow (clips fixed children, respects border-radius via clip-path)
   overflow?: 'visible' | 'hidden'
   // Positioning
   position?: 'relative' | 'absolute' | 'fixed' | 'sticky'
@@ -269,6 +584,8 @@ export interface CoreBlockStyles {
 export interface BaseBlockStyles extends CoreBlockStyles {
   // Animation (not responsive - same across all viewports)
   animation?: AnimationSettings
+  // Effects (hover, scroll, appear)
+  effects?: BlockEffects
   // Responsive overrides (inherit from desktop → tablet → mobile)
   tablet?: Partial<CoreBlockStyles>
   mobile?: Partial<CoreBlockStyles>
@@ -446,7 +763,6 @@ export interface InlineSpan {
   id: string
   name: string
   styles: SpanStyles
-  interactionIds?: string[] // References to interactions where this span is a trigger/target
 }
 
 // Text
@@ -856,90 +1172,6 @@ export interface SharedStyle {
   updatedAt: string
 }
 
-// ============================================
-// INTERACTIONS
-// ============================================
-
-// Trigger types for interactions
-export type InteractionTrigger =
-  | 'hover'
-  | 'click'
-  | 'load'
-  | 'appear'
-  | 'while-scrolling'  // Element's viewport position (0% entering → 100% leaving)
-  | 'page-scroll'      // Page scroll position (0% top → 100% bottom)
-
-// Scroll animation configuration (for scroll-based triggers)
-export interface ScrollAnimationConfig {
-  startOffset?: number  // 0-100, when animation starts (default: 0)
-  endOffset?: number    // 0-100, when animation completes (default: 100)
-}
-
-// Effect types for interactions
-export type InteractionEffect = 'transition' | 'animation'
-
-// Easing options for interactions
-export type InteractionEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out' | 'spring'
-
-// Style properties that can be animated in interactions
-export interface InteractionStyles {
-  // Background
-  backgroundColor?: string
-  // Border
-  border?: BorderStyle
-  // Visual effects
-  opacity?: number | string
-  shadow?: ShadowStyle
-  blur?: string
-  // Transform
-  transform?: string
-  scale?: string
-  rotate?: string
-  translateX?: string
-  translateY?: string
-  // Spacing
-  padding?: Spacing
-  margin?: Spacing
-  // Typography (for text blocks)
-  color?: string
-  fontSize?: string
-  // Dimensions
-  width?: string
-  height?: string
-}
-
-// Single interaction definition
-export interface Interaction {
-  id: string
-  name: string
-
-  // Trigger configuration
-  trigger: InteractionTrigger
-  triggerBlockId: string      // Block that triggers the interaction
-
-  // Target configuration
-  targetBlockIds: string[]    // Blocks that receive style changes (can include trigger block)
-
-  // Effect configuration
-  effectType: InteractionEffect
-  duration: string            // e.g., '300ms', '0.5s'
-  easing: InteractionEasing
-  delay?: string              // e.g., '100ms'
-
-  // Style changes to apply when triggered
-  styles: InteractionStyles
-
-  // Scroll-specific configuration (for 'while-scrolling' and 'page-scroll' triggers)
-  scrollConfig?: ScrollAnimationConfig
-
-  // Initial styles for scroll animations (element's starting state)
-  fromStyles?: InteractionStyles
-
-  // Metadata
-  createdAt: string
-  updatedAt: string
-}
-
 // Union type for all block styles
 export type BlockStyles =
   | ContainerStyles
@@ -975,9 +1207,6 @@ export interface SectionBlock {
 
   // Shared style reference (for style syncing)
   sharedStyleId?: string
-
-  // Interaction references (for blocks that trigger interactions)
-  interactionIds?: string[]
 
   // Nested blocks (for layout blocks like container, grid, stack, form)
   children?: SectionBlock[]
@@ -1080,6 +1309,8 @@ export interface PageSettings {
   // Style settings (from wizard)
   layoutStyleId?: string
   stylePresetId?: string
+  // Smooth scroll (Lenis)
+  smoothScroll?: boolean
   // Metadata
   useCase?: UseCaseCategory
   layoutId?: string
@@ -1089,8 +1320,6 @@ export interface PageSettings {
   customFooterScript?: string
   // Shared styles (style presets for blocks)
   sharedStyles?: SharedStyle[]
-  // Interactions (hover/click/load/appear effects)
-  interactions?: Interaction[]
 }
 
 // ============================================

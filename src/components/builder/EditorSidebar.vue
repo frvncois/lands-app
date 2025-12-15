@@ -6,7 +6,6 @@ import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
 import BlockTreeLevel from './BlockTreeLevel.vue'
-import AddBlockLine from './AddBlockLine.vue'
 import SidebarBlockPicker from './SidebarBlockPicker.vue'
 import { canHaveChildren } from '@/lib/editor-utils'
 import {
@@ -48,7 +47,6 @@ const {
   expandBlock,
   collapseBlock,
   canBlockExpand,
-  blockHasInteraction,
 } = useBlockTree()
 
 const {
@@ -61,14 +59,45 @@ const {
   handleCopyStyle,
   handlePasteStyle,
   handleCreateComponent,
+  renamingBlockId,
+  handleRename,
+  startRename,
+  finishRename,
+  cancelRename,
 } = useBlockContextMenu(expandBlock, collapseBlock)
+
+// Rename input ref for auto-focus
+const renameInputRef = ref<HTMLInputElement | null>(null)
+
+// Watch for rename mode to focus input
+watch(renamingBlockId, async (newId) => {
+  if (newId) {
+    await nextTick()
+    renameInputRef.value?.focus()
+    renameInputRef.value?.select()
+  }
+})
+
+// Handle rename input keydown
+function handleRenameKeydown(event: KeyboardEvent, blockId: string, currentValue: string) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    finishRename(blockId, currentValue)
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    cancelRename()
+  }
+}
+
+// Handle double-click to start rename
+function handleNameDoubleClick(blockId: string) {
+  startRename(blockId)
+}
 
 // Local state
 const showSectionDropdown = ref(false)
 const sectionSearchQuery = ref('')
 const sectionSearchInputRef = ref<HTMLInputElement | null>(null)
-const showRootAddPicker = ref<number | null>(null)
-const showChildAddPicker = ref<{ blockId: string; position: number } | null>(null)
 
 // Categories for block selection
 const categories: BlockCategory[] = ['layout', 'content']
@@ -178,40 +207,6 @@ function handleChildDropWithExpand(parentId: string, childIndex: number) {
 
 function handleEmptyParentDropWithExpand(parentId: string) {
   handleEmptyParentDrop(parentId, expandBlock)
-}
-
-// Root-level add block handlers
-function handleRootAddAtPosition(position: number) {
-  showRootAddPicker.value = position
-}
-
-function handleRootAddBlockType(type: string, position: number) {
-  const block = editorStore.addBlock(type as SectionBlockType, position)
-  if (block) {
-    expandBlock(block.id)
-  }
-  showRootAddPicker.value = null
-}
-
-function handleRootPickerClose() {
-  showRootAddPicker.value = null
-}
-
-// First-level children add block handlers
-function handleChildAddAtPosition(blockId: string, position: number) {
-  showChildAddPicker.value = { blockId, position }
-}
-
-function handleChildAddBlockType(blockId: string, type: string, position: number) {
-  const block = editorStore.addBlock(type as SectionBlockType, position, blockId)
-  if (block) {
-    editorStore.selectBlock(block.id)
-  }
-  showChildAddPicker.value = null
-}
-
-function handleChildPickerClose() {
-  showChildAddPicker.value = null
 }
 
 function getBlockPickerMode(block: { type: string }): 'form' | 'content-only' | 'nested' {
@@ -369,20 +364,6 @@ function getBlockPickerLabel(block: { type: string }): string {
         <!-- Section block items using recursive component -->
         <div v-else class="space-y-0.5">
           <template v-for="(block, blockIndex) in editorStore.blocks" :key="block.id">
-            <!-- Add line before block -->
-            <AddBlockLine
-              :position="blockIndex"
-              @add="handleRootAddAtPosition(blockIndex)"
-            />
-            <!-- Inline picker at this position -->
-            <SidebarBlockPicker
-              v-if="showRootAddPicker === blockIndex"
-              mode="all"
-              auto-open
-              @select="handleRootAddBlockType($event, blockIndex)"
-              @close="handleRootPickerClose"
-            />
-
             <div
               class="block-item"
               draggable="true"
@@ -415,12 +396,22 @@ function getBlockPickerLabel(block: { type: string }): string {
                 </button>
                 <div v-else class="w-4 shrink-0"></div>
 
-                <span class="flex-1 truncate font-medium leading-4">{{ block.name }}</span>
-
-                <!-- Interaction indicator -->
-                <Tooltip v-if="blockHasInteraction(block.id)" text="Has interaction">
-                  <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
-                </Tooltip>
+                <!-- Block name (editable when renaming) -->
+                <input
+                  v-if="renamingBlockId === block.id"
+                  ref="renameInputRef"
+                  type="text"
+                  :value="block.name"
+                  class="flex-1 bg-transparent border border-primary rounded px-1 py-0 text-xs font-medium leading-4 outline-none"
+                  @blur="finishRename(block.id, ($event.target as HTMLInputElement).value)"
+                  @keydown="handleRenameKeydown($event, block.id, ($event.target as HTMLInputElement).value)"
+                  @click.stop
+                />
+                <span
+                  v-else
+                  class="flex-1 truncate font-medium leading-4"
+                  @dblclick.stop="handleNameDoubleClick(block.id)"
+                >{{ block.name }}</span>
 
                 <!-- Shared style indicator -->
                 <Tooltip v-if="block.sharedStyleId" text="Has shared style">
@@ -433,21 +424,6 @@ function getBlockPickerLabel(block: { type: string }): string {
                 <!-- Empty state or children -->
                 <template v-if="block.children && block.children.length > 0">
                   <template v-for="(child, childIndex) in block.children" :key="child.id">
-                    <!-- Add line before child -->
-                    <AddBlockLine
-                      :position="childIndex"
-                      @add="handleChildAddAtPosition(block.id, childIndex)"
-                    />
-                    <!-- Inline picker at this position -->
-                    <SidebarBlockPicker
-                      v-if="showChildAddPicker?.blockId === block.id && showChildAddPicker?.position === childIndex"
-                      :mode="getBlockPickerMode(block)"
-                      :trigger-label="getBlockPickerLabel(block)"
-                      auto-open
-                      @select="handleChildAddBlockType(block.id, $event, childIndex)"
-                      @close="handleChildPickerClose"
-                    />
-
                     <BlockTreeLevel
                       :block="child"
                       :depth="1"
@@ -455,6 +431,7 @@ function getBlockPickerLabel(block: { type: string }): string {
                       :child-index="childIndex"
                       :drag-state="dragState"
                       :expanded-blocks="expandedBlocks"
+                      :renaming-block-id="renamingBlockId"
                       @toggle-expanded="toggleExpanded"
                       @context-menu="(id, type, event) => openContextMenu(id, type, event)"
                       @drag-start="handleChildDragStart"
@@ -467,23 +444,11 @@ function getBlockPickerLabel(block: { type: string }): string {
                       @empty-parent-drop="handleEmptyParentDropWithExpand"
                       @add-child="handleAddChildBlock"
                       @add-child-at-position="handleAddChildBlockAtPosition"
+                      @start-rename="startRename"
+                      @finish-rename="finishRename"
+                      @cancel-rename="cancelRename"
                     />
                   </template>
-
-                  <!-- Add line at end -->
-                  <AddBlockLine
-                    :position="block.children.length"
-                    @add="handleChildAddAtPosition(block.id, block.children.length)"
-                  />
-                  <!-- Inline picker at end -->
-                  <SidebarBlockPicker
-                    v-if="showChildAddPicker?.blockId === block.id && showChildAddPicker?.position === block.children.length"
-                    :mode="getBlockPickerMode(block)"
-                    :trigger-label="getBlockPickerLabel(block)"
-                    auto-open
-                    @select="handleChildAddBlockType(block.id, $event, block.children.length)"
-                    @close="handleChildPickerClose"
-                  />
                 </template>
 
                 <!-- Empty state: Show block picker when no children -->
@@ -496,26 +461,19 @@ function getBlockPickerLabel(block: { type: string }): string {
               </div>
             </div>
           </template>
-
-          <!-- Add line at end of all blocks -->
-          <AddBlockLine
-            :position="editorStore.blocks.length"
-            @add="handleRootAddAtPosition(editorStore.blocks.length)"
-          />
-          <!-- Inline picker at end -->
-          <SidebarBlockPicker
-            v-if="showRootAddPicker === editorStore.blocks.length"
-            mode="all"
-            auto-open
-            @select="handleRootAddBlockType($event, editorStore.blocks.length)"
-            @close="handleRootPickerClose"
-          />
         </div>
       </div>
     </template>
 
     <!-- Block Context Menu -->
     <ContextMenu ref="contextMenuRef">
+      <ContextMenuItem
+        icon="pencil"
+        @click="handleRename"
+      >
+        Rename
+      </ContextMenuItem>
+      <ContextMenuDivider />
       <ContextMenuItem
         icon="app-copy-style"
         @click="handleCopyStyle"

@@ -9,7 +9,7 @@ import SegmentedControl from '../SegmentedControl.vue'
 import SliderInput from '../SliderInput.vue'
 import Icon from '@/components/ui/Icon.vue'
 import ProductVariants from '@/components/modal/ProductVariants.vue'
-import { SpacingSection, BorderSection, OpacitySection, PositionSection } from '../sections'
+import { SpacingSection, BorderSection, OpacitySection, StylesSection } from '../sections'
 
 const {
   selectedBlock,
@@ -105,20 +105,19 @@ const showVariantsModal = ref(false)
       @update:mix-blend-mode="updateBlockStyles({ mixBlendMode: $event })"
     />
 
-    <!-- Position Section -->
-    <PositionSection
-      :position="responsiveStyles.position"
+    <!-- Styles Section (for Transform) -->
+    <StylesSection
+      :translate-x="responsiveStyles.translateX"
+      :translate-y="responsiveStyles.translateY"
+      :rotate="responsiveStyles.rotate"
       :z-index="responsiveStyles.zIndex"
-      :top="responsiveStyles.top"
-      :right="responsiveStyles.right"
-      :bottom="responsiveStyles.bottom"
-      :left="responsiveStyles.left"
-      @update:position="updateBlockStyles({ position: $event })"
+      :position="responsiveStyles.position"
+      hide-background
+      @update:translate-x="updateBlockStyles({ translateX: $event })"
+      @update:translate-y="updateBlockStyles({ translateY: $event })"
+      @update:rotate="updateBlockStyles({ rotate: $event })"
       @update:z-index="updateBlockStyles({ zIndex: $event })"
-      @update:top="updateBlockStyles({ top: $event })"
-      @update:right="updateBlockStyles({ right: $event })"
-      @update:bottom="updateBlockStyles({ bottom: $event })"
-      @update:left="updateBlockStyles({ left: $event })"
+      @update:position="updateBlockStyles({ position: $event })"
     />
   </div>
 

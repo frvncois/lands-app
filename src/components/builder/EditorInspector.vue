@@ -6,7 +6,6 @@ import {
   sectionBlockLabels,
   sectionBlockIcons,
   flexBasisOptions,
-  mixBlendModeOptions,
 } from '@/lib/editor-utils'
 import {
   getResponsiveStyles,
@@ -22,14 +21,10 @@ import type {
 
 import InspectorSection from '@/components/inspector/InspectorSection.vue'
 import InspectorField from '@/components/inspector/InspectorField.vue'
-import BoxModelInput from '@/components/inspector/BoxModelInput.vue'
 import SelectInput from '@/components/inspector/SelectInput.vue'
 import SliderInput from '@/components/inspector/SliderInput.vue'
-import BorderInput from '@/components/inspector/BorderInput.vue'
 import AnimationSection from '@/components/inspector/AnimationSection.vue'
 import SharedStyleField from '@/components/inspector/SharedStyleField.vue'
-import InteractionField from '@/components/inspector/InteractionField.vue'
-import EditorInteraction from '@/components/inspector/EditorInteraction.vue'
 import SpanInspector from '@/components/inspector/SpanInspector.vue'
 import PageInspector from '@/components/inspector/PageInspector.vue'
 import DynamicBlockInspector from '@/components/inspector/DynamicBlockInspector.vue'
@@ -46,7 +41,6 @@ const customBlockInspectorMap: Partial<Record<SectionBlockType, Component>> = {
 import ProjectFont from '@/components/modal/ProjectFont.vue'
 import ProductVariants from '@/components/modal/ProductVariants.vue'
 import SharedStyleCreate from '@/components/modal/SharedStyleCreate.vue'
-import InteractionCreate from '@/components/modal/InteractionCreate.vue'
 import Icon from '@/components/ui/Icon.vue'
 import Tooltip from '@/components/ui/Tooltip.vue'
 import Button from '@/components/ui/Button.vue'
@@ -206,35 +200,6 @@ const showVariantsModal = ref(false)
 // Shared Style create modal state
 const showSharedStyleModal = ref(false)
 
-// Interaction create modal state
-const showInteractionModal = ref(false)
-
-// Interaction editing state
-const editingInteractionId = ref<string | null>(null)
-const interactionEditorRef = ref<InstanceType<typeof EditorInteraction> | null>(null)
-
-function handleEditInteraction(interactionId: string) {
-  editingInteractionId.value = interactionId
-}
-
-function handleCreateInteraction() {
-  // Open the modal to name the interaction
-  showInteractionModal.value = true
-}
-
-function handleInteractionCreated(interactionId: string) {
-  // After creation, open editor for the new interaction
-  editingInteractionId.value = interactionId
-}
-
-function handleCloseInteractionEditor() {
-  editingInteractionId.value = null
-}
-
-function handleSaveInteraction() {
-  interactionEditorRef.value?.save()
-}
-
 // Google Fonts handlers
 function handleGoogleFontsUpdate(fonts: GoogleFont[]) {
   editorStore.updatePageSettings({ googleFonts: fonts })
@@ -325,21 +290,8 @@ const blockSupportsAnimation = computed(() => {
     <template v-else>
       <!-- Header with Breadcrumb -->
       <div class="flex items-center h-12 px-3 border-b border-sidebar-border gap-2 ml-1">
-        <!-- Interaction Editor Breadcrumb -->
-        <template v-if="editingInteractionId">
-          <div class="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold bg-accent text-foreground">
-            <Icon name="style-interactions" :size="10" />
-            <span>Interaction</span>
-          </div>
-          <div class="flex-1" />
-          <div class="flex items-center gap-1">
-            <Button variant="ghost" size="sm" @click="handleCloseInteractionEditor">Cancel</Button>
-            <Button size="sm" @click="handleSaveInteraction">Save</Button>
-          </div>
-        </template>
-
-        <!-- Normal Breadcrumb navigation -->
-        <nav v-else class="flex items-center gap-1 min-w-0 flex-1">
+        <!-- Breadcrumb navigation -->
+        <nav class="flex items-center gap-1 min-w-0 flex-1">
           <template v-for="(item, index) in breadcrumbPath" :key="item.id ?? 'page'">
             <!-- Separator -->
             <i
@@ -389,40 +341,22 @@ const blockSupportsAnimation = computed(() => {
 
         <!-- Block Inspector (lazy-loaded components) -->
         <template v-else-if="CurrentBlockInspector && selectedBlock">
-          <!-- Interaction Editor (when editing an interaction) -->
-          <EditorInteraction
-            v-if="editingInteractionId"
-            ref="interactionEditorRef"
-            :interaction-id="editingInteractionId"
-            :trigger-block-id="selectedBlock.id"
-            @close="handleCloseInteractionEditor"
-            @created="handleCloseInteractionEditor"
-          />
+          <!-- Shared Style Field -->
+          <div class="px-3 py-2 border-b border-sidebar-border">
+            <SharedStyleField
+              :block-id="selectedBlock.id"
+              :block-type="selectedBlock.type"
+              @open-create-modal="showSharedStyleModal = true"
+            />
+          </div>
 
-          <!-- Normal Block Inspector (when not editing interaction) -->
-          <template v-else>
-            <!-- Content Section with Shared Style and Interaction (for ALL blocks) -->
-            <InspectorSection title="Content" icon="layout-grid">
-              <SharedStyleField
-                :block-id="selectedBlock.id"
-                :block-type="selectedBlock.type"
-                @open-create-modal="showSharedStyleModal = true"
-              />
-              <InteractionField
-                :block-id="selectedBlock.id"
-                @edit="handleEditInteraction"
-                @create="handleCreateInteraction"
-              />
-            </InspectorSection>
-
-            <!-- Dynamic Block Inspector -->
-            <Suspense>
-              <component :is="CurrentBlockInspector" />
-            </Suspense>
-          </template>
+          <!-- Dynamic Block Inspector -->
+          <Suspense>
+            <component :is="CurrentBlockInspector" />
+          </Suspense>
         </template>
 
-        <!-- Common sections for all blocks (Grid Placement, Flex Child, Animation, Dev tool) -->
+        <!-- Fallback for blocks without inspector config (shouldn't happen normally) -->
         <template v-else-if="selectedBlock">
           <!-- Grid Placement Section (only for direct children of Grid) -->
           <InspectorSection v-if="isChildOfGrid" title="Grid Placement" icon="layout-grid">
@@ -479,46 +413,7 @@ const blockSupportsAnimation = computed(() => {
             </InspectorField>
           </InspectorSection>
 
-          <!-- Spacing Section (common to all blocks) -->
-          <InspectorSection title="Spacing" icon="style-justify-between">
-              <BoxModelInput
-                :margin="responsiveStyles.margin"
-                :padding="responsiveStyles.padding"
-                @update:margin="updateBlockStyles({ margin: $event })"
-                @update:padding="updateBlockStyles({ padding: $event })"
-              />
-          </InspectorSection>
-
-          <!-- Border Section (common to all blocks) -->
-          <InspectorSection title="Border" icon="style-border-top">
-            <BorderInput
-              :model-value="responsiveStyles.border"
-              @update:model-value="updateBlockStyles({ border: $event })"
-            />
-          </InspectorSection>
-
-          <!-- Opacity Section (common to all blocks) -->
-          <InspectorSection title="Opacity" icon="app-show">
-            <InspectorField label="Opacity" horizontal>
-              <SliderInput
-                :model-value="responsiveStyles.opacity || '100'"
-                :min="0"
-                :max="100"
-                :step="5"
-                unit="%"
-                @update:model-value="updateBlockStyles({ opacity: $event })"
-              />
-            </InspectorField>
-            <InspectorField label="Blend Mode" horizontal>
-              <SelectInput
-                :model-value="responsiveStyles.mixBlendMode || 'normal'"
-                :options="mixBlendModeOptions"
-                @update:model-value="updateBlockStyles({ mixBlendMode: $event })"
-              />
-            </InspectorField>
-          </InspectorSection>
-
-          <!-- Animation Section (common to most blocks, not header/footer) -->
+          <!-- Animation Section (common to most blocks) -->
           <AnimationSection
             v-if="blockSupportsAnimation"
             :model-value="blockAnimation"
@@ -561,15 +456,5 @@ const blockSupportsAnimation = computed(() => {
     :block-id="selectedBlock.id"
     :block-type="selectedBlock.type"
     @update:open="showSharedStyleModal = $event"
-  />
-
-  <!-- Interaction Create Modal -->
-  <InteractionCreate
-    v-if="selectedBlock"
-    :open="showInteractionModal"
-    :block-id="selectedBlock.id"
-    :block-type="selectedBlock.type"
-    @update:open="showInteractionModal = $event"
-    @created="handleInteractionCreated"
   />
 </template>

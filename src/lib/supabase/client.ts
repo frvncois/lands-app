@@ -52,9 +52,9 @@ function notifyConnectionChange(isHealthy: boolean) {
  */
 export async function checkConnectionHealth(): Promise<boolean> {
   try {
-    // Create timeout promise
-    const timeoutPromise = new Promise<{ error: { message: string; code: string } }>((_, reject) => {
-      setTimeout(() => reject(new Error('Health check timed out')), 10000)
+    // Create timeout that resolves with error-like object (not reject)
+    const timeoutPromise = new Promise<{ error: { message: string; code: string } | null }>((resolve) => {
+      setTimeout(() => resolve({ error: { message: 'Health check timed out', code: 'TIMEOUT' } }), 15000)
     })
 
     // Simple query to check connection
@@ -64,16 +64,23 @@ export async function checkConnectionHealth(): Promise<boolean> {
       .limit(1)
       .maybeSingle()
 
-    // Race between query and timeout
+    // Race between query and timeout - both resolve (no reject)
     const { error } = await Promise.race([queryPromise, timeoutPromise])
 
-    if (error && (error.code === 'PGRST301' || error.message?.includes('JWT') || error.message?.includes('fetch'))) {
-      console.warn('Supabase connection unhealthy:', error.message)
-      if (isConnectionHealthy) {
-        isConnectionHealthy = false
-        notifyConnectionChange(false)
+    if (error) {
+      const isUnhealthy = error.code === 'TIMEOUT' ||
+        error.code === 'PGRST301' ||
+        error.message?.includes('JWT') ||
+        error.message?.includes('fetch')
+
+      if (isUnhealthy) {
+        console.warn('Supabase connection unhealthy:', error.message)
+        if (isConnectionHealthy) {
+          isConnectionHealthy = false
+          notifyConnectionChange(false)
+        }
+        return false
       }
-      return false
     }
 
     lastHealthCheck = Date.now()
@@ -83,7 +90,7 @@ export async function checkConnectionHealth(): Promise<boolean> {
     }
     return true
   } catch (e) {
-    console.error('Supabase health check failed:', e)
+    console.warn('Supabase health check failed:', e)
     if (isConnectionHealthy) {
       isConnectionHealthy = false
       notifyConnectionChange(false)

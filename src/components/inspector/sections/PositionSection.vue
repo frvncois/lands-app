@@ -13,6 +13,8 @@ const props = defineProps<{
   right?: string
   bottom?: string
   left?: string
+  translateX?: string
+  translateY?: string
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +24,8 @@ const emit = defineEmits<{
   'update:right': [value: string]
   'update:bottom': [value: string]
   'update:left': [value: string]
+  'update:translateX': [value: string]
+  'update:translateY': [value: string]
 }>()
 
 const positionOptions = [
@@ -171,6 +175,28 @@ onUnmounted(() => {
         :max="100"
         :step="1"
         @update:model-value="emit('update:zIndex', $event)"
+      />
+    </InspectorField>
+
+    <InspectorField label="Translate X" horizontal>
+      <SliderInput
+        :model-value="translateX || '0'"
+        :min="-200"
+        :max="200"
+        :step="1"
+        unit="px"
+        @update:model-value="emit('update:translateX', $event)"
+      />
+    </InspectorField>
+
+    <InspectorField label="Translate Y" horizontal>
+      <SliderInput
+        :model-value="translateY || '0'"
+        :min="-200"
+        :max="200"
+        :step="1"
+        unit="px"
+        @update:model-value="emit('update:translateY', $event)"
       />
     </InspectorField>
 

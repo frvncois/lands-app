@@ -12,7 +12,7 @@ import SizeInput from '../SizeInput.vue'
 import ColorInput from '../ColorInput.vue'
 import ToggleInput from '../ToggleInput.vue'
 import Icon from '@/components/ui/Icon.vue'
-import { SizeSection, SpacingSection, BorderSection, OpacitySection, PositionSection } from '../sections'
+import { DisplaySection, StylesSection } from '../sections'
 
 const {
   selectedBlock,
@@ -105,10 +105,11 @@ function addOption() {
       </div>
     </InspectorSection>
 
-    <!-- Size Section -->
-    <SizeSection
+    <!-- Display Section -->
+    <DisplaySection
       :width="responsiveStyles.width"
       :height="responsiveStyles.height"
+      hide-layout
       @update:width="updateBlockStyles({ width: $event })"
       @update:height="updateBlockStyles({ height: $event })"
     />
@@ -138,42 +139,28 @@ function addOption() {
       </InspectorField>
     </InspectorSection>
 
-    <!-- Spacing Section -->
-    <SpacingSection
+    <!-- Styles Section -->
+    <StylesSection
       :margin="responsiveStyles.margin"
       :padding="responsiveStyles.padding"
+      :border="responsiveStyles.border"
+      :overflow="responsiveStyles.overflow"
+      :opacity="responsiveStyles.opacity"
+      :translate-x="responsiveStyles.translateX"
+      :translate-y="responsiveStyles.translateY"
+      :rotate="responsiveStyles.rotate"
+      :z-index="responsiveStyles.zIndex"
+      :position="responsiveStyles.position"
       @update:margin="updateBlockStyles({ margin: $event })"
       @update:padding="updateBlockStyles({ padding: $event })"
-    />
-
-    <!-- Border Section -->
-    <BorderSection
-      :model-value="responsiveStyles.border"
-      @update:model-value="updateBlockStyles({ border: $event })"
-    />
-
-    <!-- Opacity Section -->
-    <OpacitySection
-      :opacity="responsiveStyles.opacity"
-      :mix-blend-mode="responsiveStyles.mixBlendMode"
+      @update:border="updateBlockStyles({ border: $event })"
+      @update:overflow="updateBlockStyles({ overflow: $event })"
       @update:opacity="updateBlockStyles({ opacity: $event })"
-      @update:mix-blend-mode="updateBlockStyles({ mixBlendMode: $event })"
-    />
-
-    <!-- Position Section -->
-    <PositionSection
-      :position="responsiveStyles.position"
-      :z-index="responsiveStyles.zIndex"
-      :top="responsiveStyles.top"
-      :right="responsiveStyles.right"
-      :bottom="responsiveStyles.bottom"
-      :left="responsiveStyles.left"
-      @update:position="updateBlockStyles({ position: $event })"
+      @update:translate-x="updateBlockStyles({ translateX: $event })"
+      @update:translate-y="updateBlockStyles({ translateY: $event })"
+      @update:rotate="updateBlockStyles({ rotate: $event })"
       @update:z-index="updateBlockStyles({ zIndex: $event })"
-      @update:top="updateBlockStyles({ top: $event })"
-      @update:right="updateBlockStyles({ right: $event })"
-      @update:bottom="updateBlockStyles({ bottom: $event })"
-      @update:left="updateBlockStyles({ left: $event })"
+      @update:position="updateBlockStyles({ position: $event })"
     />
   </div>
 </template>

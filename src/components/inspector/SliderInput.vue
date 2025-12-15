@@ -27,7 +27,7 @@ const emit = defineEmits<{
 // Convert string value to number for slider
 const numericValue = computed(() => {
   if (typeof props.modelValue === 'number') return props.modelValue
-  const parsed = parseInt(props.modelValue, 10)
+  const parsed = parseFloat(props.modelValue)
   return isNaN(parsed) ? props.min : parsed
 })
 

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useEditorStore } from '@/stores/editor'
 import { useUserStore } from '@/stores/user'
+import { useProjectCapabilities } from '@/composables/useProjectCapabilities'
 import { Button, Badge, Command, Dropdown, Icon } from '@/components/ui'
 import ProjectTranslate from '@/components/modal/ProjectTranslate.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
@@ -15,6 +16,7 @@ const router = useRouter()
 const projectsStore = useProjectsStore()
 const editorStore = useEditorStore()
 const userStore = useUserStore()
+const { commandNav, headerNav } = useProjectCapabilities()
 
 const showCommand = ref(false)
 const isPublishing = ref(false)
@@ -79,12 +81,19 @@ const commandItems = computed(() => {
 
   // Add project-specific commands if in project context
   if (currentProject.value) {
-    items.push(
-      { id: 'editor', label: 'Open Editor', icon: 'app-editor', group: 'Project', shortcut: ['E'], action: () => router.push({ name: 'editor', params: { projectId: projectId.value } }) },
-      { id: 'settings', label: 'Project Settings', icon: 'app-settings', group: 'Project', shortcut: ['S'], action: () => router.push({ name: 'settings', params: { projectId: projectId.value } }) },
-      { id: 'analytics', label: 'View Analytics', icon: 'app-analytics', group: 'Project', shortcut: ['A'], action: () => router.push({ name: 'analytics', params: { projectId: projectId.value } }) },
-      { id: 'integrations', label: 'Integrations', icon: 'app-integration', group: 'Project', action: () => router.push({ name: 'integration', params: { projectId: projectId.value } }) },
-    )
+    for (const item of commandNav.value) {
+      items.push({
+        id: item.id,
+        label: item.label,
+        icon: item.icon,
+        group: 'Project',
+        action: () =>
+          router.push({
+            name: item.routeName,
+            params: { projectId: projectId.value },
+          }),
+      })
+    }
 
     // Actions
     items.push(
@@ -121,10 +130,6 @@ const saveStatusDotClass = computed(() => {
   if (editorStore.hasUnsavedChanges) return 'bg-amber-500'
   return 'bg-green-500'
 })
-
-function getProjectInitial(title: string) {
-  return title.charAt(0).toUpperCase()
-}
 
 function handlePreview() {
   if (currentProject.value) {
@@ -183,44 +188,43 @@ function handleCommandSelect(item: any) {
   <header class="relative flex items-center justify-between h-14 px-6 bg-sidebar-background border-b border-sidebar-border z-50">
     <!-- Project Route Header -->
     <template v-if="isProjectRoute && currentProject">
-      <!-- Left: Dashboard Link + Separator + Project Selector -->
-      <div class="flex items-center gap-6">
+      <!-- Left: Dashboard Icon + Project Selector -->
+      <div class="flex items-center gap-3">
         <!-- Dashboard Link -->
         <router-link
           :to="{ name: 'dashboard' }"
-          class="flex items-center gap-2 text-foreground hover:text-foreground transition-colors"
+          class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="Dashboard"
         >
-          <Icon name="app-dashboard" :size="18" />
+          <Icon name="app-dashboard" class="text-base" />
         </router-link>
 
-        <!-- Separator -->
-        <div class="h-5 w-px bg-border"></div>
+        <span class="text-muted-foreground/50">/</span>
 
         <!-- Project Dropdown -->
-        <Dropdown align="left">
+        <Dropdown align="left" width="min-w-56">
           <template #trigger="{ toggle }">
             <button
-              class="flex items-center gap-3 px-1.5 py-1.5 rounded-xl transition-colors text-left border border-accent hover:bg-muted w-62"
+              class="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors whitespace-nowrap"
               @click="toggle"
             >
-              <div class="w-6 h-6 shrink-0 rounded bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
-                {{ getProjectInitial(currentProject.title) }}
-              </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm font-medium text-foreground truncate leading-none">{{ currentProject.title }}</p>
               </div>
-              <Icon name="chevron-down" class="text-xs mr-1.5 text-muted-foreground" />
+              <Icon name="chevron-down" class="text-xs text-muted-foreground" />
             </button>
           </template>
 
           <!-- Project Info -->
-          <div class="px-3 py-2 border-b border-border">
+          <div class="px-3 py-2">
             <p class="text-xs text-muted-foreground mb-1">Project URL</p>
             <p class="text-sm font-medium text-foreground">{{ currentProject.slug }}.lands.app</p>
           </div>
 
+          <Dropdown.Divider />
+
           <!-- Project Stats -->
-          <div class="px-3 py-2 border-b border-border">
+          <div class="px-3 py-2">
             <p class="text-xs text-muted-foreground mb-2">Status</p>
             <div class="flex items-center gap-2">
               <Badge :variant="currentProject.isPublished ? 'success' : 'secondary'" size="xs" dot>
@@ -232,13 +236,17 @@ function handleCommandSelect(item: any) {
             </div>
           </div>
 
+          <Dropdown.Divider />
+
           <!-- Actions -->
-          <Dropdown.Item icon="app-settings" @click="router.push({ name: 'settings', params: { projectId } })">
-            Project Settings
-          </Dropdown.Item>
-          <Dropdown.Item icon="app-duplicate" @click="router.push({ name: 'settings', params: { projectId } })">
-            Duplicate Project
-          </Dropdown.Item>
+          <div class="p-1.5">
+            <Dropdown.Item icon="app-settings" @click="router.push({ name: 'settings', params: { projectId } })">
+              Project Settings
+            </Dropdown.Item>
+            <Dropdown.Item icon="app-duplicate" @click="router.push({ name: 'settings', params: { projectId } })">
+              Duplicate Project
+            </Dropdown.Item>
+          </div>
         </Dropdown>
       </div>
 
@@ -372,22 +380,19 @@ function handleCommandSelect(item: any) {
 
     <!-- Default Route Header (Dashboard, Account, etc.) -->
     <template v-else>
-      <!-- Left: Dashboard Link + Separator + Page Title -->
-      <div class="flex items-center gap-4">
+      <!-- Left: Dashboard Icon + Page Title -->
+      <div class="flex items-center gap-3">
         <!-- Dashboard Link -->
         <router-link
           :to="{ name: 'dashboard' }"
-          class="flex items-center gap-6 text-foreground transition-colors"
+          class="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="Dashboard"
         >
-          <Icon name="app-dashboard" :size="18" />
-          <span class="text-sm">Dashboard</span>
+          <Icon name="app-dashboard" class="text-base" />
         </router-link>
 
-        <!-- Separator (only show if there's a route title) -->
-        <template v-if="routeTitle && route.name !== 'dashboard'">
-          <div class="h-5 w-px bg-border"></div>
-          <h1 class="text-sm text-foreground">{{ routeTitle }}</h1>
-        </template>
+        <!-- Page Title -->
+        <span v-if="routeTitle" class="text-sm font-medium text-foreground">{{ routeTitle }}</span>
       </div>
 
       <!-- Right: Command Trigger -->

@@ -9,6 +9,9 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
   const contextMenuBlockId = ref<string | null>(null)
   const contextMenuBlockType = ref<'section' | 'child'>('section')
 
+  // Rename state
+  const renamingBlockId = ref<string | null>(null)
+
   const contextMenuBlock = computed(() => {
     if (!contextMenuBlockId.value) return null
     return editorStore.findBlockById(contextMenuBlockId.value)
@@ -55,6 +58,26 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
     editorStore.createComponent(contextMenuBlockId.value)
   }
 
+  function handleRename() {
+    if (!contextMenuBlockId.value) return
+    renamingBlockId.value = contextMenuBlockId.value
+  }
+
+  function startRename(blockId: string) {
+    renamingBlockId.value = blockId
+  }
+
+  function finishRename(blockId: string, newName: string) {
+    if (newName.trim()) {
+      editorStore.updateBlockName(blockId, newName.trim())
+    }
+    renamingBlockId.value = null
+  }
+
+  function cancelRename() {
+    renamingBlockId.value = null
+  }
+
   return {
     contextMenuRef,
     contextMenuBlockId,
@@ -68,5 +91,11 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
     handleCopyStyle,
     handlePasteStyle,
     handleCreateComponent,
+    // Rename
+    renamingBlockId,
+    handleRename,
+    startRename,
+    finishRename,
+    cancelRename,
   }
 }

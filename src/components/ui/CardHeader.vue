@@ -26,15 +26,15 @@ const emit = defineEmits<{
     ]"
   >
     <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-5">
         <slot name="icon">
-          <span v-if="icon" class="text-muted-foreground bg-accent/50 p-1.5 rounded-lg flex items-center justify-center">
-            <Icon :name="icon" :size="14" />
+          <span v-if="icon" class="text-muted-foreground bg-accent/50 p-3 rounded-lg flex items-center justify-center">
+            <Icon :name="icon" :size="20" />
           </span>
         </slot>
         <div v-if="title || $slots.title">
           <slot name="title">
-            <h2 class="text-xxs font-mono uppercase text-foreground tracking-wide">{{ title }}</h2>
+            <h2 class="text-foreground font-mono text-xs tracking-wide">{{ title }}</h2>
           </slot>
           <slot name="subtitle">
             <p v-if="subtitle" class="text-xs text-muted-foreground mt-0.5">{{ subtitle }}</p>

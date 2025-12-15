@@ -21,16 +21,13 @@ import SliderInput from './SliderInput.vue'
 import SizeInput from './SizeInput.vue'
 import SelectInput from './SelectInput.vue'
 import SegmentedControl from './SegmentedControl.vue'
+import LinkInput from './LinkInput.vue'
 import Tooltip from '@/components/ui/Tooltip.vue'
 import {
-  SizeSection,
-  SpacingSection,
-  BorderSection,
-  OpacitySection,
-  PositionSection,
   TypographySection,
   DisplaySection,
-  TransformSection,
+  StylesSection,
+  EffectsSection,
 } from './sections'
 
 const {
@@ -40,7 +37,6 @@ const {
   updateBlockSettings,
   updateBlockStyles,
   editorStore,
-  parentGridColumns,
 } = useBlockInspector()
 
 const { fontFamilyOptions, defaultFontFamily } = useFontOptions()
@@ -54,11 +50,6 @@ const config = computed(() => {
 // Get settings and styles with proper typing for template access
 const settings = computed(() => selectedBlock.value?.settings || {})
 const styles = computed(() => effectiveBlockStyles.value as Record<string, string | undefined> || {})
-
-// Get style value as string (helper for template)
-function getStyle(key: string): string | undefined {
-  return styles.value[key]
-}
 
 // Translation-aware content getter
 function getTranslatableValue(key: string): string {
@@ -398,6 +389,14 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
                 :icon-only="(field as FieldConfig).props?.iconOnly"
                 @update:model-value="updateFieldValue(field as FieldConfig, $event)"
               />
+
+              <!-- Link input -->
+              <LinkInput
+                v-else-if="(field as FieldConfig).type === 'link'"
+                :model-value="getFieldValue(field as FieldConfig) as string"
+                :placeholder="(field as FieldConfig).placeholder"
+                @update:model-value="updateFieldValue(field as FieldConfig, $event)"
+              />
             </InspectorField>
           </template>
         </template>
@@ -406,20 +405,28 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
 
     <!-- Shared sections -->
     <template v-for="section in config.sections" :key="section">
-      <!-- Size Section -->
-      <SizeSection
-        v-if="section === 'size'"
+      <!-- Display Section (includes size) -->
+      <DisplaySection
+        v-if="section === 'display'"
         :width="responsiveStyles.width"
         :height="responsiveStyles.height"
-        :overflow="responsiveStyles.overflow"
-        :grid-column-span="(settings as Record<string, unknown>).gridColumnSpan as number | undefined"
-        :grid-row-span="(settings as Record<string, unknown>).gridRowSpan as number | undefined"
-        :parent-grid-columns="parentGridColumns"
+        :direction="styles.flexDirection"
+        :justify="selectedBlock?.type === 'grid' ? styles.justifyItems : styles.justifyContent"
+        :align="styles.alignItems"
+        :gap="styles.gap"
+        :columns="(settings as Record<string, unknown>).columns as number | undefined"
+        :rows="(settings as Record<string, unknown>).rows as number | undefined"
+        :hide-direction="selectedBlock?.type === 'grid'"
+        :hide-layout="!['container', 'stack', 'grid', 'canvas', 'button', 'form'].includes(selectedBlock?.type || '')"
+        :is-grid="selectedBlock?.type === 'grid'"
         @update:width="updateBlockStyles({ width: $event })"
         @update:height="updateBlockStyles({ height: $event })"
-        @update:overflow="updateBlockStyles({ overflow: $event })"
-        @update:grid-column-span="updateBlockSettings({ gridColumnSpan: $event })"
-        @update:grid-row-span="updateBlockSettings({ gridRowSpan: $event })"
+        @update:direction="updateBlockStyles({ flexDirection: $event })"
+        @update:justify="updateBlockStyles(selectedBlock?.type === 'grid' ? { justifyItems: $event } : { justifyContent: $event })"
+        @update:align="updateBlockStyles({ alignItems: $event })"
+        @update:gap="updateBlockStyles({ gap: $event })"
+        @update:columns="updateBlockSettings({ columns: $event })"
+        @update:rows="updateBlockSettings({ rows: $event })"
       />
 
       <!-- Typography Section -->
@@ -449,75 +456,67 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
         @update:color="updateBlockStyles({ color: $event })"
       />
 
-      <!-- Display Section -->
-      <DisplaySection
-        v-else-if="section === 'display'"
-        :direction="styles.flexDirection"
-        :justify="selectedBlock?.type === 'grid' ? styles.justifyItems : styles.justifyContent"
-        :align="styles.alignItems"
-        :gap="styles.gap"
-        :hide-direction="selectedBlock?.type === 'grid'"
-        @update:direction="updateBlockStyles({ flexDirection: $event })"
-        @update:justify="updateBlockStyles(selectedBlock?.type === 'grid' ? { justifyItems: $event } : { justifyContent: $event })"
-        @update:align="updateBlockStyles({ alignItems: $event })"
-        @update:gap="updateBlockStyles({ gap: $event })"
-      />
-
-      <!-- Spacing Section -->
-      <SpacingSection
-        v-else-if="section === 'spacing'"
+      <!-- Styles Section -->
+      <StylesSection
+        v-else-if="section === 'styles'"
         :margin="responsiveStyles.margin"
         :padding="responsiveStyles.padding"
-        @update:margin="updateBlockStyles({ margin: $event })"
-        @update:padding="updateBlockStyles({ padding: $event })"
-      />
-
-      <!-- Border Section -->
-      <BorderSection
-        v-else-if="section === 'border'"
-        :model-value="responsiveStyles.border"
-        @update:model-value="updateBlockStyles({ border: $event })"
-      />
-
-      <!-- Opacity Section -->
-      <OpacitySection
-        v-else-if="section === 'opacity'"
+        :background-type="(settings as Record<string, unknown>).backgroundType as 'color' | 'image' | 'video' | 'gradient' | undefined"
+        :background-color="responsiveStyles.backgroundColor"
+        :background-image="(settings as Record<string, unknown>).backgroundImage as string | undefined"
+        :background-video="(settings as Record<string, unknown>).backgroundVideo as string | undefined"
+        :background-gradient="responsiveStyles.backgroundGradient"
+        :background-image-opacity="(settings as Record<string, unknown>).backgroundImageOpacity as number | undefined"
+        :background-image-blur="(settings as Record<string, unknown>).backgroundImageBlur as number | undefined"
+        :background-image-saturation="(settings as Record<string, unknown>).backgroundImageSaturation as number | undefined"
+        :shadow="responsiveStyles.shadow"
+        :border-radius="responsiveStyles.borderRadius"
+        :border="responsiveStyles.border"
+        :overflow="responsiveStyles.overflow"
         :opacity="responsiveStyles.opacity"
-        :mix-blend-mode="responsiveStyles.mixBlendMode"
-        @update:opacity="updateBlockStyles({ opacity: $event })"
-        @update:mix-blend-mode="updateBlockStyles({ mixBlendMode: $event })"
-      />
-
-      <!-- Transform Section -->
-      <TransformSection
-        v-else-if="section === 'transform'"
-        :rotate="responsiveStyles.rotate"
-        :scale="responsiveStyles.scale"
+        :aspect-ratio="styles.aspectRatio as any"
+        :object-fit="styles.objectFit as any"
+        :mask="styles.mask as any"
         :translate-x="responsiveStyles.translateX"
         :translate-y="responsiveStyles.translateY"
-        :blur="responsiveStyles.blur"
-        @update:rotate="updateBlockStyles({ rotate: $event })"
-        @update:scale="updateBlockStyles({ scale: $event })"
+        :rotate="responsiveStyles.rotate"
+        :scale="responsiveStyles.scale"
+        :z-index="responsiveStyles.zIndex"
+        :position="responsiveStyles.position"
+        :hide-background="selectedBlock?.type === 'image'"
+        :show-image-options="selectedBlock?.type === 'image'"
+        @update:margin="updateBlockStyles({ margin: $event })"
+        @update:padding="updateBlockStyles({ padding: $event })"
+        @update:background-type="updateBlockSettings({ backgroundType: $event })"
+        @update:background-color="updateBlockStyles({ backgroundColor: $event })"
+        @update:background-image="updateBlockSettings({ backgroundImage: $event })"
+        @update:background-video="updateBlockSettings({ backgroundVideo: $event })"
+        @update:background-gradient="updateBlockStyles({ backgroundGradient: $event })"
+        @update:background-image-opacity="updateBlockSettings({ backgroundImageOpacity: $event })"
+        @update:background-image-blur="updateBlockSettings({ backgroundImageBlur: $event })"
+        @update:background-image-saturation="updateBlockSettings({ backgroundImageSaturation: $event })"
+        @update:shadow="updateBlockStyles({ shadow: $event })"
+        @update:border-radius="updateBlockStyles({ borderRadius: $event })"
+        @update:border="updateBlockStyles({ border: $event })"
+        @update:overflow="updateBlockStyles({ overflow: $event })"
+        @update:opacity="updateBlockStyles({ opacity: $event })"
+        @update:aspect-ratio="updateBlockStyles({ aspectRatio: $event })"
+        @update:object-fit="updateBlockStyles({ objectFit: $event })"
+        @update:mask="updateBlockStyles({ mask: $event })"
         @update:translate-x="updateBlockStyles({ translateX: $event })"
         @update:translate-y="updateBlockStyles({ translateY: $event })"
-        @update:blur="updateBlockStyles({ blur: $event })"
+        @update:rotate="updateBlockStyles({ rotate: $event })"
+        @update:scale="updateBlockStyles({ scale: $event })"
+        @update:z-index="updateBlockStyles({ zIndex: $event })"
+        @update:position="updateBlockStyles({ position: $event })"
       />
 
-      <!-- Position Section -->
-      <PositionSection
-        v-else-if="section === 'position'"
-        :position="responsiveStyles.position"
-        :z-index="responsiveStyles.zIndex"
-        :top="responsiveStyles.top"
-        :right="responsiveStyles.right"
-        :bottom="responsiveStyles.bottom"
-        :left="responsiveStyles.left"
-        @update:position="updateBlockStyles({ position: $event })"
-        @update:z-index="updateBlockStyles({ zIndex: $event })"
-        @update:top="updateBlockStyles({ top: $event })"
-        @update:right="updateBlockStyles({ right: $event })"
-        @update:bottom="updateBlockStyles({ bottom: $event })"
-        @update:left="updateBlockStyles({ left: $event })"
+      <!-- Effects Section -->
+      <EffectsSection
+        v-else-if="section === 'effects'"
+        :effects="(effectiveBlockStyles as Record<string, unknown>).effects as any"
+        :children="selectedBlock?.children"
+        @update:effects="updateBlockStyles({ effects: $event })"
       />
     </template>
   </div>

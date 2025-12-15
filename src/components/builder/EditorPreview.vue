@@ -7,22 +7,13 @@ import type { SectionBlockType } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import BlockPicker from '@/components/builder/BlockPicker.vue'
-import { generateInteractionCSS } from '@/lib/interaction-utils'
-import { useInteractionTriggers } from '@/composables/useInteractionTriggers'
 
 const editorStore = useEditorStore()
 
-// Ref for the preview container (for scoping interaction triggers)
+// Ref for the preview container
 const previewContainerRef = ref<HTMLElement | null>(null)
-// Ref for the scroll container (for scroll-based interactions)
+// Ref for the scroll container
 const scrollContainerRef = ref<HTMLElement | null>(null)
-
-// Setup interaction triggers (click, load, appear, scroll)
-const { refresh: refreshInteractionTriggers } = useInteractionTriggers({
-  interactions: () => editorStore.getInteractions(),
-  containerRef: previewContainerRef,
-  scrollContainerRef: scrollContainerRef,
-})
 
 // Custom font loading
 const loadedFontStyleElement = ref<HTMLStyleElement | null>(null)
@@ -96,58 +87,10 @@ const googleFontsKey = computed(() =>
 )
 watch(googleFontsKey, () => loadGoogleFonts())
 
-// Interaction CSS loading
-const interactionStyleElement = ref<HTMLStyleElement | null>(null)
-
-function loadInteractionCSS() {
-  const interactions = editorStore.getInteractions()
-
-  // Remove existing style element if any
-  if (interactionStyleElement.value) {
-    interactionStyleElement.value.remove()
-    interactionStyleElement.value = null
-  }
-
-  if (interactions.length === 0) return
-
-  // Generate CSS for all interactions
-  const css = generateInteractionCSS(interactions)
-  if (!css) return
-
-  // Create and inject style element
-  const styleEl = document.createElement('style')
-  styleEl.setAttribute('data-interactions', 'true')
-  styleEl.textContent = css
-  document.head.appendChild(styleEl)
-  interactionStyleElement.value = styleEl
-}
-
-// Watch for interaction changes (compare serialized to avoid deep watch overhead)
-const interactionsKey = computed(() =>
-  JSON.stringify(editorStore.getInteractions().map(i => ({
-    id: i.id,
-    trigger: i.trigger,
-    triggerBlockId: i.triggerBlockId,
-    targetBlockIds: i.targetBlockIds,
-    duration: i.duration,
-    easing: i.easing,
-    delay: i.delay,
-    styles: i.styles,
-    scrollConfig: i.scrollConfig,
-    fromStyles: i.fromStyles,
-    updatedAt: i.updatedAt,
-  })))
-)
-watch(interactionsKey, () => {
-  loadInteractionCSS()
-  refreshInteractionTriggers()
-})
-
-// Load fonts and interactions on mount
+// Load fonts on mount
 onMounted(() => {
   loadCustomFonts()
   loadGoogleFonts()
-  loadInteractionCSS()
 })
 
 // Cleanup on unmount
@@ -157,9 +100,6 @@ onUnmounted(() => {
   }
   if (loadedGoogleFontsLink.value) {
     loadedGoogleFontsLink.value.remove()
-  }
-  if (interactionStyleElement.value) {
-    interactionStyleElement.value.remove()
   }
 })
 
@@ -417,7 +357,7 @@ function handleSectionDrop(event: DragEvent) {
 <template>
   <!-- clip-path creates containing block for fixed elements without breaking scroll -->
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="clip-path: inset(0);">
-    <!-- Preview area (scroll container for scroll-based interactions) -->
+    <!-- Preview area -->
     <div
       ref="scrollContainerRef"
       class="flex-1 overflow-auto transition-colors [&>*]:min-h-full"
@@ -460,28 +400,26 @@ function handleSectionDrop(event: DragEvent) {
           <!-- Section blocks -->
           <div v-else>
             <template v-for="(block, index) in editorStore.blocks" :key="block.id">
-              <div class="relative">
-                <!-- Drop indicator line (positioned absolutely, no layout impact) -->
-                <div
-                  v-if="isDragOver && dropTargetIndex === index"
-                  class="absolute top-0 left-0 right-0 h-1 bg-primary rounded-full z-10"
-                />
+              <!-- Drop indicator line (positioned absolutely, no layout impact) -->
+              <div
+                v-if="isDragOver && dropTargetIndex === index"
+                class="h-1 bg-primary rounded-full"
+              />
 
-                <PreviewSection
-                  :block="block"
-                  :index="index"
-                  :total="editorStore.blocks.length"
-                  @dragenter="handleSectionDragEnter(index, $event)"
-                  @dragover="handleDropZoneDragOver"
-                  @drop="handleSectionDrop"
-                />
+              <PreviewSection
+                :block="block"
+                :index="index"
+                :total="editorStore.blocks.length"
+                @dragenter="handleSectionDragEnter(index, $event)"
+                @dragover="handleDropZoneDragOver"
+                @drop="handleSectionDrop"
+              />
 
-                <!-- Drop indicator after last section -->
-                <div
-                  v-if="isDragOver && dropTargetIndex === index + 1 && index === editorStore.blocks.length - 1"
-                  class="absolute -bottom-4 left-0 right-0 h-1 bg-primary rounded-full z-10"
-                />
-              </div>
+              <!-- Drop indicator after last section -->
+              <div
+                v-if="isDragOver && dropTargetIndex === index + 1 && index === editorStore.blocks.length - 1"
+                class="h-1 bg-primary rounded-full"
+              />
             </template>
           </div>
         </div>

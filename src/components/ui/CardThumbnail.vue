@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from './Icon.vue'
+
 interface Props {
   src?: string
   alt?: string

@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useProjectsStore } from '@/stores/projects'
+import { useProjectSidebarNav } from '@/composables/useProjectSidebarNav'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
 import { Card, Button, Badge, Avatar, Dropdown, Icon, Tooltip } from '@/components/ui'
@@ -11,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const projectsStore = useProjectsStore()
+const { navItems } = useProjectSidebarNav()
 
 const isCollapsed = ref(false)
 const expandedProjectId = ref<string | null>(null)
@@ -20,22 +22,18 @@ const hoveredProjectId = ref<string | null>(null)
 const user = computed(() => userStore.settings.profile)
 const projects = computed(() => projectsStore.projects)
 
-// Check if we're in a project context
 const currentProjectId = computed(() => route.params.projectId as string | undefined)
 
-// Fetch projects on mount
 onMounted(() => {
   projectsStore.fetchProjects()
 })
 
-// Auto-expand current project when navigating
 watch(currentProjectId, (newId) => {
   if (newId) {
     expandedProjectId.value = newId
   }
 }, { immediate: true })
 
-// Auto-collapse sidebar when on EditorView
 watch(() => route.name, (routeName) => {
   if (routeName === 'editor') {
     isCollapsed.value = true
@@ -52,10 +50,8 @@ function toggleProject(projectId: string) {
 
 function handleProjectClick(projectId: string) {
   if (isCollapsed.value) {
-    // When collapsed, navigate to editor
     router.push({ name: 'editor', params: { projectId } })
   } else {
-    // When expanded, toggle the sub-menu
     toggleProject(projectId)
   }
 }
@@ -76,14 +72,6 @@ async function signOut() {
 function onProjectCreated(projectId: string) {
   expandedProjectId.value = projectId
 }
-
-// Navigation items for project sub-menu
-const navItems = [
-  { name: 'editor', label: 'Editor', icon: 'app-editor' },
-  { name: 'analytics', label: 'Analytics', icon: 'app-analytics' },
-  { name: 'integration', label: 'Integrations', icon: 'app-integration' },
-  { name: 'settings', label: 'Settings', icon: 'app-settings' },
-]
 
 function isNavActive(navName: string, projectId: string) {
   return route.name === navName && currentProjectId.value === projectId

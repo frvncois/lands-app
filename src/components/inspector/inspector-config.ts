@@ -20,6 +20,7 @@ export type FieldType =
   | 'size'
   | 'select'
   | 'segmented'
+  | 'link'
 
 // Select/Segmented option type
 export interface SelectOption {
@@ -104,14 +105,10 @@ export interface ShadowSectionConfig {
 
 // Shared section types
 export type SharedSection =
-  | 'size'
-  | 'typography'
-  | 'spacing'
-  | 'border'
-  | 'opacity'
-  | 'position'
   | 'display'
-  | 'transform'
+  | 'styles'
+  | 'typography'
+  | 'effects'
 
 // Typography section defaults (per block type)
 export interface TypographyDefaults {
@@ -202,7 +199,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'typography', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['typography', 'display', 'styles', 'effects'],
     typographyDefaults: {
       defaultFontSize: '36px',
       defaultFontWeight: 'bold',
@@ -225,7 +222,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'typography', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['typography', 'display', 'styles', 'effects'],
     typographyDefaults: {
       defaultFontSize: '16px',
       defaultFontWeight: 'normal',
@@ -239,36 +236,14 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         icon: 'content-button',
         fields: [
           {
-            key: 'label',
-            type: 'text',
-            label: 'Label',
-            placeholder: 'Button text',
-            translatable: true,
-          },
-          {
             key: 'url',
-            type: 'text',
-            label: 'URL',
-            placeholder: 'https://...',
-          },
-          {
-            key: 'newTab',
-            type: 'toggle',
-            label: 'Open in new tab',
+            type: 'link',
+            label: 'Link to',
           },
         ],
       },
-      {
-        type: 'background',
-        title: 'Background',
-        icon: 'style-color',
-        typeKey: 'backgroundType',
-        colorKey: 'backgroundColor',
-        imageKey: 'backgroundImage',
-        videoKey: 'backgroundVideo',
-      },
     ],
-    sections: ['size', 'display', 'typography', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['typography', 'display', 'styles', 'effects'],
   },
 
   image: {
@@ -297,43 +272,8 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
           },
         ],
       },
-      {
-        title: 'Style',
-        icon: 'style-color',
-        fields: [
-          {
-            key: 'aspectRatio',
-            type: 'select',
-            label: 'Aspect Ratio',
-            target: 'styles',
-            props: { options: aspectRatioOptions, defaultValue: 'auto' },
-          },
-          {
-            key: 'objectFit',
-            type: 'select',
-            label: 'Object Fit',
-            target: 'styles',
-            props: { options: objectFitOptions, defaultValue: 'cover' },
-          },
-          {
-            key: 'mask',
-            type: 'select',
-            label: 'Mask',
-            target: 'styles',
-            props: { options: maskOptions, defaultValue: 'none' },
-          },
-          {
-            key: 'borderRadius',
-            type: 'slider',
-            label: 'Border Radius',
-            target: 'styles',
-            horizontal: true,
-            props: { min: 0, max: 48, step: 4, defaultValue: '0' },
-          },
-        ],
-      },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   video: {
@@ -386,7 +326,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   icon: {
@@ -436,7 +376,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   divider: {
@@ -478,96 +418,24 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   // Layout blocks
   grid: {
-    content: [
-      {
-        title: 'Grid',
-        icon: 'layout-grid',
-        fields: [
-          {
-            key: 'columns',
-            type: 'slider',
-            label: 'Columns',
-            horizontal: true,
-            props: {
-              min: 1,
-              max: 12,
-              step: 1,
-              unit: '',
-            },
-          },
-        ],
-      },
-      {
-        type: 'background',
-        title: 'Background',
-        icon: 'content-image',
-        typeKey: 'backgroundType',
-        colorKey: 'backgroundColor',
-        imageKey: 'backgroundImage',
-        videoKey: 'backgroundVideo',
-      },
-      {
-        type: 'shadow',
-        title: 'Shadow',
-        icon: 'layout-stack',
-      },
-    ],
-    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   container: {
-    content: [
-      {
-        type: 'background',
-        title: 'Background',
-        icon: 'content-image',
-        typeKey: 'backgroundType',
-        colorKey: 'backgroundColor',
-        imageKey: 'backgroundImage',
-        videoKey: 'backgroundVideo',
-      },
-    ],
-    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   stack: {
-    content: [
-      {
-        type: 'background',
-        title: 'Background',
-        icon: 'content-image',
-        typeKey: 'backgroundType',
-        colorKey: 'backgroundColor',
-        imageKey: 'backgroundImage',
-        videoKey: 'backgroundVideo',
-      },
-      {
-        type: 'shadow',
-        title: 'Shadow',
-        icon: 'layout-stack',
-      },
-    ],
-    sections: ['size', 'display', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   canvas: {
-    content: [
-      {
-        type: 'background',
-        title: 'Background',
-        icon: 'content-image',
-        typeKey: 'backgroundType',
-        colorKey: 'backgroundColor',
-        imageKey: 'backgroundImage',
-        videoKey: 'backgroundVideo',
-      },
-    ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   // Form blocks
@@ -634,7 +502,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   'form-textarea': {
@@ -701,7 +569,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   'form-button': {
@@ -749,7 +617,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['size', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   'form-label': {
@@ -806,7 +674,7 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         ],
       },
     ],
-    sections: ['spacing', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 
   form: {
@@ -843,17 +711,8 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
           },
         ],
       },
-      {
-        type: 'background',
-        title: 'Background',
-        icon: 'content-image',
-        typeKey: 'backgroundType',
-        colorKey: 'backgroundColor',
-        imageKey: 'backgroundImage',
-        videoKey: 'backgroundVideo',
-      },
     ],
-    sections: ['display', 'spacing', 'border', 'opacity', 'transform', 'position'],
+    sections: ['display', 'styles', 'effects'],
   },
 }
 

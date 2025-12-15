@@ -5,9 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import AuthView from '@/views/AuthView.vue'
 import DashboardView from '@/views/DashboardView.vue'
 import EditorView from '@/views/EditorView.vue'
-import SettingsView from '@/views/SettingsView.vue'
-import AnalyticsView from '@/views/AnalyticsView.vue'
-import IntegrationView from '@/views/IntegrationView.vue'
+import ProjectSettingsView from '@/views/ProjectSettingsView.vue'
 import AccountView from '@/views/AccountView.vue'
 import InviteView from '@/views/InviteView.vue'
 import OAuthCallbackView from '@/views/OAuthCallbackView.vue'
@@ -60,19 +58,19 @@ const router = createRouter({
         {
           path: 'project/:projectId/settings',
           name: 'settings',
-          component: SettingsView,
+          component: ProjectSettingsView,
           meta: { requiresProject: true },
         },
         {
           path: 'project/:projectId/analytics',
           name: 'analytics',
-          component: AnalyticsView,
+          component: () => import('@/pages/analytics/AnalyticsPage.vue'),
           meta: { requiresProject: true },
         },
         {
           path: 'project/:projectId/integration',
           name: 'integration',
-          component: IntegrationView,
+          component: () => import('@/pages/integrations/IntegrationsPage.vue'),
           meta: { requiresProject: true },
         },
         {

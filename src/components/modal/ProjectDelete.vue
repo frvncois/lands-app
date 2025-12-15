@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
-import { Modal, Button, Input, FormField, Alert } from '@/components/ui'
+import { Modal, Button, Input, FormField, Alert, Icon } from '@/components/ui'
 
 const props = defineProps<{
   open: boolean

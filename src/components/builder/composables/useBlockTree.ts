@@ -61,11 +61,6 @@ export function useBlockTree() {
     return false
   }
 
-  function blockHasInteraction(blockId: string): boolean {
-    const interactions = editorStore.getInteractions()
-    return interactions.some(i => i.triggerBlockId === blockId || i.targetBlockIds.includes(blockId))
-  }
-
   // Auto-expand ancestors when selection changes
   watch(() => editorStore.selectedBlockId, (blockId) => {
     if (blockId) {
@@ -82,6 +77,5 @@ export function useBlockTree() {
     expandToBlock,
     canBlockExpand,
     isInsideForm,
-    blockHasInteraction,
   }
 }

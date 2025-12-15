@@ -16,7 +16,6 @@ import Icon from '@/components/ui/Icon.vue'
 import Tooltip from '@/components/ui/Tooltip.vue'
 import { SpacingSection, BorderSection, OpacitySection } from './sections'
 import SharedStyleField from './SharedStyleField.vue'
-import InteractionField from './InteractionField.vue'
 import { useFontOptions } from './composables'
 
 const props = defineProps<{
@@ -117,9 +116,6 @@ function handleClose() {
         v-if="parentBlock"
         :block-id="blockId"
         :block-type="parentBlock.type"
-      />
-      <InteractionField
-        :block-id="blockId"
       />
       <InspectorField label="Name">
         <TextInput

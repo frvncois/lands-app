@@ -62,6 +62,7 @@ function toggleStrikethrough() {
 
 <template>
   <InspectorSection title="Typography" icon="style-color">
+    <!-- Font Family -->
     <InspectorField label="Font Family" horizontal>
       <SelectInput
         :options="fontOptions ?? defaultFontOptions"
@@ -69,13 +70,8 @@ function toggleStrikethrough() {
         @update:model-value="emit('update:fontFamily', $event)"
       />
     </InspectorField>
-    <InspectorField label="Font Size" horizontal>
-      <SizeInput
-        :model-value="fontSize"
-        :placeholder="defaultFontSize"
-        @update:model-value="emit('update:fontSize', $event)"
-      />
-    </InspectorField>
+
+    <!-- Font Weight -->
     <InspectorField label="Font Weight" horizontal>
       <SelectInput
         :options="fontWeightOptions"
@@ -83,6 +79,48 @@ function toggleStrikethrough() {
         @update:model-value="emit('update:fontWeight', $event)"
       />
     </InspectorField>
+
+    <!-- Font Size -->
+    <InspectorField label="Font Size" horizontal>
+      <SizeInput
+        :model-value="fontSize"
+        :placeholder="defaultFontSize"
+        @update:model-value="emit('update:fontSize', $event)"
+      />
+    </InspectorField>
+
+    <!-- Line Height -->
+    <InspectorField label="Line Height" horizontal>
+      <SizeInput
+        :model-value="lineHeight"
+        placeholder="1.5"
+        @update:model-value="emit('update:lineHeight', $event)"
+      />
+    </InspectorField>
+
+    <!-- Letter Spacing -->
+    <InspectorField label="Letter Spacing" horizontal>
+      <SliderInput
+        :model-value="letterSpacing || '0'"
+        :min="-2"
+        :max="8"
+        :step="0.5"
+        unit="px"
+        @update:model-value="emit('update:letterSpacing', $event)"
+      />
+    </InspectorField>
+
+    <!-- Alignment -->
+    <InspectorField label="Alignment" horizontal>
+      <SegmentedControl
+        :options="alignmentOptions"
+        :model-value="alignment || 'left'"
+        icon-only
+        @update:model-value="emit('update:alignment', $event)"
+      />
+    </InspectorField>
+
+    <!-- Style (italic, underline, strikethrough) -->
     <InspectorField label="Style" horizontal>
       <div class="flex items-center gap-1 bg-secondary/50 rounded-lg p-1">
         <Tooltip text="Italic">
@@ -123,31 +161,8 @@ function toggleStrikethrough() {
         </Tooltip>
       </div>
     </InspectorField>
-    <InspectorField label="Line Height" horizontal>
-      <SizeInput
-        :model-value="lineHeight"
-        placeholder="1.5"
-        @update:model-value="emit('update:lineHeight', $event)"
-      />
-    </InspectorField>
-    <InspectorField label="Letter Spacing" horizontal>
-      <SliderInput
-        :model-value="letterSpacing || '0'"
-        :min="-2"
-        :max="8"
-        :step="0.5"
-        unit="px"
-        @update:model-value="emit('update:letterSpacing', $event)"
-      />
-    </InspectorField>
-    <InspectorField label="Alignment" horizontal>
-      <SegmentedControl
-        :options="alignmentOptions"
-        :model-value="alignment || 'left'"
-        icon-only
-        @update:model-value="emit('update:alignment', $event)"
-      />
-    </InspectorField>
+
+    <!-- Color -->
     <InspectorField label="Color" horizontal>
       <ColorInput
         :model-value="color"

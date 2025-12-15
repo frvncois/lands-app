@@ -20,8 +20,6 @@ export { default as ContainerInspector } from './ContainerInspector.vue'
 export { default as StackInspector } from './StackInspector.vue'
 
 // Special blocks
-export { default as HeaderInspector } from './HeaderInspector.vue'
-export { default as FooterInspector } from './FooterInspector.vue'
 export { default as FormInspector } from './FormInspector.vue'
 export { default as CanvasInspector } from './CanvasInspector.vue'
 

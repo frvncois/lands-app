@@ -243,9 +243,9 @@ export const maskShapeClipPaths: Record<MaskShape, string> = {
 // Which blocks can contain children
 export const layoutBlockTypes: SectionBlockType[] = ['container', 'grid', 'stack']
 
-// Blocks that can have children (layout blocks + form + canvas)
+// Blocks that can have children (layout blocks + form + canvas + button)
 export function canHaveChildren(type: SectionBlockType): boolean {
-  return layoutBlockTypes.includes(type) || type === 'form' || type === 'canvas'
+  return layoutBlockTypes.includes(type) || type === 'form' || type === 'canvas' || type === 'button'
 }
 
 // Check if a block type is a form field (can only be child of form)
@@ -466,7 +466,7 @@ export function getDefaultVideoSettings(): VideoSettings {
 
 export function getDefaultButtonSettings(): ButtonSettings {
   return {
-    label: 'Click me',
+    label: '', // Legacy - buttons now use children for content
     url: '#',
   }
 }
@@ -698,6 +698,8 @@ export function getDefaultTextStyles(): TextStyles {
 
 export function getDefaultImageStyles(): ImageStyles {
   return {
+    width: '100%',
+    height: '100%',
     objectFit: 'cover',
   }
 }
@@ -872,7 +874,7 @@ function getDefaultStyles(type: SectionBlockType): SectionBlock['styles'] {
 }
 
 export function createSectionBlock(type: SectionBlockType): SectionBlock {
-  return {
+  const block: SectionBlock = {
     id: generateId(),
     type,
     name: sectionBlockLabels[type],
@@ -880,6 +882,25 @@ export function createSectionBlock(type: SectionBlockType): SectionBlock {
     settings: getDefaultSettings(type),
     styles: getDefaultStyles(type),
   }
+
+  // Add default Text child for buttons
+  if (type === 'button') {
+    block.children = [{
+      id: generateId(),
+      type: 'text',
+      name: 'Text',
+      settings: { content: 'Click me' },
+      styles: {
+        padding: { top: '0', bottom: '0', left: '0', right: '0' },
+        margin: { top: '0', bottom: '0', left: '0', right: '0' },
+        fontSize: '16px',
+        lineHeight: '1',
+        alignment: 'center',
+      },
+    }]
+  }
+
+  return block
 }
 
 // ============================================

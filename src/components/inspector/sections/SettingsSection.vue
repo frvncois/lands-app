@@ -3,7 +3,6 @@ import type { SectionBlockType } from '@/types/editor'
 
 import InspectorSection from '../InspectorSection.vue'
 import SharedStyleField from '../SharedStyleField.vue'
-import InteractionField from '../InteractionField.vue'
 
 const props = defineProps<{
   blockId: string
@@ -12,8 +11,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   openCreateStyleModal: []
-  editInteraction: [interactionId: string]
-  createInteraction: []
 }>()
 </script>
 
@@ -23,11 +20,6 @@ const emit = defineEmits<{
       :block-id="props.blockId"
       :block-type="props.blockType"
       @open-create-modal="emit('openCreateStyleModal')"
-    />
-    <InteractionField
-      :block-id="props.blockId"
-      @edit="emit('editInteraction', $event)"
-      @create="emit('createInteraction')"
     />
   </InspectorSection>
 </template>

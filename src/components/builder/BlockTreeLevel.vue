@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { Icon, Tooltip } from '@/components/ui'
 import SidebarBlockPicker from './SidebarBlockPicker.vue'
-import AddBlockLine from './AddBlockLine.vue'
 import { sectionBlockIcons, canHaveChildren } from '@/lib/editor-utils'
 import type { SectionBlock, SectionBlockType } from '@/types/editor'
 import type { DragState } from './composables/useSidebarDragState'
@@ -15,6 +14,7 @@ interface Props {
   childIndex: number
   dragState: DragState
   expandedBlocks: Set<string>
+  renamingBlockId: string | null
 }
 
 const props = defineProps<Props>()
@@ -32,10 +32,22 @@ const emit = defineEmits<{
   emptyParentDrop: [parentId: string]
   addChild: [parentId: string, blockType: string]
   addChildAtPosition: [parentId: string, blockType: string, position: number]
+  startRename: [blockId: string]
+  finishRename: [blockId: string, newName: string]
+  cancelRename: []
 }>()
 
 const editorStore = useEditorStore()
-const showAddBlockPicker = ref<number | null>(null)
+const renameInputRef = ref<HTMLInputElement | null>(null)
+
+// Watch for rename mode to focus input
+watch(() => props.renamingBlockId, async (newId) => {
+  if (newId === props.block.id) {
+    await nextTick()
+    renameInputRef.value?.focus()
+    renameInputRef.value?.select()
+  }
+})
 
 const isExpanded = computed(() => props.expandedBlocks.has(props.block.id))
 const isSelected = computed(() => editorStore.selectedBlockId === props.block.id)
@@ -50,11 +62,6 @@ function canBlockExpand(block: SectionBlock): boolean {
   if (block.type === 'form') return true
   if (canHaveChildren(block.type)) return true
   return false
-}
-
-function blockHasInteraction(blockId: string): boolean {
-  const interactions = editorStore.getInteractions()
-  return interactions.some(i => i.triggerBlockId === blockId || i.targetBlockIds.includes(blockId))
 }
 
 function isInsideForm(block: SectionBlock): boolean {
@@ -131,17 +138,36 @@ function handleAddBlock(blockType: string) {
   emit('addChild', props.block.id, blockType)
 }
 
-function handleAddBlockAtPosition(position: number) {
-  showAddBlockPicker.value = position
+// Rename handlers
+function handleNameDoubleClick() {
+  emit('startRename', props.block.id)
 }
 
-function handleAddBlockTypeAtPosition(blockType: string, position: number) {
-  emit('addChildAtPosition', props.block.id, blockType, position)
-  showAddBlockPicker.value = null
+function handleRenameKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    emit('finishRename', props.block.id, (event.target as HTMLInputElement).value)
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    emit('cancelRename')
+  }
 }
 
-function handlePickerClose() {
-  showAddBlockPicker.value = null
+function handleRenameBlur(event: FocusEvent) {
+  emit('finishRename', props.block.id, (event.target as HTMLInputElement).value)
+}
+
+// Forward rename events from children
+function handleChildStartRename(blockId: string) {
+  emit('startRename', blockId)
+}
+
+function handleChildFinishRename(blockId: string, newName: string) {
+  emit('finishRename', blockId, newName)
+}
+
+function handleChildCancelRename() {
+  emit('cancelRename')
 }
 
 const hasChildren = computed(() => props.block.children && props.block.children.length > 0)
@@ -187,13 +213,22 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
         <Icon :name="sectionBlockIcons[block.type]" :size="12" class="text-muted-foreground" />
       </div>
 
-      <!-- Block name -->
-      <span class="flex-1 truncate font-medium leading-4">{{ block.name }}</span>
-
-      <!-- Interaction indicator -->
-      <Tooltip v-if="blockHasInteraction(block.id)" text="Has interaction">
-        <span class="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
-      </Tooltip>
+      <!-- Block name (editable when renaming) -->
+      <input
+        v-if="renamingBlockId === block.id"
+        ref="renameInputRef"
+        type="text"
+        :value="block.name"
+        class="flex-1 bg-transparent border border-primary rounded px-1 py-0 text-xs font-medium leading-4 outline-none"
+        @blur="handleRenameBlur"
+        @keydown="handleRenameKeydown"
+        @click.stop
+      />
+      <span
+        v-else
+        class="flex-1 truncate font-medium leading-4"
+        @dblclick.stop="handleNameDoubleClick"
+      >{{ block.name }}</span>
 
       <!-- Shared style indicator -->
       <Tooltip v-if="block.sharedStyleId" text="Has shared style">
@@ -219,23 +254,8 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
         <span class="text-xs text-muted-foreground">Drop here</span>
       </div>
 
-      <!-- Children with add lines -->
+      <!-- Children -->
       <template v-if="hasChildren">
-        <!-- Add line at top -->
-        <AddBlockLine
-          :position="0"
-          @add="handleAddBlockAtPosition(0)"
-        />
-        <!-- Inline block picker at position 0 -->
-        <SidebarBlockPicker
-          v-if="showAddBlockPicker === 0"
-          :mode="getBlockPickerMode(block)"
-          :trigger-label="getBlockPickerLabel(block)"
-          auto-open
-          @select="handleAddBlockTypeAtPosition($event, 0)"
-          @close="handlePickerClose"
-        />
-
         <template v-for="(child, idx) in block.children" :key="child.id">
           <!-- Recursive child -->
           <BlockTreeLevel
@@ -245,6 +265,7 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
             :child-index="idx"
             :drag-state="dragState"
             :expanded-blocks="expandedBlocks"
+            :renaming-block-id="renamingBlockId"
             @toggle-expanded="$emit('toggleExpanded', $event)"
             @context-menu="handleChildContextMenu"
             @drag-start="handleChildDragStart"
@@ -257,21 +278,9 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
             @empty-parent-drop="$emit('emptyParentDrop', $event)"
             @add-child="handleChildAddChild"
             @add-child-at-position="handleChildAddChildAtPosition"
-          />
-
-          <!-- Add line after each child -->
-          <AddBlockLine
-            :position="idx + 1"
-            @add="handleAddBlockAtPosition(idx + 1)"
-          />
-          <!-- Inline block picker at position -->
-          <SidebarBlockPicker
-            v-if="showAddBlockPicker === idx + 1"
-            :mode="getBlockPickerMode(block)"
-            :trigger-label="getBlockPickerLabel(block)"
-            auto-open
-            @select="handleAddBlockTypeAtPosition($event, idx + 1)"
-            @close="handlePickerClose"
+            @start-rename="handleChildStartRename"
+            @finish-rename="handleChildFinishRename"
+            @cancel-rename="handleChildCancelRename"
           />
         </template>
       </template>

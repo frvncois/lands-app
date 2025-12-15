@@ -1,62 +1,69 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import DOMPurify from 'dompurify'
+import { ref, computed, watch, onUnmounted, toRef, provide, inject } from 'vue'
+import type { ComputedRef } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import type {
   SectionBlock,
   SectionBlockType,
-  ContainerSettings,
-  ContainerStyles,
   GridSettings,
-  GridStyles,
   StackSettings,
-  StackStyles,
-  FormStyles,
-  DividerSettings,
-  HeadingSettings,
-  TextSettings,
-  ImageSettings,
-  VideoSettings,
-  ButtonSettings,
-  ButtonStyles,
-  IconSettings,
-  VariantsSettings,
-  VariantsStyles,
-  FormSettings,
-  FormLabelSettings,
-  FormLabelStyles,
-  FormInputSettings,
-  FormTextareaSettings,
-  FormSelectSettings,
-  FormRadioSettings,
-  FormCheckboxSettings,
-  FormButtonSettings,
   CanvasSettings,
   CanvasChildPosition,
-  AnimationSettings,
-  BaseBlockStyles,
-  IconStyles,
+  ViewportSize,
+  ChildEffectOverride,
 } from '@/types/editor'
 import {
-  animationInitialStyleObjects,
-  animationFinalStyleObjects,
-  getAnimationKeyframeName,
-  getAnimationCSSValue,
-} from '@/lib/animation-utils'
-import { getResponsiveStyles } from '@/lib/style-utils'
+  calculateStaggerDelay,
+  calculateGridStaggerDelay,
+  effectStateToCSS,
+  interpolateEffectStates,
+  getEasingCSS,
+  getPresetConfig,
+} from '@/lib/effect-utils'
 
-// SectionBlockType is used for addBlock calls
-import { socialPlatformIcons, sectionBlockLabels, sectionBlockIcons, canHaveChildren, blocksByCategory, maskShapeClipPaths } from '@/lib/editor-utils'
-import type { MaskShape } from '@/types/editor'
+// Import shared injection keys
+import {
+  STAGGER_CONTEXT_KEY,
+  CHILD_EFFECTS_CONTEXT_KEY,
+  type StaggerContext,
+  type ChildEffectsContext,
+} from './injection-keys'
+
+// Composables
+import { useBlockSettings } from './composables/useBlockSettings'
+import { useBlockStyles } from './composables/useBlockStyles'
+
+import { sectionBlockLabels, sectionBlockIcons, canHaveChildren } from '@/lib/editor-utils'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
 import BlockPicker from '@/components/builder/BlockPicker.vue'
 import InlineFormatToolbar from '@/components/preview/InlineFormatToolbar.vue'
 import Icon from '@/components/ui/Icon.vue'
-import Button from '@/components/ui/Button.vue'
-import Dropdown from '@/components/ui/Dropdown.vue'
-import DropdownItem from '@/components/ui/DropdownItem.vue'
+
+// Block components
+import {
+  DividerBlock,
+  IconBlock,
+  HeadingBlock,
+  TextBlock,
+  ButtonBlock,
+  ImageBlock,
+  VideoBlock,
+  VariantsBlock,
+  ContainerBlock,
+  StackBlock,
+  GridBlock,
+  CanvasBlock,
+  FormBlock,
+  FormLabelBlock,
+  FormInputBlock,
+  FormTextareaBlock,
+  FormSelectBlock,
+  FormRadioBlock,
+  FormCheckboxBlock,
+  FormButtonBlock,
+} from './blocks'
 
 const props = defineProps<{
   block: SectionBlock
@@ -65,6 +72,325 @@ const props = defineProps<{
 }>()
 
 const editorStore = useEditorStore()
+
+// Initialize composables with block ref
+const blockRef = toRef(props, 'block')
+const viewportRef = computed(() => editorStore.viewport as ViewportSize)
+const isAnimating = ref(false)
+
+// Effect state tracking
+const isEffectHovering = ref(false)
+const hasAppeared = ref(false)
+const scrollProgress = ref(0)
+const isLooping = ref(false)
+const loopAtTo = ref(false) // Toggle between from/to states for loop
+let loopIntervalId: ReturnType<typeof setInterval> | null = null
+
+// Block settings composable - provides typed access to settings
+const {
+  headingSettings,
+  textSettings,
+  buttonSettings,
+  isBlockHidden,
+} = useBlockSettings(blockRef)
+
+// Block styles composable - provides computed CSS styles
+const {
+  baseStyles: blockStyles,
+  wrapperStyles,
+  animationStyles,
+  hoverAnimationStyles,
+  blockAnimation,
+  isFixedOrSticky,
+  // New effects
+  hoverEffect,
+  hoverEffectStyles,
+  appearEffect,
+  appearEffectStyles,
+  loopEffect,
+  loopEffectStyles,
+  loopFromStyles,
+  loopToStyles,
+  scrollEffect,
+  scrollEffectStyles,
+} = useBlockStyles(blockRef, {
+  viewport: viewportRef,
+  isAnimating,
+  isHovering: isEffectHovering,
+  hasAppeared,
+  scrollProgress,
+})
+
+// ============================================
+// STAGGER CONTEXT
+// ============================================
+
+// Inject parent's stagger context if available
+const parentStaggerContext = inject<StaggerContext | null>(STAGGER_CONTEXT_KEY, null)
+
+// Calculate stagger delay for this child (if parent has stagger enabled)
+const staggerDelay = computed(() => {
+  if (!parentStaggerContext) return 0
+
+  const { config, totalChildren } = parentStaggerContext
+
+  // Use grid stagger if grid config is present
+  if (config.grid) {
+    return calculateGridStaggerDelay(props.index, config)
+  }
+
+  return calculateStaggerDelay(props.index, totalChildren, config)
+})
+
+// Provide stagger context to children if this block has applyToChildren enabled
+const provideStaggerContext = computed(() => {
+  // Check all effect types for applyToChildren + stagger
+  const effects = [
+    { effect: appearEffect.value, type: 'appear' as const },
+    { effect: hoverEffect.value, type: 'hover' as const },
+    { effect: scrollEffect.value, type: 'scroll' as const },
+  ]
+
+  for (const { effect, type } of effects) {
+    if (effect?.enabled && effect?.applyToChildren && effect?.stagger?.enabled) {
+      return {
+        config: effect.stagger,
+        totalChildren: props.block.children?.length || 0,
+        effectType: type,
+      }
+    }
+  }
+
+  return null
+})
+
+// Provide stagger context to children
+provide(STAGGER_CONTEXT_KEY, provideStaggerContext.value)
+
+// Watch for changes and re-provide
+watch(provideStaggerContext, (ctx) => {
+  provide(STAGGER_CONTEXT_KEY, ctx)
+})
+
+// ============================================
+// CHILD EFFECTS CONTEXT
+// ============================================
+
+// Inject parent's child effects context if available (it's a computed ref)
+const parentChildEffectsContextRef = inject<ComputedRef<ChildEffectsContext | null> | null>(CHILD_EFFECTS_CONTEXT_KEY, null)
+
+// Unwrap the computed ref for easier access
+const parentChildEffectsContext = computed(() => parentChildEffectsContextRef?.value ?? null)
+
+// Check if this block has an override from parent
+const childHoverOverride = computed(() => {
+  const ctx = parentChildEffectsContext.value
+  if (!ctx?.hoverOverrides) return null
+  return ctx.hoverOverrides.find(o => o.childId === props.block.id) || null
+})
+
+const childAppearOverride = computed(() => {
+  const ctx = parentChildEffectsContext.value
+  if (!ctx?.appearOverrides) return null
+  return ctx.appearOverrides.find(o => o.childId === props.block.id) || null
+})
+
+const childScrollOverride = computed(() => {
+  const ctx = parentChildEffectsContext.value
+  if (!ctx?.scrollOverrides) return null
+  return ctx.scrollOverrides.find(o => o.childId === props.block.id) || null
+})
+
+// Provide child effects context to our children if we have effects with childOverrides
+const provideChildEffectsContext = computed((): ChildEffectsContext | null => {
+  const hasHoverOverrides = hoverEffect.value?.enabled && hoverEffect.value?.childOverrides?.length
+  const hasAppearOverrides = appearEffect.value?.enabled && appearEffect.value?.childOverrides?.length
+  const hasScrollOverrides = scrollEffect.value?.enabled && scrollEffect.value?.childOverrides?.length
+
+  if (!hasHoverOverrides && !hasAppearOverrides && !hasScrollOverrides) {
+    return null
+  }
+
+  return {
+    isParentHovering: isEffectHovering,
+    hasParentAppeared: hasAppeared,
+    parentScrollProgress: scrollProgress,
+    hoverOverrides: hoverEffect.value?.childOverrides,
+    appearOverrides: appearEffect.value?.childOverrides,
+    scrollOverrides: scrollEffect.value?.childOverrides,
+    parentHoverEffect: hoverEffect.value,
+    parentAppearEffect: appearEffect.value,
+    parentScrollEffect: scrollEffect.value,
+  }
+})
+
+// Provide child effects context as computed ref so children can react to changes
+provide(CHILD_EFFECTS_CONTEXT_KEY, provideChildEffectsContext)
+
+// ============================================
+// CHILD-SPECIFIC EFFECT STYLES
+// ============================================
+
+// Get from/to states for child override (handles preset)
+function getChildOverrideStates(override: ChildEffectOverride) {
+  if (override.preset && override.preset !== 'custom') {
+    const presetConfig = getPresetConfig(override.preset)
+    return {
+      from: { ...presetConfig.from, ...override.from },
+      to: { ...presetConfig.to, ...override.to },
+    }
+  }
+  return {
+    from: override.from || {},
+    to: override.to || {},
+  }
+}
+
+// Child-specific hover effect styles
+const childHoverEffectStyles = computed(() => {
+  const ctx = parentChildEffectsContext.value
+  if (!childHoverOverride.value || !ctx) return {}
+
+  const override = childHoverOverride.value
+  const parentEffect = ctx.parentHoverEffect
+  const isHovering = ctx.isParentHovering.value
+
+  const duration = override.duration ?? parentEffect?.duration ?? 300
+  const easing = override.easing ?? parentEffect?.easing ?? 'ease-out'
+  const easingCSS = getEasingCSS(easing)
+  const { from, to } = getChildOverrideStates(override)
+
+  const base: Record<string, string> = {
+    transition: `all ${duration}ms ${easingCSS}`,
+  }
+
+  if (override.delay) {
+    base.transitionDelay = `${override.delay}ms`
+  }
+
+  if (isHovering) {
+    return { ...base, ...effectStateToCSS(to) }
+  } else {
+    return { ...base, ...effectStateToCSS(from) }
+  }
+})
+
+// Child-specific appear effect styles
+const childAppearEffectStyles = computed(() => {
+  const ctx = parentChildEffectsContext.value
+  if (!childAppearOverride.value || !ctx) return {}
+
+  const override = childAppearOverride.value
+  const parentEffect = ctx.parentAppearEffect
+  const hasAppearedVal = ctx.hasParentAppeared.value
+
+  const duration = override.duration ?? parentEffect?.duration ?? 600
+  const delay = override.delay ?? parentEffect?.delay ?? 0
+  const easing = override.easing ?? parentEffect?.easing ?? 'ease-out'
+  const easingCSS = getEasingCSS(easing)
+  const { from, to } = getChildOverrideStates(override)
+
+  if (!hasAppearedVal) {
+    return effectStateToCSS(from)
+  }
+
+  return {
+    ...effectStateToCSS(to),
+    transition: `all ${duration}ms ${easingCSS} ${delay}ms`,
+  }
+})
+
+// Child-specific scroll effect styles
+const childScrollEffectStyles = computed(() => {
+  const ctx = parentChildEffectsContext.value
+  if (!childScrollOverride.value || !ctx) return {}
+
+  const override = childScrollOverride.value
+  let progress = ctx.parentScrollProgress.value
+
+  // Apply child's own scrollRange if defined
+  if (override.scrollRange) {
+    const startPercent = override.scrollRange.start ?? 0
+    const endPercent = override.scrollRange.end ?? 100
+    const rangeStart = startPercent / 100
+    const rangeEnd = endPercent / 100
+    const rangeSize = rangeEnd - rangeStart
+
+    if (rangeSize > 0) {
+      if (progress <= rangeStart) {
+        progress = 0
+      } else if (progress >= rangeEnd) {
+        progress = 1
+      } else {
+        progress = (progress - rangeStart) / rangeSize
+      }
+    }
+  }
+
+  const { from, to } = getChildOverrideStates(override)
+  const interpolatedState = interpolateEffectStates(from, to, progress)
+  return effectStateToCSS(interpolatedState)
+})
+
+// Combined effect styles with stagger delay and child overrides applied
+const combinedEffectStyles = computed(() => {
+  // Check if we have child-specific overrides from parent
+  const hasChildOverrides = childHoverOverride.value || childAppearOverride.value || childScrollOverride.value
+
+  let styles: Record<string, string> = {}
+
+  if (hasChildOverrides) {
+    // Use child-specific effect styles
+    styles = {
+      ...childHoverEffectStyles.value,
+      ...childAppearEffectStyles.value,
+      ...childScrollEffectStyles.value,
+    }
+  } else {
+    // Use this block's own effect styles
+    styles = {
+      ...hoverEffectStyles.value,
+      ...appearEffectStyles.value,
+      ...scrollEffectStyles.value,
+    }
+
+    // Add loop effect styles if looping
+    if (loopEffect.value?.enabled && isLooping.value) {
+      const loopStateStyles = loopAtTo.value ? loopToStyles.value : loopFromStyles.value
+      styles = {
+        ...styles,
+        ...loopEffectStyles.value,
+        ...loopStateStyles,
+      }
+    }
+  }
+
+  // Apply stagger delay if we're a child with stagger context
+  if (staggerDelay.value > 0 && parentStaggerContext) {
+    const { effectType } = parentStaggerContext
+
+    // Add stagger delay to the transition
+    if (effectType === 'appear' || effectType === 'hover') {
+      // Parse existing transition and add delay
+      const existingTransition = styles.transition || ''
+      if (existingTransition) {
+        // Add stagger delay to the transition delay
+        const parts = existingTransition.split(' ')
+        // Insert delay after duration (format: property duration easing delay)
+        if (parts.length >= 3) {
+          styles.transitionDelay = `${staggerDelay.value}ms`
+        }
+      } else {
+        styles.transitionDelay = `${staggerDelay.value}ms`
+      }
+    }
+  }
+
+  return styles
+})
+
+// Note: Composables (useSliderControls, useCanvasDrag, useGridResize) are available
+// but not yet wired to the layout blocks which still use inline implementations
 
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
 const sectionRef = ref<HTMLElement | null>(null)
@@ -93,19 +419,6 @@ function updateLabelPosition() {
 // ============================================
 // ANIMATION STATE
 // ============================================
-const isAnimating = ref(false)
-const hasAnimatedOnLoad = ref(false)
-
-// Get animation settings for this block
-const blockAnimation = computed((): AnimationSettings | undefined => {
-  const styles = props.block.styles as BaseBlockStyles
-  return styles?.animation
-})
-
-// Check if this block supports animation
-const supportsAnimation = computed(() => {
-  return true
-})
 
 // Check if animation preview is active for this block
 const isPreviewingAnimation = computed(() => {
@@ -120,66 +433,6 @@ watch(isPreviewingAnimation, (isPreviewing) => {
 })
 
 // ============================================
-// INTERACTION PREVIEW
-// ============================================
-
-// Check if this block is being interaction-previewed
-const isPreviewingInteraction = computed(() => {
-  return editorStore.isInteractionPreviewing(props.block.id)
-})
-
-// Get interaction preview styles (applies transition + target styles)
-const interactionPreviewStyles = computed(() => {
-  const previewData = editorStore.getPreviewingInteractionData()
-  if (!previewData || previewData.targetBlockId !== props.block.id) {
-    return {}
-  }
-
-  const { styles, duration, easing, delay } = previewData
-  const css: Record<string, string> = {}
-
-  // Add transition
-  const delayValue = delay ? parseInt(delay) : 0
-  css.transition = `all ${duration} ${easing} ${delayValue}ms`
-
-  // Apply target styles
-  if (styles.backgroundColor) {
-    css.backgroundColor = styles.backgroundColor
-  }
-  if (styles.opacity !== undefined) {
-    css.opacity = String(Number(styles.opacity) / 100)
-  }
-  if (styles.color) {
-    css.color = styles.color
-  }
-  if (styles.border) {
-    if (styles.border.width) css.borderWidth = styles.border.width
-    if (styles.border.color) css.borderColor = styles.border.color
-    if (styles.border.radius) css.borderRadius = styles.border.radius
-    if (styles.border.style) css.borderStyle = styles.border.style
-  }
-
-  // Transform properties
-  const transforms: string[] = []
-  if (styles.scale && styles.scale !== '1') {
-    transforms.push(`scale(${styles.scale})`)
-  }
-  if (styles.rotate && styles.rotate !== '0') {
-    transforms.push(`rotate(${styles.rotate}deg)`)
-  }
-  if (styles.translateX && styles.translateX !== '0') {
-    transforms.push(`translateX(${styles.translateX}px)`)
-  }
-  if (styles.translateY && styles.translateY !== '0') {
-    transforms.push(`translateY(${styles.translateY}px)`)
-  }
-  if (transforms.length > 0) {
-    css.transform = transforms.join(' ')
-  }
-
-  return css
-})
-
 // Play animation
 function playAnimation() {
   if (!blockAnimation.value?.enabled) return
@@ -193,51 +446,27 @@ function playAnimation() {
   })
 }
 
-// Compute animation inline styles (using pre-parsed style objects for performance)
-const animationStyles = computed(() => {
-  if (!supportsAnimation.value || !blockAnimation.value?.enabled) {
-    return {}
-  }
-
-  const settings = blockAnimation.value
-
-  // For hover trigger, we use CSS transitions instead of animations
-  if (settings.trigger === 'hover') {
-    return { transition: `all ${settings.duration}ms ${settings.easing}` }
-  }
-
-  // For page-load and in-view triggers, apply initial state and animation
-  if (isAnimating.value) {
-    // Apply the CSS animation
-    return { animation: getAnimationCSSValue(settings) }
-  }
-
-  // Apply initial state (before animation plays) - use pre-parsed object
-  return { ...animationInitialStyleObjects[settings.preset] }
-})
-
-// Hover animation styles (applied on hover) - use pre-parsed object
-const hoverAnimationStyles = computed(() => {
-  if (!supportsAnimation.value || !blockAnimation.value?.enabled) {
-    return {}
-  }
-
-  const settings = blockAnimation.value
-  if (settings.trigger !== 'hover') return {}
-
-  // Return pre-parsed style object directly
-  return { ...animationFinalStyleObjects[settings.preset] }
-})
-
 // Mouse enter/leave handlers with hover animation support
 function handleMouseEnter(event: MouseEvent) {
   event.stopPropagation() // Prevent parent blocks from also getting hovered
   editorStore.hoverBlock(props.block.id)
   updateLabelPosition()
 
-  // Apply hover animation styles
+  // Track hover state for effects
+  isEffectHovering.value = true
+
+  // Apply hover animation styles (legacy system)
   if (blockAnimation.value?.trigger === 'hover' && sectionRef.value) {
     Object.assign(sectionRef.value.style, hoverAnimationStyles.value)
+  }
+
+  // Handle loop effect hover trigger
+  if (loopEffect.value?.enabled) {
+    if (loopEffect.value.startTrigger === 'hover') {
+      startLoopAnimation()
+    } else if (loopEffect.value.stopTrigger === 'hover') {
+      stopLoopAnimation()
+    }
   }
 }
 
@@ -250,11 +479,22 @@ function handleMouseLeave(event: MouseEvent) {
     editorStore.hoverBlock(null)
   }
 
-  // Remove hover animation styles (if reverseOnHoverOut is enabled)
+  // Track hover state for effects
+  isEffectHovering.value = false
+
+  // Remove hover animation styles (legacy system - if reverseOnHoverOut is enabled)
   if (blockAnimation.value?.trigger === 'hover' && blockAnimation.value?.reverseOnHoverOut !== false && sectionRef.value) {
     Object.keys(hoverAnimationStyles.value).forEach(key => {
       sectionRef.value!.style[key as any] = ''
     })
+  }
+
+  // Handle loop effect hover out
+  if (loopEffect.value?.enabled) {
+    if (loopEffect.value.startTrigger === 'hover') {
+      // Stop when mouse leaves if started on hover
+      stopLoopAnimation()
+    }
   }
 }
 
@@ -305,112 +545,6 @@ const isBlockPickerOpen = ref(false)
 
 function openBlockPicker() {
   isBlockPickerOpen.value = true
-}
-
-// ============================================
-// SLIDER STATE & HANDLERS
-// ============================================
-const sliderRefs = new Map<string, HTMLElement | null>()
-const sliderCurrentIndex = ref(new Map<string, number>())
-const sliderAutoplayIntervals = new Map<string, ReturnType<typeof setInterval>>()
-const sliderIsPaused = ref(new Map<string, boolean>())
-
-function handleSliderPrev(blockId: string) {
-  const container = sliderRefs.get(blockId)
-  if (!container) return
-
-  const block = props.block.type === 'grid' ? props.block : null
-  if (!block) return
-
-  const settings = block.settings as GridSettings
-  const slidesPerView = settings.slidesPerView || 1
-  const gap = parseFloat(settings.gap || '16')
-  const slideWidth = (container.scrollWidth - (block.children?.length || 1 - 1) * gap) / (block.children?.length || 1)
-
-  const currentIdx = sliderCurrentIndex.value.get(blockId) || 0
-  const newIdx = settings.loop
-    ? (currentIdx - 1 + (block.children?.length || 1) - slidesPerView + 1) % ((block.children?.length || 1) - slidesPerView + 1)
-    : Math.max(0, currentIdx - 1)
-
-  sliderCurrentIndex.value.set(blockId, newIdx)
-  container.scrollTo({ left: newIdx * (slideWidth + gap), behavior: 'smooth' })
-}
-
-function handleSliderNext(blockId: string) {
-  const container = sliderRefs.get(blockId)
-  if (!container) return
-
-  const block = props.block.type === 'grid' ? props.block : null
-  if (!block) return
-
-  const settings = block.settings as GridSettings
-  const slidesPerView = settings.slidesPerView || 1
-  const gap = parseFloat(settings.gap || '16')
-  const slideWidth = (container.scrollWidth - (block.children?.length || 1 - 1) * gap) / (block.children?.length || 1)
-  const maxIdx = (block.children?.length || 1) - slidesPerView
-
-  const currentIdx = sliderCurrentIndex.value.get(blockId) || 0
-  const newIdx = settings.loop
-    ? (currentIdx + 1) % (maxIdx + 1)
-    : Math.min(maxIdx, currentIdx + 1)
-
-  sliderCurrentIndex.value.set(blockId, newIdx)
-  container.scrollTo({ left: newIdx * (slideWidth + gap), behavior: 'smooth' })
-}
-
-function handleSliderGoTo(blockId: string, index: number) {
-  const container = sliderRefs.get(blockId)
-  if (!container) return
-
-  const block = props.block.type === 'grid' ? props.block : null
-  if (!block) return
-
-  const settings = block.settings as GridSettings
-  const gap = parseFloat(settings.gap || '16')
-  const slideWidth = (container.scrollWidth - (block.children?.length || 1 - 1) * gap) / (block.children?.length || 1)
-
-  sliderCurrentIndex.value.set(blockId, index)
-  container.scrollTo({ left: index * (slideWidth + gap), behavior: 'smooth' })
-}
-
-function startSliderAutoplay(blockId: string) {
-  const block = props.block.type === 'grid' ? props.block : null
-  if (!block) return
-
-  const settings = block.settings as GridSettings
-  if (!settings.autoplay) return
-
-  // Clear existing interval
-  const existingInterval = sliderAutoplayIntervals.get(blockId)
-  if (existingInterval) clearInterval(existingInterval)
-
-  const interval = setInterval(() => {
-    if (!sliderIsPaused.value.get(blockId)) {
-      handleSliderNext(blockId)
-    }
-  }, settings.autoplayInterval || 5000)
-
-  sliderAutoplayIntervals.set(blockId, interval)
-}
-
-function stopSliderAutoplay(blockId: string) {
-  const interval = sliderAutoplayIntervals.get(blockId)
-  if (interval) {
-    clearInterval(interval)
-    sliderAutoplayIntervals.delete(blockId)
-  }
-}
-
-function handleSliderMouseEnter(blockId: string) {
-  sliderIsPaused.value.set(blockId, true)
-}
-
-function handleSliderMouseLeave(blockId: string) {
-  sliderIsPaused.value.set(blockId, false)
-}
-
-function getSliderCurrentIndex(blockId: string): number {
-  return sliderCurrentIndex.value.get(blockId) || 0
 }
 
 function handleBlockPickerSelectBlock(type: SectionBlockType) {
@@ -469,6 +603,248 @@ onUnmounted(() => {
   scrollContainerRef?.removeEventListener('scroll', updateLabelPosition)
 })
 
+// ============================================
+// EFFECTS: IntersectionObserver & Scroll
+// ============================================
+let appearObserver: IntersectionObserver | null = null
+let effectScrollContainer: Element | null = null
+
+// Set up IntersectionObserver for appear effects
+function setupAppearObserver() {
+  if (!appearEffect.value?.enabled || !sectionRef.value) return
+
+  // For 'load' trigger, trigger immediately
+  if (appearEffect.value.trigger === 'load') {
+    requestAnimationFrame(() => {
+      hasAppeared.value = true
+    })
+    return
+  }
+
+  // For 'inView' trigger, use IntersectionObserver
+  appearObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          hasAppeared.value = true
+          // If once is true, disconnect after triggering
+          if (appearEffect.value?.once !== false) {
+            appearObserver?.disconnect()
+          }
+        } else if (appearEffect.value?.once === false) {
+          // Reset if once is false
+          hasAppeared.value = false
+        }
+      })
+    },
+    {
+      threshold: 0.1,
+      root: sectionRef.value?.closest('.overflow-auto') ?? null,
+    }
+  )
+
+  appearObserver.observe(sectionRef.value)
+}
+
+// Set up scroll listener for scroll effects
+function setupScrollEffect() {
+  if (!scrollEffect.value?.enabled || !sectionRef.value) return
+
+  effectScrollContainer = sectionRef.value.closest('.overflow-auto')
+  if (!effectScrollContainer) return
+
+  effectScrollContainer.addEventListener('scroll', handleEffectScroll)
+  // Initial calculation
+  handleEffectScroll()
+}
+
+function handleEffectScroll() {
+  if (!sectionRef.value || !effectScrollContainer) return
+
+  const containerRect = effectScrollContainer.getBoundingClientRect()
+  const blockRect = sectionRef.value.getBoundingClientRect()
+
+  // Get user-configured scroll range settings
+  const scrollRangeConfig = scrollEffect.value?.scrollRange
+  const relativeTo = scrollRangeConfig?.relativeTo || 'self'
+  const startPercent = scrollRangeConfig?.start ?? 0
+  const endPercent = scrollRangeConfig?.end ?? 100
+
+  // Calculate raw scroll progress based on relativeTo setting
+  let rawProgress = 0
+
+  if (relativeTo === 'page') {
+    // Progress based on page/container scroll position
+    const scrollTop = effectScrollContainer.scrollTop
+    const scrollHeight = effectScrollContainer.scrollHeight - effectScrollContainer.clientHeight
+    if (scrollHeight > 0) {
+      rawProgress = scrollTop / scrollHeight
+    }
+  } else if (relativeTo === 'parent') {
+    // Progress based on parent element's position in viewport
+    const parent = sectionRef.value.parentElement
+    if (parent) {
+      const parentRect = parent.getBoundingClientRect()
+      const viewportHeight = containerRect.height
+      // When parent top is at viewport bottom: progress = 0
+      // When parent bottom is at viewport top: progress = 1
+      const totalTravel = viewportHeight + parentRect.height
+      const currentPosition = viewportHeight - parentRect.top
+      rawProgress = Math.max(0, Math.min(1, currentPosition / totalTravel))
+    }
+  } else {
+    // Default: 'self' - progress based on block's position in viewport
+    const viewportHeight = containerRect.height
+    // When block top is at viewport bottom: progress = 0
+    // When block bottom is at viewport top: progress = 1
+    const totalTravel = viewportHeight + blockRect.height
+    const currentPosition = viewportHeight - blockRect.top
+    rawProgress = Math.max(0, Math.min(1, currentPosition / totalTravel))
+  }
+
+  // Map the raw progress to the user-defined start/end range
+  // If progress is before start%, output 0. If after end%, output 1.
+  // In between, interpolate linearly.
+  const rangeStart = startPercent / 100
+  const rangeEnd = endPercent / 100
+  const rangeSize = rangeEnd - rangeStart
+
+  if (rangeSize <= 0) {
+    // Invalid range, just use raw progress
+    scrollProgress.value = rawProgress
+  } else if (rawProgress <= rangeStart) {
+    scrollProgress.value = 0
+  } else if (rawProgress >= rangeEnd) {
+    scrollProgress.value = 1
+  } else {
+    // Interpolate within the range
+    scrollProgress.value = (rawProgress - rangeStart) / rangeSize
+  }
+}
+
+// ============================================
+// LOOP EFFECT
+// ============================================
+let loopObserver: IntersectionObserver | null = null
+
+function startLoopAnimation() {
+  if (!loopEffect.value?.enabled || isLooping.value) return
+
+  const duration = loopEffect.value.duration || 1000
+  const reverse = loopEffect.value.reverse ?? false
+
+  isLooping.value = true
+  loopAtTo.value = false
+
+  // Start the loop interval
+  loopIntervalId = setInterval(() => {
+    if (reverse) {
+      // Ping-pong: toggle between from and to
+      loopAtTo.value = !loopAtTo.value
+    } else {
+      // Normal loop: go to "to" state, then reset to "from"
+      if (loopAtTo.value) {
+        loopAtTo.value = false
+      } else {
+        loopAtTo.value = true
+      }
+    }
+  }, duration)
+
+  // Initial state - start at "to"
+  requestAnimationFrame(() => {
+    loopAtTo.value = true
+  })
+}
+
+function stopLoopAnimation() {
+  if (loopIntervalId) {
+    clearInterval(loopIntervalId)
+    loopIntervalId = null
+  }
+  isLooping.value = false
+  loopAtTo.value = false
+}
+
+function setupLoopEffect() {
+  if (!loopEffect.value?.enabled || !sectionRef.value) return
+
+  const startTrigger = loopEffect.value.startTrigger || 'load'
+  const stopTrigger = loopEffect.value.stopTrigger || 'never'
+
+  // Handle start trigger
+  if (startTrigger === 'load') {
+    // Start immediately on page load
+    requestAnimationFrame(() => {
+      startLoopAnimation()
+    })
+  } else if (startTrigger === 'inView') {
+    // Start when in view
+    loopObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            startLoopAnimation()
+          } else if (stopTrigger === 'outOfView') {
+            stopLoopAnimation()
+          }
+        })
+      },
+      {
+        threshold: 0.1,
+        root: sectionRef.value?.closest('.overflow-auto') ?? null,
+      }
+    )
+    loopObserver.observe(sectionRef.value)
+  }
+  // For 'hover' start trigger, it's handled by mouse events on the element
+}
+
+// Watch for effect changes and set up observers
+watch(
+  [appearEffect, scrollEffect, loopEffect],
+  () => {
+    // Clean up existing observers
+    appearObserver?.disconnect()
+    effectScrollContainer?.removeEventListener('scroll', handleEffectScroll)
+    loopObserver?.disconnect()
+    stopLoopAnimation()
+
+    // Reset state
+    hasAppeared.value = false
+    scrollProgress.value = 0
+
+    // Set up new observers
+    if (sectionRef.value) {
+      setupAppearObserver()
+      setupScrollEffect()
+      setupLoopEffect()
+    }
+  },
+  { immediate: false }
+)
+
+// Set up observers when mounted
+watch(
+  sectionRef,
+  (el) => {
+    if (el) {
+      setupAppearObserver()
+      setupScrollEffect()
+      setupLoopEffect()
+    }
+  },
+  { immediate: true }
+)
+
+// Clean up observers on unmount
+onUnmounted(() => {
+  appearObserver?.disconnect()
+  effectScrollContainer?.removeEventListener('scroll', handleEffectScroll)
+  loopObserver?.disconnect()
+  stopLoopAnimation()
+})
+
 // Check if this is a protected block (none currently)
 const isProtectedBlock = computed(() => false)
 
@@ -497,166 +873,12 @@ const isInsideCanvas = computed(() => {
   return parent?.type === 'canvas'
 })
 
-// Check if block is hidden
-const isBlockHidden = computed(() => {
-  const settings = props.block.settings as Record<string, unknown>
-  return !!settings.isHidden
-})
-
-// Type guards for settings
-const containerSettings = computed(() => props.block.type === 'container' ? props.block.settings as ContainerSettings : null)
-const gridSettings = computed(() => props.block.type === 'grid' ? props.block.settings as GridSettings : null)
-
-// Start slider autoplay when autoplay setting changes
-// Note: Using a watcher here to react to autoplay setting changes
-watch(
-  () => gridSettings.value?.autoplay,
-  (autoplay) => {
-    if (props.block.type !== 'grid' || !gridSettings.value?.isSlider) return
-    if (autoplay) {
-      startSliderAutoplay(props.block.id)
-    } else {
-      stopSliderAutoplay(props.block.id)
-    }
-  },
-  { immediate: true }
-)
-
-const stackSettings = computed(() => props.block.type === 'stack' ? props.block.settings as StackSettings : null)
-const dividerSettings = computed(() => props.block.type === 'divider' ? props.block.settings as DividerSettings : null)
-const headingSettings = computed(() => props.block.type === 'heading' ? props.block.settings as HeadingSettings : null)
-const textSettings = computed(() => props.block.type === 'text' ? props.block.settings as TextSettings : null)
-const imageSettings = computed(() => props.block.type === 'image' ? props.block.settings as ImageSettings : null)
-const videoSettings = computed(() => props.block.type === 'video' ? props.block.settings as VideoSettings : null)
-const buttonSettings = computed(() => props.block.type === 'button' ? props.block.settings as ButtonSettings : null)
-const iconSettings = computed(() => props.block.type === 'icon' ? props.block.settings as IconSettings : null)
-const iconStyles = computed(() => props.block.type === 'icon' ? props.block.styles as IconStyles : null)
-const variantsSettings = computed(() => props.block.type === 'variants' ? props.block.settings as VariantsSettings : null)
-const variantsStyles = computed(() => props.block.type === 'variants' ? props.block.styles as VariantsStyles : null)
-const formSettings = computed(() => props.block.type === 'form' ? props.block.settings as FormSettings : null)
-// Form field block settings
-const formLabelSettings = computed(() => props.block.type === 'form-label' ? props.block.settings as FormLabelSettings : null)
-const formLabelStyles = computed(() => props.block.type === 'form-label' ? props.block.styles as FormLabelStyles : null)
-const formInputSettings = computed(() => props.block.type === 'form-input' ? props.block.settings as FormInputSettings : null)
-const formTextareaSettings = computed(() => props.block.type === 'form-textarea' ? props.block.settings as FormTextareaSettings : null)
-const formSelectSettings = computed(() => props.block.type === 'form-select' ? props.block.settings as FormSelectSettings : null)
-const formRadioSettings = computed(() => props.block.type === 'form-radio' ? props.block.settings as FormRadioSettings : null)
-const formCheckboxSettings = computed(() => props.block.type === 'form-checkbox' ? props.block.settings as FormCheckboxSettings : null)
-const formButtonSettings = computed(() => props.block.type === 'form-button' ? props.block.settings as FormButtonSettings : null)
-// Canvas block settings
-const canvasSettings = computed(() => props.block.type === 'canvas' ? props.block.settings as CanvasSettings : null)
-
-// Helper to get canvas child position for template (viewport-aware with cascade)
-function getCanvasChildPos(childId: string): CanvasChildPosition {
-  if (!canvasSettings.value) return { x: 10, y: 10 }
-  const positions = canvasSettings.value.childPositions
-  const viewport = editorStore.viewport
-  const defaultPos: CanvasChildPosition = { x: 10, y: 10 }
-
-  // Cascade: check current viewport, then fall back to larger viewports
-  if (viewport === 'mobile') {
-    return positions.mobile?.[childId] || positions.tablet?.[childId] || positions.desktop?.[childId] || defaultPos
-  } else if (viewport === 'tablet') {
-    return positions.tablet?.[childId] || positions.desktop?.[childId] || defaultPos
-  }
-  // Desktop
-  return positions.desktop?.[childId] || defaultPos
-}
-
-// ============================================
-// TRANSLATION-AWARE CONTENT GETTERS
-// ============================================
-// These return translated content when viewing a translation, otherwise return default content
-// We access reactive state directly to ensure proper reactivity
-
-// Helper to get translation for current block
-function getBlockTranslation(field: string): string | undefined {
-  const lang = editorStore.currentLanguage
-  if (!lang) return undefined
-  const langTranslations = editorStore.translations.languages[lang]
-  if (!langTranslations) return undefined
-  const blockTranslation = langTranslations.blocks[props.block.id]
-  if (!blockTranslation) return undefined
-  return (blockTranslation as Record<string, unknown>)[field] as string | undefined
-}
-
-// Sanitize HTML content to prevent XSS attacks
-function sanitizeHtml(html: string | undefined): string {
-  if (!html) return ''
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'i', 'u', 'em', 'strong', 'a', 'br', 'span', 'p', 'ul', 'ol', 'li'],
-    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
-  })
-}
-
-const displayHeadingContent = computed(() => {
-  if (!headingSettings.value) return ''
-  // Access reactive state directly for proper tracking
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const translated = langTranslations?.blocks[props.block.id]?.content
-    if (translated !== undefined) return sanitizeHtml(translated)
-  }
-  return sanitizeHtml(headingSettings.value.content)
-})
-
-const displayTextContent = computed(() => {
-  if (!textSettings.value) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const translated = langTranslations?.blocks[props.block.id]?.content
-    if (translated !== undefined) return sanitizeHtml(translated)
-  }
-  return sanitizeHtml(textSettings.value.content)
-})
-
-const displayButtonLabel = computed(() => {
-  if (!buttonSettings.value) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const translated = langTranslations?.blocks[props.block.id]?.label
-    if (translated !== undefined) return translated
-  }
-  return buttonSettings.value.label
-})
-
-const displayImageAlt = computed(() => {
-  if (!imageSettings.value) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const translated = langTranslations?.blocks[props.block.id]?.alt
-    if (translated !== undefined) return translated
-  }
-  return imageSettings.value.alt
-})
-
-const displayImageCaption = computed(() => {
-  if (!imageSettings.value) return ''
-  const lang = editorStore.currentLanguage
-  if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
-    const translated = langTranslations?.blocks[props.block.id]?.caption
-    if (translated !== undefined) return translated
-  }
-  return imageSettings.value.caption
-})
-
-// Form translations - note: form now uses child blocks for fields, submit button is a form-button block
+// Translation-aware content getters moved to extracted block components
+// (HeadingBlock, TextBlock, ButtonBlock, ImageBlock)
 
 // Event handlers
 function handleClick(event: MouseEvent) {
   event.stopPropagation()
-
-  // If in interaction target selection mode, add this block to targets instead of selecting
-  if (editorStore.interactionTargetSelectionMode) {
-    editorStore.handleInteractionTargetClick(props.block.id)
-    return
-  }
-
   editorStore.selectBlock(props.block.id)
 }
 
@@ -721,49 +943,29 @@ function handleSendToBack() {
   })
 }
 
-// Inline editing handlers
-// These update translations when in translation mode, otherwise update source content
-function handleHeadingEdit(event: FocusEvent) {
-  const target = event.target as HTMLElement
-  // Use innerHTML to preserve line breaks (converted to <br>)
-  const newContent = target.innerHTML.trim()
+// Content change handlers for extracted block components
+function handleHeadingContentChange(newContent: string) {
   if (editorStore.isEditingTranslation) {
-    // Update translation
     editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
   } else if (newContent !== headingSettings.value?.content) {
-    // Update source content
     editorStore.updateBlockSettings(props.block.id, { content: newContent })
   }
 }
 
-function handleTextEdit(event: FocusEvent) {
-  const target = event.target as HTMLElement
-  const newContent = target.innerHTML.trim()
+function handleTextContentChange(newContent: string) {
   if (editorStore.isEditingTranslation) {
-    // Update translation
     editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
   } else if (newContent !== textSettings.value?.content) {
-    // Update source content
     editorStore.updateBlockSettings(props.block.id, { content: newContent })
   }
 }
 
-function handleButtonEdit(event: FocusEvent) {
-  const target = event.target as HTMLElement
-  const newLabel = target.innerText.trim()
+function handleButtonLabelChange(newLabel: string) {
   if (editorStore.isEditingTranslation) {
-    // Update translation
     editorStore.updateBlockTranslation(props.block.id, 'label', newLabel)
   } else if (newLabel !== buttonSettings.value?.label) {
-    // Update source content
     editorStore.updateBlockSettings(props.block.id, { label: newLabel })
   }
-}
-
-// Handle Escape key - save content and blur (don't revert)
-function handleEscapeKey(event: KeyboardEvent) {
-  const target = event.target as HTMLElement
-  target.blur()
 }
 
 // Handle inline formatting - update block content after format applied
@@ -785,14 +987,6 @@ function handleInlineFormat(_command: string) {
       }
     }
   }
-}
-
-// Handle paste - strip HTML and paste as plain text
-function handlePasteClean(event: ClipboardEvent) {
-  event.preventDefault()
-  const text = event.clipboardData?.getData('text/plain') || ''
-  // Insert plain text at cursor position
-  document.execCommand('insertText', false, text)
 }
 
 // Drag & drop for layout blocks
@@ -927,131 +1121,6 @@ function handleBlockDragEnd() {
   // Reset any drag state if needed
 }
 
-// Grid column resize state
-const isResizingColumn = ref(false)
-const resizeColumnIndex = ref<number | null>(null)
-const resizeStartX = ref(0)
-const resizeStartWidths = ref<number[]>([])
-
-// Compute grid template columns with custom widths support
-const gridTemplateColumns = computed(() => {
-  if (!gridSettings.value) return 'repeat(2, minmax(0, 1fr))'
-  const columns = gridSettings.value.columns || 2
-  const customWidths = gridSettings.value.columnWidths
-
-  if (customWidths && customWidths.length === columns) {
-    return customWidths.map(w => `${w}fr`).join(' ')
-  }
-  return `repeat(${columns}, minmax(0, 1fr))`
-})
-
-// Get grid item styles for a child block
-function getGridItemStyles(child: SectionBlock): Record<string, string> {
-  const settings = child.settings as Record<string, unknown>
-  const styles: Record<string, string> = {}
-
-  // Column span
-  const colSpan = parseInt(String(settings.gridColumnSpan || 1), 10)
-  if (!isNaN(colSpan) && colSpan > 1) {
-    styles['grid-column'] = `span ${colSpan}`
-  }
-
-  // Row span
-  const rowSpan = parseInt(String(settings.gridRowSpan || 1), 10)
-  if (!isNaN(rowSpan) && rowSpan > 1) {
-    styles['grid-row'] = `span ${rowSpan}`
-  }
-
-  return styles
-}
-
-// Grid column resize handlers
-function handleColumnResizeStart(columnIndex: number, event: MouseEvent) {
-  event.preventDefault()
-  event.stopPropagation()
-
-  if (!gridSettings.value) return
-
-  isResizingColumn.value = true
-  resizeColumnIndex.value = columnIndex
-  resizeStartX.value = event.clientX
-
-  // Initialize widths array if not set
-  const columns = gridSettings.value.columns || 2
-  const currentWidths = gridSettings.value.columnWidths || Array(columns).fill(1)
-  resizeStartWidths.value = [...currentWidths]
-
-  // Add listeners
-  document.addEventListener('mousemove', handleColumnResizeMove)
-  document.addEventListener('mouseup', handleColumnResizeEnd)
-}
-
-function handleColumnResizeMove(event: MouseEvent) {
-  if (!isResizingColumn.value || resizeColumnIndex.value === null || !gridSettings.value) return
-
-  const deltaX = event.clientX - resizeStartX.value
-  const gridElement = document.querySelector(`[data-block-id="${props.block.id}"]`) as HTMLElement
-  if (!gridElement) return
-
-  const gridWidth = gridElement.offsetWidth
-  const totalFr = resizeStartWidths.value.reduce((a, b) => a + b, 0)
-  const frToPixels = gridWidth / totalFr
-  const deltaFr = deltaX / frToPixels
-
-  const newWidths = [...resizeStartWidths.value]
-  const colIndex = resizeColumnIndex.value
-
-  // Get current widths at the indices
-  const leftWidth = newWidths[colIndex]
-  const rightWidth = newWidths[colIndex + 1]
-
-  // Ensure we have valid widths at the indices
-  if (leftWidth === undefined || rightWidth === undefined) return
-
-  // Adjust the column to the left of the handle
-  const newLeftWidth = Math.max(0.5, leftWidth + deltaFr)
-  // Adjust the column to the right of the handle
-  const newRightWidth = Math.max(0.5, rightWidth - deltaFr)
-
-  newWidths[colIndex] = Math.round(newLeftWidth * 10) / 10
-  newWidths[colIndex + 1] = Math.round(newRightWidth * 10) / 10
-
-  // Update the grid settings
-  editorStore.updateBlockSettings(props.block.id, { columnWidths: newWidths })
-}
-
-function handleColumnResizeEnd() {
-  isResizingColumn.value = false
-  resizeColumnIndex.value = null
-  document.removeEventListener('mousemove', handleColumnResizeMove)
-  document.removeEventListener('mouseup', handleColumnResizeEnd)
-}
-
-// Calculate position of column resize handle as percentage
-function getColumnResizeHandlePosition(columnIndex: number): string {
-  if (!gridSettings.value) return '50%'
-
-  const columns = gridSettings.value.columns || 2
-  const customWidths = gridSettings.value.columnWidths || Array(columns).fill(1)
-  const totalFr = customWidths.reduce((a, b) => a + b, 0)
-
-  // Sum of widths up to and including this column
-  let sumFr = 0
-  for (let i = 0; i <= columnIndex; i++) {
-    sumFr += customWidths[i] || 1
-  }
-
-  // Account for gaps: each column has gap after it except the last
-  const gap = parseFloat(gridSettings.value.gap || '16')
-  const gapCount = columnIndex + 1 // number of gaps before this handle
-
-  // Position = (sum of fr values / total fr) * 100%
-  // We need to add half a gap to position the handle in the middle of the gap
-  const percentPosition = (sumFr / totalFr) * 100
-
-  return `calc(${percentPosition}% + ${gapCount * gap - gap / 2}px)`
-}
-
 // Check if drag event contains valid block type (for adding new blocks)
 function isValidNewBlockDragType(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes('application/x-section-type') || false
@@ -1181,20 +1250,6 @@ function handleChildDragLeave() {
   // Don't reset immediately - let the parent container handle it
 }
 
-// Helper functions
-function getHeightStyle(height?: string): string | undefined {
-  if (!height || height === 'auto' || height === '0') return undefined
-  // Handle legacy string values
-  if (height === 'full') return '100vh'
-  if (height === 'half') return '50vh'
-  // If value already has a unit (px, %, vh, vw, em, rem, etc.), return as-is
-  if (/[a-z%]/i.test(height)) return height
-  // Handle plain numeric values (legacy) - assume px
-  const num = parseFloat(height)
-  if (!isNaN(num) && num > 0) return `${num}px`
-  return undefined
-}
-
 // Tailwind font size to pixel mapping
 const fontSizeMap: Record<string, string> = {
   'xs': '12px',
@@ -1225,216 +1280,6 @@ function pxToEm(value: string | number): string {
   if (isNaN(px) || px === 0) return '0'
   return `${px / 16}em`
 }
-
-// Compute CSS styles from block.styles with responsive support
-const blockStyles = computed(() => {
-  const rawStyles = props.block.styles as BaseBlockStyles
-  if (!rawStyles) return {}
-
-  // Get responsive styles for current viewport (cascaded)
-  const styles = getResponsiveStyles(rawStyles, editorStore.viewport)
-  // Also get non-responsive styles (like typography) from raw styles
-  const allStyles = rawStyles as Record<string, unknown>
-
-  const css: Record<string, string> = {}
-
-  // Padding (responsive) - use em
-  if (styles.padding) {
-    const p = styles.padding as { top?: string; right?: string; bottom?: string; left?: string }
-    if (p.top) css.paddingTop = pxToEm(p.top)
-    if (p.right) css.paddingRight = pxToEm(p.right)
-    if (p.bottom) css.paddingBottom = pxToEm(p.bottom)
-    if (p.left) css.paddingLeft = pxToEm(p.left)
-  }
-
-  // Margin (responsive) - use em, supports negative values
-  if (styles.margin) {
-    const m = styles.margin as { top?: string; right?: string; bottom?: string; left?: string }
-    if (m.top) css.marginTop = pxToEm(m.top)
-    if (m.right) css.marginRight = pxToEm(m.right)
-    if (m.bottom) css.marginBottom = pxToEm(m.bottom)
-    if (m.left) css.marginLeft = pxToEm(m.left)
-  }
-
-  // Background (responsive)
-  if (styles.backgroundColor) {
-    css.backgroundColor = styles.backgroundColor as string
-  }
-  if (styles.backgroundImage) {
-    css.backgroundImage = `url(${styles.backgroundImage})`
-    css.backgroundSize = (styles.backgroundSize as string) || 'cover'
-    css.backgroundPosition = (styles.backgroundPosition as string) || 'center'
-  }
-
-  // Border (responsive) - use em for width and radius
-  if (styles.border) {
-    const b = styles.border as { width?: string; color?: string; radius?: string; style?: string; sides?: string }
-    if (b.width && b.width !== '0') {
-      const borderStyle = b.style || 'solid'
-      const borderColor = b.color || 'currentColor'
-      const borderValue = `${pxToEm(b.width)} ${borderStyle} ${borderColor}`
-
-      // Parse sides - default to all sides if not specified
-      const sidesStr = b.sides || 'top,right,bottom,left'
-      const activeSides = new Set(sidesStr.split(',').filter(s => s))
-
-      // Apply border to each active side
-      if (activeSides.has('top')) css.borderTop = borderValue
-      if (activeSides.has('right')) css.borderRight = borderValue
-      if (activeSides.has('bottom')) css.borderBottom = borderValue
-      if (activeSides.has('left')) css.borderLeft = borderValue
-    }
-    if (b.radius && b.radius !== '0') {
-      css.borderRadius = pxToEm(b.radius)
-    }
-  }
-
-  // Shadow (responsive) - use em for offsets and blur
-  if (styles.shadow) {
-    const s = styles.shadow as { enabled?: boolean; x?: string; y?: string; blur?: string; color?: string }
-    if (s.enabled) {
-      css.boxShadow = `${pxToEm(s.x || '0')} ${pxToEm(s.y || '0')} ${pxToEm(s.blur || '0')} ${s.color || 'rgba(0,0,0,0.1)'}`
-    }
-  }
-
-  // Typography styles (non-responsive for now) - fontSize uses em
-  if (allStyles.fontSize) {
-    const size = allStyles.fontSize as string
-    // If it's a Tailwind class (xs, sm, base, etc.), convert to px first
-    // Otherwise pass directly to pxToEm which handles all units (px, em, rem, vh, etc.)
-    const value = fontSizeMap[size] || size
-    css.fontSize = pxToEm(value)
-  }
-  // Color
-  if (allStyles.color) {
-    css.color = allStyles.color as string
-  }
-  if (allStyles.alignment) css.textAlign = allStyles.alignment as string
-  if (allStyles.fontWeight) css.fontWeight = allStyles.fontWeight as string
-  if (allStyles.fontFamily) css.fontFamily = allStyles.fontFamily as string
-  if (allStyles.fontStyle) css.fontStyle = allStyles.fontStyle as string
-  if (allStyles.textDecoration && allStyles.textDecoration !== 'none') css.textDecoration = allStyles.textDecoration as string
-  if (allStyles.lineHeight) css.lineHeight = allStyles.lineHeight as string
-  if (allStyles.letterSpacing) css.letterSpacing = pxToEm(allStyles.letterSpacing as string)
-
-  // Border radius (direct, non-responsive for now) - use em
-  if (allStyles.borderRadius) {
-    css.borderRadius = pxToEm(allStyles.borderRadius as string)
-  }
-
-  // Flexbox properties for layout blocks (non-responsive for now)
-  if (allStyles.flexDirection) css.flexDirection = allStyles.flexDirection as string
-  if (allStyles.justifyContent !== undefined) css.justifyContent = allStyles.justifyContent as string
-  if (allStyles.alignItems !== undefined) css.alignItems = allStyles.alignItems as string
-  if (allStyles.flexWrap) css.flexWrap = allStyles.flexWrap as string
-  if (allStyles.gap) css.gap = pxToEm(allStyles.gap as string)
-
-  // Flex child properties (responsive)
-  if (styles.flexGrow && styles.flexGrow !== '0') css.flexGrow = styles.flexGrow as string
-  if (styles.flexShrink && styles.flexShrink !== '1') css.flexShrink = styles.flexShrink as string
-  if (styles.flexBasis && styles.flexBasis !== 'auto') css.flexBasis = styles.flexBasis as string
-
-  // Grid properties (non-responsive for now)
-  if (allStyles.justifyItems) css.justifyItems = allStyles.justifyItems as string
-
-  // Opacity & Blend Mode (responsive)
-  if (styles.opacity !== undefined && styles.opacity !== '100') {
-    css.opacity = String(Number(styles.opacity) / 100)
-  }
-  if (styles.mixBlendMode && styles.mixBlendMode !== 'normal') {
-    css.mixBlendMode = styles.mixBlendMode as string
-  }
-
-  // Size (responsive) - width and height
-  if (styles.width) {
-    css.width = getHeightStyle(styles.width as string) || 'auto'
-  }
-  if (styles.height) {
-    css.minHeight = getHeightStyle(styles.height as string) || 'auto'
-  }
-
-  // Overflow (responsive) - uses clip-path instead of overflow
-  if (styles.overflow === 'hidden') {
-    css.clipPath = 'inset(0 0 0 0)'
-  }
-
-  // Transform (responsive) - rotate, scale, translate
-  const transforms: string[] = []
-  if (styles.rotate && styles.rotate !== '0') {
-    transforms.push(`rotate(${styles.rotate}deg)`)
-  }
-  if (styles.scale && styles.scale !== '100') {
-    // Scale is stored as percentage (100 = 1x), convert to decimal
-    const scaleValue = Number(styles.scale) / 100
-    transforms.push(`scale(${scaleValue})`)
-  }
-  if (styles.translateX && styles.translateX !== '0') {
-    transforms.push(`translateX(${styles.translateX}px)`)
-  }
-  if (styles.translateY && styles.translateY !== '0') {
-    transforms.push(`translateY(${styles.translateY}px)`)
-  }
-  if (transforms.length > 0) {
-    css.transform = transforms.join(' ')
-  }
-
-  // Filter (responsive) - blur
-  if (styles.blur && styles.blur !== '0') {
-    css.filter = `blur(${styles.blur}px)`
-  }
-
-  // Note: Position styles are handled separately in wrapperStyles to keep outline/label working
-
-  return css
-})
-
-// Compute wrapper/position styles (applied to outer section for proper outline/label positioning)
-const wrapperStyles = computed(() => {
-  const rawStyles = props.block.styles as BaseBlockStyles
-  if (!rawStyles) return {}
-
-  const styles = getResponsiveStyles(rawStyles, editorStore.viewport)
-  const css: Record<string, string> = {}
-
-  // Position (responsive) - applied to wrapper so outline/label follow the element
-  if (styles.position && styles.position !== 'relative') {
-    css.position = styles.position as string
-  }
-  if (styles.zIndex !== undefined && styles.zIndex !== '' && styles.zIndex !== '0') {
-    css.zIndex = String(styles.zIndex)
-  }
-  if (styles.top !== undefined && styles.top !== '') {
-    css.top = pxToEm(styles.top as string)
-  }
-  if (styles.right !== undefined && styles.right !== '') {
-    css.right = pxToEm(styles.right as string)
-  }
-  if (styles.bottom !== undefined && styles.bottom !== '') {
-    css.bottom = pxToEm(styles.bottom as string)
-  }
-  if (styles.left !== undefined && styles.left !== '') {
-    css.left = pxToEm(styles.left as string)
-  }
-
-  // Flex child properties (responsive)
-  if (styles.flexGrow !== undefined && styles.flexGrow !== '' && styles.flexGrow !== '0') {
-    css.flexGrow = String(styles.flexGrow)
-  }
-  if (styles.flexShrink !== undefined && styles.flexShrink !== '') {
-    css.flexShrink = String(styles.flexShrink)
-  }
-  if (styles.flexBasis !== undefined && styles.flexBasis !== '' && styles.flexBasis !== 'auto') {
-    css.flexBasis = styles.flexBasis as string
-  }
-
-  return css
-})
-
-// Check if this block has fixed or sticky positioning (blocks scroll events)
-const isFixedOrSticky = computed(() => {
-  const pos = wrapperStyles.value.position
-  return pos === 'fixed' || pos === 'sticky'
-})
 
 // Handle wheel events on fixed/sticky elements to propagate scroll to parent container
 function handleWheel(event: WheelEvent) {
@@ -1541,80 +1386,6 @@ function handleSpanMouseOut(event: MouseEvent) {
   }
 }
 
-// Helper to get image-specific styles
-function getImageStyles(): Record<string, string> {
-  const styles = props.block.styles as Record<string, unknown>
-  const settings = props.block.settings as Record<string, unknown>
-  const css: Record<string, string> = {}
-
-  // Object fit
-  if (styles?.objectFit) css.objectFit = styles.objectFit as string
-  else css.objectFit = 'cover'
-
-  // Border radius - use em
-  if (styles?.borderRadius && styles.borderRadius !== '0') {
-    css.borderRadius = pxToEm(styles.borderRadius as string)
-    css.overflow = 'hidden'
-  }
-
-  // Width - supports percentage or px (converted to em)
-  if (styles?.width) {
-    const width = styles.width as string
-    if (width.endsWith('%')) {
-      css.width = width
-    } else {
-      css.width = pxToEm(width)
-    }
-  }
-
-  // Height - supports percentage or px (converted to em)
-  if (styles?.height) {
-    const height = styles.height as string
-    if (height.endsWith('%')) {
-      css.height = height
-    } else {
-      css.height = pxToEm(height)
-    }
-  }
-
-  // Aspect ratio
-  if (styles?.aspectRatio && styles.aspectRatio !== 'auto') {
-    const ratio = styles.aspectRatio as string
-    // Convert "16:9" format to CSS aspect-ratio value "16/9"
-    css.aspectRatio = ratio.replace(':', '/')
-  }
-
-  // Apply mask shape
-  const mask = styles?.mask as MaskShape | undefined
-  if (mask && mask !== 'none') {
-    css.clipPath = maskShapeClipPaths[mask]
-  }
-  return css
-}
-
-// Helper to get video-specific styles
-function getVideoStyles(): Record<string, string> {
-  const styles = props.block.styles as Record<string, unknown>
-  const css: Record<string, string> = {}
-  if (styles?.aspectRatio) {
-    const ar = styles.aspectRatio as string
-    css.aspectRatio = ar.replace(':', '/')
-  } else {
-    css.aspectRatio = '16/9'
-  }
-  // Border radius - use em, default to 0
-  if (styles?.borderRadius && styles.borderRadius !== '0') {
-    css.borderRadius = pxToEm(styles.borderRadius as string)
-    css.overflow = 'hidden'
-  }
-  // Apply mask shape
-  const mask = styles?.mask as MaskShape | undefined
-  if (mask && mask !== 'none') {
-    css.clipPath = maskShapeClipPaths[mask]
-  }
-  return css
-}
-
 </script>
 
 <template>
@@ -1624,11 +1395,11 @@ function getVideoStyles(): Record<string, string> {
     class="w-full overflow-visible"
     :class="[
       { 'relative': !wrapperStyles.position },
-      editorStore.interactionTargetSelectionMode ? 'cursor-crosshair' : 'cursor-pointer'
+      'cursor-pointer'
     ]"
     data-preview-block
     :data-block-id="block.id"
-    :style="{ ...animationStyles, ...wrapperStyles, ...interactionPreviewStyles }"
+    :style="{ ...animationStyles, ...wrapperStyles, ...combinedEffectStyles }"
     @click="handleClick"
     @contextmenu="handleContextMenu"
     @mouseenter="handleMouseEnter"
@@ -1638,8 +1409,7 @@ function getVideoStyles(): Record<string, string> {
     <!-- Hover outline - violet when in target selection mode -->
     <div
       v-if="isHovered && !isSelected"
-      class="absolute inset-0 border-1 pointer-events-none z-10"
-      :class="editorStore.interactionTargetSelectionMode ? 'border-violet-500 bg-violet-500/5' : 'border-primary/40'"
+      class="absolute inset-0 border-1 border-primary/40 pointer-events-none z-10"
     />
 
     <!-- Selection outline -->
@@ -1670,861 +1440,218 @@ function getVideoStyles(): Record<string, string> {
     <!-- ============================================ -->
     <!-- CONTAINER BLOCK -->
     <!-- ============================================ -->
-    <div
+    <ContainerBlock
       v-if="block.type === 'container'"
-      class="relative flex transition-colors "
-      :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
-      :style="{
-        ...blockStyles,
-        flexDirection: (block.styles as ContainerStyles).flexDirection || 'column',
-        justifyContent: (block.styles as ContainerStyles)?.justifyContent || 'flex-start',
-        alignItems: (block.styles as ContainerStyles)?.alignItems || 'stretch',
-        backgroundColor: containerSettings?.backgroundType && containerSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
-      }"
-      @dragenter="handleDragEnter"
-      @dragover="handleDragOver"
-      @dragleave="handleDragLeave"
+      :block="block"
+      :styles="blockStyles"
+      :is-drop-target="isDropTarget"
+      :child-drop-index="childDropIndex"
+      @drag-enter="handleDragEnter"
+      @drag-over="handleDragOver"
+      @drag-leave="handleDragLeave"
       @drop="handleDrop"
-    >
-      <!-- Background Image with effects -->
-      <div
-        v-if="containerSettings?.backgroundType === 'image' && containerSettings?.backgroundImage"
-        class="absolute inset-0 bg-cover bg-center pointer-events-none"
-        :style="{
-          backgroundImage: `url(${containerSettings.backgroundImage})`,
-          opacity: (containerSettings.backgroundImageOpacity ?? 100) / 100,
-          filter: `blur(${containerSettings.backgroundImageBlur ?? 0}px) saturate(${containerSettings.backgroundImageSaturation ?? 100}%)`,
-        }"
-      />
-      <!-- Background Video -->
-      <video
-        v-if="containerSettings?.backgroundType === 'video' && containerSettings?.backgroundVideo"
-        class="absolute inset-0 w-full h-full object-cover"
-        :src="containerSettings.backgroundVideo"
-        autoplay
-        loop
-        muted
-        playsinline
-      />
-      <template v-if="block.children && block.children.length > 0">
-        <template v-for="(child, childIndex) in block.children" :key="child.id">
-          <!-- Drop indicator before this child -->
-          <div
-            v-if="childDropIndex === childIndex"
-            class="absolute left-0 right-0 h-1 bg-primary rounded-full z-10 -translate-y-2"
-            :style="{ top: `${childIndex * 100 / block.children.length}%` }"
-          />
-          <div
-            class="relative z-10"
-            @dragover="handleChildDragOver(childIndex, $event)"
-            @dragleave="handleChildDragLeave"
-          >
-            <PreviewSection
-              :block="child"
-              :index="childIndex"
-              :total="block.children.length"
-            />
-          </div>
-        </template>
-        <!-- Drop indicator after last child -->
-        <div
-          v-if="childDropIndex === block.children.length"
-          class="h-1 bg-primary rounded-full"
-        />
-      </template>
-      <div
-        v-else
-        class="relative z-30 flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50"
-      >
-        <div class="flex items-center gap-2">
-          <button
-            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
-            @click.stop="handleAddLayoutBlock('stack')"
-          >
-            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
-              <Icon name="layout-stack" :size="20" class="text-muted-foreground" />
-            </div>
-            <span class="text-xs">Stack</span>
-          </button>
-          <button
-            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
-            @click.stop="handleAddLayoutBlock('grid')"
-          >
-            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
-              <Icon name="layout-grid" :size="20" class="text-muted-foreground" />
-            </div>
-            <span class="text-xs">Grid</span>
-          </button>
-          <button
-            class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
-            @click.stop="handleAddLayoutBlock('canvas')"
-          >
-            <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
-              <Icon name="layout-canvas" :size="20" class="text-muted-foreground" />
-            </div>
-            <span class="text-xs">Canvas</span>
-          </button>
-        </div>
-      </div>
-    </div>
+      @child-drag-over="handleChildDragOver"
+      @child-drag-leave="handleChildDragLeave"
+      @add-layout-block="handleAddLayoutBlock"
+    />
 
     <!-- ============================================ -->
     <!-- GRID BLOCK (Regular or Slider Mode) -->
     <!-- ============================================ -->
-    <!-- SLIDER MODE -->
-    <div
-      v-else-if="block.type === 'grid' && gridSettings?.isSlider"
-      class="relative "
-      :style="{
-        width: blockStyles.width,
-        marginTop: blockStyles.marginTop,
-        marginRight: blockStyles.marginRight,
-        marginBottom: blockStyles.marginBottom,
-        marginLeft: blockStyles.marginLeft,
-      }"
-    >
-      <!-- Background Image with effects -->
-      <div
-        v-if="gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage"
-        class="absolute inset-0 bg-cover bg-center pointer-events-none"
-        :style="{
-          backgroundImage: `url(${gridSettings.backgroundImage})`,
-          opacity: (gridSettings.backgroundImageOpacity ?? 100) / 100,
-          filter: `blur(${gridSettings.backgroundImageBlur ?? 0}px) saturate(${gridSettings.backgroundImageSaturation ?? 100}%)`,
-        }"
-      />
-      <!-- Background Video -->
-      <video
-        v-if="gridSettings?.backgroundType === 'video' && gridSettings?.backgroundVideo"
-        class="absolute inset-0 w-full h-full object-cover"
-        :src="gridSettings.backgroundVideo"
-        autoplay
-        loop
-        muted
-        playsinline
-      />
-      <!-- Slider container -->
-      <div
-        :ref="(el) => sliderRefs.set(block.id, el as HTMLElement)"
-        :data-block-id="block.id"
-        class="relative z-10 flex overflow-x-auto snap-x snap-mandatory scroll-smooth transition-colors scrollbar-hide"
-        :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
-        :style="{
-          ...blockStyles,
-          marginTop: undefined,
-          marginRight: undefined,
-          marginBottom: undefined,
-          marginLeft: undefined,
-          gap: (block.styles as GridStyles)?.gap || '16px',
-          backgroundColor: gridSettings?.backgroundType && gridSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor
-        }"
-        @dragenter="handleDragEnter"
-        @dragover="handleDragOver"
-        @dragleave="handleDragLeave"
-        @drop="handleDrop"
-        @mouseenter="handleSliderMouseEnter(block.id)"
-        @mouseleave="handleSliderMouseLeave(block.id)"
-      >
-        <template v-if="block.children && block.children.length > 0">
-          <div
-            v-for="(child, childIndex) in block.children"
-            :key="child.id"
-            class="relative flex-shrink-0 snap-start"
-            :style="{
-              width: `calc((100% - ${(gridSettings.slidesPerView || 1) - 1} * ${(block.styles as GridStyles)?.gap || '16px'}) / ${gridSettings.slidesPerView || 1})`,
-            }"
-            @dragover="handleChildDragOver(childIndex, $event)"
-            @dragleave="handleChildDragLeave"
-          >
-            <!-- Drop indicator (left edge for slider) -->
-            <div
-              v-if="childDropIndex === childIndex"
-              class="absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
-            />
-            <PreviewSection
-              :block="child"
-              :index="childIndex"
-              :total="block.children.length"
-            />
-            <!-- Drop indicator after last child -->
-            <div
-              v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
-              class="absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
-            />
-          </div>
-        </template>
-        <template v-else>
-          <div
-            class="flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
-          >
-            <Dropdown align="left" width="min-w-48" :close-on-click="true">
-              <template #trigger="{ toggle }">
-                <Button variant="dotted" size="sm" @click.stop="toggle">
-                  <Icon name="plus" :size="12" />
-                  Add content
-                </Button>
-              </template>
-              <div class="py-1 font-sans">
-                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
-                <DropdownItem
-                  v-for="type in blocksByCategory.content"
-                  :key="type"
-                  :icon="sectionBlockIcons[type]"
-                  @click="handleAddContentBlock(type)"
-                >
-                  {{ sectionBlockLabels[type] }}
-                </DropdownItem>
-              </div>
-            </Dropdown>
-          </div>
-        </template>
-      </div>
-
-      <!-- Slider Navigation Arrows -->
-      <template v-if="gridSettings?.showArrows && block.children && block.children.length > (gridSettings.slidesPerView || 1)">
-        <button
-          type="button"
-          class="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-sm flex items-center justify-center transition-colors"
-          @click="handleSliderPrev(block.id)"
-        >
-          <Icon name="chevron-left" class="text-lg" />
-        </button>
-        <button
-          type="button"
-          class="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-background/80 hover:bg-background border border-border shadow-sm flex items-center justify-center transition-colors"
-          @click="handleSliderNext(block.id)"
-        >
-          <Icon name="chevron-right" class="text-lg" />
-        </button>
-      </template>
-
-      <!-- Slider Dots -->
-      <div
-        v-if="gridSettings?.showDots && block.children && block.children.length > (gridSettings.slidesPerView || 1)"
-        class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2"
-      >
-        <button
-          v-for="(_, dotIndex) in Math.ceil((block.children.length - (gridSettings.slidesPerView || 1) + 1))"
-          :key="dotIndex"
-          type="button"
-          class="w-2 h-2 rounded-full transition-colors"
-          :class="getSliderCurrentIndex(block.id) === dotIndex ? 'bg-primary' : 'bg-primary/30 hover:bg-primary/50'"
-          @click="handleSliderGoTo(block.id, dotIndex)"
-        />
-      </div>
-    </div>
-
-    <!-- REGULAR GRID MODE -->
-    <div
+    <GridBlock
       v-else-if="block.type === 'grid'"
-      class="relative "
-      :style="{
-        width: blockStyles.width,
-        marginTop: blockStyles.marginTop,
-        marginRight: blockStyles.marginRight,
-        marginBottom: blockStyles.marginBottom,
-        marginLeft: blockStyles.marginLeft,
-      }"
-    >
-      <!-- Background Image with effects -->
-      <div
-        v-if="gridSettings?.backgroundType === 'image' && gridSettings?.backgroundImage"
-        class="absolute inset-0 bg-cover bg-center pointer-events-none"
-        :style="{
-          backgroundImage: `url(${gridSettings.backgroundImage})`,
-          opacity: (gridSettings.backgroundImageOpacity ?? 100) / 100,
-          filter: `blur(${gridSettings.backgroundImageBlur ?? 0}px) saturate(${gridSettings.backgroundImageSaturation ?? 100}%)`,
-        }"
-      />
-      <!-- Background Video -->
-      <video
-        v-if="gridSettings?.backgroundType === 'video' && gridSettings?.backgroundVideo"
-        class="absolute inset-0 w-full h-full object-cover"
-        :src="gridSettings.backgroundVideo"
-        autoplay
-        loop
-        muted
-        playsinline
-      />
-      <!-- Grid container -->
-      <div
-        :data-block-id="block.id"
-        class="relative z-10 grid transition-colors"
-        :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
-        :style="{
-          ...blockStyles,
-          marginTop: undefined,
-          marginRight: undefined,
-          marginBottom: undefined,
-          marginLeft: undefined,
-          gridTemplateColumns,
-          'grid-auto-rows': 'minmax(80px, auto)',
-          gap: (block.styles as GridStyles)?.gap || '16px',
-          justifyItems: (block.styles as GridStyles)?.justifyItems || 'flex-start',
-          alignItems: (block.styles as GridStyles)?.alignItems || 'flex-start',
-          backgroundColor: gridSettings?.backgroundType && gridSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor
-        }"
-        @dragenter="handleDragEnter"
-        @dragover="handleDragOver"
-        @dragleave="handleDragLeave"
-        @drop="handleDrop"
-      >
-        <template v-if="block.children && block.children.length > 0">
-          <div
-            v-for="(child, childIndex) in block.children"
-            :key="child.id"
-            class="relative min-w-0"
-            :style="getGridItemStyles(child)"
-            @dragover="handleChildDragOver(childIndex, $event)"
-            @dragleave="handleChildDragLeave"
-          >
-            <!-- Drop indicator (left edge for grid) -->
-            <div
-              v-if="childDropIndex === childIndex"
-              class="absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
-            />
-            <PreviewSection
-              :block="child"
-              :index="childIndex"
-              :total="block.children.length"
-            />
-            <!-- Drop indicator after last child -->
-            <div
-              v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
-              class="absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
-            />
-          </div>
-        </template>
-        <template v-else>
-          <div
-            class="flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
-            :style="{ gridColumn: `span ${gridSettings?.columns || 2}` }"
-          >
-            <Dropdown align="left" width="min-w-48" :close-on-click="true">
-              <template #trigger="{ toggle }">
-                <Button variant="dotted" size="sm" @click.stop="toggle">
-                  <Icon name="plus" :size="12" />
-                  Add content
-                </Button>
-              </template>
-              <div class="py-1 font-sans">
-                <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
-                <DropdownItem
-                  v-for="type in blocksByCategory.content"
-                  :key="type"
-                  :icon="sectionBlockIcons[type]"
-                  @click="handleAddContentBlock(type)"
-                >
-                  {{ sectionBlockLabels[type] }}
-                </DropdownItem>
-              </div>
-            </Dropdown>
-          </div>
-        </template>
-      </div>
-
-      <!-- Column resize handles (only when selected) -->
-      <template v-if="isSelected && (gridSettings?.columns || 2) > 1">
-        <div
-          v-for="i in ((gridSettings?.columns || 2) - 1)"
-          :key="`resize-${i}`"
-          class="absolute top-0 bottom-0 w-4 -ml-2 cursor-col-resize z-30 group flex items-center justify-center"
-          :style="{ left: getColumnResizeHandlePosition(i - 1) }"
-          @mousedown="handleColumnResizeStart(i - 1, $event)"
-        >
-          <div class="w-1 h-8 rounded-full bg-primary/0 group-hover:bg-primary/60 transition-colors"></div>
-        </div>
-      </template>
-    </div>
+      :block="block"
+      :styles="blockStyles"
+      :is-drop-target="isDropTarget"
+      :child-drop-index="childDropIndex"
+      :is-selected="isSelected"
+      @drag-enter="handleDragEnter"
+      @drag-over="handleDragOver"
+      @drag-leave="handleDragLeave"
+      @drop="handleDrop"
+      @child-drag-over="handleChildDragOver"
+      @child-drag-leave="handleChildDragLeave"
+      @add-block="handleAddContentBlock"
+    />
 
     <!-- ============================================ -->
     <!-- STACK BLOCK -->
     <!-- ============================================ -->
-    <div
+    <StackBlock
       v-else-if="block.type === 'stack'"
-      class="relative flex transition-colors"
-      :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
-      :style="{
-        ...blockStyles,
-        flexDirection: (block.styles as StackStyles)?.flexDirection || 'column',
-        justifyContent: (block.styles as StackStyles)?.justifyContent || 'flex-start',
-        alignItems: (block.styles as StackStyles)?.alignItems || 'stretch',
-        gap: (block.styles as StackStyles)?.gap || '16px',
-        backgroundColor: stackSettings?.backgroundType && stackSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
-      }"
-      @dragenter="handleDragEnter"
-      @dragover="handleDragOver"
-      @dragleave="handleDragLeave"
+      :block="block"
+      :styles="blockStyles"
+      :is-drop-target="isDropTarget"
+      :child-drop-index="childDropIndex"
+      @drag-enter="handleDragEnter"
+      @drag-over="handleDragOver"
+      @drag-leave="handleDragLeave"
       @drop="handleDrop"
-    >
-      <!-- Background Image with effects -->
-      <div
-        v-if="stackSettings?.backgroundType === 'image' && stackSettings?.backgroundImage"
-        class="absolute inset-0 bg-cover bg-center pointer-events-none"
-        :style="{
-          backgroundImage: `url(${stackSettings.backgroundImage})`,
-          opacity: (stackSettings.backgroundImageOpacity ?? 100) / 100,
-          filter: `blur(${stackSettings.backgroundImageBlur ?? 0}px) saturate(${stackSettings.backgroundImageSaturation ?? 100}%)`,
-        }"
-      />
-      <!-- Background Video -->
-      <video
-        v-if="stackSettings?.backgroundType === 'video' && stackSettings?.backgroundVideo"
-        class="absolute inset-0 w-full h-full object-cover"
-        :src="stackSettings.backgroundVideo"
-        autoplay
-        loop
-        muted
-        playsinline
-      />
-      <template v-if="block.children && block.children.length > 0">
-        <div
-          v-for="(child, childIndex) in block.children"
-          :key="child.id"
-          class="relative z-10"
-          @dragover="handleChildDragOver(childIndex, $event)"
-          @dragleave="handleChildDragLeave"
-        >
-          <!-- Drop indicator -->
-          <div
-            v-if="childDropIndex === childIndex"
-            :class="(block.styles as StackStyles)?.flexDirection === 'row'
-              ? 'absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
-              : 'absolute left-0 right-0 -top-2 h-1 bg-primary rounded-full z-10'"
-          />
-          <PreviewSection
-            :block="child"
-            :index="childIndex"
-            :total="block.children.length"
-          />
-          <!-- Drop indicator after last child -->
-          <div
-            v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
-            :class="(block.styles as StackStyles)?.flexDirection === 'row'
-              ? 'absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
-              : 'absolute left-0 right-0 -bottom-2 h-1 bg-primary rounded-full z-10'"
-          />
-        </div>
-      </template>
-      <div
-        v-else
-        class="relative z-30 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
-      >
-        <Dropdown align="left" width="min-w-48" :close-on-click="true">
-          <template #trigger="{ toggle }">
-            <Button variant="dotted" size="sm" @click.stop="toggle">
-              <Icon name="plus" :size="12" />
-              Add content
-            </Button>
-          </template>
-          <div class="py-1 font-sans">
-            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
-            <DropdownItem
-              v-for="type in blocksByCategory.content"
-              :key="type"
-              :icon="sectionBlockIcons[type]"
-              @click="handleAddContentBlock(type)"
-            >
-              {{ sectionBlockLabels[type] }}
-            </DropdownItem>
-          </div>
-        </Dropdown>
-      </div>
-    </div>
+      @child-drag-over="handleChildDragOver"
+      @child-drag-leave="handleChildDragLeave"
+      @add-block="handleAddContentBlock"
+    />
 
     <!-- ============================================ -->
     <!-- DIVIDER BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'divider'" class="flex justify-center" :style="blockStyles">
-      <div
-        v-if="dividerSettings?.style !== 'space'"
-        class="border-t"
-        :class="{ 'border-dashed': dividerSettings?.style === 'dashed', 'border-dotted': dividerSettings?.style === 'dotted' }"
-        :style="{ width: `${dividerSettings?.width || 100}%`, borderColor: dividerSettings?.color || 'currentColor', borderTopWidth: `${dividerSettings?.thickness || 1}px` }"
-      />
-      <div v-else class="h-8" :style="{ width: `${dividerSettings?.width || 100}%` }" />
-    </div>
+    <DividerBlock
+      v-else-if="block.type === 'divider'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
     <!-- ============================================ -->
     <!-- HEADING BLOCK -->
     <!-- ============================================ -->
-    <component
+    <HeadingBlock
       v-else-if="block.type === 'heading'"
-      :is="headingSettings?.level || 'h2'"
-      :ref="(el: any) => { if (block.type === 'heading') editableRef = el }"
-      class="outline-none whitespace-pre-wrap"
-      :class="[
-        !blockStyles.fontSize ? {
-          'text-6xl': headingSettings?.level === 'h1',
-          'text-5xl': headingSettings?.level === 'h2',
-          'text-4xl': headingSettings?.level === 'h3',
-          'text-3xl': headingSettings?.level === 'h4',
-          'text-2xl': headingSettings?.level === 'h5',
-          'text-xl': headingSettings?.level === 'h6',
-        } : {}
-      ]"
-      :style="blockStyles"
-      contenteditable="true"
-      spellcheck="false"
-      @blur="handleHeadingEdit($event)"
-      @keydown.escape="handleEscapeKey($event)"
-      @paste="handlePasteClean($event)"
-      @click="handleSpanClick"
-      @mouseover="handleSpanMouseOver"
-      @mouseout="handleSpanMouseOut"
-      :key="`heading-${editorStore.currentLanguage || 'default'}`"
-      v-html="displayHeadingContent || 'Heading'"
+      :ref="(el: any) => { if (el?.editableRef) editableRef = el.editableRef }"
+      :block="block"
+      :styles="blockStyles"
+      @content-change="handleHeadingContentChange"
+      @span-click="handleSpanClick"
+      @span-mouse-over="handleSpanMouseOver"
+      @span-mouse-out="handleSpanMouseOut"
     />
 
     <!-- ============================================ -->
     <!-- TEXT BLOCK -->
     <!-- ============================================ -->
-    <div
+    <TextBlock
       v-else-if="block.type === 'text'"
-      :ref="(el: any) => { if (block.type === 'text') editableRef = el }"
-      :key="`text-${editorStore.currentLanguage || 'default'}`"
-      class="prose prose-neutral max-w-none outline-none"
-      :style="blockStyles"
-      contenteditable="true"
-      spellcheck="false"
-      @blur="handleTextEdit($event)"
-      @keydown.escape="handleEscapeKey($event)"
-      @paste="handlePasteClean($event)"
-      @click="handleSpanClick"
-      @mouseover="handleSpanMouseOver"
-      @mouseout="handleSpanMouseOut"
-      v-html="displayTextContent || 'Enter your text here...'"
-    ></div>
+      :ref="(el: any) => { if (el?.editableRef) editableRef = el.editableRef }"
+      :block="block"
+      :styles="blockStyles"
+      @content-change="handleTextContentChange"
+      @span-click="handleSpanClick"
+      @span-mouse-over="handleSpanMouseOver"
+      @span-mouse-out="handleSpanMouseOut"
+    />
 
     <!-- ============================================ -->
     <!-- IMAGE BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'image'" class="flex justify-center" :style="blockStyles">
-      <img v-if="imageSettings?.src" :src="imageSettings.src" :alt="displayImageAlt || ''" class="max-w-full h-auto" :style="getImageStyles()" />
-      <div v-else class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center">
-        <Icon name="content-image" class="text-4xl text-muted-foreground" />
-      </div>
-    </div>
+    <ImageBlock
+      v-else-if="block.type === 'image'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
     <!-- ============================================ -->
     <!-- VIDEO BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'video'" class="flex justify-center" :style="blockStyles">
-      <video v-if="videoSettings?.src" :src="videoSettings.src" :autoplay="videoSettings.autoplay" :loop="videoSettings.loop" :muted="videoSettings.muted" :controls="videoSettings.controls" class="max-w-full" :style="getVideoStyles()"></video>
-      <div v-else class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center">
-        <Icon name="play" class="text-4xl text-muted-foreground" />
-      </div>
-    </div>
+    <VideoBlock
+      v-else-if="block.type === 'video'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
     <!-- ============================================ -->
-    <!-- BUTTON BLOCK (rendered as <a> wrapper with container-like styling) -->
+    <!-- BUTTON BLOCK -->
     <!-- ============================================ -->
-    <a
+    <ButtonBlock
       v-else-if="block.type === 'button'"
-      :href="buttonSettings?.url || '#'"
-      :target="buttonSettings?.newTab ? '_blank' : undefined"
-      :rel="buttonSettings?.newTab ? 'noopener noreferrer' : undefined"
-      class="inline-flex transition-colors cursor-pointer no-underline"
-      :style="{
-        ...blockStyles,
-        flexDirection: (block.styles as ButtonStyles)?.flexDirection || 'row',
-        justifyContent: (block.styles as ButtonStyles)?.justifyContent || 'center',
-        alignItems: (block.styles as ButtonStyles)?.alignItems || 'center',
-        gap: (block.styles as ButtonStyles)?.gap || '8px',
-        color: (block.styles as ButtonStyles)?.color || (block.styles as ButtonStyles)?.textColor || undefined,
-      }"
-      @click.prevent.stop
-    >
-      <span
-        :key="`button-${editorStore.currentLanguage || 'default'}`"
-        class="outline-none"
-        contenteditable="true"
-        spellcheck="false"
-        @blur="handleButtonEdit($event)"
-        @keydown.enter.prevent="($event.target as HTMLElement).blur()"
-        @keydown.escape="handleEscapeKey($event)"
-        @paste="handlePasteClean($event)"
-      >{{ displayButtonLabel || 'Click me' }}</span>
-    </a>
+      :block="block"
+      :styles="blockStyles"
+      :is-drop-target="isDropTarget"
+      :child-drop-index="childDropIndex"
+      @label-change="handleButtonLabelChange"
+      @drag-enter="handleDragEnter"
+      @drag-over="handleDragOver"
+      @drag-leave="handleDragLeave"
+      @drop="handleDrop"
+      @child-drag-over="handleChildDragOver"
+      @child-drag-leave="handleChildDragLeave"
+      @add-block="handleAddContentBlock"
+    />
 
     <!-- ============================================ -->
     <!-- ICON BLOCK -->
     <!-- ============================================ -->
-    <div v-else-if="block.type === 'icon'" class="flex justify-center" :style="blockStyles">
-      <Icon :name="iconSettings?.icon || 'star-1'" :size="iconSettings?.size || '24px'" :style="{ color: iconStyles?.color || undefined }" />
-    </div>
+    <IconBlock
+      v-else-if="block.type === 'icon'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
     <!-- ============================================ -->
-    <!-- VARIANTS BLOCK (Shopify-style) -->
+    <!-- VARIANTS BLOCK -->
     <!-- ============================================ -->
-    <div
+    <VariantsBlock
       v-else-if="block.type === 'variants'"
-      class="space-y-3"
-      :style="blockStyles"
-    >
-      <!-- Render each option type (e.g., Color, Size) -->
-      <div
-        v-for="optionType in variantsSettings?.optionTypes || []"
-        :key="optionType.id"
-        class="space-y-2"
-      >
-        <div class="text-xs font-medium text-foreground/80">{{ optionType.name }}</div>
-        <div class="flex flex-wrap" :style="{ gap: variantsStyles?.gap ? `${variantsStyles.gap}px` : '8px' }">
-          <!-- Dropdown -->
-          <template v-if="optionType.displayStyle === 'dropdown'">
-            <select
-              class="px-3 py-2 border border-input bg-background text-sm min-w-[120px]"
-              :class="{
-                'h-8 text-xs': variantsStyles?.optionSize === 'sm',
-                'h-10': variantsStyles?.optionSize === 'md' || !variantsStyles?.optionSize,
-                'h-12 text-base': variantsStyles?.optionSize === 'lg',
-              }"
-            >
-              <option v-for="val in optionType.values || []" :key="val.id" :value="val.value">
-                {{ val.value }}
-              </option>
-            </select>
-          </template>
-
-          <!-- Buttons -->
-          <template v-else-if="optionType.displayStyle === 'buttons'">
-            <button
-              v-for="(val, idx) in optionType.values || []"
-              :key="val.id"
-              type="button"
-              class="px-3 border transition-colors"
-              :class="[
-                idx === 0 ? 'border-primary bg-primary/10 text-primary' : 'border-input hover:border-primary/50',
-                {
-                  'py-1 text-xs': variantsStyles?.optionSize === 'sm',
-                  'py-2 text-sm': variantsStyles?.optionSize === 'md' || !variantsStyles?.optionSize,
-                  'py-3 text-base': variantsStyles?.optionSize === 'lg',
-                },
-              ]"
-            >
-              {{ val.value }}
-            </button>
-          </template>
-
-          <!-- Swatches -->
-          <template v-else-if="optionType.displayStyle === 'swatches'">
-            <button
-              v-for="(val, idx) in optionType.values || []"
-              :key="val.id"
-              type="button"
-              class="rounded-full border-2 transition-colors"
-              :class="[
-                idx === 0 ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-primary/50',
-                {
-                  'w-6 h-6': variantsStyles?.optionSize === 'sm',
-                  'w-8 h-8': variantsStyles?.optionSize === 'md' || !variantsStyles?.optionSize,
-                  'w-10 h-10': variantsStyles?.optionSize === 'lg',
-                },
-              ]"
-              :style="{ backgroundColor: val.colorHex || '#cccccc' }"
-              :title="val.value"
-            ></button>
-          </template>
-        </div>
-      </div>
-    </div>
+      :block="block"
+      :styles="blockStyles"
+    />
 
     <!-- ============================================ -->
     <!-- FORM BLOCK -->
-    <!-- Form now renders child blocks (form-input, form-textarea, etc.) -->
     <!-- ============================================ -->
-    <form v-else-if="block.type === 'form'" class="flex" :style="{ ...blockStyles, flexDirection: (block.styles as FormStyles)?.flexDirection || 'column', justifyContent: (block.styles as FormStyles)?.justifyContent || 'flex-start', alignItems: (block.styles as FormStyles)?.alignItems || 'stretch', gap: (block.styles as FormStyles)?.gap || '16px' }" @submit.prevent>
-      <PreviewSection
-        v-for="(child, childIndex) in block.children || []"
-        :key="child.id"
-        :block="child"
-        :index="childIndex"
-        :total="(block.children || []).length"
-      />
-      <p v-if="!block.children?.length" class="text-sm text-muted-foreground text-center py-4">
-        Add form fields using the sidebar
-      </p>
-    </form>
+    <FormBlock
+      v-else-if="block.type === 'form'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
     <!-- ============================================ -->
     <!-- FORM FIELD BLOCKS -->
-    <!-- These are rendered as children of form blocks -->
     <!-- ============================================ -->
-    <!-- Form Label -->
-    <span
+    <FormLabelBlock
       v-else-if="block.type === 'form-label'"
-      :class="[
-        formLabelStyles?.fontSize ? `text-${formLabelStyles.fontSize}` : 'text-sm',
-        formLabelStyles?.fontWeight === 'bold' ? 'font-bold' : formLabelStyles?.fontWeight === 'semibold' ? 'font-semibold' : formLabelStyles?.fontWeight === 'medium' ? 'font-medium' : 'font-normal',
-      ]"
-      :style="{
-        ...blockStyles,
-        color: formLabelStyles?.color,
-        textAlign: formLabelStyles?.textAlign,
-      }"
-    >{{ formLabelSettings?.content }}</span>
+      :block="block"
+      :styles="blockStyles"
+    />
 
-    <!-- Form Input -->
-    <div v-else-if="block.type === 'form-input'">
-      <input
-        :type="formInputSettings?.inputType || 'text'"
-        :placeholder="formInputSettings?.placeholder"
-        :required="formInputSettings?.required"
-        class="px-4 py-2 border border-input bg-background"
-        :style="blockStyles"
-      />
-    </div>
+    <FormInputBlock
+      v-else-if="block.type === 'form-input'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
-    <!-- Form Textarea -->
-    <div v-else-if="block.type === 'form-textarea'">
-      <textarea
-        :placeholder="formTextareaSettings?.placeholder"
-        :rows="formTextareaSettings?.rows || 4"
-        :required="formTextareaSettings?.required"
-        class="px-4 py-2 border border-input bg-background resize-none"
-        :style="blockStyles"
-      ></textarea>
-    </div>
+    <FormTextareaBlock
+      v-else-if="block.type === 'form-textarea'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
-    <!-- Form Select (Dropdown) -->
-    <div v-else-if="block.type === 'form-select'">
-      <select
-        :required="formSelectSettings?.required"
-        class="px-4 py-2 border border-input bg-background"
-        :style="blockStyles"
-      >
-        <option v-if="formSelectSettings?.placeholder" value="" disabled selected>{{ formSelectSettings.placeholder }}</option>
-        <option v-for="option in formSelectSettings?.options || []" :key="option.id" :value="option.value">
-          {{ option.label }}
-        </option>
-      </select>
-    </div>
+    <FormSelectBlock
+      v-else-if="block.type === 'form-select'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
-    <!-- Form Radio -->
-    <div v-else-if="block.type === 'form-radio'" :style="blockStyles">
-      <div :class="formRadioSettings?.layout === 'horizontal' ? 'flex flex-wrap gap-4' : 'flex flex-col gap-2'">
-        <label v-for="option in formRadioSettings?.options || []" :key="option.id" class="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="radio" :name="block.id" :value="option.value" :required="formRadioSettings?.required" />
-          {{ option.label }}
-        </label>
-      </div>
-    </div>
+    <FormRadioBlock
+      v-else-if="block.type === 'form-radio'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
-    <!-- Form Checkbox -->
-    <div v-else-if="block.type === 'form-checkbox'" :style="blockStyles">
-      <div :class="formCheckboxSettings?.layout === 'horizontal' ? 'flex flex-wrap gap-4' : 'flex flex-col gap-2'">
-        <label v-for="option in formCheckboxSettings?.options || []" :key="option.id" class="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="checkbox" :name="`${block.id}_${option.value}`" :value="option.value" />
-          {{ option.label }}
-        </label>
-      </div>
-    </div>
+    <FormCheckboxBlock
+      v-else-if="block.type === 'form-checkbox'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
-    <!-- Form Button -->
-    <div v-else-if="block.type === 'form-button'">
-      <button
-        type="submit"
-        :class="[
-          'px-6 py-2 font-medium transition-colors',
-          formButtonSettings?.size === 'sm' ? 'text-sm px-4 py-1.5' : formButtonSettings?.size === 'lg' ? 'text-lg px-8 py-3' : 'text-base',
-          formButtonSettings?.variant === 'secondary' ? 'bg-secondary text-secondary-foreground hover:bg-secondary/80' :
-          formButtonSettings?.variant === 'outline' ? 'border border-input bg-transparent hover:bg-accent' :
-          'bg-primary text-primary-foreground hover:bg-primary/90',
-          formButtonSettings?.fullWidth ? 'w-full' : ''
-        ]"
-        :style="blockStyles"
-      >
-        {{ formButtonSettings?.label || 'Submit' }}
-      </button>
-    </div>
+    <FormButtonBlock
+      v-else-if="block.type === 'form-button'"
+      :block="block"
+      :styles="blockStyles"
+    />
 
     <!-- ============================================ -->
     <!-- CANVAS BLOCK -->
     <!-- ============================================ -->
-    <div
+    <CanvasBlock
       v-else-if="block.type === 'canvas'"
-      :data-block-id="block.id"
-      class="relative  transition-colors"
-      :class="isDropTarget ? 'ring-2 ring-primary ring-dashed' : ''"
-      :style="{
-        ...blockStyles,
-        minHeight: blockStyles.minHeight || '400px',
-        backgroundColor: canvasSettings?.backgroundType && canvasSettings.backgroundType !== 'color' ? undefined : blockStyles.backgroundColor,
-      }"
-      @dragenter="handleDragEnter"
-      @dragover="handleDragOver"
-      @dragleave="handleDragLeave"
+      :block="block"
+      :styles="blockStyles"
+      :is-drop-target="isDropTarget"
+      @drag-enter="handleDragEnter"
+      @drag-over="handleDragOver"
+      @drag-leave="handleDragLeave"
       @drop="handleDrop"
-    >
-      <!-- Background Image with effects -->
-      <div
-        v-if="canvasSettings?.backgroundType === 'image' && canvasSettings?.backgroundImage"
-        class="absolute inset-0 bg-cover bg-center pointer-events-none"
-        :style="{
-          backgroundImage: `url(${canvasSettings.backgroundImage})`,
-          opacity: (canvasSettings.backgroundImageOpacity ?? 100) / 100,
-          filter: `blur(${canvasSettings.backgroundImageBlur ?? 0}px) saturate(${canvasSettings.backgroundImageSaturation ?? 100}%)`,
-        }"
-      />
-
-      <!-- Background Video -->
-      <video
-        v-if="canvasSettings?.backgroundType === 'video' && canvasSettings?.backgroundVideo"
-        class="absolute inset-0 w-full h-full object-cover"
-        :src="canvasSettings.backgroundVideo"
-        autoplay
-        loop
-        muted
-        playsinline
-      />
-
-      <!-- Children with absolute positioning (viewport-aware) -->
-      <template v-if="block.children && block.children.length > 0">
-        <div
-          v-for="(child, childIndex) in block.children"
-          :key="child.id"
-          class="absolute"
-          :style="{
-            left: `${getCanvasChildPos(child.id).x}%`,
-            top: `${getCanvasChildPos(child.id).y}%`,
-            width: getCanvasChildPos(child.id).width ? `${getCanvasChildPos(child.id).width}%` : 'auto',
-            zIndex: getCanvasChildPos(child.id).zIndex || childIndex + 1,
-          }"
-        >
-          <PreviewSection
-            :block="child"
-            :index="childIndex"
-            :total="(block.children || []).length"
-          />
-        </div>
-      </template>
-
-      <!-- Empty state -->
-      <div
-        v-else
-        class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground border-1 border-dashed border-border/50 m-4"
-      >
-        <Dropdown align="left" width="min-w-48" :close-on-click="true">
-          <template #trigger="{ toggle }">
-            <Button variant="dotted" size="sm" @click.stop="toggle">
-              <Icon name="plus" :size="12" />
-              Add content
-            </Button>
-          </template>
-          <div class="py-1 font-sans">
-            <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
-            <DropdownItem
-              v-for="type in blocksByCategory.content"
-              :key="type"
-              :icon="sectionBlockIcons[type]"
-              @click="handleAddContentBlock(type)"
-            >
-              {{ sectionBlockLabels[type] }}
-            </DropdownItem>
-          </div>
-        </Dropdown>
-      </div>
-    </div>
+      @add-block="handleAddContentBlock"
+    />
 
     <!-- ============================================ -->
     <!-- FALLBACK / PLACEHOLDER -->

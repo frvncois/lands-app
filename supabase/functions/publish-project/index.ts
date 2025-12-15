@@ -198,6 +198,19 @@ function buildBaseBlockCSS(styles: any): Record<string, string> {
   if (styles.flexShrink && styles.flexShrink !== '1') props.flexShrink = styles.flexShrink
   if (styles.flexBasis && styles.flexBasis !== 'auto') props.flexBasis = styles.flexBasis
 
+  // Position properties (z-index requires a positioned element)
+  const hasZIndex = styles.zIndex !== undefined && styles.zIndex !== ''
+  if (styles.position && (styles.position !== 'relative' || hasZIndex)) {
+    props.position = styles.position
+  }
+  if (hasZIndex) {
+    props.zIndex = String(styles.zIndex)
+  }
+  if (styles.top !== undefined && styles.top !== '') props.top = styles.top
+  if (styles.right !== undefined && styles.right !== '') props.right = styles.right
+  if (styles.bottom !== undefined && styles.bottom !== '') props.bottom = styles.bottom
+  if (styles.left !== undefined && styles.left !== '') props.left = styles.left
+
   return props
 }
 

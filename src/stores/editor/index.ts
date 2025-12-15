@@ -5,7 +5,6 @@ export { useSharedStyles, type UseSharedStylesOptions } from './useSharedStyles'
 export { useTranslations, type UseTranslationsOptions } from './useTranslations'
 export { useCollaboration, type UseCollaborationOptions } from './useCollaboration'
 export { useItemListOperations, type ItemListOptions } from './useItemListOperations'
-export { useInteractions, type UseInteractionsOptions } from './useInteractions'
 
 // Helpers
 export {

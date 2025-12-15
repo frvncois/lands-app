@@ -12,7 +12,6 @@ import type {
   CanvasSettings,
   CanvasChildPosition,
   SavedComponent,
-  InteractionStyles,
 } from '@/types/editor'
 import type { ProjectContent } from '@/types/project'
 import {
@@ -36,7 +35,6 @@ import {
   useTranslations,
   useCollaboration,
   useItemListOperations,
-  useInteractions,
   // Helpers
   deepClone,
   isLayoutBlockType,
@@ -65,10 +63,6 @@ export const useEditorStore = defineStore('editor', () => {
   const hoveredBlockId = ref<string | null>(null)
   const selectedSpanId = ref<string | null>(null)
   const hoveredSpanId = ref<string | null>(null)
-
-  // Interaction target selection mode - when active, clicking blocks adds them to targets
-  const interactionTargetSelectionMode = ref(false)
-  const interactionTargetSelectionCallback = ref<((blockId: string) => void) | null>(null)
 
   const isLoading = ref(false)
   const isSaving = ref(false)
@@ -188,8 +182,8 @@ export const useEditorStore = defineStore('editor', () => {
   function getParentGridColumns(blockId: string): number | null {
     const parent = findParentBlock(blockId)
     if (parent?.type === 'grid') {
-      const settings = parent.settings as { columns?: number }
-      return settings.columns || 2
+      const settings = parent.settings as { columns?: number | string }
+      return Number(settings.columns) || 2
     }
     return null
   }
@@ -333,54 +327,6 @@ export const useEditorStore = defineStore('editor', () => {
 
   function deleteSharedStyle(styleId: string) {
     const result = sharedStyles.deleteSharedStyle(styleId)
-    rebuildBlockIndex()
-    return result
-  }
-
-  // ============================================
-  // INTERACTIONS
-  // ============================================
-
-  const interactions = useInteractions({
-    pageSettings,
-    findBlockById,
-    onBeforeChange: markAsChangedWithHistory,
-    showToast,
-  })
-
-  // Wrapper functions for interactions that modify blocks
-  function createInteraction(data: Parameters<typeof interactions.createInteraction>[0]) {
-    const result = interactions.createInteraction(data)
-    rebuildBlockIndex()
-    return result
-  }
-
-  function updateInteraction(interactionId: string, updates: Parameters<typeof interactions.updateInteraction>[1]) {
-    const result = interactions.updateInteraction(interactionId, updates)
-    rebuildBlockIndex()
-    return result
-  }
-
-  function updateInteractionStyles(interactionId: string, styles: Parameters<typeof interactions.updateInteractionStyles>[1]) {
-    const result = interactions.updateInteractionStyles(interactionId, styles)
-    rebuildBlockIndex()
-    return result
-  }
-
-  function deleteInteraction(interactionId: string) {
-    const result = interactions.deleteInteraction(interactionId)
-    rebuildBlockIndex()
-    return result
-  }
-
-  function duplicateInteraction(interactionId: string) {
-    const result = interactions.duplicateInteraction(interactionId)
-    rebuildBlockIndex()
-    return result
-  }
-
-  function renameInteraction(interactionId: string, name: string) {
-    const result = interactions.renameInteraction(interactionId, name)
     rebuildBlockIndex()
     return result
   }
@@ -732,26 +678,6 @@ export const useEditorStore = defineStore('editor', () => {
 
   function hoverBlock(blockId: string | null) {
     hoveredBlockId.value = blockId
-  }
-
-  // ============================================
-  // INTERACTION TARGET SELECTION MODE
-  // ============================================
-
-  function startInteractionTargetSelection(callback: (blockId: string) => void) {
-    interactionTargetSelectionMode.value = true
-    interactionTargetSelectionCallback.value = callback
-  }
-
-  function stopInteractionTargetSelection() {
-    interactionTargetSelectionMode.value = false
-    interactionTargetSelectionCallback.value = null
-  }
-
-  function handleInteractionTargetClick(blockId: string) {
-    if (interactionTargetSelectionMode.value && interactionTargetSelectionCallback.value) {
-      interactionTargetSelectionCallback.value(blockId)
-    }
   }
 
   // ============================================
@@ -1245,127 +1171,6 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // ============================================
-  // INTERACTION PREVIEW
-  // ============================================
-
-  // Timer refs for proper cleanup (prevents race conditions)
-  const previewTimerIds = ref<{
-    startTimer: ReturnType<typeof setTimeout> | null
-    clearTimer: ReturnType<typeof setTimeout> | null
-  }>({ startTimer: null, clearTimer: null })
-
-  const previewingInteractionData = ref<{
-    targetBlockId: string
-    styles: InteractionStyles
-    fromStyles?: InteractionStyles
-    duration: string
-    easing: string
-    delay?: string
-  } | null>(null)
-
-  /**
-   * Parse duration string to milliseconds
-   * Handles: "300ms", "0.5s", "300", "0.5"
-   */
-  function parseDurationToMs(duration: string): number {
-    const trimmed = duration.trim().toLowerCase()
-    if (trimmed.endsWith('ms')) {
-      return parseFloat(trimmed.slice(0, -2))
-    }
-    if (trimmed.endsWith('s')) {
-      return parseFloat(trimmed.slice(0, -1)) * 1000
-    }
-    const num = parseFloat(trimmed)
-    if (isNaN(num)) return 300 // Default fallback
-    return num >= 10 ? num : num * 1000
-  }
-
-  /**
-   * Clear all preview timers to prevent race conditions
-   */
-  function clearPreviewTimers() {
-    if (previewTimerIds.value.startTimer) {
-      clearTimeout(previewTimerIds.value.startTimer)
-      previewTimerIds.value.startTimer = null
-    }
-    if (previewTimerIds.value.clearTimer) {
-      clearTimeout(previewTimerIds.value.clearTimer)
-      previewTimerIds.value.clearTimer = null
-    }
-  }
-
-  /**
-   * Cancel current preview (for cleanup on unmount or new preview)
-   */
-  function cancelInteractionPreview() {
-    clearPreviewTimers()
-    previewingInteractionData.value = null
-  }
-
-  function triggerInteractionPreview(interactionId: string) {
-    const interaction = interactions.getInteractionById(interactionId)
-    if (!interaction) return
-
-    // Preview on all target blocks
-    for (const targetBlockId of interaction.targetBlockIds) {
-      previewInteractionStyles(
-        targetBlockId,
-        interaction.styles,
-        interaction.duration,
-        interaction.easing,
-        interaction.delay,
-        interaction.fromStyles
-      )
-    }
-  }
-
-  /**
-   * Preview interaction with direct style data
-   * Properly handles timer cleanup to prevent race conditions
-   */
-  function previewInteractionStyles(
-    targetBlockId: string,
-    styles: InteractionStyles,
-    duration: string,
-    easing: string,
-    delay?: string,
-    fromStyles?: InteractionStyles
-  ) {
-    // Cancel any in-progress preview first
-    cancelInteractionPreview()
-
-    // Small delay for DOM reset (single frame)
-    previewTimerIds.value.startTimer = setTimeout(() => {
-      previewingInteractionData.value = {
-        targetBlockId,
-        styles,
-        fromStyles,
-        duration,
-        easing,
-        delay,
-      }
-
-      // Calculate total time with proper duration parsing
-      const durationMs = parseDurationToMs(duration || '300ms')
-      const delayMs = delay ? parseDurationToMs(delay) : 0
-      const totalTime = durationMs + delayMs + 100 // buffer for completion
-
-      // Auto-clear after animation completes
-      previewTimerIds.value.clearTimer = setTimeout(() => {
-        previewingInteractionData.value = null
-      }, totalTime)
-    }, 16) // Single frame delay
-  }
-
-  function getPreviewingInteractionData() {
-    return previewingInteractionData.value
-  }
-
-  function isInteractionPreviewing(blockId: string): boolean {
-    return previewingInteractionData.value?.targetBlockId === blockId
-  }
-
-  // ============================================
   // RETURN
   // ============================================
 
@@ -1408,20 +1213,6 @@ export const useEditorStore = defineStore('editor', () => {
     // Panel actions
     toggleSidebar,
     toggleInspector,
-    // Interaction actions
-    getInteractions: interactions.getInteractions,
-    getInteractionsForBlock: interactions.getInteractionsForBlock,
-    getInteractionsTargetingBlock: interactions.getInteractionsTargetingBlock,
-    getInteractionById: interactions.getInteractionById,
-    createInteraction,
-    updateInteraction,
-    updateInteractionStyles,
-    deleteInteraction,
-    duplicateInteraction,
-    renameInteraction,
-    blockHasInteractions: interactions.blockHasInteractions,
-    getInteractionCount: interactions.getInteractionCount,
-    cleanupBlockInteractions: interactions.cleanupBlockInteractions,
     // Auto-save actions
     cancelAutoSave,
     // Collaboration
@@ -1466,11 +1257,6 @@ export const useEditorStore = defineStore('editor', () => {
     moveBlockDown,
     selectBlock,
     hoverBlock,
-    // Interaction target selection mode
-    interactionTargetSelectionMode,
-    startInteractionTargetSelection,
-    stopInteractionTargetSelection,
-    handleInteractionTargetClick,
     // Components
     components,
     createComponent,
@@ -1518,12 +1304,5 @@ export const useEditorStore = defineStore('editor', () => {
     animationPreviewBlockId,
     triggerAnimationPreview,
     isAnimationPreviewing,
-    // Interaction preview
-    previewingInteractionData,
-    triggerInteractionPreview,
-    previewInteractionStyles,
-    cancelInteractionPreview,
-    getPreviewingInteractionData,
-    isInteractionPreviewing,
   }
 })
