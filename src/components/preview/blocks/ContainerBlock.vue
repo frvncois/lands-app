@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
-import type { SectionBlock, ContainerSettings, ContainerStyles } from '@/types/editor'
+import type { SectionBlock, SectionBlockType, ContainerSettings, ContainerStyles } from '@/types/editor'
 import { BackgroundMedia } from './index'
-import Icon from '@/components/ui/Icon.vue'
+import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 
 // Use async component to avoid circular dependency
 const PreviewSection = defineAsyncComponent(() => import('../PreviewSection.vue'))
@@ -24,22 +24,66 @@ const emit = defineEmits<{
   drop: [event: DragEvent]
   childDragOver: [index: number, event: DragEvent]
   childDragLeave: []
-  addLayoutBlock: [type: 'stack' | 'grid' | 'canvas']
+  addBlock: [type: SectionBlockType]
 }>()
 
 const settings = computed(() => props.block.settings as ContainerSettings)
 const containerStyles = computed(() => props.block.styles as ContainerStyles)
+
+// Dynamic HTML tag (defaults to 'section' for container)
+const htmlTag = computed(() => settings.value?.htmlTag || 'section')
+
+// Check if child has absolute or fixed positioning
+function isChildAbsoluteOrFixed(child: SectionBlock): boolean {
+  const childStyles = child.styles as Record<string, unknown>
+  const position = childStyles?.position as string
+  return position === 'absolute' || position === 'fixed'
+}
+
+// Get flex styles for a child block based on its flexMode and flexValue
+function getChildFlexStyles(child: SectionBlock): Record<string, string> {
+  // Absolute/fixed positioned elements don't participate in flex layout
+  if (isChildAbsoluteOrFixed(child)) {
+    return {}
+  }
+
+  const childSettings = child.settings as Record<string, unknown>
+  const flexMode = childSettings.flexMode as string || 'auto'
+  const flexValue = childSettings.flexValue as string || '1'
+
+  const styles: Record<string, string> = {}
+
+  switch (flexMode) {
+    case 'grow':
+      styles.flexGrow = flexValue
+      styles.flexShrink = '0'
+      styles.flexBasis = '0%'
+      break
+    case 'shrink':
+      styles.flexGrow = '0'
+      styles.flexShrink = flexValue
+      styles.flexBasis = 'auto'
+      break
+    case 'auto':
+    default:
+      styles.flex = '0 0 auto'
+      break
+  }
+
+  return styles
+}
 </script>
 
 <template>
-  <div
-    class="relative flex transition-colors"
+  <component
+    :is="htmlTag"
+    class="relative flex flex-1 min-h-0 transition-colors"
     :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
     :style="{
       ...styles,
-      flexDirection: containerStyles?.flexDirection || 'column',
-      justifyContent: containerStyles?.justifyContent || 'flex-start',
-      alignItems: containerStyles?.alignItems || 'stretch',
+      flexDirection: containerStyles?.flexDirection || styles.flexDirection || 'column',
+      justifyContent: containerStyles?.justifyContent || styles.justifyContent || 'flex-start',
+      alignItems: containerStyles?.alignItems || styles.alignItems || 'stretch',
       backgroundColor: settings?.backgroundType && settings.backgroundType !== 'color' ? undefined : styles.backgroundColor,
     }"
     @dragenter="emit('dragEnter', $event)"
@@ -55,6 +99,8 @@ const containerStyles = computed(() => props.block.styles as ContainerStyles)
       :image-opacity="settings?.backgroundImageOpacity"
       :image-blur="settings?.backgroundImageBlur"
       :image-saturation="settings?.backgroundImageSaturation"
+      :image-overlay="settings?.backgroundImageOverlay"
+      :image-overlay-opacity="settings?.backgroundImageOverlayOpacity"
     />
 
     <!-- Children -->
@@ -67,7 +113,9 @@ const containerStyles = computed(() => props.block.styles as ContainerStyles)
           :style="{ top: `${childIndex * 100 / block.children.length}%` }"
         />
         <div
-          class="relative z-10"
+          class="z-10 flex flex-col min-h-0"
+          :class="{ 'relative': !isChildAbsoluteOrFixed(child) }"
+          :style="getChildFlexStyles(child)"
           @dragover="emit('childDragOver', childIndex, $event)"
           @dragleave="emit('childDragLeave')"
         >
@@ -85,40 +133,16 @@ const containerStyles = computed(() => props.block.styles as ContainerStyles)
       />
     </template>
 
-    <!-- Empty State with Layout Options -->
+    <!-- Empty State -->
     <div
       v-else
       class="relative z-30 flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground border-1 border-dashed border-border/50"
     >
-      <div class="flex items-center gap-2">
-        <button
-          class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
-          @click.stop="emit('addLayoutBlock', 'stack')"
-        >
-          <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
-            <Icon name="layout-stack" :size="20" class="text-muted-foreground" />
-          </div>
-          <span class="text-xs">Stack</span>
-        </button>
-        <button
-          class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
-          @click.stop="emit('addLayoutBlock', 'grid')"
-        >
-          <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
-            <Icon name="layout-grid" :size="20" class="text-muted-foreground" />
-          </div>
-          <span class="text-xs">Grid</span>
-        </button>
-        <button
-          class="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-accent/50 transition-colors"
-          @click.stop="emit('addLayoutBlock', 'canvas')"
-        >
-          <div class="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
-            <Icon name="layout-canvas" :size="20" class="text-muted-foreground" />
-          </div>
-          <span class="text-xs">Canvas</span>
-        </button>
-      </div>
+      <SidebarBlockPicker
+        mode="nested"
+        trigger-label="Add content"
+        @select="(type: string) => emit('addBlock', type as SectionBlockType)"
+      />
     </div>
-  </div>
+  </component>
 </template>

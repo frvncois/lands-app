@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase, refreshSession } from '@/lib/supabase'
+import { supabase, ensureHealthy } from '@/lib/supabase'
 import type { Json } from '@/lib/supabase/types'
 import type { Project, ProjectIntegration, IntegrationProvider, ProjectContent, Collaborator, CollaboratorInvite, CollaboratorRole } from '@/types/project'
 import { getDefaultPageSettings } from '@/lib/editor-utils'
@@ -92,7 +92,7 @@ export const useProjectsStore = defineStore('projects', () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('projects')
-        .select('*')
+        .select('id, user_id, title, slug, description, thumbnail_url, is_published, published_url, custom_domain, plan, created_at, updated_at')
         .order('updated_at', { ascending: false })
 
       if (fetchError) throw fetchError
@@ -120,12 +120,12 @@ export const useProjectsStore = defineStore('projects', () => {
     if (!session) {
       console.error('createProject: No active session')
 
-      // Try to refresh session
+      // Try to recover connection
       if (retryCount < MAX_RETRIES) {
-        console.log('Attempting to refresh session...')
-        const refreshed = await refreshSession()
-        if (refreshed) {
-          console.log('Session refreshed, retrying create...')
+        console.log('Attempting to recover connection...')
+        const recovered = await ensureHealthy()
+        if (recovered) {
+          console.log('Connection recovered, retrying create...')
           return createProject(title, layout, customSlug, retryCount + 1)
         }
       }
@@ -177,10 +177,10 @@ export const useProjectsStore = defineStore('projects', () => {
           insertError.message?.includes('expired')
 
         if (isAuthError && retryCount < MAX_RETRIES) {
-          console.log('Auth error during create, attempting session refresh...')
-          const refreshed = await refreshSession()
-          if (refreshed) {
-            console.log('Session refreshed, retrying create...')
+          console.log('Auth error during create, attempting connection recovery...')
+          const recovered = await ensureHealthy()
+          if (recovered) {
+            console.log('Connection recovered, retrying create...')
             return createProject(title, layout, customSlug, retryCount + 1)
           }
         }
@@ -346,11 +346,11 @@ export const useProjectsStore = defineStore('projects', () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('project_content')
-        .select('*')
+        .select('project_id, blocks, page_settings')
         .eq('project_id', projectId)
-        .single()
+        .maybeSingle()
 
-      if (fetchError && fetchError.code !== 'PGRST116') throw fetchError
+      if (fetchError) throw fetchError
 
       if (data) {
         // Extract translations and components from page_settings (they're stored embedded)
@@ -388,12 +388,12 @@ export const useProjectsStore = defineStore('projects', () => {
     if (!session) {
       console.error('saveProjectContent: No active session')
 
-      // Try to refresh session
+      // Try to recover connection
       if (retryCount < MAX_RETRIES) {
-        console.log('Attempting to refresh session...')
-        const refreshed = await refreshSession()
-        if (refreshed) {
-          console.log('Session refreshed, retrying save...')
+        console.log('Attempting to recover connection...')
+        const recovered = await ensureHealthy()
+        if (recovered) {
+          console.log('Connection recovered, retrying save...')
           return saveProjectContent(projectId, content, retryCount + 1)
         }
       }
@@ -449,9 +449,9 @@ export const useProjectsStore = defineStore('projects', () => {
           upsertError.message?.includes('expired')
 
         if (isAuthError && retryCount < MAX_RETRIES) {
-          console.log('Auth error during save, attempting session refresh...')
-          const refreshed = await refreshSession()
-          if (refreshed) {
+          console.log('Auth error during save, attempting connection recovery...')
+          const recovered = await ensureHealthy()
+          if (recovered) {
             // Restore state before retry
             if (previousContent) {
               projectContents.value.set(projectId, previousContent)
@@ -459,7 +459,7 @@ export const useProjectsStore = defineStore('projects', () => {
             if (previousProject && projectIndex !== -1) {
               projects.value[projectIndex] = previousProject
             }
-            console.log('Session refreshed, retrying save...')
+            console.log('Connection recovered, retrying save...')
             return saveProjectContent(projectId, content, retryCount + 1)
           }
         }
@@ -553,7 +553,7 @@ export const useProjectsStore = defineStore('projects', () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('project_integrations')
-        .select('*')
+        .select('id, project_id, provider, config, is_connected, created_at, updated_at')
         .eq('project_id', projectId)
 
       if (fetchError) throw fetchError
@@ -678,7 +678,7 @@ export const useProjectsStore = defineStore('projects', () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('collaborators')
-        .select('*')
+        .select('id, project_id, user_id, email, name, avatar_url, role, joined_at')
         .eq('project_id', projectId)
 
       if (fetchError) throw fetchError

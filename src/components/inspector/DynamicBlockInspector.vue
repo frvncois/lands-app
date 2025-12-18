@@ -8,8 +8,10 @@ import {
   type BackgroundSectionConfig,
   type ShadowSectionConfig,
   type ToggleGroupConfig,
+  type InlineGroupConfig,
 } from './inspector-config'
 import type { SectionBlockType } from '@/types/editor'
+import { getAllDescendants } from '@/lib/editor-utils'
 
 import InspectorSection from './InspectorSection.vue'
 import InspectorField from './InspectorField.vue'
@@ -28,6 +30,7 @@ import {
   DisplaySection,
   StylesSection,
   EffectsSection,
+  DebugSection,
 } from './sections'
 
 const {
@@ -36,6 +39,9 @@ const {
   responsiveStyles,
   updateBlockSettings,
   updateBlockStyles,
+  isChildOfGrid,
+  parentGridColumns,
+  isInFlexContainer,
   editorStore,
 } = useBlockInspector()
 
@@ -50,6 +56,9 @@ const config = computed(() => {
 // Get settings and styles with proper typing for template access
 const settings = computed(() => selectedBlock.value?.settings || {})
 const styles = computed(() => effectiveBlockStyles.value as Record<string, string | undefined> || {})
+
+// Get ALL descendants (nested children) for effects targeting
+const allDescendants = computed(() => getAllDescendants(selectedBlock.value))
 
 // Translation-aware content getter
 function getTranslatableValue(key: string): string {
@@ -145,8 +154,12 @@ function isShadowSection(section: ContentSectionConfig | BackgroundSectionConfig
   return 'type' in section && section.type === 'shadow'
 }
 
-function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleGroupConfig {
+function isToggleGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfig): field is ToggleGroupConfig {
   return 'type' in field && field.type === 'toggle-group'
+}
+
+function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfig): field is InlineGroupConfig {
+  return 'type' in field && field.type === 'inline-group'
 }
 </script>
 
@@ -304,6 +317,31 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
             />
           </div>
 
+          <!-- Inline group - multiple fields on one line -->
+          <InspectorField v-else-if="isInlineGroup(field)" :label="field.label">
+            <div class="flex items-center gap-2">
+              <template v-for="(inlineField, inlineIndex) in field.fields" :key="inlineIndex">
+                <!-- Text input (flex-1 to take remaining space) -->
+                <div v-if="inlineField.type === 'text'" class="flex-1 min-w-0">
+                  <TextInput
+                    :model-value="inlineField.translatable ? getTranslatableValue(inlineField.key) : getFieldValue(inlineField) as string"
+                    :placeholder="inlineField.placeholder"
+                    @update:model-value="updateFieldValue(inlineField, $event)"
+                  />
+                </div>
+                <!-- Select input (constrained width) -->
+                <div v-else-if="inlineField.type === 'select'" class="w-16 shrink-0">
+                  <SelectInput
+                    :model-value="getFieldValue(inlineField) as string"
+                    :options="inlineField.props?.options || []"
+                    compact
+                    @update:model-value="updateFieldValue(inlineField, $event)"
+                  />
+                </div>
+              </template>
+            </div>
+          </InspectorField>
+
           <!-- Regular field with condition check -->
           <template v-else-if="checkCondition(field as FieldConfig)">
             <!-- Toggle field (no InspectorField wrapper) -->
@@ -416,9 +454,18 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
         :gap="styles.gap"
         :columns="(settings as Record<string, unknown>).columns as number | undefined"
         :rows="(settings as Record<string, unknown>).rows as number | undefined"
+        :column-span="(settings as Record<string, unknown>).gridColumnSpan as number | undefined"
+        :row-span="(settings as Record<string, unknown>).gridRowSpan as number | undefined"
+        :max-columns="parentGridColumns || 12"
+        :flex-mode="(settings as Record<string, unknown>).flexMode as string | undefined"
+        :flex-value="(settings as Record<string, unknown>).flexValue as string | undefined"
         :hide-direction="selectedBlock?.type === 'grid'"
-        :hide-layout="!['container', 'stack', 'grid', 'canvas', 'button', 'form'].includes(selectedBlock?.type || '')"
+        :hide-layout="!['container', 'stack', 'grid', 'canvas', 'button'].includes(selectedBlock?.type || '')"
         :is-grid="selectedBlock?.type === 'grid'"
+        :is-grid-child="isChildOfGrid"
+        :is-flex-child="isInFlexContainer"
+        :block-type="selectedBlock?.type"
+        :html-tag="(settings as Record<string, unknown>).htmlTag as string | undefined"
         @update:width="updateBlockStyles({ width: $event })"
         @update:height="updateBlockStyles({ height: $event })"
         @update:direction="updateBlockStyles({ flexDirection: $event })"
@@ -427,6 +474,11 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
         @update:gap="updateBlockStyles({ gap: $event })"
         @update:columns="updateBlockSettings({ columns: $event })"
         @update:rows="updateBlockSettings({ rows: $event })"
+        @update:column-span="updateBlockSettings({ gridColumnSpan: $event })"
+        @update:row-span="updateBlockSettings({ gridRowSpan: $event })"
+        @update:flex-mode="updateBlockSettings({ flexMode: $event })"
+        @update:flex-value="updateBlockSettings({ flexValue: $event })"
+        @update:html-tag="updateBlockSettings({ htmlTag: $event })"
       />
 
       <!-- Typography Section -->
@@ -469,20 +521,32 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
         :background-image-opacity="(settings as Record<string, unknown>).backgroundImageOpacity as number | undefined"
         :background-image-blur="(settings as Record<string, unknown>).backgroundImageBlur as number | undefined"
         :background-image-saturation="(settings as Record<string, unknown>).backgroundImageSaturation as number | undefined"
+        :background-image-overlay="(settings as Record<string, unknown>).backgroundImageOverlay as string | undefined"
+        :background-image-overlay-opacity="(settings as Record<string, unknown>).backgroundImageOverlayOpacity as number | undefined"
         :shadow="responsiveStyles.shadow"
         :border-radius="responsiveStyles.borderRadius"
         :border="responsiveStyles.border"
         :overflow="responsiveStyles.overflow"
         :opacity="responsiveStyles.opacity"
+        :blur="responsiveStyles.blur"
         :aspect-ratio="styles.aspectRatio as any"
         :object-fit="styles.objectFit as any"
         :mask="styles.mask as any"
+        :brightness="styles.brightness as number | undefined"
+        :contrast="styles.contrast as number | undefined"
+        :saturation="styles.saturation as number | undefined"
+        :hue="styles.hue as number | undefined"
+        :grayscale="styles.grayscale as number | undefined"
         :translate-x="responsiveStyles.translateX"
         :translate-y="responsiveStyles.translateY"
         :rotate="responsiveStyles.rotate"
         :scale="responsiveStyles.scale"
         :z-index="responsiveStyles.zIndex"
         :position="responsiveStyles.position"
+        :top="responsiveStyles.top"
+        :right="responsiveStyles.right"
+        :bottom="responsiveStyles.bottom"
+        :left="responsiveStyles.left"
         :hide-background="selectedBlock?.type === 'image'"
         :show-image-options="selectedBlock?.type === 'image'"
         @update:margin="updateBlockStyles({ margin: $event })"
@@ -495,29 +559,44 @@ function isToggleGroup(field: FieldConfig | ToggleGroupConfig): field is ToggleG
         @update:background-image-opacity="updateBlockSettings({ backgroundImageOpacity: $event })"
         @update:background-image-blur="updateBlockSettings({ backgroundImageBlur: $event })"
         @update:background-image-saturation="updateBlockSettings({ backgroundImageSaturation: $event })"
+        @update:background-image-overlay="updateBlockSettings({ backgroundImageOverlay: $event })"
+        @update:background-image-overlay-opacity="updateBlockSettings({ backgroundImageOverlayOpacity: $event })"
         @update:shadow="updateBlockStyles({ shadow: $event })"
         @update:border-radius="updateBlockStyles({ borderRadius: $event })"
         @update:border="updateBlockStyles({ border: $event })"
         @update:overflow="updateBlockStyles({ overflow: $event })"
         @update:opacity="updateBlockStyles({ opacity: $event })"
+        @update:blur="updateBlockStyles({ blur: $event })"
         @update:aspect-ratio="updateBlockStyles({ aspectRatio: $event })"
         @update:object-fit="updateBlockStyles({ objectFit: $event })"
         @update:mask="updateBlockStyles({ mask: $event })"
+        @update:brightness="updateBlockStyles({ brightness: $event })"
+        @update:contrast="updateBlockStyles({ contrast: $event })"
+        @update:saturation="updateBlockStyles({ saturation: $event })"
+        @update:hue="updateBlockStyles({ hue: $event })"
+        @update:grayscale="updateBlockStyles({ grayscale: $event })"
         @update:translate-x="updateBlockStyles({ translateX: $event })"
         @update:translate-y="updateBlockStyles({ translateY: $event })"
         @update:rotate="updateBlockStyles({ rotate: $event })"
         @update:scale="updateBlockStyles({ scale: $event })"
         @update:z-index="updateBlockStyles({ zIndex: $event })"
         @update:position="updateBlockStyles({ position: $event })"
+        @update:top="updateBlockStyles({ top: $event })"
+        @update:right="updateBlockStyles({ right: $event })"
+        @update:bottom="updateBlockStyles({ bottom: $event })"
+        @update:left="updateBlockStyles({ left: $event })"
       />
 
       <!-- Effects Section -->
       <EffectsSection
         v-else-if="section === 'effects'"
         :effects="(effectiveBlockStyles as Record<string, unknown>).effects as any"
-        :children="selectedBlock?.children"
+        :descendants="allDescendants"
         @update:effects="updateBlockStyles({ effects: $event })"
       />
     </template>
+
+    <!-- Debug Section (always shown at bottom) -->
+    <DebugSection :block="selectedBlock" />
   </div>
 </template>

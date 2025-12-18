@@ -87,7 +87,6 @@ export type Database = {
           project_id: string
           blocks: Json
           page_settings: Json
-          translations: Json | null
           created_at: string
           updated_at: string
         }
@@ -96,7 +95,6 @@ export type Database = {
           project_id: string
           blocks?: Json
           page_settings?: Json
-          translations?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -105,7 +103,6 @@ export type Database = {
           project_id?: string
           blocks?: Json
           page_settings?: Json
-          translations?: Json | null
           created_at?: string
           updated_at?: string
         }

@@ -33,9 +33,6 @@ import { hasInspectorConfig, usesCustomInspector } from '@/components/inspector/
 // Custom block inspectors (only for blocks with complex logic that can't be config-driven)
 const customBlockInspectorMap: Partial<Record<SectionBlockType, Component>> = {
   variants: defineAsyncComponent(() => import('@/components/inspector/blocks/VariantsInspector.vue')),
-  'form-select': defineAsyncComponent(() => import('@/components/inspector/blocks/FormSelectInspector.vue')),
-  'form-radio': defineAsyncComponent(() => import('@/components/inspector/blocks/FormRadioInspector.vue')),
-  'form-checkbox': defineAsyncComponent(() => import('@/components/inspector/blocks/FormCheckboxInspector.vue')),
 }
 
 import ProjectFont from '@/components/modal/ProjectFont.vue'

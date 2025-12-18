@@ -13,166 +13,110 @@ const emit = defineEmits<{
   'update:padding': [value: Spacing]
 }>()
 
-type Side = 'top' | 'right' | 'bottom' | 'left'
-type BoxType = 'margin' | 'padding'
+// Lock state for syncing all sides
+const paddingLocked = ref(false)
+const marginLocked = ref(false)
 
-const sides: Side[] = ['top', 'right', 'bottom', 'left']
+// Unit dropdown state
+const openDropdown = ref<string | null>(null)
 
-// Unit selection
-const selectedUnit = ref('px')
-const isUnitDropdownOpen = ref(false)
-const dropdownRef = ref<HTMLElement | null>(null)
+const units = ['px', '%', 'em', 'rem', 'vh', 'vw']
 
-const units = [
-  { value: 'px', label: 'px' },
-  { value: '%', label: '%' },
-  { value: 'em', label: 'em' },
-  { value: 'rem', label: 'rem' },
-  { value: 'vh', label: 'vh' },
-  { value: 'vw', label: 'vw' },
-]
-
-// Editing state
-const editingField = ref<string | null>(null)
-const editValue = ref('')
-
-function parseValue(val: string | undefined): { num: number; unit: string; isAuto: boolean } {
-  if (!val) return { num: 0, unit: 'px', isAuto: false }
-  if (val.toLowerCase() === 'auto') return { num: 0, unit: 'auto', isAuto: true }
-  const match = val.match(/^(-?\d*\.?\d*)(px|%|em|rem|vh|vw|svh|svw|ch)?$/i)
+function parseValue(val: string | undefined): { num: string; unit: string } {
+  if (!val) return { num: '', unit: 'px' }
+  if (val.toLowerCase() === 'auto') return { num: 'auto', unit: '' }
+  const match = val.match(/^(-?\d*\.?\d*)(px|%|em|rem|vh|vw)?$/i)
   if (match) {
     return {
-      num: parseFloat(match[1] || '0') || 0,
-      unit: match[2]?.toLowerCase() || 'px',
-      isAuto: false
+      num: match[1] || '',
+      unit: match[2]?.toLowerCase() || 'px'
     }
   }
-  return { num: parseFloat(val) || 0, unit: 'px', isAuto: false }
+  return { num: val, unit: 'px' }
 }
 
-function getRawValue(type: BoxType, side: Side): string {
+function getNumericValue(type: 'margin' | 'padding', side: keyof Spacing): string {
   const spacing = type === 'margin' ? props.margin : props.padding
-  return spacing?.[side] || ''
-}
-
-function getNumericValue(type: BoxType, side: Side): number {
-  const raw = getRawValue(type, side)
+  const raw = spacing?.[side] || ''
   return parseValue(raw).num
 }
 
-function isAutoValue(type: BoxType, side: Side): boolean {
-  const raw = getRawValue(type, side)
-  return parseValue(raw).isAuto
-}
-
-function getDisplayValue(type: BoxType, side: Side): string {
-  const raw = getRawValue(type, side)
-  if (!raw) return '0'
-  const { num, unit, isAuto } = parseValue(raw)
-  if (isAuto) return 'auto'
-  // Show unit suffix only if not px
-  return unit === 'px' ? String(num) : `${num}${unit}`
-}
-
-function updateValueRaw(type: BoxType, side: Side, value: string) {
+function getUnit(type: 'margin' | 'padding', side: keyof Spacing): string {
   const spacing = type === 'margin' ? props.margin : props.padding
-  const updated = { ...spacing, [side]: value }
-  if (type === 'margin') {
-    emit('update:margin', updated)
-  } else {
-    emit('update:padding', updated)
-  }
+  const raw = spacing?.[side] || ''
+  const { unit } = parseValue(raw)
+  return unit || 'px'
 }
 
-function updateValue(type: BoxType, side: Side, value: number) {
-  updateValueRaw(type, side, `${value}${selectedUnit.value}`)
-}
-
-function updateAllSides(type: BoxType, value: number) {
+function updateValue(type: 'margin' | 'padding', side: keyof Spacing, value: string, unit?: string) {
   const spacing = type === 'margin' ? props.margin : props.padding
-  const unit = selectedUnit.value
-  const updated = {
-    ...spacing,
-    top: `${value}${unit}`,
-    right: `${value}${unit}`,
-    bottom: `${value}${unit}`,
-    left: `${value}${unit}`,
-  }
-  if (type === 'margin') {
-    emit('update:margin', updated)
+  const locked = type === 'margin' ? marginLocked.value : paddingLocked.value
+  const currentUnit = unit ?? getUnit(type, side)
+
+  // Format the value with unit
+  let formattedValue: string
+  if (value === 'auto') {
+    formattedValue = 'auto'
+  } else if (value === '' || value === '0') {
+    formattedValue = ''
   } else {
-    emit('update:padding', updated)
+    // Only append unit if value is numeric
+    const numericValue = value.replace(/[^\d.-]/g, '')
+    formattedValue = numericValue ? `${numericValue}${currentUnit}` : ''
   }
-}
 
-function startEdit(type: BoxType, side: Side) {
-  const raw = getRawValue(type, side)
-  if (raw.toLowerCase() === 'auto') {
-    editValue.value = 'auto'
+  if (locked && formattedValue !== '') {
+    // Apply to all sides
+    const updated: Spacing = {
+      top: formattedValue,
+      right: formattedValue,
+      bottom: formattedValue,
+      left: formattedValue,
+    }
+    if (type === 'margin') {
+      emit('update:margin', updated)
+    } else {
+      emit('update:padding', updated)
+    }
   } else {
-    editValue.value = String(getNumericValue(type, side))
-  }
-  editingField.value = `${type}-${side}`
-}
-
-function commitEdit(type: BoxType, side: Side) {
-  const val = editValue.value.trim().toLowerCase()
-  if (val === 'auto' && type === 'margin') {
-    updateValueRaw(type, side, 'auto')
-  } else {
-    updateValue(type, side, parseFloat(editValue.value) || 0)
-  }
-  editingField.value = null
-}
-
-function handleKeydown(e: KeyboardEvent, type: BoxType, side: Side) {
-  if (e.key === 'Enter') commitEdit(type, side)
-  else if (e.key === 'Escape') editingField.value = null
-}
-
-// Drag to adjust
-const dragState = ref<{ type: BoxType; side: Side; startVal: number; startPos: number } | null>(null)
-
-function startDrag(e: MouseEvent, type: BoxType, side: Side) {
-  if (editingField.value) return
-  e.preventDefault()
-  const isVertical = side === 'top' || side === 'bottom'
-  dragState.value = {
-    type,
-    side,
-    startVal: getNumericValue(type, side),
-    startPos: isVertical ? e.clientY : e.clientX,
-  }
-  document.addEventListener('mousemove', onDrag)
-  document.addEventListener('mouseup', stopDrag)
-}
-
-function onDrag(e: MouseEvent) {
-  if (!dragState.value) return
-  const { type, side, startVal, startPos } = dragState.value
-  const isVertical = side === 'top' || side === 'bottom'
-  const currentPos = isVertical ? e.clientY : e.clientX
-  const delta = Math.round((isVertical ? startPos - currentPos : currentPos - startPos) / 2)
-  const min = type === 'margin' ? -200 : 0
-  const newValue = Math.max(min, Math.min(200, startVal + delta))
-
-  // If SHIFT is held, apply to all 4 sides
-  if (e.shiftKey) {
-    updateAllSides(type, newValue)
-  } else {
-    updateValue(type, side, newValue)
+    // Apply to single side - ensure we have a valid object to spread
+    const currentSpacing: Spacing = spacing || {}
+    const updated: Spacing = { ...currentSpacing, [side]: formattedValue }
+    if (type === 'margin') {
+      emit('update:margin', updated)
+    } else {
+      emit('update:padding', updated)
+    }
   }
 }
 
-function stopDrag() {
-  dragState.value = null
-  document.removeEventListener('mousemove', onDrag)
-  document.removeEventListener('mouseup', stopDrag)
+function updateUnit(type: 'margin' | 'padding', side: keyof Spacing, newUnit: string) {
+  const currentValue = getNumericValue(type, side)
+  if (currentValue && currentValue !== 'auto') {
+    updateValue(type, side, currentValue, newUnit)
+  }
+  openDropdown.value = null
+}
+
+function handleKeydown(event: KeyboardEvent, type: 'margin' | 'padding', side: keyof Spacing) {
+  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+    event.preventDefault()
+    const currentValue = getNumericValue(type, side)
+    const numValue = parseFloat(currentValue) || 0
+    const step = event.shiftKey ? 10 : 1
+    const newValue = event.key === 'ArrowUp' ? numValue + step : numValue - step
+    updateValue(type, side, String(newValue))
+  }
+}
+
+function toggleDropdown(key: string) {
+  openDropdown.value = openDropdown.value === key ? null : key
 }
 
 function handleClickOutside(event: MouseEvent) {
-  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
-    isUnitDropdownOpen.value = false
+  const target = event.target as HTMLElement
+  if (!target.closest('.unit-dropdown')) {
+    openDropdown.value = null
   }
 }
 
@@ -186,141 +130,359 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="space-y-3">
-    <!-- Unit Selector Header -->
-    <div ref="dropdownRef" class="relative flex items-center justify-between">
-      <span class="text-xs text-sidebar-foreground/70">Unit</span>
-      <button
-        type="button"
-        class="flex items-center gap-1 px-2 py-1 text-xs bg-sidebar-accent border border-sidebar-border rounded text-sidebar-foreground hover:bg-sidebar-accent/75 transition-colors"
-        @click="isUnitDropdownOpen = !isUnitDropdownOpen"
-      >
-        <span class="font-medium">{{ selectedUnit }}</span>
-        <Icon
-          name="chevron-down"
-          :size="10"
-          class="text-sidebar-foreground/50 transition-transform"
-          :class="{ 'rotate-180': isUnitDropdownOpen }"
-        />
-      </button>
+  <div class="space-y-4">
+    <!-- Padding -->
+    <div class="space-y-1">
+      <span class="text-xs font-medium text-foreground">Padding</span>
+      <div class="flex flex-col gap-0.5">
+        <!-- Top row: Top & Left -->
+        <div class="grid grid-cols-2 gap-1">
+          <!-- Top -->
+          <div class="flex unit-dropdown">
+            <input
+              type="text"
+              inputmode="decimal"
+              :value="getNumericValue('padding', 'top')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('padding', 'top', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'padding', 'top')"
+            />
+            <div class="relative">
+              <button
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('padding-top')"
+              >
+                <span>{{ getUnit('padding', 'top') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'padding-top' }" />
+              </button>
+              <div
+                v-if="openDropdown === 'padding-top'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('padding', 'top') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('padding', 'top', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Left -->
+          <div class="flex unit-dropdown">
+            <input
+              type="text"
+              inputmode="decimal"
+              :value="getNumericValue('padding', 'left')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('padding', 'left', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'padding', 'left')"
+            />
+            <div class="relative">
+              <button
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('padding-left')"
+              >
+                <span>{{ getUnit('padding', 'left') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'padding-left' }" />
+              </button>
+              <div
+                v-if="openDropdown === 'padding-left'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('padding', 'left') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('padding', 'left', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <Transition
-        enter-active-class="transition duration-150 ease-out"
-        enter-from-class="opacity-0 scale-95"
-        enter-to-class="opacity-100 scale-100"
-        leave-active-class="transition duration-100 ease-in"
-        leave-from-class="opacity-100 scale-100"
-        leave-to-class="opacity-0 scale-95"
-      >
-        <div
-          v-if="isUnitDropdownOpen"
-          class="absolute top-full right-0 mt-1 bg-sidebar-background border border-sidebar-border rounded-lg shadow-lg z-50 p-1 origin-top-right min-w-20"
-        >
+        <!-- Lock button row -->
+        <div class="flex justify-center">
           <button
-            v-for="unit in units"
-            :key="unit.value"
             type="button"
-            class="w-full flex items-center px-2.5 py-1.5 text-xs rounded-md transition-colors"
-            :class="[
-              unit.value === selectedUnit
-                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent'
-            ]"
-            @click="selectedUnit = unit.value; isUnitDropdownOpen = false"
+            class="p-0.5 rounded transition-colors"
+            :class="paddingLocked
+              ? 'text-primary'
+              : 'text-muted-foreground/50 hover:text-muted-foreground'"
+            :title="paddingLocked ? 'Unlock sides' : 'Lock all sides'"
+            @click="paddingLocked = !paddingLocked"
           >
-            {{ unit.label }}
+            <Icon :name="paddingLocked ? 'lock' : 'unlock'" :size="10" />
           </button>
         </div>
-      </Transition>
-    </div>
 
-    <!-- Box Model Visual -->
-    <div class="select-none">
-      <!-- Margin box (outer) -->
-      <div class="relative border border-sidebar-border rounded-lg bg-sidebar-accent p-1.5">
-        <span class="absolute top-1 left-1.5 text-[8px] text-sidebar-foreground/50 uppercase">Margin</span>
-
-        <!-- Margin inputs -->
-        <template v-for="side in sides" :key="`margin-${side}`">
-          <div
-            class="absolute flex items-center justify-center"
-            :class="{
-              'left-1/2 -translate-x-1/2 top-0.5': side === 'top',
-              'right-0.5 top-1/2 -translate-y-1/2': side === 'right',
-              'left-1/2 -translate-x-1/2 bottom-0.5': side === 'bottom',
-              'left-0.5 top-1/2 -translate-y-1/2': side === 'left',
-            }"
-          >
+        <!-- Bottom row: Bottom & Right -->
+        <div class="grid grid-cols-2 gap-1">
+          <!-- Bottom -->
+          <div class="flex unit-dropdown">
             <input
-              v-if="editingField === `margin-${side}`"
-              v-model="editValue"
               type="text"
-              class="w-7 h-4 text-center text-[9px] bg-sidebar-background border border-sidebar-border rounded focus:outline-none focus:ring-1 focus:ring-sidebar-ring"
-              @blur="commitEdit('margin', side)"
-              @keydown="handleKeydown($event, 'margin', side)"
-              autofocus
+              inputmode="decimal"
+              :value="getNumericValue('padding', 'bottom')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('padding', 'bottom', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'padding', 'bottom')"
             />
-            <button
-              v-else
-              class="min-w-5 px-1 py-px text-[9px] rounded transition-colors"
-              :class="[
-                side === 'top' || side === 'bottom' ? 'cursor-ns-resize' : 'cursor-ew-resize',
-                getNumericValue('margin', side) !== 0 ? 'text-sidebar-primary font-medium' : 'text-sidebar-foreground/50 hover:text-sidebar-foreground'
-              ]"
-              @click="startEdit('margin', side)"
-              @mousedown.prevent="startDrag($event, 'margin', side)"
-            >
-              {{ getDisplayValue('margin', side) }}
-            </button>
-          </div>
-        </template>
-
-        <!-- Padding box (inner) -->
-        <div class="relative border border-sidebar-border rounded bg-sidebar-background mx-5 my-4 p-1">
-          <span class="absolute top-0.5 left-1.5 text-[8px] text-sidebar-foreground/50 uppercase">Padding</span>
-
-          <!-- Padding inputs -->
-          <template v-for="side in sides" :key="`padding-${side}`">
-            <div
-              class="absolute flex items-center justify-center"
-              :class="{
-                'left-1/2 -translate-x-1/2 top-0': side === 'top',
-                'right-0 top-1/2 -translate-y-1/2': side === 'right',
-                'left-1/2 -translate-x-1/2 bottom-0': side === 'bottom',
-                'left-0 top-1/2 -translate-y-1/2': side === 'left',
-              }"
-            >
-              <input
-                v-if="editingField === `padding-${side}`"
-                v-model="editValue"
-                type="text"
-                class="w-7 h-4 text-center text-[9px] bg-sidebar-background border border-sidebar-border rounded focus:outline-none focus:ring-1 focus:ring-sidebar-ring"
-                @blur="commitEdit('padding', side)"
-                @keydown="handleKeydown($event, 'padding', side)"
-                autofocus
-              />
+            <div class="relative">
               <button
-                v-else
-                class="min-w-5 px-1 py-px text-[9px] rounded transition-colors"
-                :class="[
-                  side === 'top' || side === 'bottom' ? 'cursor-ns-resize' : 'cursor-ew-resize',
-                  getNumericValue('padding', side) !== 0 ? 'text-sidebar-primary font-medium' : 'text-sidebar-foreground/50 hover:text-sidebar-foreground'
-                ]"
-                @click="startEdit('padding', side)"
-                @mousedown.prevent="startDrag($event, 'padding', side)"
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('padding-bottom')"
               >
-                {{ getDisplayValue('padding', side) }}
+                <span>{{ getUnit('padding', 'bottom') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'padding-bottom' }" />
               </button>
+              <div
+                v-if="openDropdown === 'padding-bottom'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('padding', 'bottom') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('padding', 'bottom', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
             </div>
-          </template>
-
-          <!-- Content box (center) -->
-          <div class="h-6 mx-5 my-3 border border-dashed border-sidebar-border rounded flex items-center justify-center">
-            <span class="text-[8px] text-sidebar-foreground/40">Content</span>
+          </div>
+          <!-- Right -->
+          <div class="flex unit-dropdown">
+            <input
+              type="text"
+              inputmode="decimal"
+              :value="getNumericValue('padding', 'right')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('padding', 'right', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'padding', 'right')"
+            />
+            <div class="relative">
+              <button
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('padding-right')"
+              >
+                <span>{{ getUnit('padding', 'right') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'padding-right' }" />
+              </button>
+              <div
+                v-if="openDropdown === 'padding-right'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('padding', 'right') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('padding', 'right', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Margin -->
+    <div class="space-y-1">
+      <span class="text-xs font-medium text-foreground">Margin</span>
+      <div class="flex flex-col gap-0.5">
+        <!-- Top row: Top & Left -->
+        <div class="grid grid-cols-2 gap-1">
+          <!-- Top -->
+          <div class="flex unit-dropdown">
+            <input
+              type="text"
+              inputmode="decimal"
+              :value="getNumericValue('margin', 'top')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('margin', 'top', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'margin', 'top')"
+            />
+            <div class="relative">
+              <button
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('margin-top')"
+              >
+                <span>{{ getUnit('margin', 'top') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'margin-top' }" />
+              </button>
+              <div
+                v-if="openDropdown === 'margin-top'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('margin', 'top') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('margin', 'top', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Left -->
+          <div class="flex unit-dropdown">
+            <input
+              type="text"
+              inputmode="decimal"
+              :value="getNumericValue('margin', 'left')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('margin', 'left', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'margin', 'left')"
+            />
+            <div class="relative">
+              <button
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('margin-left')"
+              >
+                <span>{{ getUnit('margin', 'left') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'margin-left' }" />
+              </button>
+              <div
+                v-if="openDropdown === 'margin-left'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('margin', 'left') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('margin', 'left', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lock button row -->
+        <div class="flex justify-center">
+          <button
+            type="button"
+            class="p-0.5 rounded transition-colors"
+            :class="marginLocked
+              ? 'text-primary'
+              : 'text-muted-foreground/50 hover:text-muted-foreground'"
+            :title="marginLocked ? 'Unlock sides' : 'Lock all sides'"
+            @click="marginLocked = !marginLocked"
+          >
+            <Icon :name="marginLocked ? 'lock' : 'unlock'" :size="10" />
+          </button>
+        </div>
+
+        <!-- Bottom row: Bottom & Right -->
+        <div class="grid grid-cols-2 gap-1">
+          <!-- Bottom -->
+          <div class="flex unit-dropdown">
+            <input
+              type="text"
+              inputmode="decimal"
+              :value="getNumericValue('margin', 'bottom')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('margin', 'bottom', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'margin', 'bottom')"
+            />
+            <div class="relative">
+              <button
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('margin-bottom')"
+              >
+                <span>{{ getUnit('margin', 'bottom') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'margin-bottom' }" />
+              </button>
+              <div
+                v-if="openDropdown === 'margin-bottom'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('margin', 'bottom') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('margin', 'bottom', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Right -->
+          <div class="flex unit-dropdown">
+            <input
+              type="text"
+              inputmode="decimal"
+              :value="getNumericValue('margin', 'right')"
+              placeholder="0"
+              class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-sidebar-accent border border-sidebar-border rounded-l-md text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:outline-none focus:ring-1 focus:ring-sidebar-ring/25 transition-colors"
+              @input="updateValue('margin', 'right', ($event.target as HTMLInputElement).value)"
+              @keydown="handleKeydown($event, 'margin', 'right')"
+            />
+            <div class="relative">
+              <button
+                type="button"
+                class="h-full flex items-center gap-0.5 px-1.5 border border-l-0 border-sidebar-border bg-sidebar-accent hover:bg-sidebar-accent/75 text-sidebar-foreground font-mono uppercase text-[10px] rounded-r-md transition-colors cursor-pointer"
+                @click.stop="toggleDropdown('margin-right')"
+              >
+                <span>{{ getUnit('margin', 'right') }}</span>
+                <Icon name="chevron-down" :size="8" class="transition-transform" :class="{ 'rotate-180': openDropdown === 'margin-right' }" />
+              </button>
+              <div
+                v-if="openDropdown === 'margin-right'"
+                class="absolute top-full right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 py-1 min-w-14"
+              >
+                <button
+                  v-for="unit in units"
+                  :key="unit"
+                  type="button"
+                  class="w-full px-2 py-1 text-[10px] font-mono text-left hover:bg-accent transition-colors"
+                  :class="getUnit('margin', 'right') === unit ? 'text-primary' : 'text-foreground'"
+                  @click="updateUnit('margin', 'right', unit)"
+                >
+                  {{ unit }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

@@ -316,6 +316,22 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
       css.backgroundSize = (styles.backgroundSize as string) || 'cover'
       css.backgroundPosition = (styles.backgroundPosition as string) || 'center'
     }
+    // Background gradient
+    if (styles.backgroundGradient) {
+      const gradient = styles.backgroundGradient as { type: 'linear' | 'radial'; angle?: number; stops: { color: string; position: number }[] }
+      if (gradient.stops && gradient.stops.length >= 2) {
+        const stops = gradient.stops
+          .slice()
+          .sort((a, b) => a.position - b.position)
+          .map(s => `${s.color} ${s.position}%`)
+          .join(', ')
+        if (gradient.type === 'radial') {
+          css.background = `radial-gradient(circle, ${stops})`
+        } else {
+          css.background = `linear-gradient(${gradient.angle ?? 180}deg, ${stops})`
+        }
+      }
+    }
 
     // Border (responsive) - use em for width and radius
     if (styles.border) {
@@ -342,9 +358,20 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
 
     // Shadow (responsive) - use em for offsets and blur
     if (styles.shadow) {
-      const s = styles.shadow as { enabled?: boolean; x?: string; y?: string; blur?: string; color?: string }
+      const s = styles.shadow as { enabled?: boolean; x?: string; y?: string; blur?: string; spread?: string; color?: string; opacity?: number }
       if (s.enabled) {
-        css.boxShadow = `${pxToEm(s.x || '0')} ${pxToEm(s.y || '0')} ${pxToEm(s.blur || '0')} ${s.color || 'rgba(0,0,0,0.1)'}`
+        // Convert hex color to rgba with opacity
+        const color = s.color || '#000000'
+        const opacity = (s.opacity ?? 20) / 100
+        let shadowColor = color
+        if (color.startsWith('#')) {
+          const hex = color.slice(1)
+          const r = parseInt(hex.slice(0, 2), 16)
+          const g = parseInt(hex.slice(2, 4), 16)
+          const b = parseInt(hex.slice(4, 6), 16)
+          shadowColor = `rgba(${r}, ${g}, ${b}, ${opacity})`
+        }
+        css.boxShadow = `${pxToEm(s.x || '0')} ${pxToEm(s.y || '0')} ${pxToEm(s.blur || '0')} ${pxToEm(s.spread || '0')} ${shadowColor}`
       }
     }
 
@@ -429,10 +456,16 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
       transforms.push(`scale(${scaleValue})`)
     }
     if (styles.translateX && styles.translateX !== '0') {
-      transforms.push(`translateX(${styles.translateX}px)`)
+      // Value may already include unit (e.g., "-70px" or "10%"), or be just a number
+      const tx = String(styles.translateX)
+      const txValue = /[a-z%]/i.test(tx) ? tx : `${tx}px`
+      transforms.push(`translateX(${txValue})`)
     }
     if (styles.translateY && styles.translateY !== '0') {
-      transforms.push(`translateY(${styles.translateY}px)`)
+      // Value may already include unit (e.g., "-70px" or "10%"), or be just a number
+      const ty = String(styles.translateY)
+      const tyValue = /[a-z%]/i.test(ty) ? ty : `${ty}px`
+      transforms.push(`translateY(${tyValue})`)
     }
     if (transforms.length > 0) {
       css.transform = transforms.join(' ')

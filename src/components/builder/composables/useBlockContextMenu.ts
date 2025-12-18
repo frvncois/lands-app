@@ -58,6 +58,30 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
     editorStore.createComponent(contextMenuBlockId.value)
   }
 
+  function handleWrapInStack() {
+    if (!contextMenuBlockId.value) return
+    const stackBlock = editorStore.wrapBlockInStack(contextMenuBlockId.value)
+    if (stackBlock) {
+      expandBlock(stackBlock.id)
+    }
+  }
+
+  // Check if block is a Stack (can convert to Button/link)
+  const isStack = computed(() => contextMenuBlock.value?.type === 'stack')
+
+  // Check if block is a Button (can convert to Stack)
+  const isButton = computed(() => contextMenuBlock.value?.type === 'button')
+
+  function handleConvertToButton() {
+    if (!contextMenuBlockId.value) return
+    editorStore.convertBlockType(contextMenuBlockId.value, 'button')
+  }
+
+  function handleConvertToStack() {
+    if (!contextMenuBlockId.value) return
+    editorStore.convertBlockType(contextMenuBlockId.value, 'stack')
+  }
+
   function handleRename() {
     if (!contextMenuBlockId.value) return
     renamingBlockId.value = contextMenuBlockId.value
@@ -91,6 +115,12 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
     handleCopyStyle,
     handlePasteStyle,
     handleCreateComponent,
+    handleWrapInStack,
+    // Convert between Stack and Button
+    isStack,
+    isButton,
+    handleConvertToButton,
+    handleConvertToStack,
     // Rename
     renamingBlockId,
     handleRename,

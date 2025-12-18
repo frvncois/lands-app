@@ -14,8 +14,8 @@ import TextInput from './TextInput.vue'
 import ImageInput from './ImageInput.vue'
 import SliderInput from './SliderInput.vue'
 import SelectInput from './SelectInput.vue'
-import ColorInput from './ColorInput.vue'
 import ToggleInput from './ToggleInput.vue'
+import ColorInput from './ColorInput.vue'
 import Popover from '@/components/ui/Popover.vue'
 import Icon from '@/components/ui/Icon.vue'
 import ProjectFont from '@/components/modal/ProjectFont.vue'
@@ -75,6 +75,33 @@ const showUpgradeModal = ref(false)
 
 // Font upload ref and handlers
 const fontInputRef = ref<HTMLInputElement | null>(null)
+
+// Color palette editing state
+type ColorKey = 'backgroundColor' | 'textColor' | 'primaryColor' | 'secondaryColor' | 'accentColor'
+const editingColorKey = ref<ColorKey | null>(null)
+
+const colorDefinitions: { key: ColorKey; label: string; defaultValue: string }[] = [
+  { key: 'backgroundColor', label: 'Background', defaultValue: '#ffffff' },
+  { key: 'textColor', label: 'Text', defaultValue: '#171717' },
+  { key: 'primaryColor', label: 'Primary', defaultValue: '#171717' },
+  { key: 'secondaryColor', label: 'Secondary', defaultValue: '#f5f5f5' },
+  { key: 'accentColor', label: 'Accent', defaultValue: '#3b82f6' },
+]
+
+const editingColorDef = computed(() => {
+  if (!editingColorKey.value) return null
+  return colorDefinitions.find(c => c.key === editingColorKey.value) || null
+})
+
+const editingColorValue = computed(() => {
+  if (!editingColorKey.value) return ''
+  return (pageSettings.value[editingColorKey.value] as string) || editingColorDef.value?.defaultValue || ''
+})
+
+function updateEditingColor(value: string) {
+  if (!editingColorKey.value) return
+  updatePageSetting(editingColorKey.value, value)
+}
 
 function updatePageSetting<K extends keyof PageSettings>(key: K, value: PageSettings[K]) {
   editorStore.updatePageSettings({ [key]: value })
@@ -138,6 +165,30 @@ function getFontFamilyPreview(): string {
 function getBaseSizePreview(): string {
   return `${pageSettings.value.baseFontSize || '16'}px`
 }
+
+// Reset functions for popovers
+function resetColorPalette() {
+  editorStore.updatePageSettings({
+    backgroundColor: '#ffffff',
+    textColor: '#171717',
+    primaryColor: '#171717',
+    secondaryColor: '#f5f5f5',
+    accentColor: '#3b82f6',
+  })
+}
+
+function resetFontFamily() {
+  editorStore.updatePageSettings({
+    headingFontFamily: 'Inter',
+    fontFamily: 'Inter',
+  })
+}
+
+function resetBaseSize() {
+  editorStore.updatePageSettings({
+    baseFontSize: '16',
+  })
+}
 </script>
 
 <template>
@@ -146,7 +197,7 @@ function getBaseSizePreview(): string {
     <InspectorSection title="Style" icon="style-color">
       <!-- Color Palette -->
       <InspectorField label="Color Palette" horizontal>
-        <Popover align="right" width="w-64">
+        <Popover align="right" width="w-80">
           <template #trigger="{ toggle }">
             <button
               class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
@@ -169,49 +220,96 @@ function getBaseSizePreview(): string {
               <span class="truncate">{{ getColorPalettePreview() }}</span>
             </button>
           </template>
-          <div class="p-4 space-y-3">
-            <InspectorField label="Background" horizontal>
-              <ColorInput
-                :model-value="pageSettings.backgroundColor || '#ffffff'"
-                swatch-only
-                @update:model-value="updatePageSetting('backgroundColor', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Text" horizontal>
-              <ColorInput
-                :model-value="pageSettings.textColor || '#171717'"
-                swatch-only
-                @update:model-value="updatePageSetting('textColor', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Primary" horizontal>
-              <ColorInput
-                :model-value="pageSettings.primaryColor || '#171717'"
-                swatch-only
-                @update:model-value="updatePageSetting('primaryColor', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Secondary" horizontal>
-              <ColorInput
-                :model-value="pageSettings.secondaryColor || '#f5f5f5'"
-                swatch-only
-                @update:model-value="updatePageSetting('secondaryColor', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Accent" horizontal>
-              <ColorInput
-                :model-value="pageSettings.accentColor || '#3b82f6'"
-                swatch-only
-                @update:model-value="updatePageSetting('accentColor', $event)"
-              />
-            </InspectorField>
-          </div>
+          <template #default="{ close }">
+            <div class="p-3" @click.stop>
+              <!-- ==================== EDITING COLOR VIEW ==================== -->
+              <template v-if="editingColorKey && editingColorDef">
+                <!-- Breadcrumb Navigation -->
+                <div class="flex items-center gap-1.5 mb-3 pb-2 border-b border-border">
+                  <button
+                    type="button"
+                    class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    @click.stop.prevent="editingColorKey = null"
+                  >
+                    Colors
+                  </button>
+                  <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
+                  <span class="text-xs font-medium text-foreground">{{ editingColorDef.label }}</span>
+                  <div class="flex-1" />
+                  <button
+                    type="button"
+                    class="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    @click.stop.prevent="updateEditingColor(editingColorDef.defaultValue); editingColorKey = null"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
+                    @click.stop.prevent="editingColorKey = null"
+                  >
+                    Done
+                  </button>
+                </div>
+
+                <!-- Color Picker Content -->
+                <ColorInput
+                  :model-value="editingColorValue"
+                  inline
+                  @update:model-value="updateEditingColor"
+                />
+              </template>
+
+              <!-- ==================== MAIN COLORS LIST VIEW ==================== -->
+              <template v-else>
+                <!-- Header -->
+                <div class="flex items-center gap-2 mb-3 pb-2 border-b border-border">
+                  <span class="text-xs font-medium text-foreground">Color Palette</span>
+                  <div class="flex-1" />
+                  <button
+                    type="button"
+                    class="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    @click.stop.prevent="resetColorPalette(); close()"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
+                    @click.stop.prevent="close()"
+                  >
+                    Done
+                  </button>
+                </div>
+                <!-- Color List -->
+                <div class="space-y-1">
+                  <button
+                    v-for="colorDef in colorDefinitions"
+                    :key="colorDef.key"
+                    type="button"
+                    class="w-full flex items-center gap-3 px-2 py-2 rounded-md hover:bg-accent/50 transition-colors"
+                    @click.stop.prevent="editingColorKey = colorDef.key"
+                  >
+                    <div
+                      class="w-6 h-6 rounded border border-border shrink-0"
+                      :style="{ backgroundColor: (pageSettings[colorDef.key] as string) || colorDef.defaultValue }"
+                    />
+                    <span class="flex-1 text-xs text-foreground text-left">{{ colorDef.label }}</span>
+                    <span class="text-[10px] text-muted-foreground font-mono uppercase">
+                      {{ ((pageSettings[colorDef.key] as string) || colorDef.defaultValue).toUpperCase() }}
+                    </span>
+                    <Icon name="chevron-right" :size="12" class="text-muted-foreground" />
+                  </button>
+                </div>
+              </template>
+            </div>
+          </template>
         </Popover>
       </InspectorField>
 
       <!-- Font Family -->
       <InspectorField label="Font Family" horizontal>
-        <Popover align="right" width="w-72">
+        <Popover align="right" width="w-80">
           <template #trigger="{ toggle }">
             <button
               class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
@@ -221,120 +319,144 @@ function getBaseSizePreview(): string {
               <span class="truncate max-w-24">{{ getFontFamilyPreview() }}</span>
             </button>
           </template>
-          <div class="p-4 space-y-3">
-            <InspectorField label="Headings">
-              <SelectInput
-                :options="combinedFontOptions"
-                :model-value="pageSettings.headingFontFamily || 'Inter'"
-                @update:model-value="updatePageSetting('headingFontFamily', $event)"
-              />
-            </InspectorField>
-            <InspectorField label="Text">
-              <SelectInput
-                :options="combinedFontOptions"
-                :model-value="pageSettings.fontFamily || 'Inter'"
-                @update:model-value="updatePageSetting('fontFamily', $event)"
-              />
-            </InspectorField>
-
-            <!-- Divider -->
-            <div class="border-t border-border" />
-
-            <!-- Google Fonts -->
-            <div class="space-y-2">
-              <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                Google Fonts
-              </div>
-              <div
-                v-for="font in pageSettings.googleFonts || []"
-                :key="font.family"
-                class="flex items-center gap-2 p-2 bg-secondary rounded-md"
-              >
-                <span class="flex-1 text-xs text-foreground truncate">{{ font.family }}</span>
-                <span class="text-[10px] text-muted-foreground capitalize">{{ font.category }}</span>
+          <template #default="{ close }">
+            <div class="p-3" @click.stop>
+              <!-- Header -->
+              <div class="flex items-center gap-2 mb-3 pb-2 border-b border-border">
+                <span class="text-xs font-medium text-foreground">Font Family</span>
+                <div class="flex-1" />
                 <button
                   type="button"
-                  class="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                  @click="removeGoogleFont(font.family)"
+                  class="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  @click.stop.prevent="resetFontFamily(); close()"
                 >
-                  <Icon name="xmark" class="text-xs" />
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
+                  @click.stop.prevent="close()"
+                >
+                  Done
                 </button>
               </div>
-              <button
-                type="button"
-                class="flex items-center justify-center gap-2 w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors"
-                @click="showGoogleFontsModal = true"
-              >
-                <Icon name="app-google" class="text-xs" />
-                Browse Google Fonts
-              </button>
-            </div>
+              <!-- Content -->
+              <div class="space-y-3">
+                <InspectorField label="Headings">
+                  <SelectInput
+                    :options="combinedFontOptions"
+                    :model-value="pageSettings.headingFontFamily || 'Inter'"
+                    @update:model-value="updatePageSetting('headingFontFamily', $event)"
+                  />
+                </InspectorField>
+                <InspectorField label="Text">
+                  <SelectInput
+                    :options="combinedFontOptions"
+                    :model-value="pageSettings.fontFamily || 'Inter'"
+                    @update:model-value="updatePageSetting('fontFamily', $event)"
+                  />
+                </InspectorField>
 
-            <!-- Custom Font Upload (Pro only) -->
-            <template v-if="canUseCustomFonts">
-              <div class="border-t border-border" />
-              <div class="space-y-2">
-                <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                  Custom Fonts
-                </div>
-                <div
-                  v-for="font in pageSettings.customFonts || []"
-                  :key="font.id"
-                  class="flex items-center gap-2 p-2 bg-secondary rounded-md"
-                >
-                  <span class="flex-1 text-xs text-foreground truncate">{{ font.name }}</span>
+                <!-- Divider -->
+                <div class="border-t border-border" />
+
+                <!-- Google Fonts -->
+                <div class="space-y-2">
+                  <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                    Google Fonts
+                  </div>
+                  <div
+                    v-for="font in pageSettings.googleFonts || []"
+                    :key="font.family"
+                    class="flex items-center gap-2 p-2 bg-secondary rounded-md"
+                  >
+                    <span class="flex-1 text-xs text-foreground truncate">{{ font.family }}</span>
+                    <span class="text-[10px] text-muted-foreground capitalize">{{ font.category }}</span>
+                    <button
+                      type="button"
+                      class="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                      @click="removeGoogleFont(font.family)"
+                    >
+                      <Icon name="xmark" class="text-xs" />
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    class="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                    @click="removeCustomFont(font.id)"
+                    class="flex items-center justify-center gap-2 w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors"
+                    @click="showGoogleFontsModal = true"
                   >
-                    <Icon name="xmark" class="text-xs" />
+                    <Icon name="app-google" class="text-xs" />
+                    Browse Google Fonts
                   </button>
                 </div>
-                <button
-                  type="button"
-                  class="flex items-center justify-center gap-2 w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors"
-                  @click="triggerFontUpload"
-                >
-                  <Icon name="upload" class="text-xs" />
-                  Upload Font
-                </button>
-                <input
-                  ref="fontInputRef"
-                  type="file"
-                  accept=".woff,.woff2,.ttf,.otf"
-                  class="hidden"
-                  @change="handleFontUpload"
-                />
+
+                <!-- Custom Font Upload (Pro only) -->
+                <template v-if="canUseCustomFonts">
+                  <div class="border-t border-border" />
+                  <div class="space-y-2">
+                    <div class="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Custom Fonts
+                    </div>
+                    <div
+                      v-for="font in pageSettings.customFonts || []"
+                      :key="font.id"
+                      class="flex items-center gap-2 p-2 bg-secondary rounded-md"
+                    >
+                      <span class="flex-1 text-xs text-foreground truncate">{{ font.name }}</span>
+                      <button
+                        type="button"
+                        class="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                        @click="removeCustomFont(font.id)"
+                      >
+                        <Icon name="xmark" class="text-xs" />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      class="flex items-center justify-center gap-2 w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors"
+                      @click="triggerFontUpload"
+                    >
+                      <Icon name="upload" class="text-xs" />
+                      Upload Font
+                    </button>
+                    <input
+                      ref="fontInputRef"
+                      type="file"
+                      accept=".woff,.woff2,.ttf,.otf"
+                      class="hidden"
+                      @change="handleFontUpload"
+                    />
+                  </div>
+                </template>
+                <!-- Pro upgrade prompt for custom font uploads -->
+                <template v-else>
+                  <div class="border-t border-border" />
+                  <div class="p-2 bg-muted/50 rounded-lg">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-xs font-medium text-foreground">Custom Fonts</span>
+                      <span class="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-600 rounded-full font-medium">Pro</span>
+                    </div>
+                    <p class="text-[10px] text-muted-foreground mb-1">
+                      Upload your own custom fonts.
+                    </p>
+                    <button
+                      type="button"
+                      class="text-[10px] text-primary hover:underline"
+                      @click="showUpgradeModal = true"
+                    >
+                      Upgrade to Pro
+                    </button>
+                  </div>
+                </template>
               </div>
-            </template>
-            <!-- Pro upgrade prompt for custom font uploads -->
-            <template v-else>
-              <div class="border-t border-border" />
-              <div class="p-2 bg-muted/50 rounded-lg">
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs font-medium text-foreground">Custom Fonts</span>
-                  <span class="text-[10px] px-1.5 py-0.5 bg-amber-500/10 text-amber-600 rounded-full font-medium">Pro</span>
-                </div>
-                <p class="text-[10px] text-muted-foreground mb-1">
-                  Upload your own custom fonts.
-                </p>
-                <button
-                  type="button"
-                  class="text-[10px] text-primary hover:underline"
-                  @click="showUpgradeModal = true"
-                >
-                  Upgrade to Pro
-                </button>
-              </div>
-            </template>
-          </div>
+            </div>
+          </template>
         </Popover>
       </InspectorField>
 
       <!-- Base Size -->
       <InspectorField label="Base Size" horizontal>
-        <Popover align="right" width="w-48">
+        <Popover align="right" width="w-80">
           <template #trigger="{ toggle }">
             <button
               class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
@@ -344,18 +466,40 @@ function getBaseSizePreview(): string {
               <span class="truncate">{{ getBaseSizePreview() }}</span>
             </button>
           </template>
-          <div class="p-4">
-            <InspectorField label="Base Font Size" horizontal>
-              <SliderInput
-                :model-value="pageSettings.baseFontSize || '16'"
-                :min="12"
-                :max="24"
-                :step="1"
-                unit="px"
-                @update:model-value="updatePageSetting('baseFontSize', $event)"
-              />
-            </InspectorField>
-          </div>
+          <template #default="{ close }">
+            <div class="p-3" @click.stop>
+              <!-- Header -->
+              <div class="flex items-center gap-2 mb-3 pb-2 border-b border-border">
+                <span class="text-xs font-medium text-foreground">Base Size</span>
+                <div class="flex-1" />
+                <button
+                  type="button"
+                  class="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  @click.stop.prevent="resetBaseSize(); close()"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
+                  @click.stop.prevent="close()"
+                >
+                  Done
+                </button>
+              </div>
+              <!-- Content -->
+              <InspectorField label="Base Font Size" horizontal>
+                <SliderInput
+                  :model-value="pageSettings.baseFontSize || '16'"
+                  :min="12"
+                  :max="24"
+                  :step="1"
+                  unit="px"
+                  @update:model-value="updatePageSetting('baseFontSize', $event)"
+                />
+              </InspectorField>
+            </div>
+          </template>
         </Popover>
       </InspectorField>
 

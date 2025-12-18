@@ -2,7 +2,6 @@ import type { SectionBlockType } from '@/types/editor'
 import {
   headingLevelOptions as headingLevelOptionsRaw,
   buttonSizeOptions as buttonSizeOptionsRaw,
-  formInputTypeOptions as formInputTypeOptionsRaw,
   maskShapes,
   maskShapeLabels,
   justifyContentOptions as justifyContentOptionsRaw,
@@ -32,7 +31,6 @@ export interface SelectOption {
 // Convert readonly arrays from editor-utils to mutable SelectOption arrays
 const headingLevelOptions: SelectOption[] = [...headingLevelOptionsRaw]
 const buttonSizeOptions: SelectOption[] = [...buttonSizeOptionsRaw]
-const formInputTypeOptions: SelectOption[] = [...formInputTypeOptionsRaw]
 const justifyContentOptions: SelectOption[] = [...justifyContentOptionsRaw]
 const alignItemsOptions: SelectOption[] = [...alignItemsOptionsRaw]
 
@@ -78,11 +76,18 @@ export interface ToggleGroupConfig {
   }[]
 }
 
+// Inline group - multiple fields on one line
+export interface InlineGroupConfig {
+  type: 'inline-group'
+  label: string
+  fields: FieldConfig[]
+}
+
 // Content section configuration
 export interface ContentSectionConfig {
   title: string
   icon: string
-  fields: (FieldConfig | ToggleGroupConfig)[]
+  fields: (FieldConfig | ToggleGroupConfig | InlineGroupConfig)[]
 }
 
 // Background section (special case with type switching)
@@ -166,13 +171,6 @@ const backgroundTypeOptions: SelectOption[] = [
   { value: 'video', label: 'Video', icon: 'content-video' },
 ]
 
-const dividerStyleOptions: SelectOption[] = [
-  { value: 'line', label: 'Line', icon: 'content-divider' },
-  { value: 'dashed', label: 'Dashed', icon: 'content-divider' },
-  { value: 'dotted', label: 'Dotted', icon: 'content-divider' },
-  { value: 'space', label: 'Space', icon: 'style-row' },
-]
-
 // Inspector configurations for all block types
 export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorConfig>> = {
   // Content blocks
@@ -183,18 +181,23 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         icon: 'content-heading',
         fields: [
           {
-            key: 'content',
-            type: 'text',
+            type: 'inline-group',
             label: 'Text',
-            placeholder: 'Heading text',
-            translatable: true,
-          },
-          {
-            key: 'level',
-            type: 'segmented',
-            label: 'Level',
-            horizontal: true,
-            props: { options: headingLevelOptions },
+            fields: [
+              {
+                key: 'content',
+                type: 'text',
+                label: '',
+                placeholder: 'Heading text',
+                translatable: true,
+              },
+              {
+                key: 'level',
+                type: 'select',
+                label: '',
+                props: { options: headingLevelOptions },
+              },
+            ],
           },
         ],
       },
@@ -265,10 +268,31 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
             placeholder: 'Image description',
           },
           {
-            key: 'linkUrl',
-            type: 'text',
-            label: 'Link URL',
-            placeholder: 'https://...',
+            key: 'overlay',
+            type: 'color',
+            label: 'Overlay',
+            horizontal: true,
+            props: {
+              swatchOnly: true,
+            },
+          },
+          {
+            key: 'overlayOpacity',
+            type: 'slider',
+            label: 'Overlay Opacity',
+            horizontal: true,
+            condition: {
+              field: 'overlay',
+              operator: '!=',
+              value: '',
+            },
+            props: {
+              min: 0,
+              max: 100,
+              step: 5,
+              unit: '%',
+              defaultValue: '50',
+            },
           },
         ],
       },
@@ -379,48 +403,6 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
     sections: ['display', 'styles', 'effects'],
   },
 
-  divider: {
-    content: [
-      {
-        title: 'Divider',
-        icon: 'content-divider',
-        fields: [
-          {
-            key: 'style',
-            type: 'segmented',
-            label: 'Style',
-            horizontal: true,
-            props: { options: dividerStyleOptions, iconOnly: true, defaultValue: 'line' },
-          },
-          {
-            key: 'thickness',
-            type: 'slider',
-            label: 'Thickness',
-            horizontal: true,
-            condition: { field: 'style', operator: '!=', value: 'space' },
-            props: { min: 1, max: 8, step: 1, defaultValue: '1' },
-          },
-          {
-            key: 'width',
-            type: 'slider',
-            label: 'Width',
-            horizontal: true,
-            props: { min: 10, max: 100, step: 5, unit: '%', defaultValue: '100' },
-          },
-          {
-            key: 'color',
-            type: 'color',
-            label: 'Color',
-            horizontal: true,
-            condition: { field: 'style', operator: '!=', value: 'space' },
-            props: { swatchOnly: true },
-          },
-        ],
-      },
-    ],
-    sections: ['display', 'styles', 'effects'],
-  },
-
   // Layout blocks
   grid: {
     sections: ['display', 'styles', 'effects'],
@@ -438,282 +420,6 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
     sections: ['display', 'styles', 'effects'],
   },
 
-  // Form blocks
-  'form-input': {
-    content: [
-      {
-        title: 'Input Settings',
-        icon: 'content-form',
-        fields: [
-          {
-            key: 'label',
-            type: 'text',
-            label: 'Label',
-            placeholder: 'Field label',
-          },
-          {
-            key: 'inputType',
-            type: 'select',
-            label: 'Input Type',
-            props: { options: formInputTypeOptions },
-          },
-          {
-            key: 'placeholder',
-            type: 'text',
-            label: 'Placeholder',
-            placeholder: 'Placeholder text',
-          },
-          {
-            key: 'required',
-            type: 'toggle',
-            label: 'Required field',
-          },
-        ],
-      },
-      {
-        title: 'Style',
-        icon: 'style-color',
-        fields: [
-          {
-            key: 'fontSize',
-            type: 'size',
-            label: 'Font Size',
-            target: 'styles',
-            horizontal: true,
-            placeholder: '16px',
-            props: { defaultValue: '16px' },
-          },
-          {
-            key: 'color',
-            type: 'color',
-            label: 'Text Color',
-            target: 'styles',
-            horizontal: true,
-            props: { swatchOnly: true },
-          },
-          {
-            key: 'labelColor',
-            type: 'color',
-            label: 'Label Color',
-            target: 'styles',
-            horizontal: true,
-            props: { swatchOnly: true },
-          },
-        ],
-      },
-    ],
-    sections: ['display', 'styles', 'effects'],
-  },
-
-  'form-textarea': {
-    content: [
-      {
-        title: 'Textarea Settings',
-        icon: 'content-form',
-        fields: [
-          {
-            key: 'label',
-            type: 'text',
-            label: 'Label',
-            placeholder: 'Field label',
-          },
-          {
-            key: 'placeholder',
-            type: 'text',
-            label: 'Placeholder',
-            placeholder: 'Placeholder text',
-          },
-          {
-            key: 'rows',
-            type: 'slider',
-            label: 'Rows',
-            horizontal: true,
-            props: { min: 2, max: 10, step: 1, defaultValue: '4' },
-          },
-          {
-            key: 'required',
-            type: 'toggle',
-            label: 'Required field',
-          },
-        ],
-      },
-      {
-        title: 'Style',
-        icon: 'style-color',
-        fields: [
-          {
-            key: 'fontSize',
-            type: 'size',
-            label: 'Font Size',
-            target: 'styles',
-            horizontal: true,
-            placeholder: '16px',
-            props: { defaultValue: '16px' },
-          },
-          {
-            key: 'color',
-            type: 'color',
-            label: 'Text Color',
-            target: 'styles',
-            horizontal: true,
-            props: { swatchOnly: true },
-          },
-          {
-            key: 'labelColor',
-            type: 'color',
-            label: 'Label Color',
-            target: 'styles',
-            horizontal: true,
-            props: { swatchOnly: true },
-          },
-        ],
-      },
-    ],
-    sections: ['display', 'styles', 'effects'],
-  },
-
-  'form-button': {
-    content: [
-      {
-        title: 'Button Settings',
-        icon: 'content-button',
-        fields: [
-          {
-            key: 'label',
-            type: 'text',
-            label: 'Label',
-            placeholder: 'Submit',
-            translatable: true,
-          },
-          {
-            key: 'size',
-            type: 'segmented',
-            label: 'Size',
-            horizontal: true,
-            props: { options: buttonSizeOptions },
-          },
-        ],
-      },
-      {
-        title: 'Style',
-        icon: 'style-color',
-        fields: [
-          {
-            key: 'backgroundColor',
-            type: 'color',
-            label: 'Background',
-            target: 'styles',
-            horizontal: true,
-            props: { swatchOnly: true },
-          },
-          {
-            key: 'color',
-            type: 'color',
-            label: 'Text Color',
-            target: 'styles',
-            horizontal: true,
-            props: { swatchOnly: true },
-          },
-        ],
-      },
-    ],
-    sections: ['display', 'styles', 'effects'],
-  },
-
-  'form-label': {
-    content: [
-      {
-        title: 'Label Settings',
-        icon: 'content-text',
-        fields: [
-          {
-            key: 'text',
-            type: 'text',
-            label: 'Text',
-            placeholder: 'Label text',
-            translatable: true,
-          },
-        ],
-      },
-      {
-        title: 'Style',
-        icon: 'style-color',
-        fields: [
-          {
-            key: 'fontSize',
-            type: 'size',
-            label: 'Font Size',
-            target: 'styles',
-            horizontal: true,
-            placeholder: '14px',
-            props: { defaultValue: '14px' },
-          },
-          {
-            key: 'fontWeight',
-            type: 'segmented',
-            label: 'Weight',
-            target: 'styles',
-            horizontal: true,
-            props: {
-              options: [
-                { value: 'normal', label: 'Normal' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'semibold', label: 'Semi' },
-                { value: 'bold', label: 'Bold' },
-              ],
-            },
-          },
-          {
-            key: 'color',
-            type: 'color',
-            label: 'Color',
-            target: 'styles',
-            horizontal: true,
-            props: { swatchOnly: true },
-          },
-        ],
-      },
-    ],
-    sections: ['display', 'styles', 'effects'],
-  },
-
-  form: {
-    content: [
-      {
-        title: 'Form Settings',
-        icon: 'content-form',
-        fields: [
-          {
-            key: 'submitUrl',
-            type: 'text',
-            label: 'Submit URL',
-            placeholder: 'https://...',
-          },
-          {
-            key: 'submitMethod',
-            type: 'segmented',
-            label: 'Method',
-            horizontal: true,
-            props: {
-              options: [
-                { value: 'POST', label: 'POST' },
-                { value: 'GET', label: 'GET' },
-              ],
-              defaultValue: 'POST',
-            },
-          },
-          {
-            key: 'successMessage',
-            type: 'text',
-            label: 'Success Message',
-            placeholder: 'Thank you!',
-            translatable: true,
-          },
-        ],
-      },
-    ],
-    sections: ['display', 'styles', 'effects'],
-  },
 }
 
 // Helper to check if a block type has a config
@@ -728,9 +434,6 @@ export function getInspectorConfig(type: SectionBlockType): BlockInspectorConfig
 
 // Types that should keep their custom inspector (complex logic)
 export const customInspectorTypes: SectionBlockType[] = [
-  'form-checkbox',
-  'form-radio',
-  'form-select',
   'variants',
 ]
 

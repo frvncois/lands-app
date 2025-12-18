@@ -25,16 +25,18 @@ const emit = defineEmits<{
   dragStart: [parentId: string, childIndex: number, blockId: string, event: DragEvent]
   dragOver: [parentId: string, childIndex: number, event: DragEvent]
   dragLeave: []
-  drop: [parentId: string, childIndex: number]
+  drop: [parentId: string, childIndex: number, event?: DragEvent]
   dragEnd: []
   emptyParentDragOver: [parentId: string, event: DragEvent]
   emptyParentDragLeave: []
-  emptyParentDrop: [parentId: string]
+  emptyParentDrop: [parentId: string, event?: DragEvent]
   addChild: [parentId: string, blockType: string]
   addChildAtPosition: [parentId: string, blockType: string, position: number]
   startRename: [blockId: string]
   finishRename: [blockId: string, newName: string]
   cancelRename: []
+  blockRowHover: [blockId: string]
+  blockRowLeave: []
 }>()
 
 const editorStore = useEditorStore()
@@ -58,30 +60,21 @@ const isDropTarget = computed(() => {
     props.dragState.overChildInfo?.childIndex === props.childIndex
 })
 
+const isHoverExpanding = computed(() => {
+  return props.dragState.hoverExpandBlockId === props.block.id
+})
+
 function canBlockExpand(block: SectionBlock): boolean {
-  if (block.type === 'form') return true
   if (canHaveChildren(block.type)) return true
   return false
 }
 
-function isInsideForm(block: SectionBlock): boolean {
-  if (block.type === 'form') return true
-  let parent = editorStore.findParentBlock(block.id)
-  while (parent) {
-    if (parent.type === 'form') return true
-    parent = editorStore.findParentBlock(parent.id)
-  }
-  return false
-}
-
-function getBlockPickerMode(block: SectionBlock): 'form' | 'content-only' | 'nested' {
-  if (isInsideForm(block)) return 'form'
+function getBlockPickerMode(block: SectionBlock): 'content-only' | 'nested' {
   if (block.type === 'canvas') return 'content-only'
   return 'nested'
 }
 
 function getBlockPickerLabel(block: SectionBlock): string {
-  if (isInsideForm(block)) return 'Add field'
   if (block.type === 'canvas') return 'Add element'
   return 'Add block'
 }
@@ -98,11 +91,20 @@ function handleDragStart(event: DragEvent) {
 function handleDragOver(event: DragEvent) {
   if (!props.parentId) return
   emit('dragOver', props.parentId, props.childIndex, event)
+  // If this block can have children, emit hover event for auto-expand
+  if (canHaveChildren(props.block.type)) {
+    emit('blockRowHover', props.block.id)
+  }
 }
 
-function handleDrop() {
+function handleDragLeave() {
+  emit('dragLeave')
+  emit('blockRowLeave')
+}
+
+function handleDrop(event: DragEvent) {
   if (!props.parentId) return
-  emit('drop', props.parentId, props.childIndex)
+  emit('drop', props.parentId, props.childIndex, event)
 }
 
 function handleChildDragStart(parentId: string, childIndex: number, blockId: string, event: DragEvent) {
@@ -113,8 +115,8 @@ function handleChildDragOver(parentId: string, childIndex: number, event: DragEv
   emit('dragOver', parentId, childIndex, event)
 }
 
-function handleChildDrop(parentId: string, childIndex: number) {
-  emit('drop', parentId, childIndex)
+function handleChildDrop(parentId: string, childIndex: number, event?: DragEvent) {
+  emit('drop', parentId, childIndex, event)
 }
 
 // Handlers for forwarding events from recursive children
@@ -124,6 +126,14 @@ function handleChildContextMenu(blockId: string, blockType: 'section' | 'child',
 
 function handleChildEmptyParentDragOver(parentId: string, event: DragEvent) {
   emit('emptyParentDragOver', parentId, event)
+}
+
+function handleChildBlockRowHover(blockId: string) {
+  emit('blockRowHover', blockId)
+}
+
+function handleChildBlockRowLeave() {
+  emit('blockRowLeave')
 }
 
 function handleChildAddChild(parentId: string, blockType: string) {
@@ -172,6 +182,13 @@ function handleChildCancelRename() {
 
 const hasChildren = computed(() => props.block.children && props.block.children.length > 0)
 const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === props.block.id)
+
+// Check if block has any effects applied
+const hasEffects = computed(() => {
+  const effects = (props.block.styles as Record<string, unknown>)?.effects as Record<string, unknown> | undefined
+  if (!effects) return false
+  return !!(effects.hover || effects.scroll || effects.appear || effects.loop)
+})
 </script>
 
 <template>
@@ -185,13 +202,14 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
         isSelected ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
         isDragging ? 'opacity-50' : '',
         isDropTarget ? 'border-t-2 border-primary' : '',
+        isHoverExpanding ? 'ring-1 ring-primary/50 bg-primary/10' : '',
       ]"
       @click="handleClick"
       @contextmenu="$emit('contextMenu', block.id, parentId ? 'child' : 'section', $event)"
       @dragstart="handleDragStart"
       @dragover="handleDragOver"
-      @dragleave="$emit('dragLeave')"
-      @drop.stop="handleDrop"
+      @dragleave="handleDragLeave"
+      @drop.stop="handleDrop($event)"
       @dragend="$emit('dragEnd')"
     >
       <!-- Expand/collapse toggle -->
@@ -206,7 +224,6 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
           :class="isExpanded ? 'rotate-0' : '-rotate-90'"
         />
       </button>
-      <div v-else class="w-4 shrink-0" />
 
       <!-- Block icon (only for children, not root) -->
       <div v-if="parentId" class="w-4 h-4 flex items-center justify-center shrink-0">
@@ -230,26 +247,33 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
         @dblclick.stop="handleNameDoubleClick"
       >{{ block.name }}</span>
 
-      <!-- Shared style indicator -->
-      <Tooltip v-if="block.sharedStyleId" text="Has shared style">
-        <span class="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-      </Tooltip>
+      <!-- Indicators -->
+      <div class="flex items-center gap-1 shrink-0">
+        <!-- Shared style indicator -->
+        <Tooltip v-if="block.sharedStyleId" text="Shared style">
+          <span class="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
+        </Tooltip>
+        <!-- Effects indicator -->
+        <Tooltip v-if="hasEffects" text="Effects">
+          <span class="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+        </Tooltip>
+      </div>
     </div>
 
     <!-- Expanded content -->
     <div
       v-if="isExpanded && canHaveChildren(block.type)"
       class="mt-1"
-      :class="depth === 0 ? 'ml-5' : 'ml-6'"
+      :class="depth === 0 ? 'ml-2.5' : 'ml-2.5'"
     >
       <!-- Empty drop zone (when no children and dragging) -->
       <div
-        v-if="!hasChildren && dragState.childInfo"
+        v-if="!hasChildren && (dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType)"
         class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
         :class="isEmptyDropTarget ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
         @dragover="$emit('emptyParentDragOver', block.id, $event)"
         @dragleave="$emit('emptyParentDragLeave')"
-        @drop.stop="$emit('emptyParentDrop', block.id)"
+        @drop.stop="$emit('emptyParentDrop', block.id, $event)"
       >
         <span class="text-xs text-muted-foreground">Drop here</span>
       </div>
@@ -281,13 +305,26 @@ const isEmptyDropTarget = computed(() => props.dragState.overEmptyParentId === p
             @start-rename="handleChildStartRename"
             @finish-rename="handleChildFinishRename"
             @cancel-rename="handleChildCancelRename"
+            @block-row-hover="handleChildBlockRowHover"
+            @block-row-leave="handleChildBlockRowLeave"
           />
         </template>
+        <!-- Drop zone at end of children list (when dragging) -->
+        <div
+          v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
+          class="flex items-center justify-center px-2 py-1.5 rounded-lg border-2 border-dashed transition-colors mt-0.5"
+          :class="dragState.overChildInfo?.parentId === block.id && dragState.overChildInfo?.childIndex === block.children!.length ? 'border-primary bg-primary/10' : 'border-transparent hover:border-muted-foreground/30'"
+          @dragover.prevent.stop="$emit('dragOver', block.id, block.children!.length, $event)"
+          @dragleave="$emit('dragLeave')"
+          @drop.stop="$emit('drop', block.id, block.children!.length, $event)"
+        >
+          <span class="text-[10px] text-muted-foreground">Drop here</span>
+        </div>
       </template>
 
       <!-- Empty state: Show block picker when no children -->
       <SidebarBlockPicker
-        v-if="!hasChildren && !dragState.childInfo"
+        v-if="!hasChildren && !dragState.childInfo && !dragState.blockIndex && !dragState.newBlockType"
         :mode="getBlockPickerMode(block)"
         :trigger-label="getBlockPickerLabel(block)"
         @select="handleAddBlock"

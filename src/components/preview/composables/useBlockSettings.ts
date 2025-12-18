@@ -4,7 +4,6 @@ import type {
   ContainerSettings,
   GridSettings,
   StackSettings,
-  DividerSettings,
   HeadingSettings,
   TextSettings,
   ImageSettings,
@@ -12,18 +11,9 @@ import type {
   ButtonSettings,
   IconSettings,
   VariantsSettings,
-  FormSettings,
-  FormLabelSettings,
-  FormInputSettings,
-  FormTextareaSettings,
-  FormSelectSettings,
-  FormRadioSettings,
-  FormCheckboxSettings,
-  FormButtonSettings,
   CanvasSettings,
   IconStyles,
   VariantsStyles,
-  FormLabelStyles,
 } from '@/types/editor'
 
 /**
@@ -49,10 +39,6 @@ export function useBlockSettings(block: Ref<SectionBlock>) {
   )
 
   // Content block settings
-  const dividerSettings = computed(() =>
-    block.value.type === 'divider' ? block.value.settings as DividerSettings : null
-  )
-
   const headingSettings = computed(() =>
     block.value.type === 'heading' ? block.value.settings as HeadingSettings : null
   )
@@ -89,43 +75,6 @@ export function useBlockSettings(block: Ref<SectionBlock>) {
     block.value.type === 'variants' ? block.value.styles as VariantsStyles : null
   )
 
-  // Form block settings
-  const formSettings = computed(() =>
-    block.value.type === 'form' ? block.value.settings as FormSettings : null
-  )
-
-  const formLabelSettings = computed(() =>
-    block.value.type === 'form-label' ? block.value.settings as FormLabelSettings : null
-  )
-
-  const formLabelStyles = computed(() =>
-    block.value.type === 'form-label' ? block.value.styles as FormLabelStyles : null
-  )
-
-  const formInputSettings = computed(() =>
-    block.value.type === 'form-input' ? block.value.settings as FormInputSettings : null
-  )
-
-  const formTextareaSettings = computed(() =>
-    block.value.type === 'form-textarea' ? block.value.settings as FormTextareaSettings : null
-  )
-
-  const formSelectSettings = computed(() =>
-    block.value.type === 'form-select' ? block.value.settings as FormSelectSettings : null
-  )
-
-  const formRadioSettings = computed(() =>
-    block.value.type === 'form-radio' ? block.value.settings as FormRadioSettings : null
-  )
-
-  const formCheckboxSettings = computed(() =>
-    block.value.type === 'form-checkbox' ? block.value.settings as FormCheckboxSettings : null
-  )
-
-  const formButtonSettings = computed(() =>
-    block.value.type === 'form-button' ? block.value.settings as FormButtonSettings : null
-  )
-
   // Check if block is hidden
   const isBlockHidden = computed(() => {
     const settings = block.value.settings as Record<string, unknown>
@@ -140,7 +89,6 @@ export function useBlockSettings(block: Ref<SectionBlock>) {
     canvasSettings,
 
     // Content blocks
-    dividerSettings,
     headingSettings,
     textSettings,
     imageSettings,
@@ -150,17 +98,6 @@ export function useBlockSettings(block: Ref<SectionBlock>) {
     iconStyles,
     variantsSettings,
     variantsStyles,
-
-    // Form blocks
-    formSettings,
-    formLabelSettings,
-    formLabelStyles,
-    formInputSettings,
-    formTextareaSettings,
-    formSelectSettings,
-    formRadioSettings,
-    formCheckboxSettings,
-    formButtonSettings,
 
     // Utility
     isBlockHidden,

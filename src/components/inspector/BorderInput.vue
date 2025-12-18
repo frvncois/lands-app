@@ -150,6 +150,7 @@ function update(key: keyof BorderStyle, value: string) {
       <ColorInput
         :model-value="modelValue?.color"
         swatch-only
+        side="left"
         @update:model-value="update('color', $event)"
       />
     </InspectorField>

@@ -11,7 +11,6 @@ import type {
   ContainerSettings,
   GridSettings,
   StackSettings,
-  DividerSettings,
   HeadingSettings,
   TextSettings,
   ImageSettings,
@@ -19,21 +18,12 @@ import type {
   ButtonSettings,
   IconSettings,
   VariantsSettings,
-  FormSettings,
-  FormLabelSettings,
-  FormInputSettings,
-  FormTextareaSettings,
-  FormSelectSettings,
-  FormRadioSettings,
-  FormCheckboxSettings,
-  FormButtonSettings,
   CanvasSettings,
   FreeformSettings,
   // Style types
   ContainerStyles,
   GridStyles,
   StackStyles,
-  DividerStyles,
   HeadingStyles,
   TextStyles,
   ImageStyles,
@@ -41,14 +31,6 @@ import type {
   ButtonStyles,
   IconStyles,
   VariantsStyles,
-  FormStyles,
-  FormLabelStyles,
-  FormInputStyles,
-  FormTextareaStyles,
-  FormSelectStyles,
-  FormRadioStyles,
-  FormCheckboxStyles,
-  FormButtonStyles,
   CanvasStyles,
   FreeformStyles,
 } from '@/types/editor'
@@ -79,18 +61,8 @@ export const sectionBlockLabels: Record<SectionBlockType, string> = {
   video: 'Video',
   button: 'Button',
   icon: 'Icon',
-  divider: 'Divider',
   // Product-specific
   variants: 'Variants',
-  form: 'Form',
-  // Form field blocks (children of form)
-  'form-label': 'Label',
-  'form-input': 'Input',
-  'form-textarea': 'Textarea',
-  'form-select': 'Dropdown',
-  'form-radio': 'Radio Select',
-  'form-checkbox': 'Checkbox',
-  'form-button': 'Submit Button',
 }
 
 export const sectionBlockIcons: Record<SectionBlockType, string> = {
@@ -107,51 +79,19 @@ export const sectionBlockIcons: Record<SectionBlockType, string> = {
   video: 'content-video',
   button: 'content-button',
   icon: 'content-icon',
-  divider: 'content-divider',
   // Product-specific
   variants: 'layout-container',
-  form: 'content-form',
-  // Form field blocks
-  'form-label': 'content-text',
-  'form-input': 'content-form',
-  'form-textarea': 'content-text',
-  'form-select': 'chevron-down',
-  'form-radio': 'content-form',
-  'form-checkbox': 'content-form',
-  'form-button': 'content-button',
 }
 
 // Block categories for sidebar organization
 export const blocksByCategory: Record<BlockCategory, SectionBlockType[]> = {
   layout: ['container', 'grid', 'stack', 'canvas'],
-  content: ['heading', 'text', 'image', 'video', 'button', 'icon', 'divider', 'form'],
+  content: ['heading', 'text', 'image', 'video', 'button', 'icon'],
 }
 
 export const categoryLabels: Record<BlockCategory, string> = {
   layout: 'Layout',
   content: 'Content',
-}
-
-// Form field block types (for adding to form)
-export const formFieldBlockTypes: SectionBlockType[] = [
-  'form-label',
-  'form-input',
-  'form-textarea',
-  'form-select',
-  'form-radio',
-  'form-checkbox',
-  'form-button',
-]
-
-// Labels for form field blocks in the add menu
-export const formFieldBlockLabels: Record<string, string> = {
-  'form-label': 'Label',
-  'form-input': 'Input Field',
-  'form-textarea': 'Textarea',
-  'form-select': 'Dropdown Select',
-  'form-radio': 'Radio Select',
-  'form-checkbox': 'Checkbox',
-  'form-button': 'Submit Button',
 }
 
 // Canvas child block types (blocks that can be placed in Canvas)
@@ -163,7 +103,6 @@ export const canvasChildBlockTypes: CanvasChildBlockType[] = [
   'video',
   'button',
   'icon',
-  'divider',
 ]
 
 // Labels for canvas child blocks in the add menu
@@ -174,7 +113,6 @@ export const canvasChildBlockLabels: Record<CanvasChildBlockType, string> = {
   'video': 'Video',
   'button': 'Button',
   'icon': 'Icon',
-  'divider': 'Divider',
 }
 
 // Header/Footer stack child block types (heading, text, button, image only)
@@ -243,19 +181,55 @@ export const maskShapeClipPaths: Record<MaskShape, string> = {
 // Which blocks can contain children
 export const layoutBlockTypes: SectionBlockType[] = ['container', 'grid', 'stack']
 
-// Blocks that can have children (layout blocks + form + canvas + button)
+// Blocks that can have children (layout blocks + canvas + button)
 export function canHaveChildren(type: SectionBlockType): boolean {
-  return layoutBlockTypes.includes(type) || type === 'form' || type === 'canvas' || type === 'button'
-}
-
-// Check if a block type is a form field (can only be child of form)
-export function isFormFieldBlock(type: SectionBlockType): boolean {
-  return formFieldBlockTypes.includes(type)
+  return layoutBlockTypes.includes(type) || type === 'canvas' || type === 'button'
 }
 
 // Check if a block type is a canvas child (can only be child of canvas)
 export function isCanvasChildBlock(type: SectionBlockType): boolean {
   return (canvasChildBlockTypes as SectionBlockType[]).includes(type)
+}
+
+// ============================================
+// DESCENDANT UTILITIES
+// ============================================
+
+export interface DescendantBlock {
+  block: SectionBlock
+  path: string // e.g., "Container > Grid > Button"
+  depth: number
+}
+
+/**
+ * Get ALL descendants of a block (recursive), including nested children
+ * Each descendant includes its full path for display purposes
+ */
+export function getAllDescendants(block: SectionBlock | null | undefined): DescendantBlock[] {
+  if (!block?.children?.length) return []
+
+  const descendants: DescendantBlock[] = []
+
+  const collectDescendants = (children: SectionBlock[], parentPath: string, depth: number) => {
+    for (const child of children) {
+      const childLabel = child.name || sectionBlockLabels[child.type] || child.type
+      const path = parentPath ? `${parentPath} → ${childLabel}` : childLabel
+
+      descendants.push({
+        block: child,
+        path,
+        depth,
+      })
+
+      // Recurse into nested children
+      if (child.children?.length) {
+        collectDescendants(child.children, path, depth + 1)
+      }
+    }
+  }
+
+  collectDescendants(block.children, '', 1)
+  return descendants
 }
 
 // ============================================
@@ -279,18 +253,8 @@ export const contentFieldsByBlockType: Record<SectionBlockType, string[]> = {
   video: ['src', 'posterSrc'],
   button: ['label', 'url'],
   icon: ['name'],
-  divider: [],
   // E-commerce
   variants: ['productId', 'variants'],
-  // Form blocks
-  form: ['action', 'successMessage', 'errorMessage'],
-  'form-label': ['content'],
-  'form-input': ['name', 'label', 'placeholder', 'defaultValue'],
-  'form-textarea': ['name', 'label', 'placeholder', 'defaultValue'],
-  'form-select': ['name', 'label', 'placeholder', 'options'],
-  'form-radio': ['name', 'label', 'options'],
-  'form-checkbox': ['name', 'label'],
-  'form-button': ['label'],
 }
 
 // Extract non-content settings from a block (for creating/updating shared styles)
@@ -356,19 +320,6 @@ export function hasSharedStyleOverrides(
   return false
 }
 
-// ============================================
-// FORM INPUT TYPE OPTIONS
-// ============================================
-
-export const formInputTypeOptions = [
-  { value: 'text', label: 'Text' },
-  { value: 'email', label: 'Email' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'number', label: 'Number' },
-  { value: 'date', label: 'Date' },
-  { value: 'password', label: 'Password' },
-  { value: 'url', label: 'URL' },
-]
 
 
 // ============================================
@@ -423,14 +374,6 @@ export function getDefaultGridSettings(): GridSettings {
 export function getDefaultStackSettings(): StackSettings {
   return {
     gap: '0',
-  }
-}
-
-export function getDefaultDividerSettings(): DividerSettings {
-  return {
-    style: 'line',
-    thickness: '1',
-    width: '100',
   }
 }
 
@@ -518,13 +461,6 @@ export function getDefaultVariantsSettings(): VariantsSettings {
   }
 }
 
-export function getDefaultFormSettings(): FormSettings {
-  return {
-    successMessage: 'Thank you! Your submission has been received.',
-    errorMessage: 'Something went wrong. Please try again.',
-    gap: '16',
-  }
-}
 
 // ============================================
 // CANVAS BLOCK DEFAULT SETTINGS
@@ -540,90 +476,6 @@ export function getDefaultCanvasSettings(): CanvasSettings {
   }
 }
 
-// ============================================
-// FORM FIELD BLOCK DEFAULT SETTINGS
-// ============================================
-
-export function getDefaultFormInputSettings(): FormInputSettings {
-  return {
-    label: 'Label',
-    name: 'field_' + generateId().slice(0, 6),
-    inputType: 'text',
-    placeholder: 'Enter text...',
-    required: false,
-    width: '100',
-  }
-}
-
-export function getDefaultFormTextareaSettings(): FormTextareaSettings {
-  return {
-    label: 'Message',
-    name: 'message_' + generateId().slice(0, 6),
-    placeholder: 'Enter your message...',
-    required: false,
-    rows: 4,
-    width: '100',
-  }
-}
-
-export function getDefaultFormSelectSettings(): FormSelectSettings {
-  return {
-    label: 'Select',
-    name: 'select_' + generateId().slice(0, 6),
-    placeholder: 'Choose an option...',
-    required: false,
-    options: [
-      { id: generateId(), label: 'Option 1', value: 'option_1' },
-      { id: generateId(), label: 'Option 2', value: 'option_2' },
-      { id: generateId(), label: 'Option 3', value: 'option_3' },
-    ],
-    width: '100',
-  }
-}
-
-export function getDefaultFormRadioSettings(): FormRadioSettings {
-  return {
-    label: 'Select one',
-    name: 'radio_' + generateId().slice(0, 6),
-    required: false,
-    options: [
-      { id: generateId(), label: 'Option 1', value: 'option_1' },
-      { id: generateId(), label: 'Option 2', value: 'option_2' },
-    ],
-    layout: 'vertical',
-    width: '100',
-  }
-}
-
-export function getDefaultFormCheckboxSettings(): FormCheckboxSettings {
-  return {
-    label: 'Select all that apply',
-    name: 'checkbox_' + generateId().slice(0, 6),
-    required: false,
-    options: [
-      { id: generateId(), label: 'Option 1', value: 'option_1' },
-      { id: generateId(), label: 'Option 2', value: 'option_2' },
-    ],
-    layout: 'vertical',
-    width: '100',
-  }
-}
-
-export function getDefaultFormButtonSettings(): FormButtonSettings {
-  return {
-    label: 'Submit',
-    variant: 'primary',
-    size: 'md',
-    fullWidth: false,
-    alignment: 'left',
-  }
-}
-
-export function getDefaultFormLabelSettings(): FormLabelSettings {
-  return {
-    content: 'Label',
-  }
-}
 
 // ============================================
 // DEFAULT STYLES
@@ -668,13 +520,6 @@ export function getDefaultStackStyles(): StackStyles {
   }
 }
 
-export function getDefaultDividerStyles(): DividerStyles {
-  return {
-    margin: { top: '0', bottom: '0' },
-    alignment: 'center',
-  }
-}
-
 export function getDefaultHeadingStyles(): HeadingStyles {
   return {
     padding: { top: '0', bottom: '0', left: '0', right: '0' },
@@ -712,12 +557,7 @@ export function getDefaultVideoStyles(): VideoStyles {
 
 export function getDefaultButtonStyles(): ButtonStyles {
   return {
-    backgroundColor: '#18181b',
-    color: '#ffffff',
-    padding: { top: '12px', bottom: '12px', left: '24px', right: '24px' },
-    border: { radius: '8px' },
-    justifyContent: 'center',
-    alignItems: 'center',
+    // Button is just a plain <a> tag - users style it themselves
   }
 }
 
@@ -732,15 +572,6 @@ export function getDefaultVariantsStyles(): VariantsStyles {
   }
 }
 
-export function getDefaultFormStyles(): FormStyles {
-  return {
-    padding: { top: '0', bottom: '0', left: '0', right: '0' },
-    flexDirection: 'column',
-    justifyContent: 'flex-start',
-    alignItems: 'stretch',
-    gap: '16px',
-  }
-}
 
 // ============================================
 // CANVAS BLOCK DEFAULT STYLES
@@ -766,40 +597,6 @@ export function getDefaultFreeformStyles(): FreeformStyles {
   }
 }
 
-// ============================================
-// FORM FIELD BLOCK DEFAULT STYLES
-// ============================================
-
-export function getDefaultFormInputStyles(): FormInputStyles {
-  return {}
-}
-
-export function getDefaultFormTextareaStyles(): FormTextareaStyles {
-  return {}
-}
-
-export function getDefaultFormSelectStyles(): FormSelectStyles {
-  return {}
-}
-
-export function getDefaultFormRadioStyles(): FormRadioStyles {
-  return {}
-}
-
-export function getDefaultFormCheckboxStyles(): FormCheckboxStyles {
-  return {}
-}
-
-export function getDefaultFormButtonStyles(): FormButtonStyles {
-  return {}
-}
-
-export function getDefaultFormLabelStyles(): FormLabelStyles {
-  return {
-    fontSize: '14px',
-    fontWeight: 'medium',
-  }
-}
 
 // ============================================
 // BLOCK CREATION
@@ -810,7 +607,6 @@ const defaultSettingsMap: Record<SectionBlockType, () => SectionBlock['settings'
   'container': getDefaultContainerSettings,
   'grid': getDefaultGridSettings,
   'stack': getDefaultStackSettings,
-  'divider': getDefaultDividerSettings,
   'heading': getDefaultHeadingSettings,
   'text': getDefaultTextSettings,
   'image': getDefaultImageSettings,
@@ -818,19 +614,8 @@ const defaultSettingsMap: Record<SectionBlockType, () => SectionBlock['settings'
   'button': getDefaultButtonSettings,
   'icon': getDefaultIconSettings,
   'variants': getDefaultVariantsSettings,
-  'form': getDefaultFormSettings,
-  // Canvas block
   'canvas': getDefaultCanvasSettings,
-  // Freeform block
   'freeform': getDefaultFreeformSettings,
-  // Form field blocks
-  'form-label': getDefaultFormLabelSettings,
-  'form-input': getDefaultFormInputSettings,
-  'form-textarea': getDefaultFormTextareaSettings,
-  'form-select': getDefaultFormSelectSettings,
-  'form-radio': getDefaultFormRadioSettings,
-  'form-checkbox': getDefaultFormCheckboxSettings,
-  'form-button': getDefaultFormButtonSettings,
 }
 
 // Lookup map for default styles - O(1) access instead of switch statement
@@ -838,7 +623,6 @@ const defaultStylesMap: Record<SectionBlockType, () => SectionBlock['styles']> =
   'container': getDefaultContainerStyles,
   'grid': getDefaultGridStyles,
   'stack': getDefaultStackStyles,
-  'divider': getDefaultDividerStyles,
   'heading': getDefaultHeadingStyles,
   'text': getDefaultTextStyles,
   'image': getDefaultImageStyles,
@@ -846,19 +630,8 @@ const defaultStylesMap: Record<SectionBlockType, () => SectionBlock['styles']> =
   'button': getDefaultButtonStyles,
   'icon': getDefaultIconStyles,
   'variants': getDefaultVariantsStyles,
-  'form': getDefaultFormStyles,
-  // Canvas block
   'canvas': getDefaultCanvasStyles,
-  // Freeform block
   'freeform': getDefaultFreeformStyles,
-  // Form field blocks
-  'form-label': getDefaultFormLabelStyles,
-  'form-input': getDefaultFormInputStyles,
-  'form-textarea': getDefaultFormTextareaStyles,
-  'form-select': getDefaultFormSelectStyles,
-  'form-radio': getDefaultFormRadioStyles,
-  'form-checkbox': getDefaultFormCheckboxStyles,
-  'form-button': getDefaultFormButtonStyles,
 }
 
 function getDefaultSettings(type: SectionBlockType): SectionBlock['settings'] {
@@ -1112,14 +885,6 @@ export const headingLevelOptions = [
   { value: 'h3', label: 'H3' },
   { value: 'h4', label: 'H4' },
   { value: 'h5', label: 'H5' },
-  { value: 'h6', label: 'H6' },
-] as const
-
-export const dividerStyleOptions = [
-  { value: 'line', label: 'Line' },
-  { value: 'dashed', label: 'Dashed' },
-  { value: 'dotted', label: 'Dotted' },
-  { value: 'space', label: 'Space' },
 ] as const
 
 export const mediaPositionOptions = [

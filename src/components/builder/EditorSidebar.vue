@@ -26,6 +26,9 @@ const editorStore = useEditorStore()
 // Use composables
 const {
   dragState,
+  handleNewBlockDragStart,
+  handleNewBlockDragEnd,
+  isNewBlockTypeDrag,
   handleBlockDragStart,
   handleBlockDragOver,
   handleBlockDragLeave,
@@ -39,6 +42,8 @@ const {
   handleEmptyParentDragOver,
   handleEmptyParentDragLeave,
   handleEmptyParentDrop,
+  handleBlockRowHover,
+  handleBlockRowLeave,
 } = useSidebarDragState()
 
 const {
@@ -59,6 +64,11 @@ const {
   handleCopyStyle,
   handlePasteStyle,
   handleCreateComponent,
+  handleWrapInStack,
+  isStack,
+  isButton,
+  handleConvertToButton,
+  handleConvertToStack,
   renamingBlockId,
   handleRename,
   startRename,
@@ -157,17 +167,15 @@ function handleInsertComponent(componentId: string) {
 }
 
 function handleSectionTypeDragStart(type: SectionBlockType, event: DragEvent) {
-  if (event.dataTransfer) {
-    event.dataTransfer.setData('application/x-section-type', type)
-    event.dataTransfer.setData('text/plain', type)
-    event.dataTransfer.effectAllowed = 'copy'
-  }
+  handleNewBlockDragStart(type, event)
+  // Close dropdown after a short delay so the drag preview is visible
   setTimeout(() => {
     showSectionDropdown.value = false
-  }, 100)
+  }, 50)
 }
 
 function handleSectionTypeDragEnd() {
+  handleNewBlockDragEnd()
   showSectionDropdown.value = false
 }
 
@@ -200,23 +208,26 @@ function handleAddChildBlockAtPosition(parentId: string, blockType: string, posi
   }
 }
 
-// Wrapper for child drop to pass expandBlock
-function handleChildDropWithExpand(parentId: string, childIndex: number) {
-  handleChildDrop(parentId, childIndex, expandBlock)
+// Wrapper for child drop to pass expandBlock and event
+function handleChildDropWithExpand(parentId: string, childIndex: number, event?: DragEvent) {
+  handleChildDrop(parentId, childIndex, expandBlock, event)
 }
 
-function handleEmptyParentDropWithExpand(parentId: string) {
-  handleEmptyParentDrop(parentId, expandBlock)
+function handleEmptyParentDropWithExpand(parentId: string, event?: DragEvent) {
+  handleEmptyParentDrop(parentId, expandBlock, event)
 }
 
-function getBlockPickerMode(block: { type: string }): 'form' | 'content-only' | 'nested' {
-  if (block.type === 'form') return 'form'
+// Wrapper for block row hover to pass expandBlock
+function handleBlockRowHoverWithExpand(blockId: string) {
+  handleBlockRowHover(blockId, expandBlock)
+}
+
+function getBlockPickerMode(block: { type: string }): 'content-only' | 'nested' {
   if (block.type === 'canvas') return 'content-only'
   return 'nested'
 }
 
 function getBlockPickerLabel(block: { type: string }): string {
-  if (block.type === 'form') return 'Add field'
   if (block.type === 'canvas') return 'Add element'
   return 'Add block'
 }
@@ -368,9 +379,9 @@ function getBlockPickerLabel(block: { type: string }): string {
               class="block-item"
               draggable="true"
               @dragstart="handleBlockDragStart(blockIndex, $event)"
-              @dragover="handleBlockDragOver(blockIndex, $event)"
-              @dragleave="handleBlockDragLeave"
-              @drop="handleBlockDrop(blockIndex)"
+              @dragover="handleBlockDragOver(blockIndex, $event); if (canHaveChildren(block.type)) handleBlockRowHoverWithExpand(block.id)"
+              @dragleave="handleBlockDragLeave(); handleBlockRowLeave()"
+              @drop="handleBlockDrop(blockIndex, $event)"
               @dragend="handleBlockDragEnd"
             >
               <!-- Section block header -->
@@ -382,6 +393,7 @@ function getBlockPickerLabel(block: { type: string }): string {
                     : 'text-foreground hover:bg-accent/50',
                   dragState.blockIndex === blockIndex ? 'opacity-50' : '',
                   dragState.overBlockIndex === blockIndex ? 'border-t-2 border-primary' : '',
+                  dragState.hoverExpandBlockId === block.id ? 'ring-1 ring-primary/50 bg-primary/10' : '',
                 ]"
                 @click="editorStore.selectBlock(block.id)"
                 @contextmenu="openContextMenu(block.id, 'section', $event)"
@@ -420,7 +432,7 @@ function getBlockPickerLabel(block: { type: string }): string {
               </div>
 
               <!-- Expanded children -->
-              <div v-if="expandedBlocks.has(block.id) && canHaveChildren(block.type)" class="ml-5 mt-1">
+              <div v-if="expandedBlocks.has(block.id) && canHaveChildren(block.type)" class="ml-2.5 mt-1">
                 <!-- Empty state or children -->
                 <template v-if="block.children && block.children.length > 0">
                   <template v-for="(child, childIndex) in block.children" :key="child.id">
@@ -447,20 +459,59 @@ function getBlockPickerLabel(block: { type: string }): string {
                       @start-rename="startRename"
                       @finish-rename="finishRename"
                       @cancel-rename="cancelRename"
+                      @block-row-hover="handleBlockRowHoverWithExpand"
+                      @block-row-leave="handleBlockRowLeave"
                     />
                   </template>
+                  <!-- Drop zone at end of children list (when dragging) -->
+                  <div
+                    v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
+                    class="flex items-center justify-center px-2 py-1.5 rounded-lg border-2 border-dashed transition-colors mt-0.5"
+                    :class="dragState.overChildInfo?.parentId === block.id && dragState.overChildInfo?.childIndex === block.children.length ? 'border-primary bg-primary/10' : 'border-transparent hover:border-muted-foreground/30'"
+                    @dragover.prevent.stop="handleChildDragOver(block.id, block.children.length, $event)"
+                    @dragleave="handleChildDragLeave"
+                    @drop.stop="handleChildDropWithExpand(block.id, block.children.length, $event)"
+                  >
+                    <span class="text-[10px] text-muted-foreground">Drop here</span>
+                  </div>
                 </template>
 
-                <!-- Empty state: Show block picker when no children -->
-                <SidebarBlockPicker
-                  v-else
-                  :mode="getBlockPickerMode(block)"
-                  :trigger-label="getBlockPickerLabel(block)"
-                  @select="handleAddChildBlock(block.id, $event)"
-                />
+                <!-- Empty state: Show drop zone when dragging, otherwise show block picker -->
+                <template v-else>
+                  <!-- Drop zone for empty parent when dragging -->
+                  <div
+                    v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
+                    class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
+                    :class="dragState.overEmptyParentId === block.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
+                    @dragover.prevent.stop="handleEmptyParentDragOver(block.id, $event)"
+                    @dragleave="handleEmptyParentDragLeave"
+                    @drop.stop="handleEmptyParentDropWithExpand(block.id, $event)"
+                  >
+                    <span class="text-xs text-muted-foreground">Drop here</span>
+                  </div>
+                  <!-- Normal block picker when not dragging -->
+                  <SidebarBlockPicker
+                    v-else
+                    :mode="getBlockPickerMode(block)"
+                    :trigger-label="getBlockPickerLabel(block)"
+                    @select="handleAddChildBlock(block.id, $event)"
+                  />
+                </template>
               </div>
             </div>
           </template>
+
+          <!-- Drop zone at end of blocks list (when dragging) -->
+          <div
+            v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
+            class="flex items-center justify-center px-2 py-2 rounded-lg border-2 border-dashed transition-colors mt-1"
+            :class="dragState.overBlockIndex === editorStore.blocks.length ? 'border-primary bg-primary/10' : 'border-transparent hover:border-muted-foreground/30'"
+            @dragover.prevent="handleBlockDragOver(editorStore.blocks.length, $event)"
+            @dragleave="handleBlockDragLeave"
+            @drop="handleBlockDrop(editorStore.blocks.length, $event)"
+          >
+            <span class="text-[10px] text-muted-foreground">Drop here</span>
+          </div>
         </div>
       </div>
     </template>
@@ -494,6 +545,26 @@ function getBlockPickerLabel(block: { type: string }): string {
         @click="handleDuplicate"
       >
         Duplicate
+      </ContextMenuItem>
+      <ContextMenuItem
+        icon="style-row"
+        @click="handleWrapInStack"
+      >
+        Wrap in stack
+      </ContextMenuItem>
+      <ContextMenuItem
+        v-if="isStack"
+        icon="link-1"
+        @click="handleConvertToButton"
+      >
+        Convert to link
+      </ContextMenuItem>
+      <ContextMenuItem
+        v-if="isButton"
+        icon="style-row"
+        @click="handleConvertToStack"
+      >
+        Convert to stack
       </ContextMenuItem>
       <ContextMenuItem
         icon="package"

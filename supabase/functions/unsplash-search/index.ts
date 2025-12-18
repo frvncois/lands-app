@@ -46,7 +46,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query, page = 1, per_page = 30, orientation } = await req.json()
+    const { query, page = 1, per_page = 30, orientation, order_by } = await req.json()
 
     if (!query) {
       return new Response(JSON.stringify({ error: 'Query is required' }), {
@@ -64,6 +64,10 @@ serve(async (req) => {
 
     if (orientation) {
       params.set('orientation', orientation)
+    }
+
+    if (order_by) {
+      params.set('order_by', order_by)
     }
 
     const response = await fetch(

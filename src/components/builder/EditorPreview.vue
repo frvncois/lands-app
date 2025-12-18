@@ -1,14 +1,31 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import PreviewSection from '@/components/preview/PreviewSection.vue'
 import { createSectionBlock } from '@/lib/editor-utils'
 import type { SectionBlockType } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
-import BlockPicker from '@/components/builder/BlockPicker.vue'
+import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 
 const editorStore = useEditorStore()
+
+// Scroll to selected block when selection changes
+watch(
+  () => editorStore.selectedBlockId,
+  async (blockId) => {
+    if (!blockId || !scrollContainerRef.value) return
+
+    // Wait for DOM to update
+    await nextTick()
+
+    // Find the block element
+    const blockElement = scrollContainerRef.value.querySelector(`[data-block-id="${blockId}"]`)
+    if (blockElement) {
+      blockElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }
+)
 
 // Ref for the preview container
 const previewContainerRef = ref<HTMLElement | null>(null)
@@ -151,8 +168,8 @@ function handleAddContent() {
   isBlockPickerOpen.value = true
 }
 
-function handleBlockPickerSelectBlock(type: SectionBlockType) {
-  const block = editorStore.addBlock(type, blockPickerInsertIndex.value ?? undefined)
+function handleBlockPickerSelectBlock(type: string) {
+  const block = editorStore.addBlock(type as SectionBlockType, blockPickerInsertIndex.value ?? undefined)
   if (block) {
     editorStore.selectBlock(block.id)
   }
@@ -434,9 +451,10 @@ function handleSectionDrop(event: DragEvent) {
     </ContextMenu>
 
     <!-- Block Picker -->
-    <BlockPicker
+    <SidebarBlockPicker
       v-model:open="isBlockPickerOpen"
-      @select-block="handleBlockPickerSelectBlock"
+      hide-trigger
+      @select="handleBlockPickerSelectBlock"
     />
   </div>
 </template>

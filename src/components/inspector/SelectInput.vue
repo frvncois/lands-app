@@ -3,9 +3,10 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Icon } from '@/components/ui'
 
 const props = defineProps<{
-  options: readonly { value: string; label: string }[]
+  options: readonly { value: string; label: string; separator?: boolean }[]
   modelValue: string | undefined
   placeholder?: string
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -49,7 +50,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative min-w-30">
+  <div ref="dropdownRef" class="relative" :class="compact ? '' : 'min-w-30'">
     <!-- Trigger button -->
     <button
       type="button"
@@ -78,20 +79,27 @@ onUnmounted(() => {
         v-if="isOpen"
         class="absolute top-full left-0 right-0 mt-1 bg-popover backdrop-blur-sm p-1 border border-border/75 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto origin-top"
       >
-        <button
-          v-for="opt in options"
-          :key="opt.value"
-          type="button"
-          class="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-md transition-colors cursor-pointer text-left"
-          :class="[
-            opt.value === modelValue
-              ? 'bg-primary text-primary-foreground'
-              : 'text-foreground hover:bg-accent/75'
-          ]"
-          @click="select(opt.value)"
-        >
-          {{ opt.label }}
-        </button>
+        <template v-for="opt in options" :key="opt.value">
+          <!-- Separator -->
+          <div
+            v-if="opt.separator"
+            class="my-1 mx-2 border-t border-border"
+          />
+          <!-- Option -->
+          <button
+            v-else
+            type="button"
+            class="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-md transition-colors cursor-pointer text-left"
+            :class="[
+              opt.value === modelValue
+                ? 'bg-primary text-primary-foreground'
+                : 'text-foreground hover:bg-accent/75'
+            ]"
+            @click="select(opt.value)"
+          >
+            {{ opt.label }}
+          </button>
+        </template>
       </div>
     </Transition>
   </div>

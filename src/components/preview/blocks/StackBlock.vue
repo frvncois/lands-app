@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from 'vue'
 import type { SectionBlock, SectionBlockType, StackSettings, StackStyles } from '@/types/editor'
-import { sectionBlockIcons, blocksByCategory } from '@/lib/editor-utils'
 import { BackgroundMedia } from './index'
-import Button from '@/components/ui/Button.vue'
-import Dropdown from '@/components/ui/Dropdown.vue'
-import DropdownItem from '@/components/ui/DropdownItem.vue'
-import Icon from '@/components/ui/Icon.vue'
+import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 
 // Use async component to avoid circular dependency
 const PreviewSection = defineAsyncComponent(() => import('../PreviewSection.vue'))
@@ -35,18 +31,62 @@ const settings = computed(() => props.block.settings as StackSettings)
 const stackStyles = computed(() => props.block.styles as StackStyles)
 
 const isHorizontal = computed(() => stackStyles.value?.flexDirection === 'row')
+
+// Dynamic HTML tag (defaults to 'div')
+const htmlTag = computed(() => settings.value?.htmlTag || 'div')
+
+// Check if child has absolute or fixed positioning
+function isChildAbsoluteOrFixed(child: SectionBlock): boolean {
+  const childStyles = child.styles as Record<string, unknown>
+  const position = childStyles?.position as string
+  return position === 'absolute' || position === 'fixed'
+}
+
+// Get flex styles for a child block based on its flexMode and flexValue
+function getChildFlexStyles(child: SectionBlock): Record<string, string> {
+  // Absolute/fixed positioned elements don't participate in flex layout
+  if (isChildAbsoluteOrFixed(child)) {
+    return {}
+  }
+
+  const childSettings = child.settings as Record<string, unknown>
+  const flexMode = childSettings.flexMode as string || 'auto'
+  const flexValue = childSettings.flexValue as string || '1'
+
+  const styles: Record<string, string> = {}
+
+  switch (flexMode) {
+    case 'grow':
+      styles.flexGrow = flexValue
+      styles.flexShrink = '0'
+      styles.flexBasis = '0%'
+      break
+    case 'shrink':
+      styles.flexGrow = '0'
+      styles.flexShrink = flexValue
+      styles.flexBasis = 'auto'
+      break
+    case 'auto':
+    default:
+      styles.flex = '0 0 auto'
+      break
+  }
+
+  return styles
+}
 </script>
 
 <template>
-  <div
-    class="relative flex transition-colors"
+  <component
+    :is="htmlTag"
+    class="relative flex flex-1 min-h-0 transition-colors"
     :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
     :style="{
       ...styles,
-      flexDirection: stackStyles?.flexDirection || 'column',
-      justifyContent: stackStyles?.justifyContent || 'flex-start',
-      alignItems: stackStyles?.alignItems || 'stretch',
-      gap: stackStyles?.gap || '16px',
+      flexDirection: stackStyles?.flexDirection || styles.flexDirection || 'column',
+      justifyContent: stackStyles?.justifyContent || styles.justifyContent || 'flex-start',
+      alignItems: stackStyles?.alignItems || styles.alignItems || 'stretch',
+      gap: stackStyles?.gap || styles.gap || '16px',
       backgroundColor: settings?.backgroundType && settings.backgroundType !== 'color' ? undefined : styles.backgroundColor,
     }"
     @dragenter="emit('dragEnter', $event)"
@@ -62,6 +102,8 @@ const isHorizontal = computed(() => stackStyles.value?.flexDirection === 'row')
       :image-opacity="settings?.backgroundImageOpacity"
       :image-blur="settings?.backgroundImageBlur"
       :image-saturation="settings?.backgroundImageSaturation"
+      :image-overlay="settings?.backgroundImageOverlay"
+      :image-overlay-opacity="settings?.backgroundImageOverlayOpacity"
     />
 
     <!-- Children -->
@@ -69,7 +111,9 @@ const isHorizontal = computed(() => stackStyles.value?.flexDirection === 'row')
       <div
         v-for="(child, childIndex) in block.children"
         :key="child.id"
-        class="relative z-10"
+        class="z-10 flex flex-col min-h-0"
+        :class="{ 'relative': !isChildAbsoluteOrFixed(child) }"
+        :style="getChildFlexStyles(child)"
         @dragover="emit('childDragOver', childIndex, $event)"
         @dragleave="emit('childDragLeave')"
       >
@@ -100,25 +144,11 @@ const isHorizontal = computed(() => stackStyles.value?.flexDirection === 'row')
       v-else
       class="relative z-30 flex-1 flex flex-col items-center justify-center py-8 text-muted-foreground border-1 border-dashed border-border/50"
     >
-      <Dropdown align="left" width="min-w-48" :close-on-click="true">
-        <template #trigger="{ toggle }">
-          <Button variant="dotted" size="sm" @click.stop="toggle">
-            <Icon name="plus" :size="12" />
-            Add content
-          </Button>
-        </template>
-        <div class="py-1 font-sans">
-          <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
-          <DropdownItem
-            v-for="type in (blocksByCategory.content as SectionBlockType[])"
-            :key="type"
-            :icon="sectionBlockIcons[type]"
-            @click="emit('addBlock', type)"
-          >
-            {{ type.charAt(0).toUpperCase() + type.slice(1) }}
-          </DropdownItem>
-        </div>
-      </Dropdown>
+      <SidebarBlockPicker
+        mode="nested"
+        trigger-label="Add content"
+        @select="(type: string) => emit('addBlock', type as SectionBlockType)"
+      />
     </div>
-  </div>
+  </component>
 </template>

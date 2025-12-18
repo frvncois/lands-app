@@ -74,7 +74,7 @@ export function useIntegrations(projectId: string) {
     try {
       const { data, error } = await supabase
         .from('integration_connections')
-        .select('*')
+        .select('id, project_id, provider_id, is_connected, connected_at, account_info, settings')
         .eq('project_id', projectId)
 
       if (error) throw error

@@ -124,6 +124,19 @@ function handleClickOutside(event: MouseEvent) {
     return
   }
 
+  // Skip if clicking inside a nested ColorPicker popover (which is teleported to body)
+  const colorPickerPopover = (target as Element).closest?.('.color-picker-popover')
+  if (colorPickerPopover) {
+    return
+  }
+
+  // Skip if clicking inside a modal (teleported to body with high z-index)
+  // This prevents closing the popover when interacting with modals opened from within it
+  const modal = (target as Element).closest?.('.fixed.z-\\[9999\\]')
+  if (modal) {
+    return
+  }
+
   // Use a delay to handle cases where clicked element gets removed
   setTimeout(() => {
     if (isOpen.value) {
@@ -186,7 +199,7 @@ defineExpose({ open, close, toggle, isOpen })
           v-if="isOpen"
           ref="popoverRef"
           :class="[
-            'fixed bg-popover border border-border rounded-xl shadow-xl z-[100] overflow-y-auto',
+            'fixed bg-popover border border-border rounded-xl shadow-xl z-[100]',
             width,
             actualPosition === 'top' ? 'origin-bottom' : 'origin-top',
           ]"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { fontWeightOptions, alignmentOptions } from '@/lib/editor-utils'
+import { computed } from 'vue'
+import { alignmentOptions } from '@/lib/editor-utils'
 import { useFontOptions } from '../composables'
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
@@ -45,7 +46,13 @@ const emit = defineEmits<{
   'update:color': [value: string]
 }>()
 
-const { fontFamilyOptions: defaultFontOptions } = useFontOptions({ includeInherit: true })
+const { fontFamilyOptions: defaultFontOptions, getFontWeightOptions, defaultFontFamily } = useFontOptions({ includeInherit: true })
+
+// Get weight options based on current font
+const fontWeightOptions = computed(() => {
+  const currentFont = props.fontFamily || defaultFontFamily.value
+  return getFontWeightOptions(currentFont)
+})
 
 function toggleFontStyle() {
   emit('update:fontStyle', props.fontStyle === 'italic' ? 'normal' : 'italic')
@@ -63,16 +70,18 @@ function toggleStrikethrough() {
 <template>
   <InspectorSection title="Typography" icon="style-color">
     <!-- Font Family -->
-    <InspectorField label="Font Family" horizontal>
-      <SelectInput
-        :options="fontOptions ?? defaultFontOptions"
-        :model-value="fontFamily || defaultFontFamily"
-        @update:model-value="emit('update:fontFamily', $event)"
-      />
+    <InspectorField label="Family" horizontal>
+      <div class="max-w-30">
+        <SelectInput
+          :options="fontOptions ?? defaultFontOptions"
+          :model-value="fontFamily || defaultFontFamily"
+          @update:model-value="emit('update:fontFamily', $event)"
+        />
+      </div>
     </InspectorField>
 
     <!-- Font Weight -->
-    <InspectorField label="Font Weight" horizontal>
+    <InspectorField label="Weight" horizontal>
       <SelectInput
         :options="fontWeightOptions"
         :model-value="fontWeight || defaultFontWeight"
@@ -81,7 +90,7 @@ function toggleStrikethrough() {
     </InspectorField>
 
     <!-- Font Size -->
-    <InspectorField label="Font Size" horizontal>
+    <InspectorField label="Size" horizontal>
       <SizeInput
         :model-value="fontSize"
         :placeholder="defaultFontSize"

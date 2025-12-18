@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
-import type { SectionBlock, ImageSettings, ViewportSize } from '@/types/editor'
+import type { SectionBlock, ImageSettings, ImageStyles, ViewportSize } from '@/types/editor'
 import { useEditorStore } from '@/stores/editor'
 import { useBlockStyles } from '../composables/useBlockStyles'
 import Icon from '@/components/ui/Icon.vue'
@@ -22,6 +22,43 @@ const viewportRef = computed(() => editorStore.viewport as ViewportSize)
 const { getImageStyles } = useBlockStyles(blockRef, { viewport: viewportRef })
 
 const settings = computed(() => props.block.settings as ImageSettings)
+const imageStyles = computed(() => props.block.styles as ImageStyles)
+
+// Check if image has absolute or fixed positioning
+const isAbsoluteOrFixed = computed(() => {
+  const position = imageStyles.value?.position
+  return position === 'absolute' || position === 'fixed'
+})
+
+// Check if image has explicit dimensions set (height or aspect ratio)
+const hasExplicitDimensions = computed(() => {
+  const s = imageStyles.value
+  return !!(s?.height || s?.aspectRatio)
+})
+
+// Build CSS filter string from adjustment values
+const filterStyle = computed(() => {
+  const filters: string[] = []
+  const s = imageStyles.value
+
+  if (s?.brightness !== undefined && s.brightness !== 100) {
+    filters.push(`brightness(${s.brightness / 100})`)
+  }
+  if (s?.contrast !== undefined && s.contrast !== 100) {
+    filters.push(`contrast(${s.contrast / 100})`)
+  }
+  if (s?.saturation !== undefined && s.saturation !== 100) {
+    filters.push(`saturate(${s.saturation / 100})`)
+  }
+  if (s?.hue !== undefined && s.hue !== 0) {
+    filters.push(`hue-rotate(${s.hue}deg)`)
+  }
+  if (s?.grayscale !== undefined && s.grayscale !== 0) {
+    filters.push(`grayscale(${s.grayscale / 100})`)
+  }
+
+  return filters.length > 0 ? filters.join(' ') : undefined
+})
 
 // Translation-aware alt text
 const displayAlt = computed(() => {
@@ -37,18 +74,56 @@ const displayAlt = computed(() => {
 </script>
 
 <template>
-  <div class="flex justify-center" :style="styles">
+  <!-- Absolute/Fixed positioned image - simpler structure -->
+  <div v-if="isAbsoluteOrFixed && settings?.src" class="relative w-full h-full" :style="styles">
     <img
-      v-if="settings?.src"
       :src="settings.src"
       :alt="displayAlt || ''"
-      class="max-w-full h-auto"
-      :style="getImageStyles()"
+      class="w-full h-full block"
+      :style="{ ...getImageStyles(), filter: filterStyle }"
     />
+    <!-- Image Overlay -->
     <div
-      v-else
-      class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center"
-    >
+      v-if="settings.overlay"
+      class="absolute inset-0 pointer-events-none"
+      :style="{
+        backgroundColor: settings.overlay,
+        opacity: (settings.overlayOpacity ?? 50) / 100,
+        borderRadius: getImageStyles().borderRadius || '0',
+      }"
+    />
+  </div>
+
+  <!-- Normal positioned image - centered layout -->
+  <div v-else-if="settings?.src" class="flex justify-center" :style="styles">
+    <div class="relative inline-block" :class="{ 'w-full': hasExplicitDimensions }">
+      <img
+        :src="settings.src"
+        :alt="displayAlt || ''"
+        class="block"
+        :class="hasExplicitDimensions ? 'w-full h-full' : 'max-w-full h-auto'"
+        :style="{ ...getImageStyles(), filter: filterStyle }"
+      />
+      <!-- Image Overlay -->
+      <div
+        v-if="settings.overlay"
+        class="absolute inset-0 pointer-events-none"
+        :style="{
+          backgroundColor: settings.overlay,
+          opacity: (settings.overlayOpacity ?? 50) / 100,
+          borderRadius: getImageStyles().borderRadius || '0',
+        }"
+      />
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div
+    v-else
+    class="flex justify-center"
+    :style="styles"
+  >
+    <div class="w-full h-48 bg-muted/50 rounded-lg flex items-center justify-center">
       <Icon name="content-image" class="text-4xl text-muted-foreground" />
     </div>
   </div>

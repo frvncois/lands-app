@@ -4,10 +4,8 @@ import type {
   SectionBlock,
   SectionBlockType,
   PageSettings,
-  FormSettings,
   ViewportSize,
   CoreBlockStyles,
-  FormFieldBlockType,
   GridSettings,
   CanvasSettings,
   CanvasChildPosition,
@@ -19,13 +17,21 @@ import {
   getDefaultPageSettings,
   duplicateSectionBlock,
   canHaveChildren,
-  isFormFieldBlock,
   generateId,
 } from '@/lib/editor-utils'
 import { getThemeById } from '@/lib/themes'
 import { getLayoutById } from '@/lib/layouts'
 import { useProjectsStore } from '@/stores/projects'
 import { useToast } from '@/stores/toast'
+import {
+  enqueueSave,
+  flushQueue,
+  clearProjectQueue,
+  hasPendingSaves,
+  isSyncing,
+  saveQueueState,
+  type EditorState,
+} from '@/lib/editor'
 
 // Import composables
 import {
@@ -71,6 +77,9 @@ export const useEditorStore = defineStore('editor', () => {
   const viewport = ref<ViewportSize>('desktop')
   const isSidebarCollapsed = ref(false)
   const isInspectorCollapsed = ref(false)
+
+  // Effect preview state
+  const previewAppearBlockId = ref<string | null>(null)
   const autoSaveEnabled = ref(false)
   const lastSavedAt = ref<string | null>(null)
 
@@ -100,13 +109,31 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // ============================================
-  // CHANGE TRACKING
+  // CHANGE TRACKING & SAVE QUEUE
   // ============================================
+
+  // Last saved snapshot for diff computation
+  const lastSavedSnapshot = ref<EditorState | null>(null)
+
+  function getCurrentState(): EditorState {
+    return {
+      blocks: blocks.value,
+      pageSettings: pageSettings.value as Record<string, unknown>,
+      translations: translationsComposable.getTranslationsData() as unknown as Record<string, unknown>,
+      components: components.value,
+    }
+  }
 
   function markAsChanged() {
     hasUnsavedChanges.value = true
-    // Note: rebuildBlockIndex() should be called AFTER mutations, not here
-    // All mutating functions call rebuildBlockIndex() explicitly after their changes
+
+    // Enqueue save with diff
+    if (currentProjectId.value) {
+      const currentState = getCurrentState()
+      enqueueSave(currentProjectId.value, lastSavedSnapshot.value, currentState)
+      // Update snapshot after enqueueing (use deepClone for Vue Proxy compatibility)
+      lastSavedSnapshot.value = deepClone(currentState) as EditorState
+    }
   }
 
   function markAsChangedWithHistory() {
@@ -115,8 +142,13 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function cancelAutoSave() {
-    // No-op - auto-save is disabled
+    // No-op - auto-save is disabled (we use queue-based saving now)
   }
+
+  // Expose save queue state for UI
+  const isSyncingChanges = computed(() => isSyncing.value)
+  const hasPendingChanges = computed(() => hasPendingSaves.value)
+  const isOffline = computed(() => !saveQueueState.isOnline)
 
   // ============================================
   // HISTORY (Undo/Redo)
@@ -212,6 +244,15 @@ export const useEditorStore = defineStore('editor', () => {
 
   function setViewport(size: ViewportSize) {
     viewport.value = size
+  }
+
+  function triggerAppearPreview(blockId: string) {
+    // Set the block ID to trigger preview in PreviewSection
+    previewAppearBlockId.value = blockId
+    // Clear after a short delay (the animation will have started)
+    setTimeout(() => {
+      previewAppearBlockId.value = null
+    }, 100)
   }
 
   function toggleSidebar() {
@@ -485,6 +526,83 @@ export const useEditorStore = defineStore('editor', () => {
     selectedItemId.value = null
     rebuildBlockIndex()
     return newBlock
+  }
+
+  function wrapBlockInStack(blockId: string): SectionBlock | null {
+    const block = findBlockById(blockId)
+    if (!block) return null
+
+    markAsChangedWithHistory()
+
+    // Create a new stack block
+    const stackBlock = createSectionBlock('stack')
+    stackBlock.name = 'Stack'
+
+    // Check if it's a root-level block
+    const rootIndex = blocks.value.findIndex((b: SectionBlock) => b.id === blockId)
+    if (rootIndex !== -1) {
+      // Remove the block from root
+      blocks.value.splice(rootIndex, 1)
+      // Add the block as child of the stack
+      stackBlock.children = [block]
+      // Insert the stack at the same position
+      blocks.value.splice(rootIndex, 0, stackBlock)
+    } else {
+      // It's a nested block - find its parent
+      const parent = findParentBlock(blockId)
+      if (parent && parent.children) {
+        const childIndex = parent.children.findIndex((b: SectionBlock) => b.id === blockId)
+        if (childIndex !== -1) {
+          // Remove the block from parent
+          parent.children.splice(childIndex, 1)
+          // Add the block as child of the stack
+          stackBlock.children = [block]
+          // Insert the stack at the same position
+          parent.children.splice(childIndex, 0, stackBlock)
+        }
+      }
+    }
+
+    selectedBlockId.value = stackBlock.id
+    selectedItemId.value = null
+    rebuildBlockIndex()
+    return stackBlock
+  }
+
+  /**
+   * Convert a block's type (e.g., stack to button)
+   */
+  function convertBlockType(blockId: string, newType: SectionBlockType): boolean {
+    const block = findBlockById(blockId)
+    if (!block) return false
+
+    markAsChangedWithHistory()
+
+    // Change the block type
+    block.type = newType
+
+    // Get default settings and styles for the new type
+    const defaultBlock = createSectionBlock(newType)
+
+    // Merge settings: keep existing settings that are compatible, add new defaults
+    block.settings = {
+      ...defaultBlock.settings,
+      ...block.settings,
+    } as typeof defaultBlock.settings
+
+    // Merge styles: keep existing styles, add new defaults
+    block.styles = {
+      ...defaultBlock.styles,
+      ...block.styles,
+    } as typeof defaultBlock.styles
+
+    // If converting to a non-layout block, remove children
+    if (!canHaveChildren(newType) && block.children) {
+      delete block.children
+    }
+
+    rebuildBlockIndex()
+    return true
   }
 
   // ============================================
@@ -780,7 +898,8 @@ export const useEditorStore = defineStore('editor', () => {
       if (replaceAll) {
         block.styles = { ...styles }
       } else {
-        Object.assign(block.styles, styles)
+        // Create new object reference to ensure Vue reactivity is triggered
+        block.styles = { ...block.styles, ...styles }
       }
 
       if (block.sharedStyleId) {
@@ -833,69 +952,6 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     rebuildBlockIndex()
-  }
-
-  // ============================================
-  // FORM FIELD ACTIONS
-  // ============================================
-
-  function addFormFieldBlock(formBlockId: string, type: FormFieldBlockType) {
-    const formBlock = findBlockById(formBlockId)
-    if (!formBlock || formBlock.type !== 'form') return null
-
-    markAsChangedWithHistory()
-    const newField = createSectionBlock(type)
-    if (!formBlock.children) {
-      formBlock.children = []
-    }
-    formBlock.children.push(newField)
-    selectedBlockId.value = newField.id
-    rebuildBlockIndex()
-    return newField
-  }
-
-  function deleteFormFieldBlock(formBlockId: string, fieldBlockId: string) {
-    const formBlock = findBlockById(formBlockId)
-    if (!formBlock || formBlock.type !== 'form' || !formBlock.children) return
-
-    markAsChangedWithHistory()
-    const index = formBlock.children.findIndex((child: SectionBlock) => child.id === fieldBlockId)
-    if (index !== -1) {
-      formBlock.children.splice(index, 1)
-      if (selectedBlockId.value === fieldBlockId) {
-        selectedBlockId.value = formBlockId
-      }
-      rebuildBlockIndex()
-    }
-  }
-
-  function reorderFormFieldBlocks(formBlockId: string, fromIndex: number, toIndex: number) {
-    const formBlock = findBlockById(formBlockId)
-    if (!formBlock || formBlock.type !== 'form' || !formBlock.children) return
-
-    markAsChangedWithHistory()
-    const [field] = formBlock.children.splice(fromIndex, 1)
-    if (field) {
-      formBlock.children.splice(toIndex, 0, field)
-      rebuildBlockIndex()
-    }
-  }
-
-  function duplicateFormFieldBlock(formBlockId: string, fieldBlockId: string) {
-    const formBlock = findBlockById(formBlockId)
-    if (!formBlock || formBlock.type !== 'form' || !formBlock.children) return null
-
-    markAsChangedWithHistory()
-    const index = formBlock.children.findIndex((child: SectionBlock) => child.id === fieldBlockId)
-    if (index === -1) return null
-
-    const original = formBlock.children[index]
-    if (!original) return null
-    const newField = duplicateSectionBlock(original)
-    formBlock.children.splice(index + 1, 0, newField)
-    selectedBlockId.value = newField.id
-    rebuildBlockIndex()
-    return newField
   }
 
   // ============================================
@@ -966,6 +1022,12 @@ export const useEditorStore = defineStore('editor', () => {
       rebuildBlockIndex()
       history.clearHistory()
 
+      // Initialize snapshot for diff computation (use deepClone for Vue Proxy compatibility)
+      lastSavedSnapshot.value = deepClone(getCurrentState()) as EditorState
+
+      // Clear any stale queue entries for this project (we just loaded fresh data)
+      clearProjectQueue(projectId)
+
       collaboration.subscribeToProjectChanges(projectId)
 
       return true
@@ -982,52 +1044,18 @@ export const useEditorStore = defineStore('editor', () => {
       return false
     }
 
-    // Check for stuck save (if save has been running for more than 45 seconds, force reset)
-    const STUCK_SAVE_THRESHOLD = 45000 // 45 seconds
-    if (isSaving.value && saveStartedAt.value) {
-      const elapsed = Date.now() - saveStartedAt.value
-      if (elapsed > STUCK_SAVE_THRESHOLD) {
-        console.warn(`Save was stuck for ${elapsed}ms, forcing reset`)
-        isSaving.value = false
-        saveStartedAt.value = null
-      }
-    }
-
-    // Prevent multiple concurrent saves
+    // Check if already syncing
     if (isSaving.value) {
       console.log('Save already in progress, skipping')
-      toast.info('Save in progress', 'Please wait for the current save to complete')
       return false
     }
 
-    cancelAutoSave()
     isSaving.value = true
     saveStartedAt.value = Date.now()
 
-    // Helper function to attempt save with timeout
-    const attemptSave = async (): Promise<boolean> => {
-      const projectsStore = useProjectsStore()
-
-      // Create a timeout promise for 20 seconds
-      const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error('Save operation timed out')), 20000)
-      })
-
-      // Race between save and timeout
-      return Promise.race([
-        projectsStore.saveProjectContent(currentProjectId.value!, {
-          blocks: blocks.value,
-          pageSettings: pageSettings.value,
-          translations: translationsComposable.getTranslationsData(),
-          components: components.value,
-        }),
-        timeoutPromise,
-      ])
-    }
-
     try {
-      // First attempt
-      let success = await attemptSave()
+      // Flush the save queue - this processes all pending diffs
+      const success = await flushQueue()
 
       if (success) {
         hasUnsavedChanges.value = false
@@ -1035,50 +1063,13 @@ export const useEditorStore = defineStore('editor', () => {
         return true
       }
 
-      // First attempt failed, try recovery and retry
-      console.log('Save failed, attempting connection recovery...')
-      const { recoverConnection } = await import('@/lib/supabase/client')
-      await recoverConnection()
-
-      // Second attempt after recovery
-      success = await attemptSave()
-
-      if (success) {
-        hasUnsavedChanges.value = false
-        lastSavedAt.value = new Date().toISOString()
-        toast.success('Changes saved', 'Connection recovered automatically')
-        return true
-      }
-
-      toast.error('Failed to save changes', 'Please check your connection and try again')
+      // Queue still has items - some saves failed
+      toast.error('Failed to save all changes', 'Will retry automatically')
       return false
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error'
       console.error('Failed to save project:', errorMessage)
-
-      // If timed out, try recovery and one more save
-      if (errorMessage === 'Save operation timed out') {
-        console.log('Save timed out, attempting connection recovery...')
-        try {
-          const { recoverConnection } = await import('@/lib/supabase/client')
-          await recoverConnection()
-
-          // Final attempt after recovery
-          const success = await attemptSave()
-          if (success) {
-            hasUnsavedChanges.value = false
-            lastSavedAt.value = new Date().toISOString()
-            toast.success('Changes saved', 'Connection recovered automatically')
-            return true
-          }
-        } catch (retryError) {
-          console.error('Retry after recovery also failed:', retryError)
-        }
-
-        toast.error('Save timed out', 'Please check your internet connection and try again')
-      } else {
-        toast.error('Failed to save changes', errorMessage)
-      }
+      toast.error('Failed to save changes', errorMessage)
       return false
     } finally {
       isSaving.value = false
@@ -1108,6 +1099,11 @@ export const useEditorStore = defineStore('editor', () => {
   function resetEditor() {
     collaboration.unsubscribeFromProjectChanges()
 
+    // Clear save queue for current project before resetting
+    if (currentProjectId.value) {
+      clearProjectQueue(currentProjectId.value)
+    }
+
     currentProjectId.value = null
     blocks.value = []
     pageSettings.value = getDefaultPageSettings()
@@ -1115,6 +1111,7 @@ export const useEditorStore = defineStore('editor', () => {
     selectedBlockId.value = null
     selectedItemId.value = null
     hasUnsavedChanges.value = false
+    lastSavedSnapshot.value = null
     rebuildBlockIndex()
     history.clearHistory()
   }
@@ -1190,6 +1187,10 @@ export const useEditorStore = defineStore('editor', () => {
     isInspectorCollapsed,
     autoSaveEnabled,
     lastSavedAt,
+    // Save queue state
+    isSyncingChanges,
+    hasPendingChanges,
+    isOffline,
     // Undo/Redo
     canUndo: history.canUndo,
     canRedo: history.canRedo,
@@ -1210,6 +1211,9 @@ export const useEditorStore = defineStore('editor', () => {
     rebuildBlockIndex,
     // Viewport actions
     setViewport,
+    // Effect preview
+    previewAppearBlockId,
+    triggerAppearPreview,
     // Panel actions
     toggleSidebar,
     toggleInspector,
@@ -1232,6 +1236,8 @@ export const useEditorStore = defineStore('editor', () => {
     addPresetBlock,
     deleteBlock,
     duplicateBlock,
+    wrapBlockInStack,
+    convertBlockType,
     copyBlock: clipboard.copyBlock,
     cutBlock: clipboard.cutBlock,
     pasteBlock,
@@ -1277,11 +1283,6 @@ export const useEditorStore = defineStore('editor', () => {
     updateBlockStyles,
     updateBlockName,
     updateCanvasChildPosition,
-    // Form field block actions
-    addFormFieldBlock,
-    deleteFormFieldBlock,
-    reorderFormFieldBlocks,
-    duplicateFormFieldBlock,
     // Page settings
     updatePageSettings,
     // Theme actions

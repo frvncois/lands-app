@@ -40,6 +40,7 @@ const photos = ref<UnsplashPhoto[]>([])
 const searchQuery = ref('')
 const searchInput = ref('')
 const selectedOrientation = ref<string>('')
+const selectedOrderBy = ref<string>('relevant')
 const currentPage = ref(1)
 const totalPages = ref(0)
 const selectedPhoto = ref<UnsplashPhoto | null>(null)
@@ -50,6 +51,12 @@ const orientations = [
   { value: 'landscape', label: 'Landscape' },
   { value: 'portrait', label: 'Portrait' },
   { value: 'squarish', label: 'Square' },
+]
+
+// Sort options
+const sortOptions = [
+  { value: 'relevant', label: 'Relevant' },
+  { value: 'latest', label: 'Latest' },
 ]
 
 // Search photos from Unsplash via Edge Function
@@ -71,6 +78,7 @@ async function searchPhotos(page = 1, append = false) {
         page,
         per_page: 30,
         orientation: selectedOrientation.value || undefined,
+        order_by: selectedOrderBy.value || undefined,
       },
     })
 
@@ -135,6 +143,7 @@ watch(() => props.open, (isOpen) => {
     searchInput.value = ''
     searchQuery.value = ''
     selectedOrientation.value = ''
+    selectedOrderBy.value = 'relevant'
     photos.value = []
     selectedPhoto.value = null
     error.value = null
@@ -143,8 +152,8 @@ watch(() => props.open, (isOpen) => {
   }
 })
 
-// Re-search when orientation changes (if there's already a query)
-watch(selectedOrientation, () => {
+// Re-search when orientation or sort changes (if there's already a query)
+watch([selectedOrientation, selectedOrderBy], () => {
   if (searchQuery.value) {
     searchPhotos(1)
   }
@@ -203,6 +212,16 @@ watch(selectedOrientation, () => {
             class="h-10 px-3 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option v-for="opt in orientations" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+
+          <!-- Sort by -->
+          <select
+            v-model="selectedOrderBy"
+            class="h-10 px-3 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </option>
           </select>

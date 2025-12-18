@@ -46,18 +46,7 @@ export function useBlockTree() {
   }
 
   function canBlockExpand(block: SectionBlock): boolean {
-    if (block.type === 'form') return true
     if (canHaveChildren(block.type)) return true
-    return false
-  }
-
-  function isInsideForm(block: SectionBlock): boolean {
-    if (block.type === 'form') return true
-    let parent = editorStore.findParentBlock(block.id)
-    while (parent) {
-      if (parent.type === 'form') return true
-      parent = editorStore.findParentBlock(parent.id)
-    }
     return false
   }
 
@@ -76,6 +65,5 @@ export function useBlockTree() {
     isExpanded,
     expandToBlock,
     canBlockExpand,
-    isInsideForm,
   }
 }

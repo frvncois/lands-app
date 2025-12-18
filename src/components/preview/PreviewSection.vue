@@ -37,13 +37,12 @@ import { sectionBlockLabels, sectionBlockIcons, canHaveChildren } from '@/lib/ed
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
-import BlockPicker from '@/components/builder/BlockPicker.vue'
+import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 import InlineFormatToolbar from '@/components/preview/InlineFormatToolbar.vue'
 import Icon from '@/components/ui/Icon.vue'
 
 // Block components
 import {
-  DividerBlock,
   IconBlock,
   HeadingBlock,
   TextBlock,
@@ -55,14 +54,6 @@ import {
   StackBlock,
   GridBlock,
   CanvasBlock,
-  FormBlock,
-  FormLabelBlock,
-  FormInputBlock,
-  FormTextareaBlock,
-  FormSelectBlock,
-  FormRadioBlock,
-  FormCheckboxBlock,
-  FormButtonBlock,
 } from './blocks'
 
 const props = defineProps<{
@@ -202,13 +193,15 @@ const childScrollOverride = computed(() => {
 })
 
 // Provide child effects context to our children if we have effects with childOverrides
+// If we don't have our own overrides, forward the parent's context so deeply nested children can still access it
 const provideChildEffectsContext = computed((): ChildEffectsContext | null => {
   const hasHoverOverrides = hoverEffect.value?.enabled && hoverEffect.value?.childOverrides?.length
   const hasAppearOverrides = appearEffect.value?.enabled && appearEffect.value?.childOverrides?.length
   const hasScrollOverrides = scrollEffect.value?.enabled && scrollEffect.value?.childOverrides?.length
 
   if (!hasHoverOverrides && !hasAppearOverrides && !hasScrollOverrides) {
-    return null
+    // No own overrides - forward parent's context so deeply nested children can access it
+    return parentChildEffectsContext.value
   }
 
   return {
@@ -389,7 +382,7 @@ const combinedEffectStyles = computed(() => {
   return styles
 })
 
-// Note: Composables (useSliderControls, useCanvasDrag, useGridResize) are available
+// Note: Composables (useCanvasDrag, useGridResize) are available
 // but not yet wired to the layout blocks which still use inline implementations
 
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
@@ -547,16 +540,8 @@ function openBlockPicker() {
   isBlockPickerOpen.value = true
 }
 
-function handleBlockPickerSelectBlock(type: SectionBlockType) {
-  const block = editorStore.addBlock(type, undefined, props.block.id)
-  if (block) {
-    editorStore.selectBlock(block.id)
-  }
-}
-
-// Quick add layout blocks (for container empty state)
-function handleAddLayoutBlock(type: 'stack' | 'grid' | 'canvas') {
-  const block = editorStore.addBlock(type, undefined, props.block.id)
+function handleBlockPickerSelectBlock(type: string) {
+  const block = editorStore.addBlock(type as SectionBlockType, undefined, props.block.id)
   if (block) {
     editorStore.selectBlock(block.id)
   }
@@ -681,24 +666,28 @@ function handleEffectScroll() {
       rawProgress = scrollTop / scrollHeight
     }
   } else if (relativeTo === 'parent') {
-    // Progress based on parent element's position in viewport
+    // Progress based on parent element's position in scroll container
     const parent = sectionRef.value.parentElement
     if (parent) {
       const parentRect = parent.getBoundingClientRect()
       const viewportHeight = containerRect.height
-      // When parent top is at viewport bottom: progress = 0
-      // When parent bottom is at viewport top: progress = 1
+      // Calculate parent's position relative to the scroll container (not browser viewport)
+      const relativeParentTop = parentRect.top - containerRect.top
+      // When parent top is at container bottom: progress = 0
+      // When parent bottom is at container top: progress = 1
       const totalTravel = viewportHeight + parentRect.height
-      const currentPosition = viewportHeight - parentRect.top
+      const currentPosition = viewportHeight - relativeParentTop
       rawProgress = Math.max(0, Math.min(1, currentPosition / totalTravel))
     }
   } else {
-    // Default: 'self' - progress based on block's position in viewport
+    // Default: 'self' - progress based on block's position in scroll container
     const viewportHeight = containerRect.height
-    // When block top is at viewport bottom: progress = 0
-    // When block bottom is at viewport top: progress = 1
+    // Calculate block's position relative to the scroll container (not browser viewport)
+    const relativeBlockTop = blockRect.top - containerRect.top
+    // When block top is at container bottom: progress = 0
+    // When block bottom is at container top: progress = 1
     const totalTravel = viewportHeight + blockRect.height
-    const currentPosition = viewportHeight - blockRect.top
+    const currentPosition = viewportHeight - relativeBlockTop
     rawProgress = Math.max(0, Math.min(1, currentPosition / totalTravel))
   }
 
@@ -824,6 +813,22 @@ watch(
   { immediate: false }
 )
 
+// Watch for appear preview trigger from inspector
+watch(
+  () => editorStore.previewAppearBlockId,
+  (blockId) => {
+    if (blockId === props.block.id && appearEffect.value?.enabled) {
+      // Reset and re-trigger the appear animation
+      hasAppeared.value = false
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          hasAppeared.value = true
+        })
+      })
+    }
+  }
+)
+
 // Set up observers when mounted
 watch(
   sectionRef,
@@ -884,6 +889,22 @@ function handleClick(event: MouseEvent) {
 
 function handleDuplicate() {
   editorStore.duplicateBlock(props.block.id)
+}
+
+function handleWrapInStack() {
+  editorStore.wrapBlockInStack(props.block.id)
+}
+
+// Check if block is Stack or Button for conversion
+const isStack = computed(() => props.block.type === 'stack')
+const isButton = computed(() => props.block.type === 'button')
+
+function handleConvertToButton() {
+  editorStore.convertBlockType(props.block.id, 'button')
+}
+
+function handleConvertToStack() {
+  editorStore.convertBlockType(props.block.id, 'stack')
 }
 
 function handleCreateComponent() {
@@ -1392,7 +1413,7 @@ function handleSpanMouseOut(event: MouseEvent) {
   <section
     v-if="!isBlockHidden"
     ref="sectionRef"
-    class="w-full overflow-visible"
+    class="w-full overflow-visible flex flex-col flex-1 min-h-0"
     :class="[
       { 'relative': !wrapperStyles.position },
       'cursor-pointer'
@@ -1452,11 +1473,11 @@ function handleSpanMouseOut(event: MouseEvent) {
       @drop="handleDrop"
       @child-drag-over="handleChildDragOver"
       @child-drag-leave="handleChildDragLeave"
-      @add-layout-block="handleAddLayoutBlock"
+      @add-block="handleAddContentBlock"
     />
 
     <!-- ============================================ -->
-    <!-- GRID BLOCK (Regular or Slider Mode) -->
+    <!-- GRID BLOCK -->
     <!-- ============================================ -->
     <GridBlock
       v-else-if="block.type === 'grid'"
@@ -1490,15 +1511,6 @@ function handleSpanMouseOut(event: MouseEvent) {
       @child-drag-over="handleChildDragOver"
       @child-drag-leave="handleChildDragLeave"
       @add-block="handleAddContentBlock"
-    />
-
-    <!-- ============================================ -->
-    <!-- DIVIDER BLOCK -->
-    <!-- ============================================ -->
-    <DividerBlock
-      v-else-if="block.type === 'divider'"
-      :block="block"
-      :styles="blockStyles"
     />
 
     <!-- ============================================ -->
@@ -1580,60 +1592,6 @@ function handleSpanMouseOut(event: MouseEvent) {
     <!-- ============================================ -->
     <VariantsBlock
       v-else-if="block.type === 'variants'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <!-- ============================================ -->
-    <!-- FORM BLOCK -->
-    <!-- ============================================ -->
-    <FormBlock
-      v-else-if="block.type === 'form'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <!-- ============================================ -->
-    <!-- FORM FIELD BLOCKS -->
-    <!-- ============================================ -->
-    <FormLabelBlock
-      v-else-if="block.type === 'form-label'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <FormInputBlock
-      v-else-if="block.type === 'form-input'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <FormTextareaBlock
-      v-else-if="block.type === 'form-textarea'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <FormSelectBlock
-      v-else-if="block.type === 'form-select'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <FormRadioBlock
-      v-else-if="block.type === 'form-radio'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <FormCheckboxBlock
-      v-else-if="block.type === 'form-checkbox'"
-      :block="block"
-      :styles="blockStyles"
-    />
-
-    <FormButtonBlock
-      v-else-if="block.type === 'form-button'"
       :block="block"
       :styles="blockStyles"
     />
@@ -1728,6 +1686,26 @@ function handleSpanMouseOut(event: MouseEvent) {
         Duplicate
       </ContextMenuItem>
       <ContextMenuItem
+        icon="style-row"
+        @click="handleWrapInStack"
+      >
+        Wrap in stack
+      </ContextMenuItem>
+      <ContextMenuItem
+        v-if="isStack"
+        icon="link-1"
+        @click="handleConvertToButton"
+      >
+        Convert to link
+      </ContextMenuItem>
+      <ContextMenuItem
+        v-if="isButton"
+        icon="style-row"
+        @click="handleConvertToStack"
+      >
+        Convert to stack
+      </ContextMenuItem>
+      <ContextMenuItem
         icon="package"
         @click="handleCreateComponent"
       >
@@ -1746,9 +1724,10 @@ function handleSpanMouseOut(event: MouseEvent) {
     </ContextMenu>
 
     <!-- Block Picker for empty layout blocks -->
-    <BlockPicker
+    <SidebarBlockPicker
       v-model:open="isBlockPickerOpen"
-      @select-block="handleBlockPickerSelectBlock"
+      hide-trigger
+      @select="handleBlockPickerSelectBlock"
     />
 
     <!-- Inline Format Toolbar for heading/text blocks -->

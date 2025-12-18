@@ -5,6 +5,8 @@ defineProps<{
   modelValue: string | undefined
   placeholder?: string
   swatchOnly?: boolean
+  inline?: boolean
+  side?: 'left' | 'right' | null
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +23,8 @@ function handleUpdate(value: string) {
     :model-value="modelValue"
     :placeholder="placeholder"
     :swatch-only="swatchOnly"
+    :inline="inline"
+    :side="side"
     @update:model-value="handleUpdate"
   />
 </template>

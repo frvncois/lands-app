@@ -21,35 +21,11 @@ export type SectionBlockType =
   | 'video'
   | 'button'
   | 'icon'
-  | 'divider'
   // Product-specific
   | 'variants'
-  // Form (container that accepts form field children)
-  | 'form'
-  // Form field types (children of form only)
-  | 'form-input'
-  | 'form-textarea'
-  | 'form-select'
-  | 'form-radio'
-  | 'form-checkbox'
-  | 'form-button'
 
-// Form field block types (subset of SectionBlockType)
-// Note: 'stack' is also allowed inside form for grouping fields
-export type FormFieldBlockType =
-  | 'form-input'
-  | 'form-textarea'
-  | 'form-select'
-  | 'form-radio'
-  | 'form-checkbox'
-  | 'form-button'
-  | 'stack'
-
-// Collection/list identifiers
-export type ListCollectionType = 'menu-list'
 
 // Canvas child block types (blocks that can be placed in Canvas)
-// Canvas child block types - content blocks only (no layout or form)
 export type CanvasChildBlockType =
   | 'heading'
   | 'text'
@@ -57,7 +33,6 @@ export type CanvasChildBlockType =
   | 'video'
   | 'button'
   | 'icon'
-  | 'divider'
 
 // Block categories for sidebar organization
 export type BlockCategory = 'layout' | 'content'
@@ -131,7 +106,6 @@ export interface AnimationSettings {
 }
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost'
 export type ButtonSize = 'sm' | 'md' | 'lg'
-export type DividerStyle = 'line' | 'dashed' | 'dotted' | 'space'
 export type IconShape = 'none' | 'circle' | 'square'
 export type MediaPosition = 'left' | 'right'
 
@@ -372,20 +346,10 @@ export interface GridSettings extends SharedBlockSettings {
   columnWidths?: number[]
   rows?: number // number of rows for explicit grid
   rowHeights?: number[] // custom row heights as fr values
-  collectionType?: ListCollectionType
-  collectionLevel?: number
   // Background
   backgroundType?: 'color' | 'image' | 'video'
   backgroundImage?: string
   backgroundVideo?: string
-  // Slider mode
-  isSlider?: boolean
-  slidesPerView?: number // 1-4
-  autoplay?: boolean
-  autoplayInterval?: number // ms (3000-10000)
-  showArrows?: boolean
-  showDots?: boolean
-  loop?: boolean
 }
 
 export interface GridStyles extends BaseBlockStyles {
@@ -414,18 +378,6 @@ export interface StackStyles extends BaseBlockStyles {
   justifyContent?: JustifyContent
   alignItems?: AlignItems
   flexWrap?: FlexWrap
-}
-
-// Divider
-export interface DividerSettings extends SharedBlockSettings {
-  style: DividerStyle
-  thickness?: string
-  color?: string
-  width?: string // percentage
-}
-
-export interface DividerStyles extends BaseBlockStyles {
-  alignment?: Alignment
 }
 
 // ============================================
@@ -588,161 +540,6 @@ export interface VariantsStyles extends BaseBlockStyles {
 }
 
 // ============================================
-// FORM BLOCK & FORM FIELD BLOCKS
-// ============================================
-
-// Form input type (for form-input block)
-export type FormInputType = 'text' | 'email' | 'phone' | 'number' | 'date' | 'password' | 'url'
-
-// Form container settings (same as Container/Stack/Grid)
-export interface FormSettings extends SharedBlockSettings {
-  // Form submission
-  successMessage: string
-  errorMessage?: string
-  // Integration binding
-  integrationId?: string
-  integrationProvider?: string
-  // Layout
-  gap?: string
-  height?: string // Min height: auto, 25vh, 50vh, 75vh, 100vh
-  // Background (same as Container/Stack/Grid)
-  backgroundType?: 'color' | 'image' | 'video'
-  backgroundImage?: string
-  backgroundVideo?: string
-}
-
-export interface FormStyles extends BaseBlockStyles {
-  gap?: string
-  // Flexbox content positioning (same as Container/Stack)
-  flexDirection?: FlexDirection
-  justifyContent?: JustifyContent
-  alignItems?: AlignItems
-  flexWrap?: FlexWrap
-  alignment?: Alignment
-}
-
-// ============================================
-// FORM FIELD BLOCK SETTINGS
-// ============================================
-
-// Base settings shared by all form fields
-export interface BaseFormFieldSettings extends SharedBlockSettings {
-  label: string
-  name: string // Field name for form submission
-  required: boolean
-  width?: '50' | '100' // Percentage width
-}
-
-// Form Input (text, email, phone, number, date, etc.)
-export interface FormInputSettings extends BaseFormFieldSettings {
-  inputType: FormInputType
-  placeholder?: string
-  minLength?: number
-  maxLength?: number
-}
-
-export interface FormInputStyles extends BaseBlockStyles {
-  borderRadius?: string
-  // Text-like style settings (same as Text block)
-  fontSize?: FontSize
-  color?: string
-  labelColor?: string
-  lineHeight?: string
-  letterSpacing?: string
-}
-
-// Form Textarea
-export interface FormTextareaSettings extends BaseFormFieldSettings {
-  placeholder?: string
-  rows?: number
-  minLength?: number
-  maxLength?: number
-}
-
-export interface FormTextareaStyles extends BaseBlockStyles {
-  borderRadius?: string
-  // Text-like style settings (same as Text block)
-  fontSize?: FontSize
-  color?: string
-  labelColor?: string
-  lineHeight?: string
-  letterSpacing?: string
-}
-
-// Form Select (Dropdown)
-export interface FormSelectOption {
-  id: string
-  label: string
-  value: string
-}
-
-export interface FormSelectSettings extends BaseFormFieldSettings {
-  placeholder?: string
-  options: FormSelectOption[]
-}
-
-export interface FormSelectStyles extends BaseBlockStyles {
-  borderRadius?: string
-  // Text-like style settings (same as Text block)
-  fontSize?: FontSize
-  color?: string
-  labelColor?: string
-  lineHeight?: string
-  letterSpacing?: string
-}
-
-// Form Radio
-export interface FormRadioSettings extends BaseFormFieldSettings {
-  options: FormSelectOption[]
-  layout?: 'vertical' | 'horizontal'
-}
-
-export interface FormRadioStyles extends BaseBlockStyles {
-  // Text-like style settings (same as Text block)
-  fontSize?: FontSize
-  color?: string
-  labelColor?: string
-  lineHeight?: string
-  letterSpacing?: string
-}
-
-// Form Checkbox
-export interface FormCheckboxSettings extends BaseFormFieldSettings {
-  options: FormSelectOption[]
-  layout?: 'vertical' | 'horizontal'
-}
-
-export interface FormCheckboxStyles extends BaseBlockStyles {
-  // Text-like style settings (same as Text block)
-  fontSize?: FontSize
-  color?: string
-  labelColor?: string
-  lineHeight?: string
-  letterSpacing?: string
-}
-
-// Form Button (submit) - same style options as Button content block
-export interface FormButtonSettings extends SharedBlockSettings {
-  label: string
-  variant?: ButtonVariant
-  size?: ButtonSize
-  fullWidth?: boolean
-  alignment?: Alignment
-}
-
-export interface FormButtonStyles extends BaseBlockStyles {
-  // Same style options as Button content block
-  backgroundColor?: string
-  textColor?: string
-  hoverBackgroundColor?: string
-  hoverTextColor?: string
-  borderRadius?: string
-  fontSize?: FontSize
-  lineHeight?: string
-  letterSpacing?: string
-}
-
-// ============================================
 // CANVAS BLOCK
 // ============================================
 
@@ -790,7 +587,7 @@ export interface SectionBlock {
   type: SectionBlockType
   name: string
 
-  // Nested blocks (for layout blocks like container, grid, stack, form)
+  // Nested blocks (for layout blocks like container, grid, stack)
   children?: SectionBlock[]
 
   // Block-specific settings
@@ -800,24 +597,13 @@ export interface SectionBlock {
     | ContainerSettings
     | GridSettings
     | StackSettings
-    | DividerSettings
     | HeadingSettings
     | TextSettings
     | ImageSettings
     | VideoSettings
     | ButtonSettings
     | IconSettings
-    // Variants block settings
     | VariantsSettings
-    | FormSettings
-    // Form field block settings
-    | FormInputSettings
-    | FormTextareaSettings
-    | FormSelectSettings
-    | FormRadioSettings
-    | FormCheckboxSettings
-    | FormButtonSettings
-    // Canvas block settings
     | CanvasSettings
 
   // Block-specific styles
@@ -827,24 +613,13 @@ export interface SectionBlock {
     | ContainerStyles
     | GridStyles
     | StackStyles
-    | DividerStyles
     | HeadingStyles
     | TextStyles
     | ImageStyles
     | VideoStyles
     | ButtonStyles
     | IconStyles
-    // Variants block styles
     | VariantsStyles
-    | FormStyles
-    // Form field block styles
-    | FormInputStyles
-    | FormTextareaStyles
-    | FormSelectStyles
-    | FormRadioStyles
-    | FormCheckboxStyles
-    | FormButtonStyles
-    // Canvas block styles
     | CanvasStyles
 }
 
@@ -950,15 +725,6 @@ export interface BlockTranslation {
   // Footer
   copyrightText?: string
   footerLinks?: Array<{ id: string; label: string }>
-  // Form
-  submitLabel?: string
-  successMessage?: string
-  errorMessage?: string
-  // Email Capture
-  placeholder?: string
-  buttonLabel?: string
-  // Contact Form
-  // (uses submitLabel, successMessage)
 }
 
 // All translations for a single language

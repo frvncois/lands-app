@@ -6,18 +6,22 @@ import {
   sectionBlockIcons,
   blocksByCategory,
   categoryLabels,
-  formFieldBlockTypes,
-  formFieldBlockLabels,
 } from '@/lib/editor-utils'
 import { Button, Icon } from '@/components/ui'
 
-export type BlockPickerMode = 'all' | 'nested' | 'content-only' | 'form' | 'header-footer-stack'
+export type BlockPickerMode = 'all' | 'nested' | 'content-only' | 'header-footer-stack'
 
 interface Props {
   mode?: BlockPickerMode
   triggerLabel?: string
   triggerIcon?: string
   autoOpen?: boolean
+  /** External open control - use v-model:open */
+  open?: boolean
+  /** Custom anchor position for dropdown (instead of trigger-relative) */
+  anchorPosition?: { x: number; y: number }
+  /** Hide the trigger button (use with v-model:open for programmatic control) */
+  hideTrigger?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -25,46 +29,48 @@ const props = withDefaults(defineProps<Props>(), {
   triggerLabel: 'Add block',
   triggerIcon: 'plus',
   autoOpen: false,
+  open: undefined,
+  anchorPosition: undefined,
+  hideTrigger: false,
 })
 
 const emit = defineEmits<{
   select: [value: string]
   close: []
+  'update:open': [value: boolean]
 }>()
 
-const isOpen = ref(false)
+// Use internal state or external control
+const internalOpen = ref(false)
+const isOpen = computed({
+  get: () => props.open !== undefined ? props.open : internalOpen.value,
+  set: (value: boolean) => {
+    if (props.open !== undefined) {
+      emit('update:open', value)
+    } else {
+      internalOpen.value = value
+    }
+  }
+})
+
 const searchQuery = ref('')
 const triggerRef = ref<HTMLElement | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const dropdownPosition = ref({ top: 0, left: 0 })
 
-// Extended category type for form mode
-type ExtendedCategory = BlockCategory | 'form-fields'
-
 // Categories to show based on mode
-const categories = computed<ExtendedCategory[]>(() => {
+const categories = computed<BlockCategory[]>(() => {
   switch (props.mode) {
     case 'content-only':
     case 'header-footer-stack':
       return ['content']
-    case 'form':
-      return ['form-fields', 'content', 'layout']
     case 'nested':
       return ['layout', 'content'] // Stack shown under layout
     default:
       return ['layout', 'content']
   }
 })
-
-// Extended category labels
-const extendedCategoryLabels: Record<ExtendedCategory, string> = {
-  ...categoryLabels,
-  'form-fields': 'Form Fields',
-}
-
-// Content blocks allowed in forms (subset of content blocks)
-const formContentBlocks: SectionBlockType[] = ['heading', 'text', 'image']
 
 // Get available block types based on mode
 const availableBlockTypes = computed(() => {
@@ -73,38 +79,21 @@ const availableBlockTypes = computed(() => {
       return ['button', 'text', 'image'] as SectionBlockType[]
     case 'content-only':
       return blocksByCategory.content
-    case 'form':
-      // Form fields + content blocks (heading, text, image) + stack
-      return [...formFieldBlockTypes, ...formContentBlocks, 'stack'] as SectionBlockType[]
     case 'nested':
-      // Only Stack from layout, plus all content blocks
-      return ['stack', ...blocksByCategory.content] as SectionBlockType[]
+      // All layout blocks (stack, grid, canvas) plus all content blocks
+      return [...blocksByCategory.layout, ...blocksByCategory.content] as SectionBlockType[]
     default:
       return [...blocksByCategory.layout, ...blocksByCategory.content]
   }
 })
 
-
-// Extended blocks by category (including form-fields)
-const extendedBlocksByCategory: Record<ExtendedCategory, SectionBlockType[]> = {
-  ...blocksByCategory,
-  'form-fields': formFieldBlockTypes,
-}
-
 // Filtered blocks by search query
 const filteredBlocksByCategory = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
-  const result: Record<ExtendedCategory, SectionBlockType[]> = { layout: [], content: [], 'form-fields': [] }
+  const result: Record<BlockCategory, SectionBlockType[]> = { layout: [], content: [] }
 
   for (const category of categories.value) {
-    // For form mode, filter content to only show formContentBlocks
-    let categoryTypes = extendedBlocksByCategory[category] || []
-    if (props.mode === 'form' && category === 'content') {
-      categoryTypes = formContentBlocks
-    }
-    if (props.mode === 'form' && category === 'layout') {
-      categoryTypes = ['stack'] as SectionBlockType[]
-    }
+    const categoryTypes = blocksByCategory[category] || []
 
     const types = categoryTypes.filter(type =>
       availableBlockTypes.value.includes(type) &&
@@ -117,35 +106,47 @@ const filteredBlocksByCategory = computed(() => {
 
 // Get the display label for a block type
 function getBlockLabel(type: SectionBlockType): string {
-  // Use form field labels for form field types
-  if (formFieldBlockTypes.includes(type)) {
-    return formFieldBlockLabels[type] || sectionBlockLabels[type]
-  }
   return sectionBlockLabels[type]
 }
-
 
 // Check if there are any results
 const hasSearchResults = computed(() => {
   return filteredBlocksByCategory.value.layout.length > 0 ||
-         filteredBlocksByCategory.value.content.length > 0 ||
-         filteredBlocksByCategory.value['form-fields'].length > 0
+         filteredBlocksByCategory.value.content.length > 0
 })
 
 function updatePosition() {
-  if (!triggerRef.value) return
-
-  const rect = triggerRef.value.getBoundingClientRect()
+  const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
+  const dropdownWidth = 256 // w-64 = 16rem = 256px
   const dropdownHeight = 400 // approximate max height
 
-  // Position to the right of the trigger
-  let top = rect.top
-  const left = rect.right + 8
+  let top: number
+  let left: number
+
+  // Use custom anchor position if provided
+  if (props.anchorPosition) {
+    top = props.anchorPosition.y
+    left = props.anchorPosition.x
+  } else if (triggerRef.value) {
+    // Position relative to trigger
+    const rect = triggerRef.value.getBoundingClientRect()
+    top = rect.top
+    left = rect.right + 8
+  } else {
+    // Center in viewport if no trigger or anchor
+    top = (viewportHeight - dropdownHeight) / 2
+    left = (viewportWidth - dropdownWidth) / 2
+  }
 
   // Adjust if dropdown would go below viewport
   if (top + dropdownHeight > viewportHeight - 16) {
     top = Math.max(16, viewportHeight - dropdownHeight - 16)
+  }
+
+  // Adjust if dropdown would go off right edge
+  if (left + dropdownWidth > viewportWidth - 16) {
+    left = Math.max(16, viewportWidth - dropdownWidth - 16)
   }
 
   dropdownPosition.value = { top, left }
@@ -219,7 +220,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="!autoOpen" ref="triggerRef">
+  <div v-if="!hideTrigger && !autoOpen" ref="triggerRef">
     <Button
       variant="dotted"
       size="sm"
@@ -275,7 +276,7 @@ onUnmounted(() => {
             <template v-for="category in categories" :key="category">
               <div v-if="filteredBlocksByCategory[category].length > 0" class="flex flex-col items-start mb-3.5">
                 <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
-                  {{ extendedCategoryLabels[category] }}
+                  {{ categoryLabels[category] }}
                 </div>
                 <div class="grid grid-cols-2 gap-1 w-full">
                   <button

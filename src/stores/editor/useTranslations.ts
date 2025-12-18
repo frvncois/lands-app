@@ -4,7 +4,6 @@ import type {
   LanguageCode,
   ProjectTranslations,
   BlockTranslation,
-  FormSettings,
 } from '@/types/editor'
 import { DEFAULT_LANGUAGE } from '@/lib/languages'
 
@@ -62,22 +61,6 @@ export function useTranslations(options: UseTranslationsOptions) {
             if (settings.caption) translation.caption = settings.caption as string
             break
           case 'button':
-            if (settings.label) translation.label = settings.label as string
-            break
-          case 'form':
-            const formSettings = settings as unknown as FormSettings
-            if (formSettings.successMessage) translation.successMessage = formSettings.successMessage
-            if (formSettings.errorMessage) translation.errorMessage = formSettings.errorMessage
-            break
-          case 'form-input':
-          case 'form-textarea':
-          case 'form-select':
-          case 'form-radio':
-          case 'form-checkbox':
-            if (settings.label) translation.label = settings.label as string
-            if (settings.placeholder) translation.placeholder = settings.placeholder as string
-            break
-          case 'form-button':
             if (settings.label) translation.label = settings.label as string
             break
         }

@@ -67,7 +67,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, email, name, avatar_url, created_at')
         .eq('id', userId)
         .single()
 
@@ -83,12 +83,12 @@ export const useUserStore = defineStore('user', () => {
         }
       }
 
-      // Fetch preferences
+      // Fetch preferences (may not exist for new users)
       const { data: prefsData } = await supabase
         .from('user_preferences')
-        .select('*')
+        .select('theme, email_notifications')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
       if (prefsData) {
         settings.value.preferences = {

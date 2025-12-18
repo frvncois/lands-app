@@ -21,8 +21,6 @@ export interface BlockRenderConfig {
   editableFields?: string[]
   /** Whether this block is a layout block */
   isLayout: boolean
-  /** Whether this block is a form field */
-  isFormField: boolean
   /** Default tag/element to render as */
   defaultTag?: string
 }
@@ -41,7 +39,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: true,
     supportsInlineEdit: false,
     isLayout: true,
-    isFormField: false,
     defaultTag: 'div',
   },
   grid: {
@@ -52,7 +49,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: true,
     supportsInlineEdit: false,
     isLayout: true,
-    isFormField: false,
     defaultTag: 'div',
   },
   stack: {
@@ -63,7 +59,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: true,
     supportsInlineEdit: false,
     isLayout: true,
-    isFormField: false,
     defaultTag: 'div',
   },
   freeform: {
@@ -74,7 +69,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: true,
     supportsInlineEdit: false,
     isLayout: true,
-    isFormField: false,
     defaultTag: 'div',
   },
   canvas: {
@@ -85,22 +79,10 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: true,
     supportsInlineEdit: false,
     isLayout: true,
-    isFormField: false,
     defaultTag: 'div',
   },
 
   // Content blocks
-  divider: {
-    label: 'Divider',
-    icon: 'line-horizontal',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: false,
-    isLayout: false,
-    isFormField: false,
-    defaultTag: 'div',
-  },
   heading: {
     label: 'Heading',
     icon: 'text-format',
@@ -110,7 +92,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     supportsInlineEdit: true,
     editableFields: ['content'],
     isLayout: false,
-    isFormField: false,
     defaultTag: 'h2',
   },
   text: {
@@ -122,7 +103,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     supportsInlineEdit: true,
     editableFields: ['content'],
     isLayout: false,
-    isFormField: false,
     defaultTag: 'div',
   },
   image: {
@@ -133,7 +113,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: false,
     supportsInlineEdit: false,
     isLayout: false,
-    isFormField: false,
     defaultTag: 'img',
   },
   video: {
@@ -144,7 +123,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: false,
     supportsInlineEdit: false,
     isLayout: false,
-    isFormField: false,
     defaultTag: 'video',
   },
   button: {
@@ -156,7 +134,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     supportsInlineEdit: true,
     editableFields: ['label'],
     isLayout: false,
-    isFormField: false,
     defaultTag: 'button',
   },
   icon: {
@@ -167,7 +144,6 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: false,
     supportsInlineEdit: false,
     isLayout: false,
-    isFormField: false,
     defaultTag: 'span',
   },
   variants: {
@@ -178,101 +154,9 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     hasEmptyState: false,
     supportsInlineEdit: false,
     isLayout: false,
-    isFormField: false,
     defaultTag: 'div',
   },
 
-  // Form blocks
-  form: {
-    label: 'Form',
-    icon: 'layout-form',
-    hasChildren: true,
-    hasBackground: false,
-    hasEmptyState: true,
-    supportsInlineEdit: false,
-    isLayout: true,
-    isFormField: false,
-    defaultTag: 'form',
-  },
-  'form-label': {
-    label: 'Label',
-    icon: 'text-align-left',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: true,
-    editableFields: ['label'],
-    isLayout: false,
-    isFormField: true,
-    defaultTag: 'label',
-  },
-  'form-input': {
-    label: 'Input',
-    icon: 'text-format',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: false,
-    isLayout: false,
-    isFormField: true,
-    defaultTag: 'input',
-  },
-  'form-textarea': {
-    label: 'Textarea',
-    icon: 'text-align-left',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: false,
-    isLayout: false,
-    isFormField: true,
-    defaultTag: 'textarea',
-  },
-  'form-select': {
-    label: 'Select',
-    icon: 'chevron-down',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: false,
-    isLayout: false,
-    isFormField: true,
-    defaultTag: 'select',
-  },
-  'form-radio': {
-    label: 'Radio',
-    icon: 'radio-button',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: false,
-    isLayout: false,
-    isFormField: true,
-    defaultTag: 'div',
-  },
-  'form-checkbox': {
-    label: 'Checkbox',
-    icon: 'checkbox',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: false,
-    isLayout: false,
-    isFormField: true,
-    defaultTag: 'div',
-  },
-  'form-button': {
-    label: 'Submit Button',
-    icon: 'cursor',
-    hasChildren: false,
-    hasBackground: false,
-    hasEmptyState: false,
-    supportsInlineEdit: true,
-    editableFields: ['label'],
-    isLayout: false,
-    isFormField: true,
-    defaultTag: 'button',
-  },
 }
 
 /**
@@ -283,17 +167,10 @@ export const layoutBlockTypes = Object.entries(blockRenderConfig)
   .map(([type]) => type as SectionBlockType)
 
 /**
- * Get content block types (non-layout, non-form)
+ * Get content block types (non-layout)
  */
 export const contentBlockTypes = Object.entries(blockRenderConfig)
-  .filter(([_, config]) => !config.isLayout && !config.isFormField)
-  .map(([type]) => type as SectionBlockType)
-
-/**
- * Get form field block types
- */
-export const formFieldBlockTypes = Object.entries(blockRenderConfig)
-  .filter(([_, config]) => config.isFormField)
+  .filter(([_, config]) => !config.isLayout)
   .map(([type]) => type as SectionBlockType)
 
 /**

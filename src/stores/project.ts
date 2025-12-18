@@ -91,7 +91,7 @@ export const useProjectStore = defineStore('project', () => {
       // Fetch project directly from database to ensure fresh data
       const { data: project, error: projectError } = await supabase
         .from('projects')
-        .select('*')
+        .select('id, title, slug, description, plan, is_published, custom_domain, created_at, updated_at')
         .eq('id', projectId)
         .single()
 
@@ -119,12 +119,12 @@ export const useProjectStore = defineStore('project', () => {
           },
         }
 
-        // Load extended settings from project_settings table
+        // Load extended settings from project_settings table (may not exist for new projects)
         const { data: extendedSettings } = await supabase
           .from('project_settings')
-          .select('*')
+          .select('meta_title, meta_description, keywords, og_image, favicon, visibility, password, published_at, umami_site_id, umami_enabled, google_analytics_id')
           .eq('project_id', projectId)
-          .single()
+          .maybeSingle()
 
         if (extendedSettings) {
           settings.value.seo = {

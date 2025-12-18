@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
 import type { SectionBlock, SectionBlockType, CanvasSettings, CanvasChildPosition } from '@/types/editor'
-import { sectionBlockIcons, blocksByCategory } from '@/lib/editor-utils'
 import { BackgroundMedia } from './index'
-import Button from '@/components/ui/Button.vue'
-import Dropdown from '@/components/ui/Dropdown.vue'
-import DropdownItem from '@/components/ui/DropdownItem.vue'
-import Icon from '@/components/ui/Icon.vue'
+import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 import { useEditorStore } from '@/stores/editor'
 
 // Use async component to avoid circular dependency
@@ -74,6 +70,8 @@ function getCanvasChildPos(childId: string): CanvasChildPosition {
       :image-opacity="settings?.backgroundImageOpacity"
       :image-blur="settings?.backgroundImageBlur"
       :image-saturation="settings?.backgroundImageSaturation"
+      :image-overlay="settings?.backgroundImageOverlay"
+      :image-overlay-opacity="settings?.backgroundImageOverlayOpacity"
     />
 
     <!-- Children with absolute positioning -->
@@ -102,25 +100,11 @@ function getCanvasChildPos(childId: string): CanvasChildPosition {
       v-else
       class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground border-1 border-dashed border-border/50 m-4"
     >
-      <Dropdown align="left" width="min-w-48" :close-on-click="true">
-        <template #trigger="{ toggle }">
-          <Button variant="dotted" size="sm" @click.stop="toggle">
-            <Icon name="plus" :size="12" />
-            Add content
-          </Button>
-        </template>
-        <div class="py-1 font-sans">
-          <p class="px-3 py-1.5 text-xs font-medium text-muted-foreground">Content</p>
-          <DropdownItem
-            v-for="type in (blocksByCategory.content as SectionBlockType[])"
-            :key="type"
-            :icon="sectionBlockIcons[type]"
-            @click="emit('addBlock', type)"
-          >
-            {{ type.charAt(0).toUpperCase() + type.slice(1) }}
-          </DropdownItem>
-        </div>
-      </Dropdown>
+      <SidebarBlockPicker
+        mode="nested"
+        trigger-label="Add content"
+        @select="(type: string) => emit('addBlock', type as SectionBlockType)"
+      />
     </div>
   </div>
 </template>

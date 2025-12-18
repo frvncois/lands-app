@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import type { BlockEffects, HoverEffect, ScrollEffect, AppearEffect, LoopEffect, EffectState, EffectPreset, EffectEasing, TransformOrigin, StaggerConfig, ChildEffectOverride, SectionBlock } from '@/types/editor'
+import type { BlockEffects, HoverEffect, ScrollEffect, AppearEffect, LoopEffect, EffectState, EffectPreset, EffectEasing, TransformOrigin, StaggerConfig, ChildEffectOverride } from '@/types/editor'
 import { presetOptions, easingOptions, transformOriginOptions, getPresetConfig } from '@/lib/effect-utils'
+import type { DescendantBlock } from '@/lib/editor-utils'
+import { useEditorStore } from '@/stores/editor'
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
 import Popover from '@/components/ui/Popover.vue'
+import Button from '@/components/ui/Button.vue'
 import Icon from '@/components/ui/Icon.vue'
 import SliderInput from '../SliderInput.vue'
 import SizeInput from '../SizeInput.vue'
@@ -13,13 +16,23 @@ import ColorInput from '../ColorInput.vue'
 
 const props = defineProps<{
   effects?: BlockEffects
-  // Children blocks for child effect targeting
-  children?: SectionBlock[]
+  // All descendant blocks (including nested) for child effect targeting
+  descendants?: DescendantBlock[]
 }>()
 
 const emit = defineEmits<{
   'update:effects': [value: BlockEffects]
 }>()
+
+const editorStore = useEditorStore()
+
+// Preview appear animation
+function previewAppear() {
+  const blockId = editorStore.selectedBlockId
+  if (blockId) {
+    editorStore.triggerAppearPreview(blockId)
+  }
+}
 
 // Convert options for SelectInput
 const easingSelectOptions = easingOptions.map(o => ({ value: o.value, label: o.label }))
@@ -235,6 +248,9 @@ function initAppear() {
     type: 'appear',
     enabled: true,
     trigger: 'inView',
+    preset: 'fade-in',
+    duration: 400,
+    easing: 'ease-out',
   })
 }
 
@@ -338,12 +354,12 @@ function updateAppearStagger(updates: Partial<StaggerConfig>) {
 // CHILD EFFECT OVERRIDES
 // ============================================
 
-// Get child options for select
+// Get child options for select (uses all descendants)
 const childOptions = computed(() => {
-  if (!props.children?.length) return []
-  return props.children.map(child => ({
-    value: child.id,
-    label: child.name || child.type,
+  if (!props.descendants?.length) return []
+  return props.descendants.map(d => ({
+    value: d.block.id,
+    label: d.path, // Show full path for clarity
   }))
 })
 
@@ -565,12 +581,12 @@ function updateScrollTo(key: keyof EffectState, value: string | number) {
 
 function updateAppearFrom(key: keyof EffectState, value: string | number) {
   const currentFrom = props.effects?.appear?.from || { ...defaultFromState }
-  updateAppear({ from: { ...currentFrom, [key]: value } })
+  updateAppear({ from: { ...currentFrom, [key]: value }, preset: 'custom' })
 }
 
 function updateAppearTo(key: keyof EffectState, value: string | number) {
   const currentTo = props.effects?.appear?.to || { ...defaultToState }
-  updateAppear({ to: { ...currentTo, [key]: value } })
+  updateAppear({ to: { ...currentTo, [key]: value }, preset: 'custom' })
 }
 
 function updateLoopFrom(key: keyof EffectState, value: string | number) {
@@ -614,6 +630,7 @@ function addAppearProperty(key: string) {
   updateAppear({
     from: { ...currentFrom, [key]: config.default },
     to: { ...currentTo, [key]: config.default },
+    preset: 'custom',
   })
 }
 
@@ -650,7 +667,7 @@ function removeAppearProperty(key: string) {
   const currentTo = { ...props.effects?.appear?.to }
   delete currentFrom[key as keyof EffectState]
   delete currentTo[key as keyof EffectState]
-  updateAppear({ from: currentFrom, to: currentTo })
+  updateAppear({ from: currentFrom, to: currentTo, preset: 'custom' })
 }
 
 function removeLoopProperty(key: string) {
@@ -678,10 +695,10 @@ const hoverSettingsOpen = ref(false)
 const hoverChildrenOpen = ref(false)
 const editingHoverChildId = ref<string | null>(null)
 
-// Get the child being edited for hover effect
+// Get the descendant being edited for hover effect
 const editingHoverChild = computed(() => {
-  if (!editingHoverChildId.value || !props.children) return null
-  return props.children.find(c => c.id === editingHoverChildId.value) || null
+  if (!editingHoverChildId.value || !props.descendants) return null
+  return props.descendants.find(d => d.block.id === editingHoverChildId.value) || null
 })
 
 // Scroll effect UI state
@@ -691,10 +708,10 @@ const scrollRangeOpen = ref(false)
 const scrollChildrenOpen = ref(false)
 const editingScrollChildId = ref<string | null>(null)
 
-// Get the child being edited for scroll effect
+// Get the descendant being edited for scroll effect
 const editingScrollChild = computed(() => {
-  if (!editingScrollChildId.value || !props.children) return null
-  return props.children.find(c => c.id === editingScrollChildId.value) || null
+  if (!editingScrollChildId.value || !props.descendants) return null
+  return props.descendants.find(d => d.block.id === editingScrollChildId.value) || null
 })
 
 // Appear effect UI state
@@ -707,10 +724,10 @@ const editingAppearChildId = ref<string | null>(null)
 const loopActiveTab = ref<'from' | 'to'>('from')
 const loopSettingsOpen = ref(false)
 
-// Get the child being edited for appear effect
+// Get the descendant being edited for appear effect
 const editingAppearChild = computed(() => {
-  if (!editingAppearChildId.value || !props.children) return null
-  return props.children.find(c => c.id === editingAppearChildId.value) || null
+  if (!editingAppearChildId.value || !props.descendants) return null
+  return props.descendants.find(d => d.block.id === editingAppearChildId.value) || null
 })
 
 // Get or create child override for editing
@@ -784,20 +801,105 @@ function updateAppearChildTo(childId: string, key: keyof EffectState, value: str
   updateAppearChildOverride(childId, { to: { ...currentTo, [key]: value } })
 }
 
+// Get active properties for child overrides
+function getHoverChildActiveProps(childId: string): string[] {
+  const override = getOrCreateHoverChildOverride(childId)
+  return getActiveProperties(override.from, override.to)
+}
+
+function getScrollChildActiveProps(childId: string): string[] {
+  const override = getOrCreateScrollChildOverride(childId)
+  return getActiveProperties(override.from, override.to)
+}
+
+function getAppearChildActiveProps(childId: string): string[] {
+  const override = getOrCreateAppearChildOverride(childId)
+  return getActiveProperties(override.from, override.to)
+}
+
+// Add property to child override
+function addHoverChildProperty(childId: string, key: string) {
+  const config = getPropertyConfig(key)
+  if (!config) return
+  const current = getOrCreateHoverChildOverride(childId)
+  const currentFrom = current.from || {}
+  const currentTo = current.to || {}
+  updateHoverChildOverride(childId, {
+    from: { ...currentFrom, [key]: config.default },
+    to: { ...currentTo, [key]: config.default },
+    preset: 'custom',
+  })
+}
+
+function addScrollChildProperty(childId: string, key: string) {
+  const config = getPropertyConfig(key)
+  if (!config) return
+  const current = getOrCreateScrollChildOverride(childId)
+  const currentFrom = current.from || {}
+  const currentTo = current.to || {}
+  updateScrollChildOverride(childId, {
+    from: { ...currentFrom, [key]: config.default },
+    to: { ...currentTo, [key]: config.default },
+  })
+}
+
+function addAppearChildProperty(childId: string, key: string) {
+  const config = getPropertyConfig(key)
+  if (!config) return
+  const current = getOrCreateAppearChildOverride(childId)
+  const currentFrom = current.from || {}
+  const currentTo = current.to || {}
+  updateAppearChildOverride(childId, {
+    from: { ...currentFrom, [key]: config.default },
+    to: { ...currentTo, [key]: config.default },
+  })
+}
+
+// Remove property from child override
+function removeHoverChildProperty(childId: string, key: string) {
+  const current = getOrCreateHoverChildOverride(childId)
+  const currentFrom = { ...current.from }
+  const currentTo = { ...current.to }
+  delete currentFrom[key as keyof EffectState]
+  delete currentTo[key as keyof EffectState]
+  updateHoverChildOverride(childId, { from: currentFrom, to: currentTo })
+}
+
+function removeScrollChildProperty(childId: string, key: string) {
+  const current = getOrCreateScrollChildOverride(childId)
+  const currentFrom = { ...current.from }
+  const currentTo = { ...current.to }
+  delete currentFrom[key as keyof EffectState]
+  delete currentTo[key as keyof EffectState]
+  updateScrollChildOverride(childId, { from: currentFrom, to: currentTo })
+}
+
+function removeAppearChildProperty(childId: string, key: string) {
+  const current = getOrCreateAppearChildOverride(childId)
+  const currentFrom = { ...current.from }
+  const currentTo = { ...current.to }
+  delete currentFrom[key as keyof EffectState]
+  delete currentTo[key as keyof EffectState]
+  updateAppearChildOverride(childId, { from: currentFrom, to: currentTo })
+}
+
 import { ref, computed } from 'vue'
 </script>
 
 <template>
-  <InspectorSection title="Effects" icon="style-animation">
+  <InspectorSection title="Effects" icon="style-effect">
     <!-- Hover -->
     <InspectorField label="Hover" horizontal>
       <Popover align="right" width="w-80">
         <template #trigger="{ toggle }">
           <button
-            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
+            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer"
             @click="() => { if (!hasHoverEffect()) initHover(); toggle() }"
           >
-            <Icon name="cursor" :size="12" class="text-muted-foreground" />
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :class="hasHoverEffect() ? 'bg-white' : 'bg-muted-foreground/30'"
+            ></span>
             <span class="truncate">{{ getHoverPreview() }}</span>
           </button>
         </template>
@@ -815,7 +917,7 @@ import { ref, computed } from 'vue'
                   Hover
                 </button>
                 <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
-                <span class="text-xs font-medium text-foreground">{{ editingHoverChild.name || editingHoverChild.type }}</span>
+                <span class="text-xs font-medium text-foreground">{{ editingHoverChild.path }}</span>
                 <div class="flex-1" />
                 <button
                   type="button"
@@ -862,106 +964,86 @@ import { ref, computed } from 'vue'
                 </button>
               </div>
 
-              <!-- Child From State -->
-              <div v-if="hoverActiveTab === 'from'" class="space-y-2">
-                <InspectorField label="Opacity" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateHoverChildOverride(editingHoverChildId).from?.opacity ?? 100)"
-                    :min="0"
-                    :max="100"
-                    :step="5"
-                    unit="%"
-                    @update:model-value="updateHoverChildFrom(editingHoverChildId!, 'opacity', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Scale" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateHoverChildOverride(editingHoverChildId).from?.scale ?? 1)"
-                    :min="0.5"
-                    :max="2"
-                    :step="0.05"
-                    @update:model-value="updateHoverChildFrom(editingHoverChildId!, 'scale', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Move X" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).from?.translateX || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildFrom(editingHoverChildId!, 'translateX', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Move Y" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).from?.translateY || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildFrom(editingHoverChildId!, 'translateY', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Rotate" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).from?.rotate || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildFrom(editingHoverChildId!, 'rotate', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Blur" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).from?.blur || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildFrom(editingHoverChildId!, 'blur', $event)"
-                  />
-                </InspectorField>
-              </div>
+              <!-- Child From/To State (Dynamic Properties) -->
+              <div class="space-y-2">
+                <!-- Active Properties -->
+                <template v-for="propKey in getHoverChildActiveProps(editingHoverChildId!)" :key="propKey">
+                  <div class="flex items-center gap-1 group">
+                    <InspectorField :label="getPropertyConfig(propKey)?.label || propKey" horizontal class="flex-1">
+                      <!-- Slider input for opacity, scale -->
+                      <SliderInput
+                        v-if="getPropertyConfig(propKey)?.type === 'slider'"
+                        :model-value="String(hoverActiveTab === 'from' ? (getOrCreateHoverChildOverride(editingHoverChildId!).from?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (getOrCreateHoverChildOverride(editingHoverChildId!).to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
+                        :min="getPropertyConfig(propKey)?.min"
+                        :max="getPropertyConfig(propKey)?.max"
+                        :step="getPropertyConfig(propKey)?.step"
+                        :unit="getPropertyConfig(propKey)?.unit"
+                        @update:model-value="hoverActiveTab === 'from' ? updateHoverChildFrom(editingHoverChildId!, propKey as keyof EffectState, Number($event)) : updateHoverChildTo(editingHoverChildId!, propKey as keyof EffectState, Number($event))"
+                      />
+                      <!-- Color input -->
+                      <ColorInput
+                        v-else-if="getPropertyConfig(propKey)?.type === 'color'"
+                        :model-value="(hoverActiveTab === 'from' ? getOrCreateHoverChildOverride(editingHoverChildId!).from?.[propKey as keyof EffectState] : getOrCreateHoverChildOverride(editingHoverChildId!).to?.[propKey as keyof EffectState]) as string | undefined"
+                        swatch-only
+                        @update:model-value="hoverActiveTab === 'from' ? updateHoverChildFrom(editingHoverChildId!, propKey as keyof EffectState, $event) : updateHoverChildTo(editingHoverChildId!, propKey as keyof EffectState, $event)"
+                      />
+                      <!-- Size input (default) -->
+                      <SizeInput
+                        v-else
+                        :model-value="String(hoverActiveTab === 'from' ? (getOrCreateHoverChildOverride(editingHoverChildId!).from?.[propKey as keyof EffectState] || '') : (getOrCreateHoverChildOverride(editingHoverChildId!).to?.[propKey as keyof EffectState] || ''))"
+                        :placeholder="String(getPropertyConfig(propKey)?.default || '0')"
+                        @update:model-value="hoverActiveTab === 'from' ? updateHoverChildFrom(editingHoverChildId!, propKey as keyof EffectState, $event) : updateHoverChildTo(editingHoverChildId!, propKey as keyof EffectState, $event)"
+                      />
+                    </InspectorField>
+                    <button
+                      type="button"
+                      class="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
+                      @click.stop.prevent="removeHoverChildProperty(editingHoverChildId!, propKey)"
+                    >
+                      <Icon name="close" :size="10" />
+                    </button>
+                  </div>
+                </template>
 
-              <!-- Child To State -->
-              <div v-else class="space-y-2">
-                <InspectorField label="Opacity" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateHoverChildOverride(editingHoverChildId).to?.opacity ?? 100)"
-                    :min="0"
-                    :max="100"
-                    :step="5"
-                    unit="%"
-                    @update:model-value="updateHoverChildTo(editingHoverChildId!, 'opacity', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Scale" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateHoverChildOverride(editingHoverChildId).to?.scale ?? 1)"
-                    :min="0.5"
-                    :max="2"
-                    :step="0.05"
-                    @update:model-value="updateHoverChildTo(editingHoverChildId!, 'scale', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Move X" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).to?.translateX || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildTo(editingHoverChildId!, 'translateX', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Move Y" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).to?.translateY || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildTo(editingHoverChildId!, 'translateY', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Rotate" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).to?.rotate || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildTo(editingHoverChildId!, 'rotate', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Blur" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateHoverChildOverride(editingHoverChildId).to?.blur || '0'"
-                    placeholder="0"
-                    @update:model-value="updateHoverChildTo(editingHoverChildId!, 'blur', $event)"
-                  />
-                </InspectorField>
+                <!-- Empty state -->
+                <div v-if="!getHoverChildActiveProps(editingHoverChildId!).length" class="py-3 text-center text-xs text-muted-foreground">
+                  No properties added yet
+                </div>
+
+                <!-- Add Property Popover -->
+                <Popover side="left" width="w-48">
+                  <template #trigger="{ toggle }">
+                    <button
+                      type="button"
+                      class="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-foreground/30 rounded-md transition-colors mt-2"
+                      @click.stop.prevent="toggle"
+                    >
+                      <Icon name="plus" :size="10" />
+                      <span>Add property</span>
+                    </button>
+                  </template>
+                  <template #default="{ close: closeAddPopover }">
+                    <div class="p-1">
+                      <template v-for="category in effectPropertyCategories" :key="category.label">
+                        <div class="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          {{ category.label }}
+                        </div>
+                        <button
+                          v-for="prop in category.properties"
+                          :key="prop.key"
+                          type="button"
+                          class="w-full px-2 py-1.5 text-left text-xs hover:bg-secondary/50 rounded transition-colors flex items-center justify-between"
+                          :class="{ 'opacity-50': getHoverChildActiveProps(editingHoverChildId!).includes(prop.key) }"
+                          :disabled="getHoverChildActiveProps(editingHoverChildId!).includes(prop.key)"
+                          @click.stop.prevent="() => { if (!getHoverChildActiveProps(editingHoverChildId!).includes(prop.key)) { addHoverChildProperty(editingHoverChildId!, prop.key); closeAddPopover() } }"
+                        >
+                          <span>{{ prop.label }}</span>
+                          <Icon v-if="getHoverChildActiveProps(editingHoverChildId!).includes(prop.key)" name="check" :size="10" class="text-primary" />
+                        </button>
+                      </template>
+                    </div>
+                  </template>
+                </Popover>
               </div>
 
               <!-- Child Settings Accordion -->
@@ -1008,25 +1090,15 @@ import { ref, computed } from 'vue'
 
             <!-- ==================== MAIN HOVER VIEW ==================== -->
             <template v-else>
-              <!-- Header with Apply and Reset -->
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-medium text-foreground">Hover Effect</span>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
-                    @click.stop.prevent="closePopover"
-                  >
-                    Apply
-                  </button>
-                  <button
-                    type="button"
-                    class="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
-                    @click.stop.prevent="resetHover"
-                  >
-                    Reset
-                  </button>
-                </div>
+              <!-- Header with Reset and Apply -->
+              <div class="flex items-center gap-2 mb-3 pb-2">
+                <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
+                  <Icon name="style-effect" :size="14" class="text-muted-foreground" />
+                  Hover Effect
+                </span>
+                <div class="flex-1" />
+                <Button size="sm" variant="outline" @click.stop.prevent="resetHover(); closePopover()">Reset</Button>
+                <Button size="sm" @click.stop.prevent="closePopover()">Apply</Button>
               </div>
 
               <!-- Preset Selector -->
@@ -1179,7 +1251,7 @@ import { ref, computed } from 'vue'
               </div>
 
               <!-- Children Accordion -->
-              <template v-if="children?.length">
+              <template v-if="descendants?.length">
                 <div class="mt-3 border-t border-border pt-3">
                   <button
                     type="button"
@@ -1195,21 +1267,21 @@ import { ref, computed } from 'vue'
                     </div>
                   </button>
                   <div v-if="hoverChildrenOpen" class="mt-2 space-y-1">
-                    <!-- List all children -->
+                    <!-- List all descendants -->
                     <button
-                      v-for="child in children"
-                      :key="child.id"
+                      v-for="descendant in descendants"
+                      :key="descendant.block.id"
                       type="button"
                       class="w-full flex items-center gap-2 p-2 text-left rounded-md hover:bg-secondary/50 transition-colors group"
-                      @click.stop.prevent="() => { if (!getHoverChildOverride(child.id)) { updateHoverChildOverride(child.id, { preset: 'custom', from: {}, to: {} }) }; editingHoverChildId = child.id }"
+                      @click.stop.prevent="() => { if (!getHoverChildOverride(descendant.block.id)) { updateHoverChildOverride(descendant.block.id, { preset: 'custom', from: {}, to: {} }) }; editingHoverChildId = descendant.block.id }"
                     >
                       <Icon name="shapes" :size="12" class="text-muted-foreground" />
-                      <span class="flex-1 text-xs truncate">{{ child.name || child.type }}</span>
+                      <span class="flex-1 text-xs truncate">{{ descendant.path }}</span>
                       <span
-                        v-if="getHoverChildOverride(child.id)"
+                        v-if="getHoverChildOverride(descendant.block.id)"
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary"
                       >
-                        {{ getHoverChildOverride(child.id)?.preset || 'custom' }}
+                        {{ getHoverChildOverride(descendant.block.id)?.preset || 'custom' }}
                       </span>
                       <Icon name="chevron-right" :size="10" class="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
@@ -1227,10 +1299,13 @@ import { ref, computed } from 'vue'
       <Popover align="right" width="w-80">
         <template #trigger="{ toggle }">
           <button
-            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
+            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer"
             @click="() => { if (!hasScrollEffect()) initScroll(); toggle() }"
           >
-            <Icon name="arrow-down" :size="12" class="text-muted-foreground" />
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :class="hasScrollEffect() ? 'bg-white' : 'bg-muted-foreground/30'"
+            ></span>
             <span class="truncate">{{ getScrollPreview() }}</span>
           </button>
         </template>
@@ -1248,7 +1323,7 @@ import { ref, computed } from 'vue'
                   Scroll
                 </button>
                 <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
-                <span class="text-xs font-medium text-foreground">{{ editingScrollChild.name || editingScrollChild.type }}</span>
+                <span class="text-xs font-medium text-foreground">{{ editingScrollChild.path }}</span>
                 <div class="flex-1" />
                 <button
                   type="button"
@@ -1286,106 +1361,86 @@ import { ref, computed } from 'vue'
                 </button>
               </div>
 
-              <!-- Child From State -->
-              <div v-if="scrollActiveTab === 'from'" class="space-y-2">
-                <InspectorField label="Opacity" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateScrollChildOverride(editingScrollChildId).from?.opacity ?? 100)"
-                    :min="0"
-                    :max="100"
-                    :step="5"
-                    unit="%"
-                    @update:model-value="updateScrollChildFrom(editingScrollChildId!, 'opacity', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Scale" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateScrollChildOverride(editingScrollChildId).from?.scale ?? 1)"
-                    :min="0.5"
-                    :max="2"
-                    :step="0.05"
-                    @update:model-value="updateScrollChildFrom(editingScrollChildId!, 'scale', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Move X" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).from?.translateX || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildFrom(editingScrollChildId!, 'translateX', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Move Y" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).from?.translateY || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildFrom(editingScrollChildId!, 'translateY', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Rotate" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).from?.rotate || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildFrom(editingScrollChildId!, 'rotate', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Blur" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).from?.blur || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildFrom(editingScrollChildId!, 'blur', $event)"
-                  />
-                </InspectorField>
-              </div>
+              <!-- Child From/To State (Dynamic Properties) -->
+              <div class="space-y-2">
+                <!-- Active Properties -->
+                <template v-for="propKey in getScrollChildActiveProps(editingScrollChildId!)" :key="propKey">
+                  <div class="flex items-center gap-1 group">
+                    <InspectorField :label="getPropertyConfig(propKey)?.label || propKey" horizontal class="flex-1">
+                      <!-- Slider input for opacity, scale -->
+                      <SliderInput
+                        v-if="getPropertyConfig(propKey)?.type === 'slider'"
+                        :model-value="String(scrollActiveTab === 'from' ? (getOrCreateScrollChildOverride(editingScrollChildId!).from?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (getOrCreateScrollChildOverride(editingScrollChildId!).to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
+                        :min="getPropertyConfig(propKey)?.min"
+                        :max="getPropertyConfig(propKey)?.max"
+                        :step="getPropertyConfig(propKey)?.step"
+                        :unit="getPropertyConfig(propKey)?.unit"
+                        @update:model-value="scrollActiveTab === 'from' ? updateScrollChildFrom(editingScrollChildId!, propKey as keyof EffectState, Number($event)) : updateScrollChildTo(editingScrollChildId!, propKey as keyof EffectState, Number($event))"
+                      />
+                      <!-- Color input -->
+                      <ColorInput
+                        v-else-if="getPropertyConfig(propKey)?.type === 'color'"
+                        :model-value="(scrollActiveTab === 'from' ? getOrCreateScrollChildOverride(editingScrollChildId!).from?.[propKey as keyof EffectState] : getOrCreateScrollChildOverride(editingScrollChildId!).to?.[propKey as keyof EffectState]) as string | undefined"
+                        swatch-only
+                        @update:model-value="scrollActiveTab === 'from' ? updateScrollChildFrom(editingScrollChildId!, propKey as keyof EffectState, $event) : updateScrollChildTo(editingScrollChildId!, propKey as keyof EffectState, $event)"
+                      />
+                      <!-- Size input (default) -->
+                      <SizeInput
+                        v-else
+                        :model-value="String(scrollActiveTab === 'from' ? (getOrCreateScrollChildOverride(editingScrollChildId!).from?.[propKey as keyof EffectState] || '') : (getOrCreateScrollChildOverride(editingScrollChildId!).to?.[propKey as keyof EffectState] || ''))"
+                        :placeholder="String(getPropertyConfig(propKey)?.default || '0')"
+                        @update:model-value="scrollActiveTab === 'from' ? updateScrollChildFrom(editingScrollChildId!, propKey as keyof EffectState, $event) : updateScrollChildTo(editingScrollChildId!, propKey as keyof EffectState, $event)"
+                      />
+                    </InspectorField>
+                    <button
+                      type="button"
+                      class="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
+                      @click.stop.prevent="removeScrollChildProperty(editingScrollChildId!, propKey)"
+                    >
+                      <Icon name="close" :size="10" />
+                    </button>
+                  </div>
+                </template>
 
-              <!-- Child To State -->
-              <div v-else class="space-y-2">
-                <InspectorField label="Opacity" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateScrollChildOverride(editingScrollChildId).to?.opacity ?? 100)"
-                    :min="0"
-                    :max="100"
-                    :step="5"
-                    unit="%"
-                    @update:model-value="updateScrollChildTo(editingScrollChildId!, 'opacity', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Scale" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateScrollChildOverride(editingScrollChildId).to?.scale ?? 1)"
-                    :min="0.5"
-                    :max="2"
-                    :step="0.05"
-                    @update:model-value="updateScrollChildTo(editingScrollChildId!, 'scale', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Move X" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).to?.translateX || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildTo(editingScrollChildId!, 'translateX', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Move Y" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).to?.translateY || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildTo(editingScrollChildId!, 'translateY', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Rotate" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).to?.rotate || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildTo(editingScrollChildId!, 'rotate', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Blur" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateScrollChildOverride(editingScrollChildId).to?.blur || '0'"
-                    placeholder="0"
-                    @update:model-value="updateScrollChildTo(editingScrollChildId!, 'blur', $event)"
-                  />
-                </InspectorField>
+                <!-- Empty state -->
+                <div v-if="!getScrollChildActiveProps(editingScrollChildId!).length" class="py-3 text-center text-xs text-muted-foreground">
+                  No properties added yet
+                </div>
+
+                <!-- Add Property Popover -->
+                <Popover side="left" width="w-48">
+                  <template #trigger="{ toggle }">
+                    <button
+                      type="button"
+                      class="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-foreground/30 rounded-md transition-colors mt-2"
+                      @click.stop.prevent="toggle"
+                    >
+                      <Icon name="plus" :size="10" />
+                      <span>Add property</span>
+                    </button>
+                  </template>
+                  <template #default="{ close: closeAddPopover }">
+                    <div class="p-1">
+                      <template v-for="category in effectPropertyCategories" :key="category.label">
+                        <div class="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          {{ category.label }}
+                        </div>
+                        <button
+                          v-for="prop in category.properties"
+                          :key="prop.key"
+                          type="button"
+                          class="w-full px-2 py-1.5 text-left text-xs hover:bg-secondary/50 rounded transition-colors flex items-center justify-between"
+                          :class="{ 'opacity-50': getScrollChildActiveProps(editingScrollChildId!).includes(prop.key) }"
+                          :disabled="getScrollChildActiveProps(editingScrollChildId!).includes(prop.key)"
+                          @click.stop.prevent="() => { if (!getScrollChildActiveProps(editingScrollChildId!).includes(prop.key)) { addScrollChildProperty(editingScrollChildId!, prop.key); closeAddPopover() } }"
+                        >
+                          <span>{{ prop.label }}</span>
+                          <Icon v-if="getScrollChildActiveProps(editingScrollChildId!).includes(prop.key)" name="check" :size="10" class="text-primary" />
+                        </button>
+                      </template>
+                    </div>
+                  </template>
+                </Popover>
               </div>
 
               <!-- Child Settings Accordion -->
@@ -1401,7 +1456,7 @@ import { ref, computed } from 'vue'
                 <div v-if="scrollSettingsOpen" class="mt-2 space-y-2">
                   <InspectorField label="Delay" horizontal>
                     <SliderInput
-                      :model-value="String(getOrCreateScrollChildOverride(editingScrollChildId).delay ?? 0)"
+                      :model-value="String(getOrCreateScrollChildOverride(editingScrollChildId!).delay ?? 0)"
                       :min="0"
                       :max="1000"
                       :step="50"
@@ -1412,7 +1467,7 @@ import { ref, computed } from 'vue'
                   <InspectorField label="Easing" horizontal>
                     <SelectInput
                       :options="easingSelectOptions"
-                      :model-value="getOrCreateScrollChildOverride(editingScrollChildId).easing || effects!.scroll!.easing || 'ease-out'"
+                      :model-value="getOrCreateScrollChildOverride(editingScrollChildId!).easing || effects!.scroll!.easing || 'ease-out'"
                       @update:model-value="(v: string) => updateScrollChildOverride(editingScrollChildId!, { easing: v as EffectEasing })"
                     />
                   </InspectorField>
@@ -1466,25 +1521,15 @@ import { ref, computed } from 'vue'
 
             <!-- ==================== MAIN SCROLL VIEW ==================== -->
             <template v-else>
-              <!-- Header with Apply and Reset -->
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-medium text-foreground">Scroll Effect</span>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
-                    @click.stop.prevent="closePopover"
-                  >
-                    Apply
-                  </button>
-                  <button
-                    type="button"
-                    class="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
-                    @click.stop.prevent="resetScroll"
-                  >
-                    Reset
-                  </button>
-                </div>
+              <!-- Header with Reset and Apply -->
+              <div class="flex items-center gap-2 mb-3 pb-2">
+                <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
+                  <Icon name="style-effect" :size="14" class="text-muted-foreground" />
+                  Scroll Effect
+                </span>
+                <div class="flex-1" />
+                <Button size="sm" variant="outline" @click.stop.prevent="resetScroll(); closePopover()">Reset</Button>
+                <Button size="sm" @click.stop.prevent="closePopover()">Apply</Button>
               </div>
 
               <!-- From/To Tab Selector -->
@@ -1669,7 +1714,7 @@ import { ref, computed } from 'vue'
               </div>
 
               <!-- Children Accordion -->
-              <template v-if="children?.length">
+              <template v-if="descendants?.length">
                 <div class="mt-3 border-t border-border pt-3">
                   <button
                     type="button"
@@ -1685,18 +1730,18 @@ import { ref, computed } from 'vue'
                     </div>
                   </button>
                   <div v-if="scrollChildrenOpen" class="mt-2 space-y-1">
-                    <!-- List all children -->
+                    <!-- List all descendants -->
                     <button
-                      v-for="child in children"
-                      :key="child.id"
+                      v-for="descendant in descendants"
+                      :key="descendant.block.id"
                       type="button"
                       class="w-full flex items-center gap-2 p-2 text-left rounded-md hover:bg-secondary/50 transition-colors group"
-                      @click.stop.prevent="() => { if (!getScrollChildOverride(child.id)) { updateScrollChildOverride(child.id, {}) }; editingScrollChildId = child.id }"
+                      @click.stop.prevent="() => { if (!getScrollChildOverride(descendant.block.id)) { updateScrollChildOverride(descendant.block.id, {}) }; editingScrollChildId = descendant.block.id }"
                     >
                       <Icon name="shapes" :size="12" class="text-muted-foreground" />
-                      <span class="flex-1 text-xs truncate">{{ child.name || child.type }}</span>
+                      <span class="flex-1 text-xs truncate">{{ descendant.path }}</span>
                       <span
-                        v-if="getScrollChildOverride(child.id)"
+                        v-if="getScrollChildOverride(descendant.block.id)"
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary"
                       >
                         Custom
@@ -1717,10 +1762,13 @@ import { ref, computed } from 'vue'
       <Popover align="right" width="w-80">
         <template #trigger="{ toggle }">
           <button
-            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
+            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer"
             @click="() => { if (!hasAppearEffect()) initAppear(); toggle() }"
           >
-            <Icon name="eye" :size="12" class="text-muted-foreground" />
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :class="hasAppearEffect() ? 'bg-white' : 'bg-muted-foreground/30'"
+            ></span>
             <span class="truncate">{{ getAppearPreview() }}</span>
           </button>
         </template>
@@ -1738,7 +1786,7 @@ import { ref, computed } from 'vue'
                   Appear
                 </button>
                 <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
-                <span class="text-xs font-medium text-foreground">{{ editingAppearChild.name || editingAppearChild.type }}</span>
+                <span class="text-xs font-medium text-foreground">{{ editingAppearChild.path }}</span>
                 <div class="flex-1" />
                 <button
                   type="button"
@@ -1776,106 +1824,86 @@ import { ref, computed } from 'vue'
                 </button>
               </div>
 
-              <!-- Child From State -->
-              <div v-if="appearActiveTab === 'from'" class="space-y-2">
-                <InspectorField label="Opacity" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId).from?.opacity ?? '')"
-                    :min="0"
-                    :max="100"
-                    :step="5"
-                    unit="%"
-                    @update:model-value="updateAppearChildFrom(editingAppearChildId!, 'opacity', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Scale" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId).from?.scale ?? '')"
-                    :min="0.5"
-                    :max="2"
-                    :step="0.05"
-                    @update:model-value="updateAppearChildFrom(editingAppearChildId!, 'scale', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Move X" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).from?.translateX || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildFrom(editingAppearChildId!, 'translateX', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Move Y" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).from?.translateY || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildFrom(editingAppearChildId!, 'translateY', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Rotate" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).from?.rotate || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildFrom(editingAppearChildId!, 'rotate', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Blur" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).from?.blur || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildFrom(editingAppearChildId!, 'blur', $event)"
-                  />
-                </InspectorField>
-              </div>
+              <!-- Child From/To State (Dynamic Properties) -->
+              <div class="space-y-2">
+                <!-- Active Properties -->
+                <template v-for="propKey in getAppearChildActiveProps(editingAppearChildId!)" :key="propKey">
+                  <div class="flex items-center gap-1 group">
+                    <InspectorField :label="getPropertyConfig(propKey)?.label || propKey" horizontal class="flex-1">
+                      <!-- Slider input for opacity, scale -->
+                      <SliderInput
+                        v-if="getPropertyConfig(propKey)?.type === 'slider'"
+                        :model-value="String(appearActiveTab === 'from' ? (getOrCreateAppearChildOverride(editingAppearChildId!).from?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (getOrCreateAppearChildOverride(editingAppearChildId!).to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
+                        :min="getPropertyConfig(propKey)?.min"
+                        :max="getPropertyConfig(propKey)?.max"
+                        :step="getPropertyConfig(propKey)?.step"
+                        :unit="getPropertyConfig(propKey)?.unit"
+                        @update:model-value="appearActiveTab === 'from' ? updateAppearChildFrom(editingAppearChildId!, propKey as keyof EffectState, Number($event)) : updateAppearChildTo(editingAppearChildId!, propKey as keyof EffectState, Number($event))"
+                      />
+                      <!-- Color input -->
+                      <ColorInput
+                        v-else-if="getPropertyConfig(propKey)?.type === 'color'"
+                        :model-value="(appearActiveTab === 'from' ? getOrCreateAppearChildOverride(editingAppearChildId!).from?.[propKey as keyof EffectState] : getOrCreateAppearChildOverride(editingAppearChildId!).to?.[propKey as keyof EffectState]) as string | undefined"
+                        swatch-only
+                        @update:model-value="appearActiveTab === 'from' ? updateAppearChildFrom(editingAppearChildId!, propKey as keyof EffectState, $event) : updateAppearChildTo(editingAppearChildId!, propKey as keyof EffectState, $event)"
+                      />
+                      <!-- Size input (default) -->
+                      <SizeInput
+                        v-else
+                        :model-value="String(appearActiveTab === 'from' ? (getOrCreateAppearChildOverride(editingAppearChildId!).from?.[propKey as keyof EffectState] || '') : (getOrCreateAppearChildOverride(editingAppearChildId!).to?.[propKey as keyof EffectState] || ''))"
+                        :placeholder="String(getPropertyConfig(propKey)?.default || '0')"
+                        @update:model-value="appearActiveTab === 'from' ? updateAppearChildFrom(editingAppearChildId!, propKey as keyof EffectState, $event) : updateAppearChildTo(editingAppearChildId!, propKey as keyof EffectState, $event)"
+                      />
+                    </InspectorField>
+                    <button
+                      type="button"
+                      class="p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
+                      @click.stop.prevent="removeAppearChildProperty(editingAppearChildId!, propKey)"
+                    >
+                      <Icon name="close" :size="10" />
+                    </button>
+                  </div>
+                </template>
 
-              <!-- Child To State -->
-              <div v-else class="space-y-2">
-                <InspectorField label="Opacity" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId).to?.opacity ?? '')"
-                    :min="0"
-                    :max="100"
-                    :step="5"
-                    unit="%"
-                    @update:model-value="updateAppearChildTo(editingAppearChildId!, 'opacity', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Scale" horizontal>
-                  <SliderInput
-                    :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId).to?.scale ?? '')"
-                    :min="0.5"
-                    :max="2"
-                    :step="0.05"
-                    @update:model-value="updateAppearChildTo(editingAppearChildId!, 'scale', Number($event))"
-                  />
-                </InspectorField>
-                <InspectorField label="Move X" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).to?.translateX || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildTo(editingAppearChildId!, 'translateX', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Move Y" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).to?.translateY || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildTo(editingAppearChildId!, 'translateY', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Rotate" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).to?.rotate || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildTo(editingAppearChildId!, 'rotate', $event)"
-                  />
-                </InspectorField>
-                <InspectorField label="Blur" horizontal>
-                  <SizeInput
-                    :model-value="getOrCreateAppearChildOverride(editingAppearChildId).to?.blur || ''"
-                    placeholder="0"
-                    @update:model-value="updateAppearChildTo(editingAppearChildId!, 'blur', $event)"
-                  />
-                </InspectorField>
+                <!-- Empty state -->
+                <div v-if="!getAppearChildActiveProps(editingAppearChildId!).length" class="py-3 text-center text-xs text-muted-foreground">
+                  No properties added yet
+                </div>
+
+                <!-- Add Property Popover -->
+                <Popover side="left" width="w-48">
+                  <template #trigger="{ toggle }">
+                    <button
+                      type="button"
+                      class="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-foreground/30 rounded-md transition-colors mt-2"
+                      @click.stop.prevent="toggle"
+                    >
+                      <Icon name="plus" :size="10" />
+                      <span>Add property</span>
+                    </button>
+                  </template>
+                  <template #default="{ close: closeAddPopover }">
+                    <div class="p-1">
+                      <template v-for="category in effectPropertyCategories" :key="category.label">
+                        <div class="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          {{ category.label }}
+                        </div>
+                        <button
+                          v-for="prop in category.properties"
+                          :key="prop.key"
+                          type="button"
+                          class="w-full px-2 py-1.5 text-left text-xs hover:bg-secondary/50 rounded transition-colors flex items-center justify-between"
+                          :class="{ 'opacity-50': getAppearChildActiveProps(editingAppearChildId!).includes(prop.key) }"
+                          :disabled="getAppearChildActiveProps(editingAppearChildId!).includes(prop.key)"
+                          @click.stop.prevent="() => { if (!getAppearChildActiveProps(editingAppearChildId!).includes(prop.key)) { addAppearChildProperty(editingAppearChildId!, prop.key); closeAddPopover() } }"
+                        >
+                          <span>{{ prop.label }}</span>
+                          <Icon v-if="getAppearChildActiveProps(editingAppearChildId!).includes(prop.key)" name="check" :size="10" class="text-primary" />
+                        </button>
+                      </template>
+                    </div>
+                  </template>
+                </Popover>
               </div>
 
               <!-- Child Settings Accordion -->
@@ -1891,7 +1919,7 @@ import { ref, computed } from 'vue'
                 <div v-if="appearSettingsOpen" class="mt-2 space-y-2">
                   <InspectorField label="Delay" horizontal>
                     <SliderInput
-                      :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId).delay ?? '')"
+                      :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId!).delay ?? '')"
                       :min="0"
                       :max="1000"
                       :step="50"
@@ -1901,7 +1929,7 @@ import { ref, computed } from 'vue'
                   </InspectorField>
                   <InspectorField label="Duration" horizontal>
                     <SliderInput
-                      :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId).duration ?? '')"
+                      :model-value="String(getOrCreateAppearChildOverride(editingAppearChildId!).duration ?? '')"
                       :min="100"
                       :max="2000"
                       :step="100"
@@ -1922,25 +1950,19 @@ import { ref, computed } from 'vue'
 
             <!-- ==================== MAIN APPEAR VIEW ==================== -->
             <template v-else>
-              <!-- Header with Apply and Reset -->
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-medium text-foreground">Appear Effect</span>
-                <div class="flex items-center gap-2">
-                  <button
-                    type="button"
-                    class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
-                    @click.stop.prevent="closePopover"
-                  >
-                    Apply
-                  </button>
-                  <button
-                    type="button"
-                    class="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
-                    @click.stop.prevent="resetAppear"
-                  >
-                    Reset
-                  </button>
-                </div>
+              <!-- Header with Preview, Reset and Apply -->
+              <div class="flex items-center gap-2 mb-3 pb-2">
+                <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
+                  <Icon name="style-effect" :size="14" class="text-muted-foreground" />
+                  Appear Effect
+                </span>
+                <div class="flex-1" />
+                <Button size="sm" variant="outline" @click.stop.prevent="previewAppear()">
+                  <Icon name="play" :size="12" class="mr-1" />
+                  Preview
+                </Button>
+                <Button size="sm" variant="outline" @click.stop.prevent="resetAppear(); closePopover()">Reset</Button>
+                <Button size="sm" @click.stop.prevent="closePopover()">Apply</Button>
               </div>
 
               <!-- Trigger Selector -->
@@ -2130,7 +2152,7 @@ import { ref, computed } from 'vue'
               </div>
 
               <!-- Children Accordion -->
-              <template v-if="children?.length">
+              <template v-if="descendants?.length">
                 <div class="mt-3 border-t border-border pt-3">
                   <button
                     type="button"
@@ -2146,18 +2168,18 @@ import { ref, computed } from 'vue'
                     </div>
                   </button>
                   <div v-if="appearChildrenOpen" class="mt-2 space-y-1">
-                    <!-- List all children -->
+                    <!-- List all descendants -->
                     <button
-                      v-for="child in children"
-                      :key="child.id"
+                      v-for="descendant in descendants"
+                      :key="descendant.block.id"
                       type="button"
                       class="w-full flex items-center gap-2 p-2 text-left rounded-md hover:bg-secondary/50 transition-colors group"
-                      @click.stop.prevent="() => { if (!getAppearChildOverride(child.id)) { updateAppearChildOverride(child.id, {}) }; editingAppearChildId = child.id }"
+                      @click.stop.prevent="() => { if (!getAppearChildOverride(descendant.block.id)) { updateAppearChildOverride(descendant.block.id, {}) }; editingAppearChildId = descendant.block.id }"
                     >
                       <Icon name="shapes" :size="12" class="text-muted-foreground" />
-                      <span class="flex-1 text-xs truncate">{{ child.name || child.type }}</span>
+                      <span class="flex-1 text-xs truncate">{{ descendant.path }}</span>
                       <span
-                        v-if="getAppearChildOverride(child.id)"
+                        v-if="getAppearChildOverride(descendant.block.id)"
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary"
                       >
                         Custom
@@ -2178,34 +2200,27 @@ import { ref, computed } from 'vue'
       <Popover align="right" width="w-80">
         <template #trigger="{ toggle }">
           <button
-            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 transition-colors"
+            class="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer"
             @click="() => { if (!hasLoopEffect()) initLoop(); toggle() }"
           >
-            <Icon name="reload" :size="12" class="text-muted-foreground" />
+            <span
+              class="w-2 h-2 rounded-full shrink-0"
+              :class="hasLoopEffect() ? 'bg-white' : 'bg-muted-foreground/30'"
+            ></span>
             <span class="truncate">{{ getLoopPreview() }}</span>
           </button>
         </template>
         <template #default="{ close: closePopover }">
         <div class="p-3" @click.stop>
-            <!-- Header with Apply and Reset -->
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-xs font-medium text-foreground">Loop Effect</span>
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  class="text-[10px] text-primary hover:text-primary/80 transition-colors font-medium"
-                  @click.stop.prevent="closePopover"
-                >
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  class="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
-                  @click.stop.prevent="resetLoop"
-                >
-                  Reset
-                </button>
-              </div>
+            <!-- Header with Reset and Apply -->
+            <div class="flex items-center gap-2 mb-3 pb-2">
+              <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
+                <Icon name="style-effect" :size="14" class="text-muted-foreground" />
+                Loop Effect
+              </span>
+              <div class="flex-1" />
+              <Button size="sm" variant="outline" @click.stop.prevent="resetLoop(); closePopover()">Reset</Button>
+              <Button size="sm" @click.stop.prevent="closePopover()">Apply</Button>
             </div>
 
             <!-- From/To Tab Selector -->
