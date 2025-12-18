@@ -9,6 +9,10 @@
                 </div>
             </li>
             <li><p>Build a microsite for your brand, drop, event, service list, link-in-bio, presave, promo, or anything else — all in minutes, with a designer finish.</p></li>
+            <li>
+                <a href="#">Get Started</a>
+                <h4>Start for free. No credit card required.</h4>
+            </li>
         </ul>
     </section>
 </template>
@@ -43,9 +47,28 @@
         gap: 1.5em;
         min-height: 55svh;
     }
+    li:last-of-type {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5em;
+        & h4 {
+            font-size: 0.75em;
+            color: gray;
+        }
+    }
     div {
         display: flex;
         flex-direction: column;
         align-items: center;
+    }
+    a {
+        text-decoration: none;
+        padding: 0.75em 2em;
+        border-radius: 2em;
+        text-transform: uppercase;
+        margin: 0 1em;
+        text-align: center;
+        background: black;
+        color: white;
     }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useEditorStore } from '@/stores/editor'
@@ -10,6 +10,7 @@ import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectTranslate from '@/components/modal/ProjectTranslate.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
+import AIAssistant from '@/components/modal/AIAssistant.vue'
 import { getLanguageByCode } from '@/lib/languages'
 import type { LanguageCode } from '@/types/editor'
 
@@ -31,6 +32,7 @@ const isPublishing = ref(false)
 const showTranslateModal = ref(false)
 const showPublishedModal = ref(false)
 const showNewProjectModal = ref(false)
+const showAIModal = ref(false)
 const hoveredProjectId = ref<string | null>(null)
 const hoveredProjectRect = ref<DOMRect | null>(null)
 const isHoveringPopover = ref(false)
@@ -115,6 +117,13 @@ const isProjectRoute = computed(() => !!route.params.projectId)
 const isEditorRoute = computed(() => route.name === 'editor')
 const projectId = computed(() => route.params.projectId as string | undefined)
 
+// Close AI modal when leaving project routes
+watch(isProjectRoute, (isProject) => {
+  if (!isProject) {
+    showAIModal.value = false
+  }
+})
+
 // Get current project
 const currentProject = computed(() => {
   if (!projectId.value) return null
@@ -173,9 +182,28 @@ const commandItems = computed(() => {
   return items
 })
 
-// Connection state
+// Connection state - only show issues if actually problematic
 const isRecovering = computed(() => connectionState.value === 'recovering')
 const isUnhealthy = computed(() => connectionState.value === 'unhealthy')
+
+// Only show "Reconnecting" if it's taking a while (more than 2 seconds)
+const showRecovering = ref(false)
+let recoveringTimeout: ReturnType<typeof setTimeout> | null = null
+
+watch(() => connectionState.value, (newState) => {
+  if (newState === 'recovering') {
+    // Wait 2 seconds before showing "Reconnecting"
+    recoveringTimeout = setTimeout(() => {
+      showRecovering.value = true
+    }, 2000)
+  } else {
+    if (recoveringTimeout) {
+      clearTimeout(recoveringTimeout)
+      recoveringTimeout = null
+    }
+    showRecovering.value = false
+  }
+}, { immediate: true })
 
 // Save queue state from editor store
 const isOffline = computed(() => editorStore.isOffline)
@@ -185,7 +213,8 @@ const hasPendingChanges = computed(() => editorStore.hasPendingChanges)
 // Save status dot class
 const saveStatusDotClass = computed(() => {
   if (isOffline.value) return 'bg-red-500'
-  if (isRecovering.value || isUnhealthy.value) return 'bg-amber-500 animate-pulse'
+  if (isUnhealthy.value) return 'bg-red-500'
+  if (showRecovering.value) return 'bg-amber-500 animate-pulse'
   if (isSyncing.value) return 'bg-blue-500 animate-pulse'
   if (editorStore.isSaving) return 'bg-muted-foreground animate-pulse'
   if (editorStore.hasUnsavedChanges || hasPendingChanges.value) return 'bg-amber-500'
@@ -193,7 +222,7 @@ const saveStatusDotClass = computed(() => {
 })
 
 // Can save: not offline, not recovering, and not already saving
-const canSave = computed(() => !isOffline.value && !isRecovering.value && !editorStore.isSaving)
+const canSave = computed(() => !isOffline.value && !showRecovering.value && !editorStore.isSaving)
 
 async function handlePublish() {
   if (!projectId.value || isPublishing.value) return
@@ -420,8 +449,18 @@ function onProjectCreated(newProjectId: string) {
         </Button>
       </template>
 
-      <!-- Project Route: Save + Publish -->
+      <!-- Project Route: AI Assistant + Save + Publish -->
       <template v-if="isProjectRoute && currentProject">
+        <!-- AI Assistant Button -->
+        <Button
+          variant="outline"
+          size="sm"
+          @click="showAIModal = true"
+        >
+          <Icon name="app-ai" class="text-xs" />
+          AI Assistant
+        </Button>
+
         <!-- Collaborator Changes Alert -->
         <Button
           v-if="editorStore.hasCollaboratorChanges"
@@ -443,7 +482,8 @@ function onProjectCreated(newProjectId: string) {
         >
           <span :class="['w-1.5 h-1.5 rounded-full shrink-0', saveStatusDotClass]"></span>
           <span v-if="isOffline">Offline</span>
-          <span v-else-if="isRecovering">Reconnecting...</span>
+          <span v-else-if="showRecovering">Reconnecting...</span>
+          <span v-else-if="isUnhealthy">Connection Issue</span>
           <span v-else-if="isSyncing || editorStore.isSaving">Syncing...</span>
           <span v-else-if="editorStore.hasUnsavedChanges || hasPendingChanges">Save</span>
           <span v-else>Saved</span>
@@ -483,6 +523,9 @@ function onProjectCreated(newProjectId: string) {
     v-model:open="showNewProjectModal"
     @created="onProjectCreated"
   />
+
+  <!-- AI Assistant Modal -->
+  <AIAssistant v-model:open="showAIModal" />
 
   <!-- Project Popover (Teleported) -->
   <Teleport to="body">

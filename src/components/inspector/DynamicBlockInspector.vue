@@ -31,6 +31,7 @@ import {
   StylesSection,
   EffectsSection,
   DebugSection,
+  PreviewSection,
 } from './sections'
 
 const {
@@ -59,6 +60,46 @@ const styles = computed(() => effectiveBlockStyles.value as Record<string, strin
 
 // Get ALL descendants (nested children) for effects targeting
 const allDescendants = computed(() => getAllDescendants(selectedBlock.value))
+
+// Find the accordion item ancestor (if any)
+const accordionItemAncestor = computed(() => {
+  if (!selectedBlock.value) return null
+
+  // Check if current block is an accordion item
+  if (selectedBlock.value.type === 'stack' &&
+      selectedBlock.value.name?.toLowerCase().includes('accordion item')) {
+    return selectedBlock.value
+  }
+
+  // Check ancestors for accordion item
+  let parent = editorStore.findParentBlock(selectedBlock.value.id)
+  while (parent) {
+    if (parent.type === 'stack' &&
+        parent.name?.toLowerCase().includes('accordion item')) {
+      return parent
+    }
+    parent = editorStore.findParentBlock(parent.id)
+  }
+
+  return null
+})
+
+// Check if we're in an accordion context (either the item itself or a descendant)
+const isInAccordionContext = computed(() => {
+  return accordionItemAncestor.value !== null
+})
+
+// Get the accordion item's preview state (from editor store, not saved)
+const accordionPreviewState = computed(() => {
+  if (!accordionItemAncestor.value) return 'open'
+  return editorStore.getAccordionPreviewState(accordionItemAncestor.value.id)
+})
+
+// Update the accordion item's preview state (editor-only, not saved)
+function updateAccordionPreviewState(state: 'closed' | 'open') {
+  if (!accordionItemAncestor.value) return
+  editorStore.setAccordionPreviewState(accordionItemAncestor.value.id, state)
+}
 
 // Translation-aware content getter
 function getTranslatableValue(key: string): string {
@@ -441,6 +482,13 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
       </InspectorSection>
     </template>
 
+    <!-- Preview Section (for accordion items and their descendants) -->
+    <PreviewSection
+      v-if="isInAccordionContext"
+      :preview-state="accordionPreviewState"
+      @update:preview-state="updateAccordionPreviewState"
+    />
+
     <!-- Shared sections -->
     <template v-for="section in config.sections" :key="section">
       <!-- Display Section (includes size) -->
@@ -489,6 +537,7 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         :font-weight="styles.fontWeight"
         :font-style="styles.fontStyle"
         :text-decoration="styles.textDecoration"
+        :text-transform="styles.textTransform"
         :line-height="styles.lineHeight"
         :letter-spacing="styles.letterSpacing"
         :alignment="styles.alignment"
@@ -502,6 +551,7 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         @update:font-weight="updateBlockStyles({ fontWeight: $event })"
         @update:font-style="updateBlockStyles({ fontStyle: $event })"
         @update:text-decoration="updateBlockStyles({ textDecoration: $event })"
+        @update:text-transform="updateBlockStyles({ textTransform: $event })"
         @update:line-height="updateBlockStyles({ lineHeight: $event })"
         @update:letter-spacing="updateBlockStyles({ letterSpacing: $event })"
         @update:alignment="updateBlockStyles({ alignment: $event })"

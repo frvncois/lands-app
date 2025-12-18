@@ -1,13 +1,46 @@
 <script setup lang="ts">
-import { watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEditorStore } from '@/stores/editor'
+import { useUserStore } from '@/stores/user'
 import EditorSidebar from '@/components/builder/EditorSidebar.vue'
 import EditorPreview from '@/components/builder/EditorPreview.vue'
 import EditorInspector from '@/components/builder/EditorInspector.vue'
 
 const route = useRoute()
 const editorStore = useEditorStore()
+const userStore = useUserStore()
+
+// Ref to EditorPreview for thumbnail generation
+const editorPreviewRef = ref<InstanceType<typeof EditorPreview> | null>(null)
+
+/**
+ * Save project with thumbnail generation
+ * Generates thumbnail in background, doesn't block the save
+ */
+async function saveProjectWithThumbnail() {
+  if (!editorStore.hasUnsavedChanges || editorStore.isSaving) return
+
+  // Start the save immediately
+  editorStore.saveProject()
+
+  // Generate thumbnail in background (don't await - let it complete async)
+  const previewElement = editorPreviewRef.value?.getPreviewElement()
+  if (previewElement && editorStore.currentProjectId && userStore.authUser?.id) {
+    // Dynamic import to avoid loading screenshot library until needed
+    import('@/lib/thumbnail').then(({ generateAndUploadThumbnail }) => {
+      generateAndUploadThumbnail(
+        previewElement,
+        editorStore.currentProjectId!,
+        userStore.authUser!.id
+      ).catch((err) => {
+        console.warn('[Thumbnail] Background generation failed:', err)
+      })
+    }).catch((err) => {
+      console.warn('[Thumbnail] Failed to load thumbnail module:', err)
+    })
+  }
+}
 
 // Keyboard shortcuts handler
 function handleKeyDown(e: KeyboardEvent) {
@@ -19,12 +52,10 @@ function handleKeyDown(e: KeyboardEvent) {
   // Get meta key (CMD on Mac, Ctrl on Windows)
   const metaKey = e.metaKey || e.ctrlKey
 
-  // CMD+S - Save project (works everywhere)
+  // CMD+S - Save project with thumbnail (works everywhere)
   if (metaKey && e.key === 's') {
     e.preventDefault()
-    if (editorStore.hasUnsavedChanges && !editorStore.isSaving) {
-      editorStore.saveProject()
-    }
+    saveProjectWithThumbnail()
     return
   }
 
@@ -101,7 +132,8 @@ watch(
     if (projectId) {
       // Save current project before switching (if there's unsaved changes)
       if (editorStore.currentProjectId && editorStore.hasUnsavedChanges) {
-        await editorStore.saveProject()
+        // Save and generate thumbnail before switching projects
+        await saveProjectWithThumbnail()
       }
       // Load the new project
       await editorStore.loadProject(projectId)
@@ -120,7 +152,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex h-full">
     <EditorSidebar />
-    <EditorPreview />
+    <EditorPreview ref="editorPreviewRef" />
     <EditorInspector />
   </div>
 </template>

@@ -4,8 +4,10 @@ import { useRoute } from 'vue-router'
 import { useEditorStore } from '@/stores/editor'
 import { useProjectsStore } from '@/stores/projects'
 import { useProjectStore } from '@/stores/project'
+import { useToast } from '@/stores/toast'
 import { generateId } from '@/lib/editor-utils'
 import { planHasFeature } from '@/types/project'
+import { supabase } from '@/lib/supabase'
 import type { PageSettings, GoogleFont } from '@/types/editor'
 
 import InspectorSection from './InspectorSection.vue'
@@ -25,6 +27,7 @@ const editorStore = useEditorStore()
 const projectsStore = useProjectsStore()
 const projectStore = useProjectStore()
 const route = useRoute()
+const toast = useToast()
 
 // Project plan checks
 const projectId = computed(() => route.params.projectId as string)
@@ -75,6 +78,7 @@ const showUpgradeModal = ref(false)
 
 // Font upload ref and handlers
 const fontInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingFont = ref(false)
 
 // Color palette editing state
 type ColorKey = 'backgroundColor' | 'textColor' | 'primaryColor' | 'secondaryColor' | 'accentColor'
@@ -107,6 +111,38 @@ function updatePageSetting<K extends keyof PageSettings>(key: K, value: PageSett
   editorStore.updatePageSettings({ [key]: value })
 }
 
+function updateHeadingFont(fontFamily: string) {
+  // Update page setting
+  updatePageSetting('headingFontFamily', fontFamily)
+
+  // Apply to all heading blocks
+  editorStore.blocks.forEach(function applyToBlock(block) {
+    if (block.type === 'heading') {
+      editorStore.updateBlockStyles(block.id, { fontFamily })
+    }
+    // Recurse into children
+    if (block.children) {
+      block.children.forEach(applyToBlock)
+    }
+  })
+}
+
+function updateTextFont(fontFamily: string) {
+  // Update page setting
+  updatePageSetting('fontFamily', fontFamily)
+
+  // Apply to all text blocks
+  editorStore.blocks.forEach(function applyToBlock(block) {
+    if (block.type === 'text') {
+      editorStore.updateBlockStyles(block.id, { fontFamily })
+    }
+    // Recurse into children
+    if (block.children) {
+      block.children.forEach(applyToBlock)
+    }
+  })
+}
+
 function handleGoogleFontsUpdate(fonts: GoogleFont[]) {
   updatePageSetting('googleFonts', fonts)
 }
@@ -123,20 +159,67 @@ function triggerFontUpload() {
 async function handleFontUpload(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
-  if (!file) return
+  if (!file || !projectId.value) return
 
-  const fontName = file.name.replace(/\.(woff2?|ttf|otf)$/i, '')
-  const fontUrl = URL.createObjectURL(file)
-
-  const newFont = {
-    id: generateId(),
-    name: fontName,
-    url: fontUrl
+  // Validate file type by extension and get MIME type
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  const fontMimeTypes: Record<string, string> = {
+    'woff': 'font/woff',
+    'woff2': 'font/woff2',
+    'ttf': 'font/ttf',
+    'otf': 'font/otf',
   }
 
-  const currentFonts = pageSettings.value.customFonts || []
-  updatePageSetting('customFonts', [...currentFonts, newFont])
-  input.value = ''
+  const mimeType = fontMimeTypes[extension || '']
+  if (!mimeType) {
+    toast.error('Invalid font file', 'Please upload a WOFF, WOFF2, TTF, or OTF file')
+    input.value = ''
+    return
+  }
+
+  isUploadingFont.value = true
+
+  try {
+    const fontName = file.name.replace(/\.(woff2?|ttf|otf)$/i, '')
+    const timestamp = Date.now()
+    const fileName = `${timestamp}-${Math.random().toString(36).substring(7)}.${extension}`
+    const filePath = `${projectId.value}/fonts/${fileName}`
+
+    // Create blob with explicit MIME type (browsers often send fonts as application/octet-stream)
+    const fontBlob = new Blob([await file.arrayBuffer()], { type: mimeType })
+
+    // Upload to Supabase Storage
+    const { data, error: uploadError } = await supabase.storage
+      .from('uploads')
+      .upload(filePath, fontBlob, {
+        cacheControl: '31536000', // 1 year cache for fonts
+        contentType: mimeType,
+        upsert: false,
+      })
+
+    if (uploadError) throw uploadError
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('uploads')
+      .getPublicUrl(data.path)
+
+    const newFont = {
+      id: generateId(),
+      name: fontName,
+      url: urlData.publicUrl
+    }
+
+    const currentFonts = pageSettings.value.customFonts || []
+    updatePageSetting('customFonts', [...currentFonts, newFont])
+    toast.success('Font uploaded')
+  } catch (e) {
+    console.error('Font upload failed:', e)
+    toast.error('Upload failed', e instanceof Error ? e.message : 'Failed to upload font')
+  } finally {
+    isUploadingFont.value = false
+    input.value = ''
+  }
 }
 
 function removeCustomFont(fontId: string) {
@@ -346,14 +429,14 @@ function resetBaseSize() {
                   <SelectInput
                     :options="combinedFontOptions"
                     :model-value="pageSettings.headingFontFamily || 'Inter'"
-                    @update:model-value="updatePageSetting('headingFontFamily', $event)"
+                    @update:model-value="updateHeadingFont($event)"
                   />
                 </InspectorField>
                 <InspectorField label="Text">
                   <SelectInput
                     :options="combinedFontOptions"
                     :model-value="pageSettings.fontFamily || 'Inter'"
-                    @update:model-value="updatePageSetting('fontFamily', $event)"
+                    @update:model-value="updateTextFont($event)"
                   />
                 </InspectorField>
 
@@ -413,11 +496,12 @@ function resetBaseSize() {
                     </div>
                     <button
                       type="button"
-                      class="flex items-center justify-center gap-2 w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors"
+                      class="flex items-center justify-center gap-2 w-full py-2 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      :disabled="isUploadingFont"
                       @click="triggerFontUpload"
                     >
-                      <Icon name="upload" class="text-xs" />
-                      Upload Font
+                      <Icon :name="isUploadingFont ? 'spinner-2' : 'upload'" class="text-xs" :class="{ 'animate-spin': isUploadingFont }" />
+                      {{ isUploadingFont ? 'Uploading...' : 'Upload Font' }}
                     </button>
                     <input
                       ref="fontInputRef"

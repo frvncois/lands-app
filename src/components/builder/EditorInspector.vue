@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, defineAsyncComponent, type Component } from 'vue'
+import { computed, ref, defineAsyncComponent, watch, nextTick, type Component } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import type { SectionBlockType } from '@/types/editor'
 import {
@@ -205,6 +205,17 @@ function handleGoogleFontsUpdate(fonts: GoogleFont[]) {
 // Hovered breadcrumb item for expand animation
 const hoveredBreadcrumbId = ref<string | null>(null)
 
+// Breadcrumb nav ref for auto-scrolling
+const breadcrumbNav = ref<HTMLElement | null>(null)
+
+// Auto-scroll breadcrumb to show the last item when path changes
+watch(breadcrumbPath, async () => {
+  await nextTick()
+  if (breadcrumbNav.value) {
+    breadcrumbNav.value.scrollLeft = breadcrumbNav.value.scrollWidth
+  }
+}, { immediate: true })
+
 // ============================================
 // ANIMATION HELPERS
 // ============================================
@@ -286,9 +297,17 @@ const blockSupportsAnimation = computed(() => {
     <!-- Expanded state -->
     <template v-else>
       <!-- Header with Breadcrumb -->
-      <div class="flex items-center h-12 px-3 border-b border-sidebar-border gap-2 ml-1">
-        <!-- Breadcrumb navigation -->
-        <nav class="flex items-center gap-1 min-w-0 flex-1">
+      <div class="relative flex items-center h-12 border-b border-sidebar-border ml-1">
+        <!-- Left gradient mask for overflow -->
+        <div
+          class="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-sidebar-background to-transparent z-10 pointer-events-none"
+        />
+        <!-- Breadcrumb navigation (scrollable) -->
+        <nav
+          ref="breadcrumbNav"
+          class="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide px-3"
+          style="-ms-overflow-style: none; scrollbar-width: none;"
+        >
           <template v-for="(item, index) in breadcrumbPath" :key="item.id ?? 'page'">
             <!-- Separator -->
             <i
@@ -316,7 +335,7 @@ const blockSupportsAnimation = computed(() => {
               class="relative flex items-center gap-1.5 px-2 py-1 rounded text-xs font-semibold shrink-0 bg-accent text-foreground"
             >
               <Icon v-if="item.icon" :name="item.icon" :size="10" />
-              <span class="truncate max-w-32">{{ item.label }}</span>
+              <span class="whitespace-nowrap">{{ item.label }}</span>
             </div>
           </template>
         </nav>

@@ -3,6 +3,7 @@ import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import PreviewSection from '@/components/preview/PreviewSection.vue'
 import { createSectionBlock } from '@/lib/editor-utils'
+import type { ListPresetType } from '@/lib/list-presets'
 import type { SectionBlockType } from '@/types/editor'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
@@ -176,6 +177,19 @@ function handleBlockPickerSelectBlock(type: string) {
   blockPickerInsertIndex.value = null
 }
 
+function handleBlockPickerSelectListPreset(type: ListPresetType) {
+  const block = editorStore.addListPreset(type, blockPickerInsertIndex.value ?? undefined)
+  if (block) {
+    editorStore.selectBlock(block.id)
+  }
+  blockPickerInsertIndex.value = null
+}
+
+// Expose the preview container for thumbnail generation
+defineExpose({
+  getPreviewElement: () => previewContainerRef.value,
+})
+
 // Drop zone state
 const isDragOver = ref(false)
 const dropTargetIndex = ref<number | null>(null)
@@ -241,6 +255,11 @@ function isValidNewBlockDragType(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes('application/x-section-type') || false
 }
 
+// Check if the drag event contains a list preset type
+function isListPresetDragType(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes('application/x-list-preset-type') || false
+}
+
 // Check if drag event contains block move data
 function isBlockMoveDragType(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes('application/x-block-move') || false
@@ -248,7 +267,7 @@ function isBlockMoveDragType(event: DragEvent): boolean {
 
 // Check if any valid drag type
 function isValidDragType(event: DragEvent): boolean {
-  return isValidNewBlockDragType(event) || isBlockMoveDragType(event)
+  return isValidNewBlockDragType(event) || isListPresetDragType(event) || isBlockMoveDragType(event)
 }
 
 function handleDragEnter(event: DragEvent) {
@@ -293,6 +312,16 @@ function handleDrop(event: DragEvent) {
       editorStore.selectBlock(blockIdToMove)
     }
     // If already at root, the reorder happens via section drag handlers
+    return
+  }
+
+  // Check for list preset type
+  const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type') as ListPresetType
+  if (listPresetType) {
+    const block = editorStore.addListPreset(listPresetType, index !== null ? index : undefined)
+    if (block) {
+      editorStore.selectBlock(block.id)
+    }
     return
   }
 
@@ -357,6 +386,16 @@ function handleSectionDrop(event: DragEvent) {
       }
     }
     editorStore.selectBlock(blockIdToMove)
+    return
+  }
+
+  // Check for list preset type
+  const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type') as ListPresetType
+  if (listPresetType && index !== null) {
+    const block = editorStore.addListPreset(listPresetType, index)
+    if (block) {
+      editorStore.selectBlock(block.id)
+    }
     return
   }
 
@@ -455,6 +494,7 @@ function handleSectionDrop(event: DragEvent) {
       v-model:open="isBlockPickerOpen"
       hide-trigger
       @select="handleBlockPickerSelectBlock"
+      @select-list-preset="handleBlockPickerSelectListPreset"
     />
   </div>
 </template>

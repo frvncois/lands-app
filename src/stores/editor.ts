@@ -19,6 +19,7 @@ import {
   canHaveChildren,
   generateId,
 } from '@/lib/editor-utils'
+import { createListPreset, type ListPresetType } from '@/lib/list-presets'
 import { getThemeById } from '@/lib/themes'
 import { getLayoutById } from '@/lib/layouts'
 import { useProjectsStore } from '@/stores/projects'
@@ -83,6 +84,9 @@ export const useEditorStore = defineStore('editor', () => {
   const autoSaveEnabled = ref(false)
   const lastSavedAt = ref<string | null>(null)
 
+  // Accordion preview states (editor-only, not saved)
+  const accordionPreviewStates = ref<Map<string, 'open' | 'closed'>>(new Map())
+
   // Saved components (reusable block templates)
   const components = ref<SavedComponent[]>([])
 
@@ -139,6 +143,85 @@ export const useEditorStore = defineStore('editor', () => {
   function markAsChangedWithHistory() {
     history.pushToHistory()
     markAsChanged()
+  }
+
+  // ============================================
+  // DEBOUNCED HISTORY FOR CONTINUOUS UPDATES
+  // ============================================
+
+  // Track if we're in a continuous update session (slider drag, color picker, etc.)
+  let continuousUpdateTimeout: ReturnType<typeof setTimeout> | null = null
+  let hasHistoryForCurrentSession = false
+
+  /**
+   * Mark as changed with debounced history - use for continuous inputs (sliders, color pickers)
+   * Only creates one history entry per "session" (300ms of inactivity ends session)
+   */
+  function markAsChangedWithDebouncedHistory() {
+    // Push history only once per session
+    if (!hasHistoryForCurrentSession) {
+      history.pushToHistory()
+      hasHistoryForCurrentSession = true
+    }
+
+    // Reset session after 300ms of inactivity
+    if (continuousUpdateTimeout) {
+      clearTimeout(continuousUpdateTimeout)
+    }
+    continuousUpdateTimeout = setTimeout(() => {
+      hasHistoryForCurrentSession = false
+      continuousUpdateTimeout = null
+    }, 300)
+
+    // Always mark as changed for auto-save
+    markAsChanged()
+  }
+
+  /**
+   * Update block styles with debounced history - use for sliders, color pickers, etc.
+   * This creates only one undo entry per drag/interaction session.
+   */
+  function updateBlockStylesContinuous(blockId: string, styles: Record<string, unknown>, replaceAll = false) {
+    const block = findBlockById(blockId)
+    if (block) {
+      markAsChangedWithDebouncedHistory()
+
+      if (replaceAll) {
+        block.styles = { ...styles }
+      } else {
+        block.styles = { ...block.styles, ...styles }
+      }
+
+      // Note: Shared style sync is intentionally skipped during continuous updates
+      // It will sync on the final value when user stops dragging (via finalizeContinuousUpdate)
+    }
+  }
+
+  /**
+   * Update block settings with debounced history - use for continuous inputs
+   */
+  function updateBlockSettingsContinuous(blockId: string, settings: Record<string, unknown>) {
+    const block = findBlockById(blockId)
+    if (block) {
+      markAsChangedWithDebouncedHistory()
+      Object.assign(block.settings, settings)
+    }
+  }
+
+  /**
+   * Finalize continuous update - call when slider/picker interaction ends
+   * Syncs shared styles and ensures final state is saved
+   */
+  function finalizeContinuousUpdate(blockId: string) {
+    const block = findBlockById(blockId)
+    if (block && block.sharedStyleId) {
+      const style = sharedStyles.getSharedStyleById(block.sharedStyleId)
+      if (style) {
+        style.styles = deepClone(block.styles) as typeof style.styles
+        style.updatedAt = new Date().toISOString()
+        sharedStyles.applySharedStyleToAllBlocks(style)
+      }
+    }
   }
 
   function cancelAutoSave() {
@@ -308,9 +391,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   function pasteBlockStyles(blockId: string) {
     markAsChangedWithHistory()
-    const result = clipboard.pasteBlockStyles(blockId)
-    rebuildBlockIndex()
-    return result
+    return clipboard.pasteBlockStyles(blockId)
   }
 
   // ============================================
@@ -330,46 +411,33 @@ export const useEditorStore = defineStore('editor', () => {
   })
 
   // Wrapper functions for shared styles that modify blocks
+  // Note: These don't need rebuildBlockIndex() as they only modify styles, not tree structure
   function createSharedStyle(name: string, blockId: string) {
-    const result = sharedStyles.createSharedStyle(name, blockId)
-    rebuildBlockIndex()
-    return result
+    return sharedStyles.createSharedStyle(name, blockId)
   }
 
   function applySharedStyle(blockId: string, styleId: string) {
-    const result = sharedStyles.applySharedStyle(blockId, styleId)
-    rebuildBlockIndex()
-    return result
+    return sharedStyles.applySharedStyle(blockId, styleId)
   }
 
   function detachSharedStyle(blockId: string) {
-    const result = sharedStyles.detachSharedStyle(blockId)
-    rebuildBlockIndex()
-    return result
+    return sharedStyles.detachSharedStyle(blockId)
   }
 
   function updateSharedStyleFromBlock(blockId: string) {
-    const result = sharedStyles.updateSharedStyleFromBlock(blockId)
-    rebuildBlockIndex()
-    return result
+    return sharedStyles.updateSharedStyleFromBlock(blockId)
   }
 
   function resetToSharedStyle(blockId: string) {
-    const result = sharedStyles.resetToSharedStyle(blockId)
-    rebuildBlockIndex()
-    return result
+    return sharedStyles.resetToSharedStyle(blockId)
   }
 
   function renameSharedStyle(styleId: string, name: string) {
-    const result = sharedStyles.renameSharedStyle(styleId, name)
-    rebuildBlockIndex()
-    return result
+    return sharedStyles.renameSharedStyle(styleId, name)
   }
 
   function deleteSharedStyle(styleId: string) {
-    const result = sharedStyles.deleteSharedStyle(styleId)
-    rebuildBlockIndex()
-    return result
+    return sharedStyles.deleteSharedStyle(styleId)
   }
 
   // ============================================
@@ -396,14 +464,6 @@ export const useEditorStore = defineStore('editor', () => {
   // ============================================
 
   function addBlock(type: SectionBlockType, index?: number, parentId?: string) {
-    if (parentId && hasDepthRestriction(type)) {
-      const parentDepth = getBlockNestingDepth(parentId)
-      if (parentDepth >= MAX_LAYOUT_NESTING_DEPTH) {
-        console.warn(`Cannot add ${type} block at depth ${parentDepth + 1}. Maximum nesting depth for container/grid blocks is ${MAX_LAYOUT_NESTING_DEPTH + 1}. Use Stack for deeper nesting.`)
-        return null
-      }
-    }
-
     markAsChangedWithHistory()
 
     const block = createSectionBlock(type)
@@ -442,7 +502,11 @@ export const useEditorStore = defineStore('editor', () => {
 
     if (parentId) {
       const parent = findBlockById(parentId)
-      if (parent && parent.children) {
+      if (parent && canHaveChildren(parent.type)) {
+        // Initialize children array if it doesn't exist
+        if (!parent.children) {
+          parent.children = []
+        }
         if (index !== undefined) {
           parent.children.splice(index, 0, block)
         } else {
@@ -469,6 +533,77 @@ export const useEditorStore = defineStore('editor', () => {
     return block
   }
 
+  /**
+   * Add a list preset (link list, accordion, slider, etc.)
+   * Creates the container with items and registers the shared style
+   */
+  function addListPreset(
+    type: ListPresetType,
+    index?: number,
+    parentId?: string
+  ): SectionBlock | null {
+    markAsChangedWithHistory()
+
+    // Create the preset
+    const { block, sharedStyle } = createListPreset(type)
+
+    // Register the shared style
+    if (!pageSettings.value.sharedStyles) {
+      pageSettings.value.sharedStyles = []
+    }
+    pageSettings.value.sharedStyles.push(sharedStyle)
+
+    // Add the block
+    if (parentId) {
+      const parent = findBlockById(parentId)
+      if (parent && canHaveChildren(parent.type)) {
+        if (!parent.children) parent.children = []
+        const insertIndex = index ?? parent.children.length
+        parent.children.splice(insertIndex, 0, block)
+      }
+    } else {
+      const insertIndex = index ?? blocks.value.length
+      blocks.value.splice(insertIndex, 0, block)
+    }
+
+    selectedBlockId.value = block.id
+    selectedItemId.value = null
+    rebuildBlockIndex()
+
+    const presetName = type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    toast.success('List added', `${presetName} with 3 items`)
+    return block
+  }
+
+  /**
+   * Add a new item to a list container
+   * Copies the first item as template and appends
+   */
+  function addListItem(containerId: string): SectionBlock | null {
+    const container = findBlockById(containerId)
+    if (!container || !container.children || container.children.length === 0) {
+      return null
+    }
+
+    markAsChangedWithHistory()
+
+    // Get the first item as template
+    const template = container.children[0]
+    if (!template) return null
+
+    // Deep clone with new IDs (keeping sharedStyleId)
+    const newItem = duplicateSectionBlock(template)
+
+    // Add to container
+    container.children.push(newItem)
+
+    selectedBlockId.value = newItem.id
+    rebuildBlockIndex()
+
+    toast.success('Item added')
+    return newItem
+  }
+
   function deleteBlock(blockId: string) {
     if (isProtectedBlock(blockId)) return
 
@@ -478,7 +613,16 @@ export const useEditorStore = defineStore('editor', () => {
     if (rootIndex !== -1) {
       blocks.value.splice(rootIndex, 1)
       if (selectedBlockId.value === blockId) {
-        selectedBlockId.value = null
+        // Auto-select previous sibling, or next sibling, or null
+        const prevSibling = rootIndex > 0 ? blocks.value[rootIndex - 1] : null
+        const nextSibling = blocks.value[rootIndex] ?? null
+        if (prevSibling) {
+          selectedBlockId.value = prevSibling.id
+        } else if (nextSibling) {
+          selectedBlockId.value = nextSibling.id
+        } else {
+          selectedBlockId.value = null
+        }
         selectedItemId.value = null
       }
       rebuildBlockIndex()
@@ -491,7 +635,16 @@ export const useEditorStore = defineStore('editor', () => {
       if (index !== -1) {
         parent.children.splice(index, 1)
         if (selectedBlockId.value === blockId) {
-          selectedBlockId.value = null
+          // Auto-select previous sibling, or next sibling, or parent
+          const prevSibling = index > 0 ? parent.children[index - 1] : null
+          const nextSibling = parent.children[index] ?? null
+          if (prevSibling) {
+            selectedBlockId.value = prevSibling.id
+          } else if (nextSibling) {
+            selectedBlockId.value = nextSibling.id
+          } else {
+            selectedBlockId.value = parent.id
+          }
           selectedItemId.value = null
         }
         rebuildBlockIndex()
@@ -567,6 +720,47 @@ export const useEditorStore = defineStore('editor', () => {
     selectedItemId.value = null
     rebuildBlockIndex()
     return stackBlock
+  }
+
+  function wrapBlockInButton(blockId: string): SectionBlock | null {
+    const block = findBlockById(blockId)
+    if (!block) return null
+
+    markAsChangedWithHistory()
+
+    // Create a new button block (which can have children)
+    const buttonBlock = createSectionBlock('button')
+    buttonBlock.name = 'Link'
+
+    // Check if it's a root-level block
+    const rootIndex = blocks.value.findIndex((b: SectionBlock) => b.id === blockId)
+    if (rootIndex !== -1) {
+      // Remove the block from root
+      blocks.value.splice(rootIndex, 1)
+      // Add the block as child of the button
+      buttonBlock.children = [block]
+      // Insert the button at the same position
+      blocks.value.splice(rootIndex, 0, buttonBlock)
+    } else {
+      // It's a nested block - find its parent
+      const parent = findParentBlock(blockId)
+      if (parent && parent.children) {
+        const childIndex = parent.children.findIndex((b: SectionBlock) => b.id === blockId)
+        if (childIndex !== -1) {
+          // Remove the block from parent
+          parent.children.splice(childIndex, 1)
+          // Add the block as child of the button
+          buttonBlock.children = [block]
+          // Insert the button at the same position
+          parent.children.splice(childIndex, 0, buttonBlock)
+        }
+      }
+    }
+
+    selectedBlockId.value = buttonBlock.id
+    selectedItemId.value = null
+    rebuildBlockIndex()
+    return buttonBlock
   }
 
   /**
@@ -700,14 +894,6 @@ export const useEditorStore = defineStore('editor', () => {
 
     if (currentParent?.id === newParentId) return false
     if (!newParent || !canHaveChildren(newParent.type)) return false
-
-    if (isLayoutBlockType(block.type)) {
-      const newParentDepth = getBlockNestingDepth(newParentId)
-      if (newParentDepth >= MAX_LAYOUT_NESTING_DEPTH) {
-        console.warn(`Cannot move layout block to depth ${newParentDepth + 1}.`)
-        return false
-      }
-    }
 
     markAsChangedWithHistory()
 
@@ -879,14 +1065,13 @@ export const useEditorStore = defineStore('editor', () => {
 
       Object.assign(block.settings, settings)
 
+      // Sync to shared style if linked (but don't rebuild index - structure unchanged)
       if (block.sharedStyleId) {
         const style = sharedStyles.getSharedStyleById(block.sharedStyleId)
         if (style) {
           sharedStyles.updateSharedStyleFromBlock(blockId)
         }
       }
-
-      rebuildBlockIndex()
     }
   }
 
@@ -902,6 +1087,7 @@ export const useEditorStore = defineStore('editor', () => {
         block.styles = { ...block.styles, ...styles }
       }
 
+      // Sync to shared style if linked
       if (block.sharedStyleId) {
         const style = sharedStyles.getSharedStyleById(block.sharedStyleId)
         if (style) {
@@ -910,8 +1096,6 @@ export const useEditorStore = defineStore('editor', () => {
           sharedStyles.applySharedStyleToAllBlocks(style)
         }
       }
-
-      rebuildBlockIndex()
     }
   }
 
@@ -920,7 +1104,6 @@ export const useEditorStore = defineStore('editor', () => {
     if (block) {
       markAsChangedWithHistory()
       block.name = name
-      rebuildBlockIndex()
     }
   }
 
@@ -950,8 +1133,6 @@ export const useEditorStore = defineStore('editor', () => {
     } else {
       settings.childPositions.desktop[childId] = position
     }
-
-    rebuildBlockIndex()
   }
 
   // ============================================
@@ -1168,6 +1349,18 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   // ============================================
+  // ACCORDION PREVIEW (editor-only, not saved)
+  // ============================================
+
+  function getAccordionPreviewState(blockId: string): 'open' | 'closed' {
+    return accordionPreviewStates.value.get(blockId) || 'open'
+  }
+
+  function setAccordionPreviewState(blockId: string, state: 'open' | 'closed') {
+    accordionPreviewStates.value.set(blockId, state)
+  }
+
+  // ============================================
   // RETURN
   // ============================================
 
@@ -1214,6 +1407,9 @@ export const useEditorStore = defineStore('editor', () => {
     // Effect preview
     previewAppearBlockId,
     triggerAppearPreview,
+    // Accordion preview (editor-only)
+    getAccordionPreviewState,
+    setAccordionPreviewState,
     // Panel actions
     toggleSidebar,
     toggleInspector,
@@ -1234,9 +1430,12 @@ export const useEditorStore = defineStore('editor', () => {
     // Block actions
     addBlock,
     addPresetBlock,
+    addListPreset,
+    addListItem,
     deleteBlock,
     duplicateBlock,
     wrapBlockInStack,
+    wrapBlockInButton,
     convertBlockType,
     copyBlock: clipboard.copyBlock,
     cutBlock: clipboard.cutBlock,
@@ -1282,6 +1481,10 @@ export const useEditorStore = defineStore('editor', () => {
     updateBlockSettings,
     updateBlockStyles,
     updateBlockName,
+    // Continuous update functions (for sliders, color pickers)
+    updateBlockStylesContinuous,
+    updateBlockSettingsContinuous,
+    finalizeContinuousUpdate,
     updateCanvasChildPosition,
     // Page settings
     updatePageSettings,

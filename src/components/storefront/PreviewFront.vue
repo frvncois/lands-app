@@ -10,9 +10,11 @@
 
 <style scoped>
     section {
-        max-width: 1200px;
+        position: relative;
+        max-width: 1800px;
         margin: auto;
         padding: 0 4em;
+        z-index: 2;
     }
     h1 {
         font-size: 0.75em;
@@ -34,7 +36,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        background: black;
+        background: rgb(63, 63, 63);
         aspect-ratio: 16 / 9;
         border-radius: 1em;
     }

@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import FeaturesFront from '@/components/storefront/FeaturesFront.vue';
 import HeaderFront from '@/components/storefront/HeaderFront.vue';
 import HeroFront from '@/components/storefront/HeroFront.vue';
+import IntroFront from '@/components/storefront/IntroFront.vue';
 import PreviewFront from '@/components/storefront/PreviewFront.vue';
+import PricingFront from '@/components/storefront/PricingFront.vue';
+import ShowcaseFront from '@/components/storefront/ShowcaseFront.vue';
 
 </script>
 
@@ -10,6 +14,10 @@ import PreviewFront from '@/components/storefront/PreviewFront.vue';
     <HeaderFront/>
     <HeroFront />
     <PreviewFront />
+    <IntroFront />
+    <FeaturesFront />
+    <ShowcaseFront />
+    <PricingFront />
 </main>
 </template>
 

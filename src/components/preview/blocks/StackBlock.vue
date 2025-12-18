@@ -3,9 +3,12 @@ import { computed, ref, defineAsyncComponent } from 'vue'
 import type { SectionBlock, SectionBlockType, StackSettings, StackStyles } from '@/types/editor'
 import { BackgroundMedia } from './index'
 import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
+import { useEditorStore } from '@/stores/editor'
 
 // Use async component to avoid circular dependency
 const PreviewSection = defineAsyncComponent(() => import('../PreviewSection.vue'))
+
+const editorStore = useEditorStore()
 
 /**
  * StackBlock - Renders a flex container with vertical/horizontal stacking
@@ -31,6 +34,27 @@ const settings = computed(() => props.block.settings as StackSettings)
 const stackStyles = computed(() => props.block.styles as StackStyles)
 
 const isHorizontal = computed(() => stackStyles.value?.flexDirection === 'row')
+
+// Check if this block is an accordion item (to hide content when preview state is 'closed')
+const isAccordionItem = computed(() => {
+  return props.block.name?.toLowerCase().includes('accordion item')
+})
+
+// Get the preview state for accordion items (from editor store, not saved)
+const accordionPreviewState = computed(() => {
+  return editorStore.getAccordionPreviewState(props.block.id)
+})
+
+// Check if a child should be visible (handles accordion content visibility)
+function isChildVisible(child: SectionBlock, index: number): boolean {
+  // If this is an accordion item and preview state is 'closed', hide the content (second child)
+  if (isAccordionItem.value && accordionPreviewState.value === 'closed') {
+    // Accordion structure: [Header (index 0), Content (index 1)]
+    // Hide the content when closed
+    return index === 0 || !child.name?.toLowerCase().includes('accordion content')
+  }
+  return true
+}
 
 // Dynamic HTML tag (defaults to 'div')
 const htmlTag = computed(() => settings.value?.htmlTag || 'div')
@@ -108,35 +132,36 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
 
     <!-- Children -->
     <template v-if="block.children && block.children.length > 0">
-      <div
-        v-for="(child, childIndex) in block.children"
-        :key="child.id"
-        class="z-10 flex flex-col min-h-0"
-        :class="{ 'relative': !isChildAbsoluteOrFixed(child) }"
-        :style="getChildFlexStyles(child)"
-        @dragover="emit('childDragOver', childIndex, $event)"
-        @dragleave="emit('childDragLeave')"
-      >
-        <!-- Drop indicator -->
+      <template v-for="(child, childIndex) in block.children" :key="child.id">
         <div
-          v-if="childDropIndex === childIndex"
-          :class="isHorizontal
-            ? 'absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
-            : 'absolute left-0 right-0 -top-2 h-1 bg-primary rounded-full z-10'"
-        />
-        <PreviewSection
-          :block="child"
-          :index="childIndex"
-          :total="block.children.length"
-        />
-        <!-- Drop indicator after last child -->
-        <div
-          v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
-          :class="isHorizontal
-            ? 'absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
-            : 'absolute left-0 right-0 -bottom-2 h-1 bg-primary rounded-full z-10'"
-        />
-      </div>
+          v-if="isChildVisible(child, childIndex)"
+          class="z-10 flex flex-col min-h-0"
+          :class="{ 'relative': !isChildAbsoluteOrFixed(child) }"
+          :style="getChildFlexStyles(child)"
+          @dragover="emit('childDragOver', childIndex, $event)"
+          @dragleave="emit('childDragLeave')"
+        >
+          <!-- Drop indicator -->
+          <div
+            v-if="childDropIndex === childIndex"
+            :class="isHorizontal
+              ? 'absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
+              : 'absolute left-0 right-0 -top-2 h-1 bg-primary rounded-full z-10'"
+          />
+          <PreviewSection
+            :block="child"
+            :index="childIndex"
+            :total="block.children.length"
+          />
+          <!-- Drop indicator after last child -->
+          <div
+            v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
+            :class="isHorizontal
+              ? 'absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
+              : 'absolute left-0 right-0 -bottom-2 h-1 bg-primary rounded-full z-10'"
+          />
+        </div>
+      </template>
     </template>
 
     <!-- Empty State -->

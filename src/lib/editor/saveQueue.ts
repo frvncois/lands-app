@@ -16,7 +16,7 @@
  */
 
 import { ref, readonly, computed } from 'vue'
-import { supabase, ensureHealthy, markUnhealthy } from '@/lib/supabase'
+import { supabase, ensureHealthy, markUnhealthy, markHealthy } from '@/lib/supabase'
 import { diffObjects, hasChanges, mergeDiffs } from './diff'
 import { loadQueue, persistQueue, saveSnapshot, loadSnapshot } from './offlineStore'
 import type { Json } from '@/lib/supabase/types'
@@ -223,13 +223,25 @@ async function processQueue(): Promise<void> {
     if (error) {
       console.error('[SaveQueue] Save failed:', error)
       lastError.value = error.message
-      markUnhealthy()
+
+      // Only mark unhealthy for auth errors, not all errors
+      const isAuthError = error.code === 'PGRST301' ||
+        error.message?.includes('JWT') ||
+        error.message?.includes('expired') ||
+        error.message?.includes('Invalid API key')
+
+      if (isAuthError) {
+        markUnhealthy()
+        // Retry in 10 seconds for auth errors
+        setTimeout(processQueue, 10000)
+      } else {
+        // For other errors (network blip, etc), retry sooner
+        // Don't mark unhealthy - it's probably transient
+        setTimeout(processQueue, 3000)
+      }
 
       // Don't remove from queue - will retry
       isProcessing.value = false
-
-      // Retry in 5 seconds
-      setTimeout(processQueue, 5000)
       return
     }
 
@@ -237,15 +249,18 @@ async function processQueue(): Promise<void> {
     queue.value.shift()
     persistQueue(queue.value)
 
+    // Mark connection as healthy after successful save
+    markHealthy()
+
     console.info('[SaveQueue] Saved successfully, remaining:', queue.value.length)
 
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : 'Unknown error'
     console.error('[SaveQueue] Unexpected error:', errorMsg)
     lastError.value = errorMsg
-    markUnhealthy()
 
-    // Retry in 5 seconds
+    // Don't mark unhealthy for unexpected errors - might be transient
+    // Just retry
     setTimeout(processQueue, 5000)
   } finally {
     isProcessing.value = false

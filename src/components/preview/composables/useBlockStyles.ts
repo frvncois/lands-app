@@ -392,6 +392,7 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
     if (allStyles.fontFamily) css.fontFamily = allStyles.fontFamily as string
     if (allStyles.fontStyle) css.fontStyle = allStyles.fontStyle as string
     if (allStyles.textDecoration && allStyles.textDecoration !== 'none') css.textDecoration = allStyles.textDecoration as string
+    if (allStyles.textTransform && allStyles.textTransform !== 'none') css.textTransform = allStyles.textTransform as string
     if (allStyles.lineHeight) css.lineHeight = allStyles.lineHeight as string
     if (allStyles.letterSpacing) css.letterSpacing = pxToEm(allStyles.letterSpacing as string)
 

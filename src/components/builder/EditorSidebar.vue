@@ -14,6 +14,7 @@ import {
   blocksByCategory,
   categoryLabels,
 } from '@/lib/editor-utils'
+import { listPresetConfigs, type ListPresetType } from '@/lib/list-presets'
 import type { SectionBlockType, BlockCategory } from '@/types/editor'
 
 // Composables
@@ -29,6 +30,8 @@ const {
   handleNewBlockDragStart,
   handleNewBlockDragEnd,
   isNewBlockTypeDrag,
+  handleListPresetDragStart,
+  handleListPresetDragEnd,
   handleBlockDragStart,
   handleBlockDragOver,
   handleBlockDragLeave,
@@ -133,11 +136,22 @@ const filteredComponents = computed(() => {
   return editorStore.components.filter(c => c.name.toLowerCase().includes(query))
 })
 
+// Filtered list presets by search query
+const filteredListPresets = computed(() => {
+  const query = sectionSearchQuery.value.toLowerCase().trim()
+  if (!query) return listPresetConfigs
+  return listPresetConfigs.filter(preset =>
+    preset.name.toLowerCase().includes(query) ||
+    preset.description.toLowerCase().includes(query)
+  )
+})
+
 // Check if there are any results
 const hasSearchResults = computed(() => {
   return filteredBlocksByCategory.value.layout.length > 0 ||
          filteredBlocksByCategory.value.content.length > 0 ||
-         filteredComponents.value.length > 0
+         filteredComponents.value.length > 0 ||
+         filteredListPresets.value.length > 0
 })
 
 // Watch for dropdown open to focus search input
@@ -152,6 +166,14 @@ watch(showSectionDropdown, async (isOpen) => {
 // Handlers
 function handleAddSection(type: SectionBlockType) {
   const block = editorStore.addBlock(type)
+  if (block) {
+    expandBlock(block.id)
+  }
+  showSectionDropdown.value = false
+}
+
+function handleAddListPreset(type: ListPresetType) {
+  const block = editorStore.addListPreset(type)
   if (block) {
     expandBlock(block.id)
   }
@@ -179,6 +201,19 @@ function handleSectionTypeDragEnd() {
   showSectionDropdown.value = false
 }
 
+function handleListPresetTypeDragStart(type: ListPresetType, event: DragEvent) {
+  handleListPresetDragStart(type, event)
+  // Close dropdown after a short delay so the drag preview is visible
+  setTimeout(() => {
+    showSectionDropdown.value = false
+  }, 50)
+}
+
+function handleListPresetTypeDragEnd() {
+  handleListPresetDragEnd()
+  showSectionDropdown.value = false
+}
+
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
   if (!target.closest('.dropdown-container')) {
@@ -203,6 +238,13 @@ function handleAddChildBlock(parentId: string, blockType: string) {
 
 function handleAddChildBlockAtPosition(parentId: string, blockType: string, position: number) {
   const block = editorStore.addBlock(blockType as SectionBlockType, position, parentId)
+  if (block) {
+    editorStore.selectBlock(block.id)
+  }
+}
+
+function handleAddChildListPreset(parentId: string, presetType: ListPresetType) {
+  const block = editorStore.addListPreset(presetType, undefined, parentId)
   if (block) {
     editorStore.selectBlock(block.id)
   }
@@ -352,6 +394,27 @@ function getBlockPickerLabel(block: { type: string }): string {
                     </button>
                   </div>
                 </div>
+
+                <!-- Lists section -->
+                <div v-if="filteredListPresets.length > 0" class="flex flex-col items-start mb-3.5">
+                  <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
+                    Lists
+                  </div>
+                  <div class="grid grid-cols-2 gap-1 w-full">
+                    <button
+                      v-for="preset in filteredListPresets"
+                      :key="preset.type"
+                      draggable="true"
+                      class="flex flex-col items-center border border-border/25 gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent/25 hover:border-border/50 transition-colors cursor-grab active:cursor-grabbing"
+                      @click="handleAddListPreset(preset.type)"
+                      @dragstart="handleListPresetTypeDragStart(preset.type, $event)"
+                      @dragend="handleListPresetTypeDragEnd"
+                    >
+                      <Icon :name="preset.icon" :size="18" class="text-muted-foreground" />
+                      <span class="text-[10px] text-center leading-tight">{{ preset.name }}</span>
+                    </button>
+                  </div>
+                </div>
               </template>
             </div>
           </div>
@@ -495,6 +558,7 @@ function getBlockPickerLabel(block: { type: string }): string {
                     :mode="getBlockPickerMode(block)"
                     :trigger-label="getBlockPickerLabel(block)"
                     @select="handleAddChildBlock(block.id, $event)"
+                    @select-list-preset="handleAddChildListPreset(block.id, $event)"
                   />
                 </template>
               </div>

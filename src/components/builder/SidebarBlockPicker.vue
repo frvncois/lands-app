@@ -7,6 +7,7 @@ import {
   blocksByCategory,
   categoryLabels,
 } from '@/lib/editor-utils'
+import { listPresetConfigs, type ListPresetType } from '@/lib/list-presets'
 import { Button, Icon } from '@/components/ui'
 
 export type BlockPickerMode = 'all' | 'nested' | 'content-only' | 'header-footer-stack'
@@ -36,6 +37,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   select: [value: string]
+  selectListPreset: [type: ListPresetType]
   close: []
   'update:open': [value: boolean]
 }>()
@@ -104,6 +106,17 @@ const filteredBlocksByCategory = computed(() => {
   return result
 })
 
+// Filtered list presets (only show in 'all' mode)
+const filteredListPresets = computed(() => {
+  if (props.mode !== 'all') return []
+  const query = searchQuery.value.toLowerCase().trim()
+  if (!query) return listPresetConfigs
+  return listPresetConfigs.filter(preset =>
+    preset.name.toLowerCase().includes(query) ||
+    preset.description.toLowerCase().includes(query)
+  )
+})
+
 // Get the display label for a block type
 function getBlockLabel(type: SectionBlockType): string {
   return sectionBlockLabels[type]
@@ -112,7 +125,8 @@ function getBlockLabel(type: SectionBlockType): string {
 // Check if there are any results
 const hasSearchResults = computed(() => {
   return filteredBlocksByCategory.value.layout.length > 0 ||
-         filteredBlocksByCategory.value.content.length > 0
+         filteredBlocksByCategory.value.content.length > 0 ||
+         filteredListPresets.value.length > 0
 })
 
 function updatePosition() {
@@ -176,6 +190,11 @@ function close() {
 
 function handleSelect(value: string) {
   emit('select', value)
+  close()
+}
+
+function handleListPresetSelect(type: ListPresetType) {
+  emit('selectListPreset', type)
   close()
 }
 
@@ -291,6 +310,24 @@ onUnmounted(() => {
                 </div>
               </div>
             </template>
+
+            <!-- Lists & Collections -->
+            <div v-if="filteredListPresets.length > 0" class="flex flex-col items-start mb-3.5">
+              <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
+                Lists
+              </div>
+              <div class="grid grid-cols-2 gap-1 w-full">
+                <button
+                  v-for="preset in filteredListPresets"
+                  :key="preset.type"
+                  class="flex flex-col items-center border border-border/25 gap-1 p-2.5 rounded-lg text-popover-foreground hover:bg-accent/25 hover:border-border/50 transition-colors"
+                  @click="handleListPresetSelect(preset.type)"
+                >
+                  <Icon :name="preset.icon" :size="18" class="text-muted-foreground" />
+                  <span class="text-[10px] text-center leading-tight">{{ preset.name }}</span>
+                </button>
+              </div>
+            </div>
 
           </template>
         </div>

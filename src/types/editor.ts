@@ -706,6 +706,7 @@ export interface HeadingStyles extends BaseBlockStyles {
   fontFamily?: string
   fontStyle?: 'normal' | 'italic'
   textDecoration?: 'none' | 'underline' | 'line-through'
+  textTransform?: 'none' | 'capitalize' | 'uppercase' | 'lowercase'
   color?: string
   lineHeight?: string
   letterSpacing?: string
@@ -750,6 +751,7 @@ export interface TextStyles extends BaseBlockStyles {
   fontWeight?: FontWeight
   fontStyle?: 'normal' | 'italic'
   textDecoration?: 'none' | 'underline' | 'line-through'
+  textTransform?: 'none' | 'capitalize' | 'uppercase' | 'lowercase'
   color?: string
   lineHeight?: string
   letterSpacing?: string

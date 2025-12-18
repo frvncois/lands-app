@@ -2,6 +2,7 @@
 import { ref, computed, watch, onUnmounted, toRef, provide, inject } from 'vue'
 import type { ComputedRef } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { useAIAssistant } from '@/composables/useAIAssistant'
 import type {
   SectionBlock,
   SectionBlockType,
@@ -34,6 +35,8 @@ import { useBlockSettings } from './composables/useBlockSettings'
 import { useBlockStyles } from './composables/useBlockStyles'
 
 import { sectionBlockLabels, sectionBlockIcons, canHaveChildren } from '@/lib/editor-utils'
+import { isListContainer } from '@/lib/list-presets'
+import type { ListPresetType } from '@/lib/list-presets'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
@@ -63,6 +66,7 @@ const props = defineProps<{
 }>()
 
 const editorStore = useEditorStore()
+const { isOpen: isAIOpen } = useAIAssistant()
 
 // Initialize composables with block ref
 const blockRef = toRef(props, 'block')
@@ -547,6 +551,21 @@ function handleBlockPickerSelectBlock(type: string) {
   }
 }
 
+function handleBlockPickerSelectListPreset(type: ListPresetType) {
+  const block = editorStore.addListPreset(type, undefined, props.block.id)
+  if (block) {
+    editorStore.selectBlock(block.id)
+  }
+}
+
+// Add item to list container
+function handleAddListItem() {
+  const newItem = editorStore.addListItem(props.block.id)
+  if (newItem) {
+    editorStore.selectBlock(newItem.id)
+  }
+}
+
 // Add content block inside layout block
 function handleAddContentBlock(type: SectionBlockType) {
   const block = editorStore.addBlock(type, undefined, props.block.id)
@@ -559,6 +578,9 @@ const isSelected = computed(() =>
   editorStore.selectedBlockId === props.block.id &&
   !editorStore.selectedItemId
 )
+
+// Show AI glow when block is selected and AI assistant is open
+const showAIGlow = computed(() => isSelected.value && isAIOpen.value)
 
 // Track scroll container for cleanup
 let scrollContainerRef: Element | null = null
@@ -856,6 +878,8 @@ const isProtectedBlock = computed(() => false)
 // Check if block can have children
 const isLayoutBlock = computed(() => canHaveChildren(props.block.type))
 
+// Check if this block is a list container (children have shared styles)
+const isListContainerBlock = computed(() => isListContainer(props.block))
 
 // Check if this block IS a list item (Stack directly inside Grid) - these can be dragged for reordering
 const isListItem = computed(() => {
@@ -895,9 +919,18 @@ function handleWrapInStack() {
   editorStore.wrapBlockInStack(props.block.id)
 }
 
+function handleWrapInLink() {
+  editorStore.wrapBlockInButton(props.block.id)
+}
+
 // Check if block is Stack or Button for conversion
 const isStack = computed(() => props.block.type === 'stack')
 const isButton = computed(() => props.block.type === 'button')
+
+// Check if block can be wrapped in a link (text, heading, image)
+const canWrapInLink = computed(() => {
+  return ['text', 'heading', 'image'].includes(props.block.type)
+})
 
 function handleConvertToButton() {
   editorStore.convertBlockType(props.block.id, 'button')
@@ -1435,8 +1468,14 @@ function handleSpanMouseOut(event: MouseEvent) {
 
     <!-- Selection outline -->
     <div
-      v-if="isSelected"
+      v-if="isSelected && !showAIGlow"
       class="absolute inset-0 border-1 border-border-outline pointer-events-none z-10"
+    />
+
+    <!-- AI Assistant glow - purple when AI is open and block is selected -->
+    <div
+      v-if="showAIGlow"
+      class="absolute inset-0 border-2 border-violet-500 pointer-events-none z-10 rounded-sm shadow-[0_0_12px_rgba(139,92,246,0.5),inset_0_0_12px_rgba(139,92,246,0.1)]"
     />
 
     <!-- Section label -->
@@ -1446,7 +1485,7 @@ function handleSpanMouseOut(event: MouseEvent) {
       class="absolute left-0 flex border items-center px-1.5 h-5 text-[10px] font-mono uppercase backdrop-blur-xs z-20 whitespace-nowrap pointer-events-auto"
       :class="[
         labelShowBelow ? 'top-full rounded-b' : 'bottom-full rounded-t',
-        isSelected ? 'bg-indigo-600 border-indigo-500/10 text-blue-100' : 'bg-indigo-600/50 border-indigo-500/10 text-blue-100',
+        showAIGlow ? 'bg-violet-600 border-violet-500/10 text-violet-100' : isSelected ? 'bg-indigo-600 border-indigo-500/10 text-blue-100' : 'bg-indigo-600/50 border-indigo-500/10 text-blue-100',
         canDragBlock || isInsideCanvas ? 'cursor-grab active:cursor-grabbing' : '',
         isCanvasDragging ? 'cursor-grabbing' : ''
       ]"
@@ -1626,6 +1665,10 @@ function handleSpanMouseOut(event: MouseEvent) {
         <ContextMenuItem icon="plus" @click="openBlockPicker">
           Add content
         </ContextMenuItem>
+        <!-- Add item option for list containers -->
+        <ContextMenuItem v-if="isListContainerBlock" icon="plus" @click="handleAddListItem">
+          Add item
+        </ContextMenuItem>
         <ContextMenuDivider />
       </template>
       <!-- Z-index options for Canvas children -->
@@ -1692,6 +1735,13 @@ function handleSpanMouseOut(event: MouseEvent) {
         Wrap in stack
       </ContextMenuItem>
       <ContextMenuItem
+        v-if="canWrapInLink"
+        icon="link-1"
+        @click="handleWrapInLink"
+      >
+        Wrap in a link
+      </ContextMenuItem>
+      <ContextMenuItem
         v-if="isStack"
         icon="link-1"
         @click="handleConvertToButton"
@@ -1728,6 +1778,7 @@ function handleSpanMouseOut(event: MouseEvent) {
       v-model:open="isBlockPickerOpen"
       hide-trigger
       @select="handleBlockPickerSelectBlock"
+      @select-list-preset="handleBlockPickerSelectListPreset"
     />
 
     <!-- Inline Format Toolbar for heading/text blocks -->

@@ -7,6 +7,7 @@ export {
   recoverConnection,
   ensureHealthy,
   markUnhealthy,
+  markHealthy,
   registerVisibilityHandler,
   type ConnectionState,
 } from './connection'

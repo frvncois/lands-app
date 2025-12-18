@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { canHaveChildren } from '@/lib/editor-utils'
 import type { SectionBlockType } from '@/types/editor'
+import type { ListPresetType } from '@/lib/list-presets'
 
 export interface DragState {
   // Top-level block dragging
@@ -16,6 +17,8 @@ export interface DragState {
   hoverExpandBlockId: string | null
   // New block type being dragged from section dropdown
   newBlockType: SectionBlockType | null
+  // New list preset type being dragged from section dropdown
+  newListPresetType: ListPresetType | null
 }
 
 export function useSidebarDragState() {
@@ -29,6 +32,7 @@ export function useSidebarDragState() {
     overEmptyParentId: null,
     hoverExpandBlockId: null,
     newBlockType: null,
+    newListPresetType: null,
   })
 
   // Timer for auto-expand on hover
@@ -76,6 +80,7 @@ export function useSidebarDragState() {
     dragState.overEmptyParentId = null
     dragState.hoverExpandBlockId = null
     dragState.newBlockType = null
+    dragState.newListPresetType = null
   }
 
   // New block type drag handlers (from section dropdown)
@@ -97,6 +102,30 @@ export function useSidebarDragState() {
     return event.dataTransfer?.types.includes('application/x-section-type') || false
   }
 
+  // New list preset type drag handlers (from section dropdown)
+  function handleListPresetDragStart(type: ListPresetType, event: DragEvent) {
+    dragState.newListPresetType = type
+    if (event.dataTransfer) {
+      event.dataTransfer.setData('application/x-list-preset-type', type)
+      event.dataTransfer.setData('text/plain', type)
+      event.dataTransfer.effectAllowed = 'copy'
+    }
+  }
+
+  function handleListPresetDragEnd() {
+    resetDragState()
+  }
+
+  // Check if event is a list preset type drag
+  function isListPresetTypeDrag(event: DragEvent): boolean {
+    return event.dataTransfer?.types.includes('application/x-list-preset-type') || false
+  }
+
+  // Check if any new item is being dragged (block or list preset)
+  function isAnyNewItemDrag(event: DragEvent): boolean {
+    return isNewBlockTypeDrag(event) || isListPresetTypeDrag(event)
+  }
+
   // Top-level block drag handlers
   function handleBlockDragStart(index: number, event: DragEvent) {
     dragState.blockIndex = index
@@ -110,6 +139,12 @@ export function useSidebarDragState() {
 
     // Handle new block type being dragged from section dropdown
     if (dragState.newBlockType || isNewBlockTypeDrag(event)) {
+      dragState.overBlockIndex = index
+      return
+    }
+
+    // Handle list preset being dragged from section dropdown
+    if (dragState.newListPresetType || isListPresetTypeDrag(event)) {
       dragState.overBlockIndex = index
       return
     }
@@ -134,11 +169,32 @@ export function useSidebarDragState() {
       return
     }
 
+    // Handle list preset being dropped from section dropdown
+    if (dragState.newListPresetType) {
+      const newBlock = editorStore.addListPreset(dragState.newListPresetType, index)
+      if (newBlock) {
+        editorStore.selectBlock(newBlock.id)
+      }
+      resetDragState()
+      return
+    }
+
     // Also check dataTransfer for new block type (fallback)
     if (event) {
       const sectionType = event.dataTransfer?.getData('application/x-section-type')
       if (sectionType) {
         const newBlock = editorStore.addBlock(sectionType as SectionBlockType, index)
+        if (newBlock) {
+          editorStore.selectBlock(newBlock.id)
+        }
+        resetDragState()
+        return
+      }
+
+      // Also check for list preset type (fallback)
+      const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type')
+      if (listPresetType) {
+        const newBlock = editorStore.addListPreset(listPresetType as ListPresetType, index)
         if (newBlock) {
           editorStore.selectBlock(newBlock.id)
         }
@@ -188,6 +244,12 @@ export function useSidebarDragState() {
       return
     }
 
+    // Handle list preset being dragged from section dropdown
+    if (dragState.newListPresetType || isListPresetTypeDrag(event)) {
+      dragState.overChildInfo = { parentId, childIndex }
+      return
+    }
+
     // Handle top-level block being dragged into a layout block
     if (dragState.blockIndex !== null) {
       const draggedBlock = editorStore.blocks[dragState.blockIndex]
@@ -218,7 +280,7 @@ export function useSidebarDragState() {
   // Handler for hovering over a block row (for auto-expand)
   function handleBlockRowHover(blockId: string, expandBlock: (id: string) => void) {
     // Only start timer if we're actively dragging something
-    if (dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType) {
+    if (dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType || dragState.newListPresetType) {
       startHoverExpandTimer(blockId, expandBlock)
     }
   }
@@ -243,11 +305,34 @@ export function useSidebarDragState() {
       return
     }
 
+    // Handle list preset being dropped from section dropdown
+    if (dragState.newListPresetType) {
+      const newBlock = editorStore.addListPreset(dragState.newListPresetType, childIndex, parentId)
+      if (newBlock) {
+        editorStore.selectBlock(newBlock.id)
+        expandBlock(parentId)
+      }
+      resetDragState()
+      return
+    }
+
     // Also check dataTransfer for new block type (fallback)
     if (event) {
       const sectionType = event.dataTransfer?.getData('application/x-section-type')
       if (sectionType) {
         const newBlock = editorStore.addBlock(sectionType as SectionBlockType, childIndex, parentId)
+        if (newBlock) {
+          editorStore.selectBlock(newBlock.id)
+          expandBlock(parentId)
+        }
+        resetDragState()
+        return
+      }
+
+      // Also check for list preset type (fallback)
+      const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type')
+      if (listPresetType) {
+        const newBlock = editorStore.addListPreset(listPresetType as ListPresetType, childIndex, parentId)
         if (newBlock) {
           editorStore.selectBlock(newBlock.id)
           expandBlock(parentId)
@@ -300,6 +385,12 @@ export function useSidebarDragState() {
       return
     }
 
+    // Handle list preset being dragged from section dropdown
+    if (dragState.newListPresetType || isListPresetTypeDrag(event)) {
+      dragState.overEmptyParentId = parentId
+      return
+    }
+
     if (dragState.blockIndex !== null) {
       const draggedBlock = editorStore.blocks[dragState.blockIndex]
       if (!draggedBlock) return
@@ -336,11 +427,34 @@ export function useSidebarDragState() {
       return
     }
 
+    // Handle list preset being dropped from section dropdown
+    if (dragState.newListPresetType) {
+      const newBlock = editorStore.addListPreset(dragState.newListPresetType, 0, parentId)
+      if (newBlock) {
+        editorStore.selectBlock(newBlock.id)
+        expandBlock(parentId)
+      }
+      resetDragState()
+      return
+    }
+
     // Also check dataTransfer for new block type (fallback)
     if (event) {
       const sectionType = event.dataTransfer?.getData('application/x-section-type')
       if (sectionType) {
         const newBlock = editorStore.addBlock(sectionType as SectionBlockType, 0, parentId)
+        if (newBlock) {
+          editorStore.selectBlock(newBlock.id)
+          expandBlock(parentId)
+        }
+        resetDragState()
+        return
+      }
+
+      // Also check for list preset type (fallback)
+      const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type')
+      if (listPresetType) {
+        const newBlock = editorStore.addListPreset(listPresetType as ListPresetType, 0, parentId)
         if (newBlock) {
           editorStore.selectBlock(newBlock.id)
           expandBlock(parentId)
@@ -376,6 +490,11 @@ export function useSidebarDragState() {
     handleNewBlockDragStart,
     handleNewBlockDragEnd,
     isNewBlockTypeDrag,
+    // List preset type handlers
+    handleListPresetDragStart,
+    handleListPresetDragEnd,
+    isListPresetTypeDrag,
+    isAnyNewItemDrag,
     // Block handlers
     handleBlockDragStart,
     handleBlockDragOver,

@@ -634,13 +634,13 @@ const defaultStylesMap: Record<SectionBlockType, () => SectionBlock['styles']> =
   'freeform': getDefaultFreeformStyles,
 }
 
-function getDefaultSettings(type: SectionBlockType): SectionBlock['settings'] {
+export function getDefaultSettings(type: SectionBlockType): SectionBlock['settings'] {
   const factory = defaultSettingsMap[type]
   if (!factory) throw new Error(`No default settings for type: ${type}`)
   return factory()
 }
 
-function getDefaultStyles(type: SectionBlockType): SectionBlock['styles'] {
+export function getDefaultStyles(type: SectionBlockType): SectionBlock['styles'] {
   const factory = defaultStylesMap[type]
   if (!factory) throw new Error(`No default styles for type: ${type}`)
   return factory()

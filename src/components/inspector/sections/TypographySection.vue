@@ -18,6 +18,7 @@ interface Props {
   fontWeight?: string
   fontStyle?: string
   textDecoration?: string
+  textTransform?: string
   lineHeight?: string
   letterSpacing?: string
   alignment?: string
@@ -40,11 +41,19 @@ const emit = defineEmits<{
   'update:fontWeight': [value: string]
   'update:fontStyle': [value: string]
   'update:textDecoration': [value: string]
+  'update:textTransform': [value: string]
   'update:lineHeight': [value: string]
   'update:letterSpacing': [value: string]
   'update:alignment': [value: string]
   'update:color': [value: string]
 }>()
+
+const textTransformOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'capitalize', label: 'Capitalize' },
+  { value: 'uppercase', label: 'Uppercase' },
+  { value: 'lowercase', label: 'Lowercase' },
+]
 
 const { fontFamilyOptions: defaultFontOptions, getFontWeightOptions, defaultFontFamily } = useFontOptions({ includeInherit: true })
 
@@ -169,6 +178,15 @@ function toggleStrikethrough() {
           </button>
         </Tooltip>
       </div>
+    </InspectorField>
+
+    <!-- Transform -->
+    <InspectorField label="Transform" horizontal>
+      <SelectInput
+        :options="textTransformOptions"
+        :model-value="textTransform || 'none'"
+        @update:model-value="emit('update:textTransform', $event)"
+      />
     </InspectorField>
 
     <!-- Color -->

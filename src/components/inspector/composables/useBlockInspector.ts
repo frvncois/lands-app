@@ -76,6 +76,36 @@ export function useBlockInspector() {
     }
   }
 
+  // Update block styles continuously (for sliders, color pickers during drag)
+  // Creates only one undo entry per interaction session
+  function updateBlockStylesContinuous(styles: Record<string, unknown>) {
+    if (!selectedBlock.value) return
+
+    const coreStyleKeys = ['padding', 'margin', 'backgroundColor', 'backgroundImage', 'backgroundPosition', 'backgroundSize', 'border', 'shadow', 'width', 'height', 'opacity', 'blur']
+    const hasCoreStyles = Object.keys(styles).some(key => coreStyleKeys.includes(key))
+
+    if (hasCoreStyles && currentViewport.value !== 'desktop') {
+      const currentStyles = (selectedBlock.value.styles || {}) as BaseBlockStyles
+      const updatedStyles = setViewportStyleOverrides(currentStyles, currentViewport.value, styles as Partial<CoreBlockStyles>)
+      editorStore.updateBlockStylesContinuous(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true)
+    } else {
+      editorStore.updateBlockStylesContinuous(selectedBlock.value.id, styles)
+    }
+  }
+
+  // Update block settings continuously (for sliders, pickers during drag)
+  function updateBlockSettingsContinuous(settings: Record<string, unknown>) {
+    if (!selectedBlock.value) return
+    editorStore.updateBlockSettingsContinuous(selectedBlock.value.id, settings)
+  }
+
+  // Finalize continuous update (call on mouseup/blur after slider drag)
+  // This syncs shared styles and ensures final state is saved properly
+  function finalizeContinuousUpdate() {
+    if (!selectedBlock.value) return
+    editorStore.finalizeContinuousUpdate(selectedBlock.value.id)
+  }
+
   return {
     // State
     selectedBlock,
@@ -92,6 +122,10 @@ export function useBlockInspector() {
     // Actions
     updateBlockSettings,
     updateBlockStyles,
+    // Continuous update actions (for sliders, color pickers)
+    updateBlockStylesContinuous,
+    updateBlockSettingsContinuous,
+    finalizeContinuousUpdate,
     // Re-export store for direct access
     editorStore,
   }

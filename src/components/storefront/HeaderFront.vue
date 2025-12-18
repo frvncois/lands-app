@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import LandsLogo from '@/assets/LandsLogo.vue';
 
 </script>

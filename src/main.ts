@@ -21,6 +21,15 @@ registerVisibilityHandler()
 initSaveQueue()
 
 const userStore = useUserStore()
-userStore.initAuth().then(() => {
+
+// Mount app with timeout - don't let slow auth block the entire app
+const AUTH_TIMEOUT = 5000
+Promise.race([
+  userStore.initAuth(),
+  new Promise(resolve => setTimeout(resolve, AUTH_TIMEOUT))
+]).then(() => {
   app.mount('#app')
+}).catch((error) => {
+  console.error('[Main] Auth initialization failed:', error)
+  app.mount('#app') // Mount anyway so the app is usable
 })
