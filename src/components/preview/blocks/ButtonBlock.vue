@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
-import type { SectionBlock, SectionBlockType, ButtonSettings, ButtonStyles } from '@/types/editor'
-import { sectionBlockIcons } from '@/lib/editor-utils'
+import type { SectionBlock, SectionBlockType, ButtonSettings, ButtonStyles } from '@/types/designer'
+import { sectionBlockIcons } from '@/lib/designer-utils'
 import Button from '@/components/ui/Button.vue'
 import Dropdown from '@/components/ui/Dropdown.vue'
 import DropdownItem from '@/components/ui/DropdownItem.vue'
@@ -60,8 +60,7 @@ const buttonContentTypes = ['text', 'icon', 'image'] as SectionBlockType[]
     :href="settings?.url || '#'"
     :target="settings?.newTab ? '_blank' : undefined"
     :rel="settings?.newTab ? 'noopener noreferrer' : undefined"
-    class="inline-flex transition-colors cursor-pointer no-underline"
-    :class="isDropTarget ? 'ring-2 ring-primary ring-dashed' : ''"
+    class="inline-flex cursor-pointer no-underline"
     :style="combinedStyles"
     @click.prevent.stop
     @dragenter="emit('dragEnter', $event)"
@@ -78,24 +77,10 @@ const buttonContentTypes = ['text', 'icon', 'image'] as SectionBlockType[]
         @dragover="emit('childDragOver', childIndex, $event)"
         @dragleave="emit('childDragLeave')"
       >
-        <!-- Drop indicator -->
-        <div
-          v-if="childDropIndex === childIndex"
-          :class="isHorizontal
-            ? 'absolute -left-1 top-0 bottom-0 w-0.5 bg-primary rounded-full z-10'
-            : 'absolute left-0 right-0 -top-1 h-0.5 bg-primary rounded-full z-10'"
-        />
         <PreviewSection
           :block="child"
           :index="childIndex"
           :total="block.children!.length"
-        />
-        <!-- Drop indicator after last child -->
-        <div
-          v-if="childDropIndex === block.children!.length && childIndex === block.children!.length - 1"
-          :class="isHorizontal
-            ? 'absolute -right-1 top-0 bottom-0 w-0.5 bg-primary rounded-full z-10'
-            : 'absolute left-0 right-0 -bottom-1 h-0.5 bg-primary rounded-full z-10'"
         />
       </div>
     </template>

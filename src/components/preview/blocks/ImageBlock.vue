@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
-import type { SectionBlock, ImageSettings, ImageStyles, ViewportSize } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { SectionBlock, ImageSettings, ImageStyles, ViewportSize } from '@/types/designer'
+import { useDesignerStore } from '@/stores/designer'
 import { useBlockStyles } from '../composables/useBlockStyles'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -14,9 +14,9 @@ const props = defineProps<{
   styles: Record<string, string>
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const blockRef = toRef(props, 'block')
-const viewportRef = computed(() => editorStore.viewport as ViewportSize)
+const viewportRef = computed(() => designerStore.viewport as ViewportSize)
 
 // Use composable for image-specific styles
 const { getImageStyles } = useBlockStyles(blockRef, { viewport: viewportRef })
@@ -63,9 +63,9 @@ const filterStyle = computed(() => {
 // Translation-aware alt text
 const displayAlt = computed(() => {
   if (!settings.value) return ''
-  const lang = editorStore.currentLanguage
+  const lang = designerStore.currentLanguage
   if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
+    const langTranslations = designerStore.translations.languages[lang]
     const translated = langTranslations?.blocks[props.block.id]?.alt
     if (translated !== undefined) return translated
   }
@@ -80,6 +80,7 @@ const displayAlt = computed(() => {
       :src="settings.src"
       :alt="displayAlt || ''"
       class="w-full h-full block"
+      draggable="false"
       :style="{ ...getImageStyles(), filter: filterStyle }"
     />
     <!-- Image Overlay -->
@@ -95,13 +96,19 @@ const displayAlt = computed(() => {
   </div>
 
   <!-- Normal positioned image - centered layout -->
-  <div v-else-if="settings?.src" class="flex justify-center" :style="styles">
-    <div class="relative inline-block" :class="{ 'w-full': hasExplicitDimensions }">
+  <div
+    v-else-if="settings?.src"
+    class="flex justify-center"
+    :class="{ 'h-full': hasExplicitDimensions }"
+    :style="styles"
+  >
+    <div class="relative" :class="{ 'w-full h-full': hasExplicitDimensions, 'inline-block': !hasExplicitDimensions }">
       <img
         :src="settings.src"
         :alt="displayAlt || ''"
         class="block"
         :class="hasExplicitDimensions ? 'w-full h-full' : 'max-w-full h-auto'"
+        draggable="false"
         :style="{ ...getImageStyles(), filter: filterStyle }"
       />
       <!-- Image Overlay -->

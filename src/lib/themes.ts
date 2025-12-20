@@ -1,5 +1,5 @@
-import type { Theme, SectionBlock } from '@/types/editor'
-import { getDefaultPageSettings, generateId } from './editor-utils'
+import type { Theme, SectionBlock } from '@/types/designer'
+import { getDefaultPageSettings, generateId } from './designer-utils'
 
 // Helper to create blocks with unique IDs
 function createBlock(
@@ -271,7 +271,7 @@ function createPersonalBioTheme(): Theme {
       createBlock(
         'button',
         'Email Button',
-        { label: 'hello@alexjohnson.design', url: 'mailto:hello@alexjohnson.design', variant: 'outline', size: 'lg' },
+        { label: 'hello@alexjohnson.design', url: 'mailto:hello@alexjohnson.design' },
         { borderRadius: '999', textColor: '#ffffff', backgroundColor: 'transparent', border: { width: '1', color: '#ffffff', radius: '999' } }
       ),
     ]

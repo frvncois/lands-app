@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import DOMPurify from 'dompurify'
-import type { SectionBlock, TextSettings } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { SectionBlock, TextSettings } from '@/types/designer'
+import { useDesignerStore } from '@/stores/designer'
 
 /**
  * TextBlock - Renders an inline-editable text block
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   spanMouseOut: [event: MouseEvent]
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const editableRef = ref<HTMLElement | null>(null)
 
 const settings = computed(() => props.block.settings as TextSettings)
@@ -37,9 +37,9 @@ function sanitizeHtml(html: string | undefined): string {
 // Translation-aware content
 const displayContent = computed(() => {
   if (!settings.value) return ''
-  const lang = editorStore.currentLanguage
+  const lang = designerStore.currentLanguage
   if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
+    const langTranslations = designerStore.translations.languages[lang]
     const translated = langTranslations?.blocks[props.block.id]?.content
     if (translated !== undefined) return sanitizeHtml(translated)
   }
@@ -73,10 +73,11 @@ defineExpose({ editableRef })
 <template>
   <div
     ref="editableRef"
-    :key="`text-${editorStore.currentLanguage || 'default'}`"
+    :key="`text-${designerStore.currentLanguage || 'default'}`"
     class="prose prose-neutral max-w-none outline-none"
     :style="styles"
     contenteditable="true"
+    draggable="false"
     spellcheck="false"
     @blur="handleEdit($event)"
     @keydown.escape="handleEscapeKey($event)"

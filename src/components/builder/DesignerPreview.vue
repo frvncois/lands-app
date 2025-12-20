@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import PreviewSection from '@/components/preview/PreviewSection.vue'
-import { createSectionBlock } from '@/lib/editor-utils'
+import { createSectionBlock } from '@/lib/designer-utils'
 import type { ListPresetType } from '@/lib/list-presets'
-import type { SectionBlockType } from '@/types/editor'
+import type { SectionBlockType } from '@/types/designer'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 // Scroll to selected block when selection changes
 watch(
-  () => editorStore.selectedBlockId,
+  () => designerStore.selectedBlockId,
   async (blockId) => {
     if (!blockId || !scrollContainerRef.value) return
 
@@ -37,7 +37,7 @@ const scrollContainerRef = ref<HTMLElement | null>(null)
 const loadedFontStyleElement = ref<HTMLStyleElement | null>(null)
 
 function loadCustomFonts() {
-  const customFonts = editorStore.pageSettings.customFonts || []
+  const customFonts = designerStore.pageSettings.customFonts || []
 
   // Remove existing style element if any
   if (loadedFontStyleElement.value) {
@@ -67,7 +67,7 @@ function loadCustomFonts() {
 const loadedGoogleFontsLink = ref<HTMLLinkElement | null>(null)
 
 function loadGoogleFonts() {
-  const googleFonts = editorStore.pageSettings.googleFonts || []
+  const googleFonts = designerStore.pageSettings.googleFonts || []
 
   // Remove existing link element if any
   if (loadedGoogleFontsLink.value) {
@@ -95,13 +95,13 @@ function loadGoogleFonts() {
 
 // Watch for custom font changes (compare serialized to avoid deep watch overhead)
 const customFontsKey = computed(() =>
-  JSON.stringify((editorStore.pageSettings.customFonts || []).map((f: { name: string; url: string }) => `${f.name}:${f.url}`))
+  JSON.stringify((designerStore.pageSettings.customFonts || []).map((f: { name: string; url: string }) => `${f.name}:${f.url}`))
 )
 watch(customFontsKey, () => loadCustomFonts())
 
 // Watch for Google font changes (compare serialized to avoid deep watch overhead)
 const googleFontsKey = computed(() =>
-  JSON.stringify((editorStore.pageSettings.googleFonts || []).map((f: { family: string }) => f.family))
+  JSON.stringify((designerStore.pageSettings.googleFonts || []).map((f: { family: string }) => f.family))
 )
 watch(googleFontsKey, () => loadGoogleFonts())
 
@@ -137,7 +137,7 @@ function handleViewportContextMenu(event: MouseEvent) {
     event.stopPropagation()
 
     // Calculate insert index based on click position
-    const blocks = editorStore.blocks
+    const blocks = designerStore.blocks
     let insertIndex = 0
 
     // If we have blocks, find where the click happened relative to them
@@ -170,17 +170,17 @@ function handleAddContent() {
 }
 
 function handleBlockPickerSelectBlock(type: string) {
-  const block = editorStore.addBlock(type as SectionBlockType, blockPickerInsertIndex.value ?? undefined)
+  const block = designerStore.addBlock(type as SectionBlockType, blockPickerInsertIndex.value ?? undefined)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
   blockPickerInsertIndex.value = null
 }
 
 function handleBlockPickerSelectListPreset(type: ListPresetType) {
-  const block = editorStore.addListPreset(type, blockPickerInsertIndex.value ?? undefined)
+  const block = designerStore.addListPreset(type, blockPickerInsertIndex.value ?? undefined)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
   blockPickerInsertIndex.value = null
 }
@@ -196,7 +196,7 @@ const dropTargetIndex = ref<number | null>(null)
 
 // Page styles from settings
 const pageStyles = computed(() => {
-  const settings = editorStore.pageSettings
+  const settings = designerStore.pageSettings
   const styles: Record<string, string> = {}
 
   // Max width
@@ -243,7 +243,7 @@ const pageClasses = computed(() => {
 function handlePreviewClick(event: MouseEvent) {
   // Deselect if clicking on empty preview area
   if (event.target === event.currentTarget) {
-    editorStore.selectBlock(null)
+    designerStore.selectBlock(null)
   }
 }
 
@@ -305,11 +305,11 @@ function handleDrop(event: DragEvent) {
   const blockIdToMove = event.dataTransfer?.getData('application/x-block-move')
   if (blockIdToMove) {
     // Find current parent
-    const currentParent = editorStore.findParentBlock(blockIdToMove)
+    const currentParent = designerStore.findParentBlock(blockIdToMove)
     if (currentParent) {
       // Moving from a parent to root level - use moveBlockToRoot
-      editorStore.moveBlockToRoot(blockIdToMove, index !== null ? index : undefined)
-      editorStore.selectBlock(blockIdToMove)
+      designerStore.moveBlockToRoot(blockIdToMove, index !== null ? index : undefined)
+      designerStore.selectBlock(blockIdToMove)
     }
     // If already at root, the reorder happens via section drag handlers
     return
@@ -318,9 +318,9 @@ function handleDrop(event: DragEvent) {
   // Check for list preset type
   const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type') as ListPresetType
   if (listPresetType) {
-    const block = editorStore.addListPreset(listPresetType, index !== null ? index : undefined)
+    const block = designerStore.addListPreset(listPresetType, index !== null ? index : undefined)
     if (block) {
-      editorStore.selectBlock(block.id)
+      designerStore.selectBlock(block.id)
     }
     return
   }
@@ -328,9 +328,9 @@ function handleDrop(event: DragEvent) {
   // Check for section type
   const sectionType = event.dataTransfer?.getData('application/x-section-type') as SectionBlockType
   if (sectionType) {
-    const block = editorStore.addBlock(sectionType, index !== null ? index : undefined)
+    const block = designerStore.addBlock(sectionType, index !== null ? index : undefined)
     if (block) {
-      editorStore.selectBlock(block.id)
+      designerStore.selectBlock(block.id)
     }
   }
 }
@@ -338,7 +338,7 @@ function handleDrop(event: DragEvent) {
 // Drop zone handlers for inserting between sections
 function handleSectionDragEnter(index: number, event: DragEvent) {
   if (isValidDragType(event)) {
-    const blocks = editorStore.blocks
+    const blocks = designerStore.blocks
 
     // Determine if we're in the top or bottom half of the section
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
@@ -372,29 +372,29 @@ function handleSectionDrop(event: DragEvent) {
   // Check for block move first (reordering or moving to root)
   const blockIdToMove = event.dataTransfer?.getData('application/x-block-move')
   if (blockIdToMove && index !== null) {
-    const currentParent = editorStore.findParentBlock(blockIdToMove)
+    const currentParent = designerStore.findParentBlock(blockIdToMove)
     if (currentParent) {
       // Moving from a parent to root level
-      editorStore.moveBlockToRoot(blockIdToMove, index)
+      designerStore.moveBlockToRoot(blockIdToMove, index)
     } else {
       // Already at root - reorder
-      const currentIndex = editorStore.blocks.findIndex((b: { id: string }) => b.id === blockIdToMove)
+      const currentIndex = designerStore.blocks.findIndex((b: { id: string }) => b.id === blockIdToMove)
       if (currentIndex !== -1 && currentIndex !== index) {
         // Adjust target index if moving down (since we remove first)
         const targetIndex = currentIndex < index ? index - 1 : index
-        editorStore.reorderBlocks(currentIndex, targetIndex)
+        designerStore.reorderBlocks(currentIndex, targetIndex)
       }
     }
-    editorStore.selectBlock(blockIdToMove)
+    designerStore.selectBlock(blockIdToMove)
     return
   }
 
   // Check for list preset type
   const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type') as ListPresetType
   if (listPresetType && index !== null) {
-    const block = editorStore.addListPreset(listPresetType, index)
+    const block = designerStore.addListPreset(listPresetType, index)
     if (block) {
-      editorStore.selectBlock(block.id)
+      designerStore.selectBlock(block.id)
     }
     return
   }
@@ -402,9 +402,9 @@ function handleSectionDrop(event: DragEvent) {
   // Check for section type
   const sectionType = event.dataTransfer?.getData('application/x-section-type') as SectionBlockType
   if (sectionType && index !== null) {
-    const block = editorStore.addBlock(sectionType, index)
+    const block = designerStore.addBlock(sectionType, index)
     if (block) {
-      editorStore.selectBlock(block.id)
+      designerStore.selectBlock(block.id)
     }
   }
 }
@@ -427,21 +427,21 @@ function handleSectionDrop(event: DragEvent) {
       <!-- Viewport container -->
       <div
         class="h-full mx-auto transition-all duration-300"
-        :style="{ maxWidth: editorStore.viewportWidth }"
-        @click.self="editorStore.selectBlock(null)"
+        :style="{ maxWidth: designerStore.viewportWidth, '--designer-vh': 'calc((100vh - 3.5rem) / 100)' }"
+        @click.self="designerStore.selectBlock(null)"
         @contextmenu="handleViewportContextMenu"
       >
         <!-- Page container with settings applied -->
         <div
           ref="previewContainerRef"
-          class="lands-preview editor-preview-container bg-background min-h-full transition-all duration-300"
+          class="lands-preview designer-preview-container bg-background min-h-full transition-all duration-300"
           :class="pageClasses"
           :style="pageStyles"
-          @click.self="editorStore.selectBlock(null)"
+          @click.self="designerStore.selectBlock(null)"
         >
           <!-- Empty state -->
           <div
-            v-if="editorStore.blocks.length === 0"
+            v-if="designerStore.blocks.length === 0"
             class="flex flex-col items-center justify-center h-96 text-center px-4"
           >
             <div class="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center mb-4">
@@ -455,26 +455,14 @@ function handleSectionDrop(event: DragEvent) {
 
           <!-- Section blocks -->
           <div v-else>
-            <template v-for="(block, index) in editorStore.blocks" :key="block.id">
-              <!-- Drop indicator line (positioned absolutely, no layout impact) -->
-              <div
-                v-if="isDragOver && dropTargetIndex === index"
-                class="h-1 bg-primary rounded-full"
-              />
-
+            <template v-for="(block, index) in designerStore.blocks" :key="block.id">
               <PreviewSection
                 :block="block"
                 :index="index"
-                :total="editorStore.blocks.length"
+                :total="designerStore.blocks.length"
                 @dragenter="handleSectionDragEnter(index, $event)"
                 @dragover="handleDropZoneDragOver"
                 @drop="handleSectionDrop"
-              />
-
-              <!-- Drop indicator after last section -->
-              <div
-                v-if="isDragOver && dropTargetIndex === index + 1 && index === editorStore.blocks.length - 1"
-                class="h-1 bg-primary rounded-full"
               />
             </template>
           </div>

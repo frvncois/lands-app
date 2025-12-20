@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { AnimationSettings, AnimationPreset, AnimationTrigger, AnimationEasing } from '@/types/editor'
+import type { AnimationSettings, AnimationPreset, AnimationTrigger, AnimationEasing } from '@/types/designer'
 import {
   animationPresets,
   animationTriggerOptions,

@@ -7,10 +7,12 @@ import type {
   CanvasChildBlockType,
   MaskShape,
   SocialPlatform,
+  FormChildBlockType,
   // Settings types
   ContainerSettings,
   GridSettings,
   StackSettings,
+  SliderSettings,
   HeadingSettings,
   TextSettings,
   ImageSettings,
@@ -20,10 +22,18 @@ import type {
   VariantsSettings,
   CanvasSettings,
   FreeformSettings,
+  FormSettings,
+  FormInputSettings,
+  FormTextareaSettings,
+  FormCheckboxSettings,
+  FormRadioSettings,
+  FormButtonSettings,
+  FormLabelSettings,
   // Style types
   ContainerStyles,
   GridStyles,
   StackStyles,
+  SliderStyles,
   HeadingStyles,
   TextStyles,
   ImageStyles,
@@ -33,7 +43,14 @@ import type {
   VariantsStyles,
   CanvasStyles,
   FreeformStyles,
-} from '@/types/editor'
+  FormStyles,
+  FormInputStyles,
+  FormTextareaStyles,
+  FormCheckboxStyles,
+  FormRadioStyles,
+  FormButtonStyles,
+  FormLabelStyles,
+} from '@/types/designer'
 
 // ============================================
 // ID GENERATION
@@ -52,8 +69,10 @@ export const sectionBlockLabels: Record<SectionBlockType, string> = {
   container: 'Container',
   grid: 'Grid',
   stack: 'Stack',
+  slider: 'Slider',
   canvas: 'Canvas',
   freeform: 'Freeform',
+  form: 'Form',
   // Content
   heading: 'Heading',
   text: 'Text',
@@ -61,6 +80,13 @@ export const sectionBlockLabels: Record<SectionBlockType, string> = {
   video: 'Video',
   button: 'Button',
   icon: 'Icon',
+  // Form elements
+  'form-input': 'Input',
+  'form-textarea': 'Textarea',
+  'form-checkbox': 'Checkbox',
+  'form-radio': 'Radio',
+  'form-button': 'Submit',
+  'form-label': 'Label',
   // Product-specific
   variants: 'Variants',
 }
@@ -70,8 +96,10 @@ export const sectionBlockIcons: Record<SectionBlockType, string> = {
   container: 'layout-container',
   grid: 'layout-grid',
   stack: 'layout-stack',
+  slider: 'lni-gallery',
   canvas: 'layout-canvas',
   freeform: 'layout-canvas',
+  form: 'form',
   // Content
   heading: 'content-heading',
   text: 'content-text',
@@ -79,13 +107,20 @@ export const sectionBlockIcons: Record<SectionBlockType, string> = {
   video: 'content-video',
   button: 'content-button',
   icon: 'content-icon',
+  // Form elements
+  'form-input': 'form-input',
+  'form-textarea': 'form-textarea',
+  'form-checkbox': 'form-checkbox',
+  'form-radio': 'form-radio',
+  'form-button': 'form-button',
+  'form-label': 'form-label',
   // Product-specific
   variants: 'layout-container',
 }
 
 // Block categories for sidebar organization
 export const blocksByCategory: Record<BlockCategory, SectionBlockType[]> = {
-  layout: ['container', 'grid', 'stack', 'canvas'],
+  layout: ['container', 'grid', 'stack', 'slider', 'canvas', 'form'],
   content: ['heading', 'text', 'image', 'video', 'button', 'icon'],
 }
 
@@ -130,6 +165,31 @@ export const headerFooterStackChildBlockLabels: Record<HeaderFooterStackChildBlo
   'text': 'Text',
   'button': 'Button',
   'image': 'Image',
+}
+
+// Form child block types (blocks that can ONLY exist inside form)
+export const formChildBlockTypes: FormChildBlockType[] = [
+  'form-input',
+  'form-textarea',
+  'form-checkbox',
+  'form-radio',
+  'form-button',
+  'form-label',
+]
+
+// Labels for form child blocks in the add menu
+export const formChildBlockLabels: Record<FormChildBlockType, string> = {
+  'form-input': 'Input',
+  'form-textarea': 'Textarea',
+  'form-checkbox': 'Checkbox',
+  'form-radio': 'Radio',
+  'form-button': 'Submit Button',
+  'form-label': 'Label',
+}
+
+// Check if a block type is a form child (can only exist inside form)
+export function isFormChildBlock(type: SectionBlockType): type is FormChildBlockType {
+  return (formChildBlockTypes as SectionBlockType[]).includes(type)
 }
 
 // Check if a block is a header/footer stack child type
@@ -179,7 +239,7 @@ export const maskShapeClipPaths: Record<MaskShape, string> = {
 }
 
 // Which blocks can contain children
-export const layoutBlockTypes: SectionBlockType[] = ['container', 'grid', 'stack']
+export const layoutBlockTypes: SectionBlockType[] = ['container', 'grid', 'stack', 'slider', 'form']
 
 // Blocks that can have children (layout blocks + canvas + button)
 export function canHaveChildren(type: SectionBlockType): boolean {
@@ -244,8 +304,10 @@ export const contentFieldsByBlockType: Record<SectionBlockType, string[]> = {
   container: [],
   grid: [],
   stack: [],
+  slider: [],
   freeform: [],
   canvas: [],
+  form: [],
   // Content blocks
   heading: ['content'],
   text: ['content'],
@@ -253,6 +315,13 @@ export const contentFieldsByBlockType: Record<SectionBlockType, string[]> = {
   video: ['src', 'posterSrc'],
   button: ['label', 'url'],
   icon: ['name'],
+  // Form elements
+  'form-input': ['name', 'placeholder', 'defaultValue'],
+  'form-textarea': ['name', 'placeholder', 'defaultValue'],
+  'form-checkbox': ['name', 'label'],
+  'form-radio': ['name', 'label', 'value'],
+  'form-button': ['label'],
+  'form-label': ['content', 'for'],
   // E-commerce
   variants: ['productId', 'variants'],
 }
@@ -377,6 +446,23 @@ export function getDefaultStackSettings(): StackSettings {
   }
 }
 
+export function getDefaultSliderSettings(): SliderSettings {
+  return {
+    slidesInView: 1,
+    slidesInViewTablet: 1,
+    slidesInViewMobile: 1,
+    slideGap: '16px',
+    transition: 'slide',
+    transitionDuration: 300,
+    showArrows: true,
+    arrowPosition: 'inside',
+    autoplay: false,
+    autoplayInterval: 3000,
+    pauseOnHover: true,
+    childRoles: {},
+  }
+}
+
 export function getDefaultHeadingSettings(): HeadingSettings {
   return {
     content: 'Heading',
@@ -416,7 +502,7 @@ export function getDefaultButtonSettings(): ButtonSettings {
 
 export function getDefaultIconSettings(): IconSettings {
   return {
-    icon: 'content-icon',
+    icon: 'Star',
     size: '24',
   }
 }
@@ -498,8 +584,8 @@ export function getDefaultGridStyles(): GridStyles {
     padding: { top: '0', bottom: '0', left: '0', right: '0' },
     horizontalAlign: 'left',
     verticalAlign: 'top',
-    justifyItems: 'flex-start',
-    alignItems: 'flex-start',
+    justifyItems: 'stretch',
+    alignItems: 'stretch',
     // Flexbox properties (shared with other layout blocks)
     flexDirection: 'column',
     justifyContent: 'flex-start',
@@ -517,6 +603,15 @@ export function getDefaultStackStyles(): StackStyles {
     alignItems: 'stretch',
     flexWrap: 'nowrap',
     gap: '16px',
+  }
+}
+
+export function getDefaultSliderStyles(): SliderStyles {
+  return {
+    padding: { top: '0', bottom: '0', left: '0', right: '0' },
+    alignment: 'center',
+    alignItems: 'stretch',
+    gap: '0',
   }
 }
 
@@ -572,6 +667,135 @@ export function getDefaultVariantsStyles(): VariantsStyles {
   }
 }
 
+// ============================================
+// FORM BLOCK DEFAULTS
+// ============================================
+
+export function getDefaultFormSettings(): FormSettings {
+  return {
+    gap: '16',
+  }
+}
+
+export function getDefaultFormStyles(): FormStyles {
+  return {
+    padding: { top: '0', right: '0', bottom: '0', left: '0' },
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
+    alignItems: 'stretch',
+    gap: '16px',
+  }
+}
+
+export function getDefaultFormInputSettings(): FormInputSettings {
+  return {
+    name: 'input',
+    placeholder: 'Enter text...',
+    type: 'text',
+    required: false,
+  }
+}
+
+export function getDefaultFormInputStyles(): FormInputStyles {
+  return {
+    padding: { top: '12', right: '16', bottom: '12', left: '16' },
+    fontSize: '16px',
+    borderRadius: '8',
+    border: { width: '1', color: '#e4e4e7', style: 'solid' },
+    backgroundColor: '#ffffff',
+  }
+}
+
+export function getDefaultFormTextareaSettings(): FormTextareaSettings {
+  return {
+    name: 'message',
+    placeholder: 'Enter your message...',
+    rows: 4,
+    required: false,
+  }
+}
+
+export function getDefaultFormTextareaStyles(): FormTextareaStyles {
+  return {
+    padding: { top: '12', right: '16', bottom: '12', left: '16' },
+    fontSize: '16px',
+    borderRadius: '8',
+    border: { width: '1', color: '#e4e4e7', style: 'solid' },
+    backgroundColor: '#ffffff',
+  }
+}
+
+export function getDefaultFormCheckboxSettings(): FormCheckboxSettings {
+  return {
+    name: 'checkbox',
+    label: 'I agree to the terms',
+    required: false,
+    defaultChecked: false,
+  }
+}
+
+export function getDefaultFormCheckboxStyles(): FormCheckboxStyles {
+  return {
+    fontSize: '14px',
+    gap: '8px',
+    checkboxSize: '18',
+    checkboxColor: '#3b82f6',
+    checkboxBorderColor: '#d4d4d8',
+  }
+}
+
+export function getDefaultFormRadioSettings(): FormRadioSettings {
+  return {
+    name: 'option',
+    label: 'Option',
+    value: 'option-1',
+    defaultChecked: false,
+  }
+}
+
+export function getDefaultFormRadioStyles(): FormRadioStyles {
+  return {
+    fontSize: '14px',
+    gap: '8px',
+    radioSize: '18',
+    radioColor: '#3b82f6',
+    radioBorderColor: '#d4d4d8',
+  }
+}
+
+export function getDefaultFormButtonSettings(): FormButtonSettings {
+  return {
+    label: 'Submit',
+    type: 'submit',
+  }
+}
+
+export function getDefaultFormButtonStyles(): FormButtonStyles {
+  return {
+    padding: { top: '14', right: '24', bottom: '14', left: '24' },
+    fontSize: '16px',
+    fontWeight: 'semibold',
+    borderRadius: '8',
+    backgroundColor: '#18181b',
+    color: '#ffffff',
+    hoverBackgroundColor: '#3f3f46',
+  }
+}
+
+export function getDefaultFormLabelSettings(): FormLabelSettings {
+  return {
+    content: 'Label',
+  }
+}
+
+export function getDefaultFormLabelStyles(): FormLabelStyles {
+  return {
+    fontSize: '14px',
+    fontWeight: 'medium',
+    color: '#09090b',
+  }
+}
+
 
 // ============================================
 // CANVAS BLOCK DEFAULT STYLES
@@ -607,6 +831,7 @@ const defaultSettingsMap: Record<SectionBlockType, () => SectionBlock['settings'
   'container': getDefaultContainerSettings,
   'grid': getDefaultGridSettings,
   'stack': getDefaultStackSettings,
+  'slider': getDefaultSliderSettings,
   'heading': getDefaultHeadingSettings,
   'text': getDefaultTextSettings,
   'image': getDefaultImageSettings,
@@ -616,6 +841,14 @@ const defaultSettingsMap: Record<SectionBlockType, () => SectionBlock['settings'
   'variants': getDefaultVariantsSettings,
   'canvas': getDefaultCanvasSettings,
   'freeform': getDefaultFreeformSettings,
+  // Form blocks
+  'form': getDefaultFormSettings,
+  'form-input': getDefaultFormInputSettings,
+  'form-textarea': getDefaultFormTextareaSettings,
+  'form-checkbox': getDefaultFormCheckboxSettings,
+  'form-radio': getDefaultFormRadioSettings,
+  'form-button': getDefaultFormButtonSettings,
+  'form-label': getDefaultFormLabelSettings,
 }
 
 // Lookup map for default styles - O(1) access instead of switch statement
@@ -623,6 +856,7 @@ const defaultStylesMap: Record<SectionBlockType, () => SectionBlock['styles']> =
   'container': getDefaultContainerStyles,
   'grid': getDefaultGridStyles,
   'stack': getDefaultStackStyles,
+  'slider': getDefaultSliderStyles,
   'heading': getDefaultHeadingStyles,
   'text': getDefaultTextStyles,
   'image': getDefaultImageStyles,
@@ -632,6 +866,14 @@ const defaultStylesMap: Record<SectionBlockType, () => SectionBlock['styles']> =
   'variants': getDefaultVariantsStyles,
   'canvas': getDefaultCanvasStyles,
   'freeform': getDefaultFreeformStyles,
+  // Form blocks
+  'form': getDefaultFormStyles,
+  'form-input': getDefaultFormInputStyles,
+  'form-textarea': getDefaultFormTextareaStyles,
+  'form-checkbox': getDefaultFormCheckboxStyles,
+  'form-radio': getDefaultFormRadioStyles,
+  'form-button': getDefaultFormButtonStyles,
+  'form-label': getDefaultFormLabelStyles,
 }
 
 export function getDefaultSettings(type: SectionBlockType): SectionBlock['settings'] {
@@ -671,6 +913,64 @@ export function createSectionBlock(type: SectionBlockType): SectionBlock {
         alignment: 'center',
       },
     }]
+  }
+
+  // Add default children for slider (arrows + first slide)
+  if (type === 'slider') {
+    const prevArrowId = generateId()
+    const nextArrowId = generateId()
+    const firstSlideId = generateId()
+
+    // Create prev arrow (IconBlock)
+    const prevArrow: SectionBlock = {
+      id: prevArrowId,
+      type: 'icon',
+      name: 'Previous',
+      settings: { icon: 'ChevronLeft', size: '32' },
+      styles: {
+        color: '#18181b',
+        backgroundColor: '#ffffff',
+        padding: { top: '8px', bottom: '8px', left: '8px', right: '8px' },
+        borderRadius: '9999px',
+      },
+    }
+
+    // Create next arrow (IconBlock)
+    const nextArrow: SectionBlock = {
+      id: nextArrowId,
+      type: 'icon',
+      name: 'Next',
+      settings: { icon: 'ChevronRight', size: '32' },
+      styles: {
+        color: '#18181b',
+        backgroundColor: '#ffffff',
+        padding: { top: '8px', bottom: '8px', left: '8px', right: '8px' },
+        borderRadius: '9999px',
+      },
+    }
+
+    // Create first slide (Container)
+    const firstSlide: SectionBlock = {
+      id: firstSlideId,
+      type: 'container',
+      name: 'Slide 1',
+      children: [],
+      settings: getDefaultContainerSettings(),
+      styles: {
+        ...getDefaultContainerStyles(),
+        minHeight: '200px',
+        backgroundColor: '#f4f4f5',
+      },
+    }
+
+    block.children = [prevArrow, firstSlide, nextArrow]
+
+    // Set child roles
+    ;(block.settings as SliderSettings).childRoles = {
+      [prevArrowId]: 'arrow-prev',
+      [firstSlideId]: 'slide',
+      [nextArrowId]: 'arrow-next',
+    }
   }
 
   return block
@@ -886,6 +1186,94 @@ export const headingLevelOptions = [
   { value: 'h4', label: 'H4' },
   { value: 'h5', label: 'H5' },
 ] as const
+
+/**
+ * Determine the appropriate semantic heading level for a new heading
+ * based on page structure and parent context.
+ *
+ * Rules:
+ * - Only 1x h1 per page (if no h1 exists, return h1)
+ * - If h1 exists, default to h2
+ * - Look at parent's children/siblings to determine if h3+ is needed
+ * - Handle list items: if siblings have headings, match their level
+ */
+export function getSemanticHeadingLevel(
+  allBlocks: SectionBlock[],
+  parentBlock?: SectionBlock | null,
+  findParentFn?: (id: string) => SectionBlock | null
+): 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' {
+  // Helper to find all headings in the block tree
+  function findAllHeadings(blocks: SectionBlock[]): Array<{ block: SectionBlock; level: string }> {
+    const headings: Array<{ block: SectionBlock; level: string }> = []
+    function traverse(block: SectionBlock) {
+      if (block.type === 'heading') {
+        const level = (block.settings as HeadingSettings)?.level || 'h2'
+        headings.push({ block, level })
+      }
+      if (block.children) {
+        block.children.forEach(traverse)
+      }
+    }
+    blocks.forEach(traverse)
+    return headings
+  }
+
+  // Check if page has an h1
+  const allHeadings = findAllHeadings(allBlocks)
+  const hasH1 = allHeadings.some(h => h.level === 'h1')
+
+  // If no h1 exists, this should be h1
+  if (!hasH1) {
+    return 'h1'
+  }
+
+  // If adding to a parent, check sibling context
+  if (parentBlock && parentBlock.children) {
+    // Find headings in siblings (same parent level)
+    const siblingHeadings = parentBlock.children
+      .filter(child => child.type === 'heading')
+      .map(h => (h.settings as HeadingSettings)?.level || 'h2')
+
+    // If siblings have headings, use the same level (for list items)
+    if (siblingHeadings.length > 0) {
+      return siblingHeadings[0] as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+    }
+
+    // Look for headings in parent's ancestors to determine nested level
+    if (findParentFn) {
+      let currentParent = parentBlock
+      let foundHeadingLevel: string | null = null
+
+      while (currentParent) {
+        // Check direct children of this parent for headings
+        const childHeadings = (currentParent.children || [])
+          .filter(child => child.type === 'heading')
+          .map(h => (h.settings as HeadingSettings)?.level || 'h2')
+
+        if (childHeadings.length > 0) {
+          foundHeadingLevel = childHeadings[0] ?? null
+          break
+        }
+
+        // Move up to parent's parent
+        const grandParent = findParentFn(currentParent.id)
+        if (!grandParent) break
+        currentParent = grandParent
+      }
+
+      // If parent context has a heading, go one level deeper
+      if (foundHeadingLevel) {
+        const levelNum = parseInt(foundHeadingLevel.charAt(1))
+        if (levelNum < 6) {
+          return `h${levelNum + 1}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+        }
+      }
+    }
+  }
+
+  // Default to h2 if h1 exists
+  return 'h2'
+}
 
 export const mediaPositionOptions = [
   { value: 'left', label: 'Left' },

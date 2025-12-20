@@ -1,4 +1,4 @@
-import type { SectionBlock, PageSettings, ProjectTranslations, SavedComponent } from '@/types/editor'
+import type { SectionBlock, PageSettings, ProjectTranslations, SavedComponent } from '@/types/designer'
 
 // Project Plan Types
 export type ProjectPlan = 'free' | 'pro' | 'business'

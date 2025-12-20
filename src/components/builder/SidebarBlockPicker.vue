@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import type { SectionBlockType, BlockCategory } from '@/types/editor'
+import type { SectionBlockType, BlockCategory } from '@/types/designer'
 import {
   sectionBlockLabels,
   sectionBlockIcons,
   blocksByCategory,
   categoryLabels,
-} from '@/lib/editor-utils'
+  formChildBlockTypes,
+} from '@/lib/designer-utils'
 import { listPresetConfigs, type ListPresetType } from '@/lib/list-presets'
 import { Button, Icon } from '@/components/ui'
 
+// Extended category type to include form
+type ExtendedBlockCategory = BlockCategory | 'form'
+
 export type BlockPickerMode = 'all' | 'nested' | 'content-only' | 'header-footer-stack'
+
+export type TriggerVariant = 'button' | 'inline'
 
 interface Props {
   mode?: BlockPickerMode
@@ -23,6 +29,10 @@ interface Props {
   anchorPosition?: { x: number; y: number }
   /** Hide the trigger button (use with v-model:open for programmatic control) */
   hideTrigger?: boolean
+  /** Restrict to specific block types (overrides mode filtering) */
+  allowedTypes?: string[]
+  /** Trigger style variant: 'button' (default) or 'inline' (divider with + icon) */
+  triggerVariant?: TriggerVariant
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -33,6 +43,8 @@ const props = withDefaults(defineProps<Props>(), {
   open: undefined,
   anchorPosition: undefined,
   hideTrigger: false,
+  allowedTypes: undefined,
+  triggerVariant: 'button',
 })
 
 const emit = defineEmits<{
@@ -61,8 +73,25 @@ const dropdownRef = ref<HTMLElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const dropdownPosition = ref({ top: 0, left: 0 })
 
+// Extended category labels
+const extendedCategoryLabels: Record<ExtendedBlockCategory, string> = {
+  ...categoryLabels,
+  form: 'Form Fields',
+}
+
+// Check if allowed types include form child blocks
+const hasFormBlocks = computed(() => {
+  if (!props.allowedTypes) return false
+  return props.allowedTypes.some(type => formChildBlockTypes.includes(type as any))
+})
+
 // Categories to show based on mode
-const categories = computed<BlockCategory[]>(() => {
+const categories = computed<ExtendedBlockCategory[]>(() => {
+  // If allowedTypes includes form blocks, add form category
+  if (hasFormBlocks.value) {
+    return ['form', 'layout', 'content']
+  }
+
   switch (props.mode) {
     case 'content-only':
     case 'header-footer-stack':
@@ -74,15 +103,20 @@ const categories = computed<BlockCategory[]>(() => {
   }
 })
 
-// Get available block types based on mode
+// Get available block types based on mode or allowedTypes prop
 const availableBlockTypes = computed(() => {
+  // If allowedTypes is provided, use it directly
+  if (props.allowedTypes && props.allowedTypes.length > 0) {
+    return props.allowedTypes as SectionBlockType[]
+  }
+
   switch (props.mode) {
     case 'header-footer-stack':
       return ['button', 'text', 'image'] as SectionBlockType[]
     case 'content-only':
       return blocksByCategory.content
     case 'nested':
-      // All layout blocks (stack, grid, canvas) plus all content blocks
+      // All layout blocks (stack, grid, canvas, form) plus all content blocks
       return [...blocksByCategory.layout, ...blocksByCategory.content] as SectionBlockType[]
     default:
       return [...blocksByCategory.layout, ...blocksByCategory.content]
@@ -92,10 +126,17 @@ const availableBlockTypes = computed(() => {
 // Filtered blocks by search query
 const filteredBlocksByCategory = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
-  const result: Record<BlockCategory, SectionBlockType[]> = { layout: [], content: [] }
+  const result: Record<ExtendedBlockCategory, SectionBlockType[]> = { layout: [], content: [], form: [] }
 
   for (const category of categories.value) {
-    const categoryTypes = blocksByCategory[category] || []
+    let categoryTypes: SectionBlockType[]
+
+    if (category === 'form') {
+      // Form category contains form child blocks
+      categoryTypes = formChildBlockTypes as SectionBlockType[]
+    } else {
+      categoryTypes = blocksByCategory[category as BlockCategory] || []
+    }
 
     const types = categoryTypes.filter(type =>
       availableBlockTypes.value.includes(type) &&
@@ -106,9 +147,10 @@ const filteredBlocksByCategory = computed(() => {
   return result
 })
 
-// Filtered list presets (only show in 'all' mode)
+// Filtered list presets (show in 'all' and 'nested' modes)
 const filteredListPresets = computed(() => {
-  if (props.mode !== 'all') return []
+  // Only show list presets in 'all' and 'nested' modes (not content-only or header-footer-stack)
+  if (props.mode !== 'all' && props.mode !== 'nested') return []
   const query = searchQuery.value.toLowerCase().trim()
   if (!query) return listPresetConfigs
   return listPresetConfigs.filter(preset =>
@@ -126,6 +168,7 @@ function getBlockLabel(type: SectionBlockType): string {
 const hasSearchResults = computed(() => {
   return filteredBlocksByCategory.value.layout.length > 0 ||
          filteredBlocksByCategory.value.content.length > 0 ||
+         filteredBlocksByCategory.value.form.length > 0 ||
          filteredListPresets.value.length > 0
 })
 
@@ -199,13 +242,12 @@ function handleListPresetSelect(type: ListPresetType) {
 }
 
 function handleClickOutside(event: MouseEvent) {
+  if (!isOpen.value) return
   const target = event.target as Node
-  if (
-    dropdownRef.value &&
-    !dropdownRef.value.contains(target) &&
-    triggerRef.value &&
-    !triggerRef.value.contains(target)
-  ) {
+  // Close if clicking outside dropdown (and outside trigger if it exists)
+  const isOutsideDropdown = dropdownRef.value && !dropdownRef.value.contains(target)
+  const isOutsideTrigger = !triggerRef.value || !triggerRef.value.contains(target)
+  if (isOutsideDropdown && isOutsideTrigger) {
     close()
   }
 }
@@ -239,7 +281,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="!hideTrigger && !autoOpen" ref="triggerRef">
+  <!-- Button trigger variant (default) -->
+  <div v-if="!hideTrigger && !autoOpen && triggerVariant === 'button'" ref="triggerRef">
     <Button
       variant="dotted"
       size="sm"
@@ -250,6 +293,20 @@ onUnmounted(() => {
       <Icon :name="triggerIcon" class="text-xs" />
       <span class="text-[10px]">{{ triggerLabel }}</span>
     </Button>
+  </div>
+
+  <!-- Inline trigger variant (divider with + icon) -->
+  <div
+    v-if="!hideTrigger && !autoOpen && triggerVariant === 'inline'"
+    ref="triggerRef"
+    class="flex items-center gap-1.5 py-1 mt-0.5 group/inline-add cursor-pointer"
+    @click.stop="toggle"
+  >
+    <div class="flex-1 h-px bg-border/50 group-hover/inline-add:bg-border transition-colors" />
+    <div class="flex items-center justify-center w-4 h-4 rounded-full border border-border/50 bg-background group-hover/inline-add:border-primary/50 group-hover/inline-add:bg-primary/10 transition-colors">
+      <Icon name="plus" class="text-[8px] text-muted-foreground group-hover/inline-add:text-primary transition-colors" />
+    </div>
+    <div class="flex-1 h-px bg-border/50 group-hover/inline-add:bg-border transition-colors" />
   </div>
 
   <Teleport to="body">
@@ -295,7 +352,7 @@ onUnmounted(() => {
             <template v-for="category in categories" :key="category">
               <div v-if="filteredBlocksByCategory[category].length > 0" class="flex flex-col items-start mb-3.5">
                 <div class="text-[10px] text-muted-foreground font-mono border rounded-full uppercase tracking-wider mb-2 px-1.5">
-                  {{ categoryLabels[category] }}
+                  {{ extendedCategoryLabels[category] }}
                 </div>
                 <div class="grid grid-cols-2 gap-1 w-full">
                   <button

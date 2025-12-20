@@ -1,28 +1,29 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { Button, Icon, Tooltip } from '@/components/ui'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
 import ContextMenuItem from '@/components/ui/ContextMenuItem.vue'
 import ContextMenuDivider from '@/components/ui/ContextMenuDivider.vue'
 import BlockTreeLevel from './BlockTreeLevel.vue'
 import SidebarBlockPicker from './SidebarBlockPicker.vue'
-import { canHaveChildren } from '@/lib/editor-utils'
+import { canHaveChildren } from '@/lib/designer-utils'
 import {
   sectionBlockLabels,
   sectionBlockIcons,
   blocksByCategory,
   categoryLabels,
-} from '@/lib/editor-utils'
+  formChildBlockTypes,
+} from '@/lib/designer-utils'
 import { listPresetConfigs, type ListPresetType } from '@/lib/list-presets'
-import type { SectionBlockType, BlockCategory } from '@/types/editor'
+import type { SectionBlockType, BlockCategory } from '@/types/designer'
 
 // Composables
 import { useSidebarDragState } from './composables/useSidebarDragState'
 import { useBlockTree } from './composables/useBlockTree'
 import { useBlockContextMenu } from './composables/useBlockContextMenu'
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 // Use composables
 const {
@@ -64,14 +65,18 @@ const {
   openContextMenu,
   handleDuplicate,
   handleDelete,
+  handleCopy,
+  handlePaste,
   handleCopyStyle,
   handlePasteStyle,
   handleCreateComponent,
   handleWrapInStack,
   isStack,
   isButton,
+  isGrid,
   handleConvertToButton,
   handleConvertToStack,
+  handleConvertToGrid,
   renamingBlockId,
   handleRename,
   startRename,
@@ -132,8 +137,8 @@ const filteredBlocksByCategory = computed(() => {
 // Filtered components by search query
 const filteredComponents = computed(() => {
   const query = sectionSearchQuery.value.toLowerCase().trim()
-  if (!query) return editorStore.components
-  return editorStore.components.filter(c => c.name.toLowerCase().includes(query))
+  if (!query) return designerStore.components
+  return designerStore.components.filter(c => c.name.toLowerCase().includes(query))
 })
 
 // Filtered list presets by search query
@@ -165,7 +170,7 @@ watch(showSectionDropdown, async (isOpen) => {
 
 // Handlers
 function handleAddSection(type: SectionBlockType) {
-  const block = editorStore.addBlock(type)
+  const block = designerStore.addBlock(type)
   if (block) {
     expandBlock(block.id)
   }
@@ -173,7 +178,7 @@ function handleAddSection(type: SectionBlockType) {
 }
 
 function handleAddListPreset(type: ListPresetType) {
-  const block = editorStore.addListPreset(type)
+  const block = designerStore.addListPreset(type)
   if (block) {
     expandBlock(block.id)
   }
@@ -181,7 +186,7 @@ function handleAddListPreset(type: ListPresetType) {
 }
 
 function handleInsertComponent(componentId: string) {
-  const block = editorStore.insertComponent(componentId)
+  const block = designerStore.insertComponent(componentId)
   if (block) {
     expandBlock(block.id)
   }
@@ -224,29 +229,59 @@ function handleClickOutside(event: MouseEvent) {
 function handleSidebarClick(event: MouseEvent) {
   const target = event.target as HTMLElement
   if (!target.closest('.block-item')) {
-    editorStore.selectBlock(null)
+    designerStore.selectBlock(null)
   }
+}
+
+// Handle block selection with shift key for multi-select
+function handleBlockClick(blockId: string, event: MouseEvent) {
+  if (event.shiftKey) {
+    designerStore.toggleBlockSelection(blockId)
+  } else {
+    designerStore.selectBlock(blockId)
+  }
+}
+
+// Check if block is in multi-selection
+function isMultiSelected(blockId: string): boolean {
+  return designerStore.selectedBlockIds.length > 1 && designerStore.selectedBlockIds.includes(blockId)
+}
+
+// Check if we have multiple blocks selected
+const hasMultiSelection = computed(() => designerStore.selectedBlockIds.length > 1)
+
+// Handle multi-selection context menu actions
+function handleMultiDuplicate() {
+  designerStore.duplicateMultipleBlocks(designerStore.selectedBlockIds)
+}
+
+function handleMultiDelete() {
+  designerStore.deleteMultipleBlocks(designerStore.selectedBlockIds)
+}
+
+function handleMultiWrapInStack() {
+  designerStore.wrapBlocksInStack(designerStore.selectedBlockIds)
 }
 
 // Child block handlers (forward to BlockTreeLevel)
 function handleAddChildBlock(parentId: string, blockType: string) {
-  const block = editorStore.addBlock(blockType as SectionBlockType, undefined, parentId)
+  const block = designerStore.addBlock(blockType as SectionBlockType, undefined, parentId)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
 }
 
 function handleAddChildBlockAtPosition(parentId: string, blockType: string, position: number) {
-  const block = editorStore.addBlock(blockType as SectionBlockType, position, parentId)
+  const block = designerStore.addBlock(blockType as SectionBlockType, position, parentId)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
 }
 
 function handleAddChildListPreset(parentId: string, presetType: ListPresetType) {
-  const block = editorStore.addListPreset(presetType, undefined, parentId)
+  const block = designerStore.addListPreset(presetType, undefined, parentId)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
 }
 
@@ -259,9 +294,20 @@ function handleEmptyParentDropWithExpand(parentId: string, event?: DragEvent) {
   handleEmptyParentDrop(parentId, expandBlock, event)
 }
 
-// Wrapper for block row hover to pass expandBlock
+// Combined drop handler for root-level blocks
+function handleRootBlockDrop(blockIndex: number, block: { id: string; type: string }, event: DragEvent) {
+  // If dropping INTO a layout block (overEmptyParentId is set), use empty parent drop
+  if (dragState.overEmptyParentId === block.id && canHaveChildren(block.type)) {
+    handleEmptyParentDropWithExpand(block.id, event)
+  } else {
+    // Otherwise, handle as reordering
+    handleBlockDrop(blockIndex, event)
+  }
+}
+
+// Wrapper for block row hover to pass expandBlock and collapseBlock
 function handleBlockRowHoverWithExpand(blockId: string) {
-  handleBlockRowHover(blockId, expandBlock)
+  handleBlockRowHover(blockId, expandBlock, collapseBlock)
 }
 
 function getBlockPickerMode(block: { type: string }): 'content-only' | 'nested' {
@@ -273,18 +319,35 @@ function getBlockPickerLabel(block: { type: string }): string {
   if (block.type === 'canvas') return 'Add element'
   return 'Add block'
 }
+
+// Get allowed block types for form blocks (form inputs + layout blocks)
+function getFormAllowedTypes(): string[] {
+  return [...formChildBlockTypes, 'stack', 'grid', 'container', 'text', 'heading'] as string[]
+}
+
+// Check if block is a form or is inside a form
+function isInsideForm(blockId: string): boolean {
+  let current = designerStore.findBlockById(blockId)
+  while (current) {
+    if (current.type === 'form') return true
+    const parent = designerStore.findParentBlock(current.id)
+    if (!parent) break
+    current = parent
+  }
+  return false
+}
 </script>
 
 <template>
   <aside
     class="group/sidebar relative flex flex-col h-full bg-sidebar-background transition-[width] duration-300 ease-out"
-    :class="editorStore.isSidebarCollapsed ? 'w-16' : 'w-60'"
+    :class="designerStore.isSidebarCollapsed ? 'w-16' : 'w-60'"
   >
     <!-- Right border toggle handle -->
     <div
       class="absolute top-0 right-0 w-1 h-full cursor-ew-resize z-10 transition-colors hover:bg-primary/50 active:bg-primary"
-      :class="editorStore.isSidebarCollapsed ? 'bg-transparent group-hover/sidebar:bg-sidebar-border' : 'bg-sidebar-border group-hover/sidebar:bg-sidebar-foreground/20'"
-      @click="editorStore.toggleSidebar"
+      :class="designerStore.isSidebarCollapsed ? 'bg-transparent group-hover/sidebar:bg-sidebar-border' : 'bg-sidebar-border group-hover/sidebar:bg-sidebar-foreground/20'"
+      @click="designerStore.toggleSidebar"
     >
       <div class="absolute top-1/2 -translate-y-1/2 -right-1.5 w-4 h-8 flex items-center justify-center opacity-0 group-hover/sidebar:opacity-100 transition-opacity pointer-events-none">
         <div class="w-1 h-6 rounded-full bg-primary/50"></div>
@@ -292,14 +355,14 @@ function getBlockPickerLabel(block: { type: string }): string {
     </div>
 
     <!-- Collapsed state -->
-    <div v-if="editorStore.isSidebarCollapsed" class="flex flex-col items-center py-2 gap-1 pr-1">
-      <Tooltip v-for="block in editorStore.blocks" :key="block.id" :text="block.name" position="right">
+    <div v-if="designerStore.isSidebarCollapsed" class="flex flex-col items-center py-2 gap-1 pr-1">
+      <Tooltip v-for="block in designerStore.blocks" :key="block.id" :text="block.name" position="right">
         <Button
           variant="outline"
           size="icon"
           class="h-6 w-6"
-          :class="editorStore.selectedBlockId === block.id ? 'bg-accent text-accent-foreground' : ''"
-          @click="editorStore.selectBlock(block.id)"
+          :class="designerStore.selectedBlockId === block.id ? 'bg-accent text-accent-foreground' : ''"
+          @click="designerStore.selectBlock(block.id)"
         >
           <Icon :name="sectionBlockIcons[block.type]" :size="14" />
         </Button>
@@ -425,7 +488,7 @@ function getBlockPickerLabel(block: { type: string }): string {
       <div class="flex-1 overflow-y-auto p-2" @click="handleSidebarClick">
         <!-- Empty state -->
         <div
-          v-if="editorStore.blocks.length === 0"
+          v-if="designerStore.blocks.length === 0"
           class="flex flex-col items-center justify-center h-full text-center px-4"
         >
           <div class="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center mb-3">
@@ -437,10 +500,10 @@ function getBlockPickerLabel(block: { type: string }): string {
 
         <!-- Section block items using recursive component -->
         <div v-else class="space-y-0.5">
-          <template v-for="(block, blockIndex) in editorStore.blocks" :key="block.id">
+          <template v-for="(block, blockIndex) in designerStore.blocks" :key="block.id">
             <div
               class="block-item"
-              draggable="true"
+              :draggable="renamingBlockId !== block.id"
               @dragstart="handleBlockDragStart(blockIndex, $event)"
               @dragover="handleBlockDragOver(blockIndex, $event); if (canHaveChildren(block.type)) handleBlockRowHoverWithExpand(block.id)"
               @dragleave="handleBlockDragLeave(); handleBlockRowLeave()"
@@ -451,14 +514,17 @@ function getBlockPickerLabel(block: { type: string }): string {
               <div
                 class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group cursor-grab"
                 :class="[
-                  editorStore.selectedBlockId === block.id && !editorStore.selectedItemId
+                  designerStore.selectedBlockId === block.id && !designerStore.selectedItemId
                     ? 'bg-accent text-accent-foreground'
-                    : 'text-foreground hover:bg-accent/50',
+                    : isMultiSelected(block.id)
+                      ? 'bg-accent/70 text-accent-foreground ring-1 ring-primary/30'
+                      : 'text-foreground hover:bg-accent/50',
                   dragState.blockIndex === blockIndex ? 'opacity-50' : '',
                   dragState.overBlockIndex === blockIndex ? 'border-t-2 border-primary' : '',
                   dragState.hoverExpandBlockId === block.id ? 'ring-1 ring-primary/50 bg-primary/10' : '',
+                  dragState.overEmptyParentId === block.id ? 'ring-2 ring-primary bg-primary/20' : '',
                 ]"
-                @click="editorStore.selectBlock(block.id)"
+                @click="handleBlockClick(block.id, $event)"
                 @contextmenu="openContextMenu(block.id, 'section', $event)"
               >
                 <!-- Expand/Collapse toggle -->
@@ -477,10 +543,11 @@ function getBlockPickerLabel(block: { type: string }): string {
                   ref="renameInputRef"
                   type="text"
                   :value="block.name"
-                  class="flex-1 bg-transparent border border-primary rounded px-1 py-0 text-xs font-medium leading-4 outline-none"
+                  class="flex-1 min-w-0 bg-transparent border-b border-primary px-0 py-0 text-xs font-medium leading-4 outline-none"
                   @blur="finishRename(block.id, ($event.target as HTMLInputElement).value)"
                   @keydown="handleRenameKeydown($event, block.id, ($event.target as HTMLInputElement).value)"
                   @click.stop
+                  @mousedown.stop
                 />
                 <span
                   v-else
@@ -526,125 +593,146 @@ function getBlockPickerLabel(block: { type: string }): string {
                       @block-row-leave="handleBlockRowLeave"
                     />
                   </template>
-                  <!-- Drop zone at end of children list (when dragging) -->
-                  <div
-                    v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
-                    class="flex items-center justify-center px-2 py-1.5 rounded-lg border-2 border-dashed transition-colors mt-0.5"
-                    :class="dragState.overChildInfo?.parentId === block.id && dragState.overChildInfo?.childIndex === block.children.length ? 'border-primary bg-primary/10' : 'border-transparent hover:border-muted-foreground/30'"
-                    @dragover.prevent.stop="handleChildDragOver(block.id, block.children.length, $event)"
-                    @dragleave="handleChildDragLeave"
-                    @drop.stop="handleChildDropWithExpand(block.id, block.children.length, $event)"
-                  >
-                    <span class="text-[10px] text-muted-foreground">Drop here</span>
-                  </div>
-                </template>
-
-                <!-- Empty state: Show drop zone when dragging, otherwise show block picker -->
-                <template v-else>
-                  <!-- Drop zone for empty parent when dragging -->
-                  <div
-                    v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
-                    class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
-                    :class="dragState.overEmptyParentId === block.id ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
-                    @dragover.prevent.stop="handleEmptyParentDragOver(block.id, $event)"
-                    @dragleave="handleEmptyParentDragLeave"
-                    @drop.stop="handleEmptyParentDropWithExpand(block.id, $event)"
-                  >
-                    <span class="text-xs text-muted-foreground">Drop here</span>
-                  </div>
-                  <!-- Normal block picker when not dragging -->
+                  <!-- Inline add block button (only on selected block, when not dragging) -->
                   <SidebarBlockPicker
-                    v-else
+                    v-if="designerStore.selectedBlockId === block.id && !dragState.childInfo && dragState.blockIndex === null && !dragState.newBlockType"
+                    trigger-variant="inline"
                     :mode="getBlockPickerMode(block)"
-                    :trigger-label="getBlockPickerLabel(block)"
+                    :allowed-types="isInsideForm(block.id) ? getFormAllowedTypes() : undefined"
                     @select="handleAddChildBlock(block.id, $event)"
                     @select-list-preset="handleAddChildListPreset(block.id, $event)"
                   />
                 </template>
+
+                <!-- Empty state: Show block picker -->
+                <SidebarBlockPicker
+                  v-else
+                  :mode="getBlockPickerMode(block)"
+                  :trigger-label="getBlockPickerLabel(block)"
+                  :allowed-types="isInsideForm(block.id) ? getFormAllowedTypes() : undefined"
+                  @select="handleAddChildBlock(block.id, $event)"
+                  @select-list-preset="handleAddChildListPreset(block.id, $event)"
+                />
               </div>
             </div>
           </template>
-
-          <!-- Drop zone at end of blocks list (when dragging) -->
-          <div
-            v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
-            class="flex items-center justify-center px-2 py-2 rounded-lg border-2 border-dashed transition-colors mt-1"
-            :class="dragState.overBlockIndex === editorStore.blocks.length ? 'border-primary bg-primary/10' : 'border-transparent hover:border-muted-foreground/30'"
-            @dragover.prevent="handleBlockDragOver(editorStore.blocks.length, $event)"
-            @dragleave="handleBlockDragLeave"
-            @drop="handleBlockDrop(editorStore.blocks.length, $event)"
-          >
-            <span class="text-[10px] text-muted-foreground">Drop here</span>
-          </div>
         </div>
       </div>
     </template>
 
     <!-- Block Context Menu -->
     <ContextMenu ref="contextMenuRef">
-      <ContextMenuItem
-        icon="pencil"
-        @click="handleRename"
-      >
-        Rename
-      </ContextMenuItem>
-      <ContextMenuDivider />
-      <ContextMenuItem
-        icon="app-copy-style"
-        @click="handleCopyStyle"
-      >
-        Copy style
-      </ContextMenuItem>
-      <ContextMenuItem
-        icon="app-paste-style"
-        :disabled="!editorStore.hasClipboardStyles"
-        @click="handlePasteStyle"
-      >
-        Paste style
-      </ContextMenuItem>
-      <ContextMenuDivider />
-      <ContextMenuItem
-        icon="layers-1"
-        :disabled="!canDuplicate"
-        @click="handleDuplicate"
-      >
-        Duplicate
-      </ContextMenuItem>
-      <ContextMenuItem
-        icon="style-row"
-        @click="handleWrapInStack"
-      >
-        Wrap in stack
-      </ContextMenuItem>
-      <ContextMenuItem
-        v-if="isStack"
-        icon="link-1"
-        @click="handleConvertToButton"
-      >
-        Convert to link
-      </ContextMenuItem>
-      <ContextMenuItem
-        v-if="isButton"
-        icon="style-row"
-        @click="handleConvertToStack"
-      >
-        Convert to stack
-      </ContextMenuItem>
-      <ContextMenuItem
-        icon="package"
-        @click="handleCreateComponent"
-      >
-        Create component
-      </ContextMenuItem>
-      <ContextMenuDivider />
-      <ContextMenuItem
-        icon="trash-3"
-        destructive
-        :disabled="!canDelete"
-        @click="handleDelete"
-      >
-        Delete
-      </ContextMenuItem>
+      <!-- Multi-selection menu -->
+      <template v-if="hasMultiSelection">
+        <ContextMenuItem
+          icon="layers-1"
+          @click="handleMultiDuplicate"
+        >
+          Duplicate {{ designerStore.selectedBlockIds.length }} blocks
+        </ContextMenuItem>
+        <ContextMenuItem
+          icon="style-row"
+          @click="handleMultiWrapInStack"
+        >
+          Wrap in stack
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          icon="trash-3"
+          destructive
+          @click="handleMultiDelete"
+        >
+          Delete {{ designerStore.selectedBlockIds.length }} blocks
+        </ContextMenuItem>
+      </template>
+
+      <!-- Single selection menu -->
+      <template v-else>
+        <ContextMenuItem
+          icon="pencil"
+          @click="handleRename"
+        >
+          Rename
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          icon="files"
+          @click="handleCopy"
+        >
+          Copy
+        </ContextMenuItem>
+        <ContextMenuItem
+          icon="clipboard"
+          :disabled="!designerStore.hasClipboardBlock"
+          @click="handlePaste"
+        >
+          Paste
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          icon="app-copy-style"
+          @click="handleCopyStyle"
+        >
+          Copy style
+        </ContextMenuItem>
+        <ContextMenuItem
+          icon="app-paste-style"
+          :disabled="!designerStore.hasClipboardStyles"
+          @click="handlePasteStyle"
+        >
+          Paste style
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          icon="layers-1"
+          :disabled="!canDuplicate"
+          @click="handleDuplicate"
+        >
+          Duplicate
+        </ContextMenuItem>
+        <ContextMenuItem
+          icon="style-row"
+          @click="handleWrapInStack"
+        >
+          Wrap in stack
+        </ContextMenuItem>
+        <ContextMenuItem
+          v-if="isStack"
+          icon="link-1"
+          @click="handleConvertToButton"
+        >
+          Convert to link
+        </ContextMenuItem>
+        <ContextMenuItem
+          v-if="isStack"
+          icon="grid-4"
+          @click="handleConvertToGrid"
+        >
+          Convert to grid
+        </ContextMenuItem>
+        <ContextMenuItem
+          v-if="isButton || isGrid"
+          icon="style-row"
+          @click="handleConvertToStack"
+        >
+          Convert to stack
+        </ContextMenuItem>
+        <ContextMenuItem
+          icon="package"
+          @click="handleCreateComponent"
+        >
+          Create component
+        </ContextMenuItem>
+        <ContextMenuDivider />
+        <ContextMenuItem
+          icon="trash-3"
+          destructive
+          :disabled="!canDelete"
+          @click="handleDelete"
+        >
+          Delete
+        </ContextMenuItem>
+      </template>
     </ContextMenu>
   </aside>
 </template>

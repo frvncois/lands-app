@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { SectionBlockType, LayoutHtmlTag, ContainerHtmlTag } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { SectionBlockType, LayoutHtmlTag, ContainerHtmlTag } from '@/types/designer'
+import { useDesignerStore } from '@/stores/designer'
 
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
@@ -17,10 +17,10 @@ const emit = defineEmits<{
   openCreateStyleModal: []
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 // Get current block settings
-const block = computed(() => editorStore.findBlockById(props.blockId))
+const block = computed(() => designerStore.findBlockById(props.blockId))
 
 // HTML tag options for layout blocks (stack, grid)
 const layoutHtmlTagOptions = [
@@ -58,7 +58,7 @@ const currentHtmlTag = computed(() => {
 
 // Update HTML tag
 function updateHtmlTag(value: string) {
-  editorStore.updateBlockSettings(props.blockId, { htmlTag: value })
+  designerStore.updateBlockSettings(props.blockId, { htmlTag: value })
 }
 </script>
 

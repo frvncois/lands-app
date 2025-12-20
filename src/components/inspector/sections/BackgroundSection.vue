@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { GradientStyle, GradientStop } from '@/types/editor'
-import { generateId } from '@/lib/editor-utils'
+import type { GradientStyle, GradientStop } from '@/types/designer'
+import { generateId } from '@/lib/designer-utils'
 
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'

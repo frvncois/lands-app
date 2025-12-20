@@ -1,5 +1,5 @@
 import type { ComputedRef, Ref, InjectionKey } from 'vue'
-import type { ChildEffectOverride, BaseEffect, StaggerConfig } from '@/types/editor'
+import type { ChildEffectOverride, BaseEffect, StaggerConfig } from '@/types/designer'
 
 // Stagger context for child animations
 export interface StaggerContext {

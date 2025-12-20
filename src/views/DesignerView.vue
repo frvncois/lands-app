@@ -1,37 +1,38 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { useUserStore } from '@/stores/user'
-import EditorSidebar from '@/components/builder/EditorSidebar.vue'
-import EditorPreview from '@/components/builder/EditorPreview.vue'
-import EditorInspector from '@/components/builder/EditorInspector.vue'
+import { canHaveChildren } from '@/lib/designer-utils'
+import DesignerSidebar from '@/components/builder/DesignerSidebar.vue'
+import DesignerPreview from '@/components/builder/DesignerPreview.vue'
+import DesignerInspector from '@/components/builder/DesignerInspector.vue'
 
 const route = useRoute()
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const userStore = useUserStore()
 
-// Ref to EditorPreview for thumbnail generation
-const editorPreviewRef = ref<InstanceType<typeof EditorPreview> | null>(null)
+// Ref to DesignerPreview for thumbnail generation
+const editorPreviewRef = ref<InstanceType<typeof DesignerPreview> | null>(null)
 
 /**
  * Save project with thumbnail generation
  * Generates thumbnail in background, doesn't block the save
  */
 async function saveProjectWithThumbnail() {
-  if (!editorStore.hasUnsavedChanges || editorStore.isSaving) return
+  if (!designerStore.hasUnsavedChanges || designerStore.isSaving) return
 
   // Start the save immediately
-  editorStore.saveProject()
+  designerStore.saveProject()
 
   // Generate thumbnail in background (don't await - let it complete async)
   const previewElement = editorPreviewRef.value?.getPreviewElement()
-  if (previewElement && editorStore.currentProjectId && userStore.authUser?.id) {
+  if (previewElement && designerStore.currentProjectId && userStore.authUser?.id) {
     // Dynamic import to avoid loading screenshot library until needed
     import('@/lib/thumbnail').then(({ generateAndUploadThumbnail }) => {
       generateAndUploadThumbnail(
         previewElement,
-        editorStore.currentProjectId!,
+        designerStore.currentProjectId!,
         userStore.authUser!.id
       ).catch((err) => {
         console.warn('[Thumbnail] Background generation failed:', err)
@@ -62,21 +63,21 @@ function handleKeyDown(e: KeyboardEvent) {
   // CMD+Z - Undo (works everywhere)
   if (metaKey && !e.shiftKey && e.key === 'z') {
     e.preventDefault()
-    editorStore.undo()
+    designerStore.undo()
     return
   }
 
   // CMD+SHIFT+Z - Redo (works everywhere)
   if (metaKey && e.shiftKey && e.key === 'z') {
     e.preventDefault()
-    editorStore.redo()
+    designerStore.redo()
     return
   }
 
   // Don't handle other shortcuts when in input fields or contenteditable
   if (isInput || isEditable) return
 
-  const selectedBlock = editorStore.selectedBlock
+  const selectedBlock = designerStore.selectedBlock
 
   // Check if block is protected (none currently)
   const isBlockProtected = false
@@ -87,7 +88,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (selectedBlock && !isBlockProtected) {
       e.preventDefault()
-      editorStore.deleteBlock(selectedBlock.id)
+      designerStore.deleteBlock(selectedBlock.id)
     }
     return
   }
@@ -96,7 +97,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (metaKey && e.key === 'd') {
     if (selectedBlock && !isBlockProtected) {
       e.preventDefault()
-      editorStore.duplicateBlock(selectedBlock.id)
+      designerStore.duplicateBlock(selectedBlock.id)
     }
     return
   }
@@ -105,16 +106,26 @@ function handleKeyDown(e: KeyboardEvent) {
   if (metaKey && e.key === 'c') {
     if (selectedBlock && !isBlockProtected) {
       e.preventDefault()
-      editorStore.copyBlock(selectedBlock.id)
+      designerStore.copyBlock(selectedBlock.id)
     }
     return
   }
 
   // CMD+V - Paste block (blocked when inside protected areas)
+  // If selected block can have children (container, stack, grid) → paste inside it
+  // If selected block cannot have children (text, image, etc.) → paste as sibling
   if (metaKey && e.key === 'v') {
-    if (editorStore.hasClipboardBlock && !isBlockProtected) {
+    if (designerStore.hasClipboardBlock && !isBlockProtected) {
       e.preventDefault()
-      editorStore.pasteBlock()
+      let parentId: string | undefined
+      if (selectedBlock) {
+        // If selected block can have children, paste inside it
+        // Otherwise paste as sibling (in same parent)
+        parentId = canHaveChildren(selectedBlock.type)
+          ? selectedBlock.id
+          : designerStore.findParentBlock(selectedBlock.id)?.id
+      }
+      designerStore.pasteBlock(parentId)
     }
     return
   }
@@ -131,12 +142,12 @@ watch(
   async (projectId) => {
     if (projectId) {
       // Save current project before switching (if there's unsaved changes)
-      if (editorStore.currentProjectId && editorStore.hasUnsavedChanges) {
+      if (designerStore.currentProjectId && designerStore.hasUnsavedChanges) {
         // Save and generate thumbnail before switching projects
         await saveProjectWithThumbnail()
       }
       // Load the new project
-      await editorStore.loadProject(projectId)
+      await designerStore.loadProject(projectId)
     }
   },
   { immediate: true }
@@ -151,8 +162,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex h-full">
-    <EditorSidebar />
-    <EditorPreview ref="editorPreviewRef" />
-    <EditorInspector />
+    <DesignerSidebar />
+    <DesignerPreview ref="editorPreviewRef" />
+    <DesignerInspector />
   </div>
 </template>

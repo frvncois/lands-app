@@ -2,22 +2,22 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { useUserStore } from '@/stores/user'
 import { connectionState } from '@/lib/supabase'
 import { Button, Command, Dropdown, Icon, Avatar, Badge } from '@/components/ui'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectTranslate from '@/components/modal/ProjectTranslate.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
-import ProjectCreate from '@/components/modal/ProjectCreate.vue'
+import ProjectCreateWizard from '@/components/modal/ProjectCreateWizard/index.vue'
 import AIAssistant from '@/components/modal/AIAssistant.vue'
 import { getLanguageByCode } from '@/lib/languages'
-import type { LanguageCode } from '@/types/editor'
+import type { LanguageCode } from '@/types/designer'
 
 const route = useRoute()
 const router = useRouter()
 const projectsStore = useProjectsStore()
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const userStore = useUserStore()
 
 // Fetch projects on mount if not already loaded
@@ -100,21 +100,21 @@ function getProjectInitial(title: string) {
 
 // Translation helpers
 const currentLanguageDisplay = computed(() => {
-  if (!editorStore.currentLanguage) {
-    const defaultLang = getLanguageByCode(editorStore.translations.defaultLanguage)
+  if (!designerStore.currentLanguage) {
+    const defaultLang = getLanguageByCode(designerStore.translations.defaultLanguage)
     return defaultLang ? `Default (${defaultLang.name})` : 'Default'
   }
-  const lang = getLanguageByCode(editorStore.currentLanguage)
-  return lang ? lang.name : editorStore.currentLanguage
+  const lang = getLanguageByCode(designerStore.currentLanguage)
+  return lang ? lang.name : designerStore.currentLanguage
 })
 
 function handleLanguageChange(langCode: LanguageCode | null) {
-  editorStore.setCurrentLanguage(langCode)
+  designerStore.setCurrentLanguage(langCode)
 }
 
 // Check if we're in a project context
 const isProjectRoute = computed(() => !!route.params.projectId)
-const isEditorRoute = computed(() => route.name === 'editor')
+const isDesignerRoute = computed(() => route.name === 'designer')
 const projectId = computed(() => route.params.projectId as string | undefined)
 
 // Close AI modal when leaving project routes
@@ -134,7 +134,8 @@ const currentProject = computed(() => {
 const currentPageName = computed(() => {
   if (currentProject.value) {
     // On project routes, show project name + current section
-    const section = route.name === 'editor' ? 'Editor'
+    const section = route.name === 'designer' ? 'Designer'
+      : route.name === 'content' ? 'Content'
       : route.name === 'analytics' ? 'Analytics'
       : route.name === 'settings' ? 'Settings'
       : ''
@@ -175,7 +176,7 @@ const commandItems = computed(() => {
       label: project.title,
       icon: 'app-editor',
       group: 'Projects',
-      action: () => router.push({ name: 'editor', params: { projectId: project.id } }),
+      action: () => router.push({ name: 'designer', params: { projectId: project.id } }),
     })
   }
 
@@ -206,9 +207,9 @@ watch(() => connectionState.value, (newState) => {
 }, { immediate: true })
 
 // Save queue state from editor store
-const isOffline = computed(() => editorStore.isOffline)
-const isSyncing = computed(() => editorStore.isSyncingChanges)
-const hasPendingChanges = computed(() => editorStore.hasPendingChanges)
+const isOffline = computed(() => designerStore.isOffline)
+const isSyncing = computed(() => designerStore.isSyncingChanges)
+const hasPendingChanges = computed(() => designerStore.hasPendingChanges)
 
 // Save status dot class
 const saveStatusDotClass = computed(() => {
@@ -216,13 +217,13 @@ const saveStatusDotClass = computed(() => {
   if (isUnhealthy.value) return 'bg-red-500'
   if (showRecovering.value) return 'bg-amber-500 animate-pulse'
   if (isSyncing.value) return 'bg-blue-500 animate-pulse'
-  if (editorStore.isSaving) return 'bg-muted-foreground animate-pulse'
-  if (editorStore.hasUnsavedChanges || hasPendingChanges.value) return 'bg-amber-500'
+  if (designerStore.isSaving) return 'bg-muted-foreground animate-pulse'
+  if (designerStore.hasUnsavedChanges || hasPendingChanges.value) return 'bg-amber-500'
   return 'bg-green-500'
 })
 
 // Can save: not offline, not recovering, and not already saving
-const canSave = computed(() => !isOffline.value && !showRecovering.value && !editorStore.isSaving)
+const canSave = computed(() => !isOffline.value && !showRecovering.value && !designerStore.isSaving)
 
 async function handlePublish() {
   if (!projectId.value || isPublishing.value) return
@@ -231,8 +232,8 @@ async function handlePublish() {
 
   try {
     // First save any unsaved changes
-    if (editorStore.hasUnsavedChanges) {
-      const saved = await editorStore.saveProject()
+    if (designerStore.hasUnsavedChanges) {
+      const saved = await designerStore.saveProject()
       if (!saved) {
         isPublishing.value = false
         return
@@ -255,11 +256,11 @@ async function handlePublish() {
 }
 
 async function handleSave() {
-  if (!editorStore.hasUnsavedChanges && !editorStore.isSaving) {
+  if (!designerStore.hasUnsavedChanges && !designerStore.isSaving) {
     return
   }
 
-  await editorStore.saveProject()
+  await designerStore.saveProject()
 }
 
 function handleCommandSelect() {
@@ -272,7 +273,7 @@ async function signOut() {
 }
 
 function onProjectCreated(newProjectId: string) {
-  router.push({ name: 'editor', params: { projectId: newProjectId } })
+  router.push({ name: 'designer', params: { projectId: newProjectId } })
 }
 </script>
 
@@ -342,24 +343,24 @@ function onProjectCreated(newProjectId: string) {
     </div>
 
     <!-- Project Route: Center Controls -->
-    <div v-if="isProjectRoute && isEditorRoute" class="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
+    <div v-if="isProjectRoute && isDesignerRoute" class="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
       <!-- Undo/Redo Buttons -->
       <div class="flex items-center gap-1">
         <button
           class="p-1.5 rounded-md transition-colors"
-          :class="editorStore.canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
-          :disabled="!editorStore.canUndo"
+          :class="designerStore.canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
+          :disabled="!designerStore.canUndo"
           title="Undo"
-          @click="editorStore.undo()"
+          @click="designerStore.undo()"
         >
           <Icon name="app-undo" class="text-sm" />
         </button>
         <button
           class="p-1.5 rounded-md transition-colors"
-          :class="editorStore.canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
-          :disabled="!editorStore.canRedo"
+          :class="designerStore.canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
+          :disabled="!designerStore.canRedo"
           title="Redo"
-          @click="editorStore.redo()"
+          @click="designerStore.redo()"
         >
           <Icon name="app-redo" class="text-sm" />
         </button>
@@ -371,22 +372,22 @@ function onProjectCreated(newProjectId: string) {
       <div class="flex items-center gap-1 p-1 rounded-lg bg-secondary">
         <button
           class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-          :class="editorStore.viewport === 'desktop' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="editorStore.setViewport('desktop')"
+          :class="designerStore.viewport === 'desktop' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+          @click="designerStore.setViewport('desktop')"
         >
           Desktop
         </button>
         <button
           class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-          :class="editorStore.viewport === 'tablet' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="editorStore.setViewport('tablet')"
+          :class="designerStore.viewport === 'tablet' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+          @click="designerStore.setViewport('tablet')"
         >
           Tablet
         </button>
         <button
           class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-          :class="editorStore.viewport === 'mobile' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="editorStore.setViewport('mobile')"
+          :class="designerStore.viewport === 'mobile' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+          @click="designerStore.setViewport('mobile')"
         >
           Mobile
         </button>
@@ -409,20 +410,20 @@ function onProjectCreated(newProjectId: string) {
 
         <!-- Default language option -->
         <Dropdown.Item @click="handleLanguageChange(null)">
-          <span v-if="editorStore.currentLanguage === null" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
+          <span v-if="designerStore.currentLanguage === null" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
           <span v-else class="w-1.5 h-1.5 shrink-0"></span>
-          <span>Default ({{ getLanguageByCode(editorStore.translations.defaultLanguage)?.name }})</span>
+          <span>Default ({{ getLanguageByCode(designerStore.translations.defaultLanguage)?.name }})</span>
         </Dropdown.Item>
 
         <!-- Translation languages -->
-        <template v-if="editorStore.availableTranslations.length > 0">
+        <template v-if="designerStore.availableTranslations.length > 0">
           <Dropdown.Divider />
           <Dropdown.Item
-            v-for="langCode in editorStore.availableTranslations"
+            v-for="langCode in designerStore.availableTranslations"
             :key="langCode"
             @click="handleLanguageChange(langCode)"
           >
-            <span v-if="editorStore.currentLanguage === langCode" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
+            <span v-if="designerStore.currentLanguage === langCode" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
             <span v-else class="w-1.5 h-1.5 shrink-0"></span>
             <span>{{ getLanguageByCode(langCode)?.name }}</span>
           </Dropdown.Item>
@@ -463,11 +464,11 @@ function onProjectCreated(newProjectId: string) {
 
         <!-- Collaborator Changes Alert -->
         <Button
-          v-if="editorStore.hasCollaboratorChanges"
+          v-if="designerStore.hasCollaboratorChanges"
           variant="outline"
           size="sm"
           class="text-amber-600 border-amber-300 hover:bg-amber-50"
-          @click="editorStore.reloadProjectContent()"
+          @click="designerStore.reloadProjectContent()"
         >
           <Icon name="app-undo" class="text-xs" />
           Reload
@@ -477,15 +478,15 @@ function onProjectCreated(newProjectId: string) {
         <Button
           variant="outline"
           size="sm"
-          :disabled="!canSave || (!editorStore.hasUnsavedChanges && !hasPendingChanges)"
+          :disabled="!canSave || (!designerStore.hasUnsavedChanges && !hasPendingChanges)"
           @click="handleSave"
         >
           <span :class="['w-1.5 h-1.5 rounded-full shrink-0', saveStatusDotClass]"></span>
           <span v-if="isOffline">Offline</span>
           <span v-else-if="showRecovering">Reconnecting...</span>
           <span v-else-if="isUnhealthy">Connection Issue</span>
-          <span v-else-if="isSyncing || editorStore.isSaving">Syncing...</span>
-          <span v-else-if="editorStore.hasUnsavedChanges || hasPendingChanges">Save</span>
+          <span v-else-if="isSyncing || designerStore.isSaving">Syncing...</span>
+          <span v-else-if="designerStore.hasUnsavedChanges || hasPendingChanges">Save</span>
           <span v-else>Saved</span>
         </Button>
 
@@ -518,8 +519,8 @@ function onProjectCreated(newProjectId: string) {
     :custom-domain="currentProject.customDomain"
   />
 
-  <!-- New Project Modal -->
-  <ProjectCreate
+  <!-- New Project Wizard -->
+  <ProjectCreateWizard
     v-model:open="showNewProjectModal"
     @created="onProjectCreated"
   />
@@ -569,10 +570,17 @@ function onProjectCreated(newProjectId: string) {
           <div class="space-y-1">
             <button
               class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-foreground hover:bg-accent"
-              @click="closeDropdownAndNavigate('editor', { projectId: project.id })"
+              @click="closeDropdownAndNavigate('designer', { projectId: project.id })"
             >
-              <Icon name="app-editor" :size="14" />
-              <span>Editor</span>
+              <Icon name="app-designer" :size="14" />
+              <span>Designer</span>
+            </button>
+            <button
+              class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-foreground hover:bg-accent"
+              @click="closeDropdownAndNavigate('content', { projectId: project.id })"
+            >
+              <Icon name="lni-text-format" :size="14" />
+              <span>Content</span>
             </button>
             <button
               class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-foreground hover:bg-accent"

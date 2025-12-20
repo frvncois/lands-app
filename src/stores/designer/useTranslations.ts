@@ -4,7 +4,7 @@ import type {
   LanguageCode,
   ProjectTranslations,
   BlockTranslation,
-} from '@/types/editor'
+} from '@/types/designer'
 import { DEFAULT_LANGUAGE } from '@/lib/languages'
 
 export interface UseTranslationsOptions {

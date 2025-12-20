@@ -158,7 +158,7 @@ async function createProject() {
     if (project) {
       emit('created', project.id)
       close()
-      router.push({ name: 'editor', params: { projectId: project.id } })
+      router.push({ name: 'designer', params: { projectId: project.id } })
     }
   } finally {
     isCreating.value = false

@@ -5,7 +5,7 @@
  * for the advanced effects system.
  */
 
-import type { EffectEasing, EffectPreset, EffectState, EffectKeyframe, TransformOrigin, StaggerConfig } from '@/types/editor'
+import type { EffectEasing, EffectPreset, EffectState, EffectKeyframe, TransformOrigin, StaggerConfig } from '@/types/designer'
 
 // ============================================
 // EASING CUBIC-BEZIER VALUES

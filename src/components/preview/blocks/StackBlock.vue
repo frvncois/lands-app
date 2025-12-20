@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from 'vue'
-import type { SectionBlock, SectionBlockType, StackSettings, StackStyles } from '@/types/editor'
+import type { SectionBlock, SectionBlockType, StackSettings, StackStyles } from '@/types/designer'
+import type { ListPresetType } from '@/lib/list-presets'
 import { BackgroundMedia } from './index'
 import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 
 // Use async component to avoid circular dependency
 const PreviewSection = defineAsyncComponent(() => import('../PreviewSection.vue'))
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 /**
  * StackBlock - Renders a flex container with vertical/horizontal stacking
@@ -28,10 +29,33 @@ const emit = defineEmits<{
   (e: 'childDragOver', index: number, event: DragEvent): void
   (e: 'childDragLeave'): void
   (e: 'addBlock', type: SectionBlockType): void
+  (e: 'addListPreset', type: ListPresetType): void
 }>()
 
 const settings = computed(() => props.block.settings as StackSettings)
 const stackStyles = computed(() => props.block.styles as StackStyles)
+
+// Find content image source for content-aware background
+const contentImageSrc = computed(() => {
+  const sourceId = settings.value?.backgroundContentSource
+  if (!sourceId) return undefined
+
+  function findImageById(block: SectionBlock): string | undefined {
+    if (block.id === sourceId && block.type === 'image') {
+      const imgSettings = block.settings as { src?: string }
+      return imgSettings.src
+    }
+    if (block.children) {
+      for (const child of block.children) {
+        const found = findImageById(child)
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+
+  return findImageById(props.block)
+})
 
 const isHorizontal = computed(() => stackStyles.value?.flexDirection === 'row')
 
@@ -42,7 +66,7 @@ const isAccordionItem = computed(() => {
 
 // Get the preview state for accordion items (from editor store, not saved)
 const accordionPreviewState = computed(() => {
-  return editorStore.getAccordionPreviewState(props.block.id)
+  return designerStore.getAccordionPreviewState(props.block.id)
 })
 
 // Check if a child should be visible (handles accordion content visibility)
@@ -79,6 +103,28 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
 
   const styles: Record<string, string> = {}
 
+  // Check if child has an explicit width - if so, don't let wrapper grow
+  const childStylesObj = child.styles as Record<string, unknown> | undefined
+  const desktopStyles = childStylesObj?.desktop as Record<string, unknown> | undefined
+  const tabletStyles = childStylesObj?.tablet as Record<string, unknown> | undefined
+  const mobileStyles = childStylesObj?.mobile as Record<string, unknown> | undefined
+
+  let childWidth: string | undefined
+  if (designerStore.viewport === 'mobile') {
+    childWidth = (mobileStyles?.width ?? tabletStyles?.width ?? desktopStyles?.width) as string | undefined
+  } else if (designerStore.viewport === 'tablet') {
+    childWidth = (tabletStyles?.width ?? desktopStyles?.width) as string | undefined
+  } else {
+    childWidth = desktopStyles?.width as string | undefined
+  }
+
+  const hasExplicitWidth = childWidth && childWidth !== '100%' && childWidth !== 'auto'
+
+  // If child has explicit width, wrapper should not grow - let the inner element's width work
+  if (hasExplicitWidth) {
+    return { flex: '0 0 auto' }
+  }
+
   switch (flexMode) {
     case 'grow':
       styles.flexGrow = flexValue
@@ -103,8 +149,8 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
 <template>
   <component
     :is="htmlTag"
-    class="relative flex flex-1 min-h-0 transition-colors"
-    :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
+    class="relative flex min-h-0"
+    :class="{ 'flex-1': !styles.height, 'overflow-hidden': styles.height }"
     :style="{
       ...styles,
       flexDirection: stackStyles?.flexDirection || styles.flexDirection || 'column',
@@ -128,6 +174,10 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
       :image-saturation="settings?.backgroundImageSaturation"
       :image-overlay="settings?.backgroundImageOverlay"
       :image-overlay-opacity="settings?.backgroundImageOverlayOpacity"
+      :content-image-src="contentImageSrc"
+      :content-blur="settings?.backgroundContentBlur"
+      :content-saturation="settings?.backgroundContentSaturation"
+      :content-scale="settings?.backgroundContentScale"
     />
 
     <!-- Children -->
@@ -135,30 +185,19 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
       <template v-for="(child, childIndex) in block.children" :key="child.id">
         <div
           v-if="isChildVisible(child, childIndex)"
-          class="z-10 flex flex-col min-h-0"
-          :class="{ 'relative': !isChildAbsoluteOrFixed(child) }"
+          class="z-10 flex flex-col min-h-0 min-w-0"
+          :class="{
+            'relative': !isChildAbsoluteOrFixed(child),
+            'h-full': (child.styles as Record<string, unknown>)?.height === '100%' || (child.styles as Record<string, unknown>)?.desktop?.height === '100%'
+          }"
           :style="getChildFlexStyles(child)"
           @dragover="emit('childDragOver', childIndex, $event)"
           @dragleave="emit('childDragLeave')"
         >
-          <!-- Drop indicator -->
-          <div
-            v-if="childDropIndex === childIndex"
-            :class="isHorizontal
-              ? 'absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
-              : 'absolute left-0 right-0 -top-2 h-1 bg-primary rounded-full z-10'"
-          />
           <PreviewSection
             :block="child"
             :index="childIndex"
             :total="block.children.length"
-          />
-          <!-- Drop indicator after last child -->
-          <div
-            v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
-            :class="isHorizontal
-              ? 'absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10'
-              : 'absolute left-0 right-0 -bottom-2 h-1 bg-primary rounded-full z-10'"
           />
         </div>
       </template>
@@ -173,6 +212,7 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
         mode="nested"
         trigger-label="Add content"
         @select="(type: string) => emit('addBlock', type as SectionBlockType)"
+        @select-list-preset="(type: ListPresetType) => emit('addListPreset', type)"
       />
     </div>
   </component>

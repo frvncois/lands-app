@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { Tooltip, Icon } from '@/components/ui'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 
 const props = defineProps<{
   targetElement: HTMLElement | null
   blockId: string
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 const emit = defineEmits<{
   (e: 'format', command: string, value?: string): void
@@ -116,7 +116,7 @@ function insertSpan() {
 
   // Create span in store with default name based on text content
   const spanName = selectedText.length > 20 ? selectedText.substring(0, 20) + '...' : selectedText
-  editorStore.createSpan(props.blockId, spanId, spanName || 'Span')
+  designerStore.createSpan(props.blockId, spanId, spanName || 'Span')
 
   emit('format', 'span', spanId)
   isVisible.value = false

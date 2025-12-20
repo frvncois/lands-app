@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 
 const props = defineProps<{
   modelValue: string | undefined
@@ -14,7 +14,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 const isOpen = ref(false)
 const triggerRef = ref<HTMLElement | null>(null)
@@ -146,7 +146,7 @@ onUnmounted(() => {
 })
 
 function loadRecentColors() {
-  const projectId = editorStore.currentProjectId
+  const projectId = designerStore.currentProjectId
   if (!projectId) return
 
   const stored = localStorage.getItem(`recentColors_${projectId}`)
@@ -160,7 +160,7 @@ function loadRecentColors() {
 }
 
 function saveRecentColor(color: string) {
-  const projectId = editorStore.currentProjectId
+  const projectId = designerStore.currentProjectId
   if (!projectId || !color) return
 
   const normalizedColor = color.toUpperCase()

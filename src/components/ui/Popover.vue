@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useDesignerStore } from '@/stores/designer'
 
 interface Props {
   align?: 'left' | 'right' | 'center'
@@ -163,6 +164,14 @@ function handleScrollResize() {
 function handlePopoverClick(event: MouseEvent) {
   event.stopPropagation()
 }
+
+// Close popover when selected block changes
+const designerStore = useDesignerStore()
+watch(() => designerStore.selectedBlockId, () => {
+  if (isOpen.value) {
+    close()
+  }
+})
 
 onMounted(() => {
   // Use bubble phase (false) so @click.stop works on child elements

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Modal, Button, Select, Icon } from '@/components/ui'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { languages, getLanguageByCode } from '@/lib/languages'
-import type { LanguageCode } from '@/types/editor'
+import type { LanguageCode } from '@/types/designer'
 
 interface Props {
   open: boolean
@@ -15,15 +15,15 @@ const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 const selectedLanguage = ref<LanguageCode | ''>('')
-const selectedDefaultLanguage = ref<LanguageCode>(editorStore.translations.defaultLanguage)
+const selectedDefaultLanguage = ref<LanguageCode>(designerStore.translations.defaultLanguage)
 
 // Languages available to add (not already added)
 const availableLanguages = computed(() => {
-  const existing = new Set(editorStore.availableTranslations)
-  existing.add(editorStore.translations.defaultLanguage) // Can't add default as translation
+  const existing = new Set(designerStore.availableTranslations)
+  existing.add(designerStore.translations.defaultLanguage) // Can't add default as translation
   return languages.filter(l => !existing.has(l.code))
 })
 
@@ -46,17 +46,17 @@ const languageOptions = computed(() => {
 function handleAddTranslation() {
   if (!selectedLanguage.value) return
 
-  editorStore.addTranslation(selectedLanguage.value)
+  designerStore.addTranslation(selectedLanguage.value)
   selectedLanguage.value = ''
 }
 
 function handleRemoveTranslation(langCode: LanguageCode) {
-  editorStore.removeTranslation(langCode)
+  designerStore.removeTranslation(langCode)
 }
 
 function handleDefaultLanguageChange(value: string | number) {
   selectedDefaultLanguage.value = value as LanguageCode
-  editorStore.setDefaultLanguage(value as LanguageCode)
+  designerStore.setDefaultLanguage(value as LanguageCode)
 }
 
 function close() {
@@ -87,11 +87,11 @@ function close() {
       </div>
 
       <!-- Existing Translations -->
-      <div v-if="editorStore.availableTranslations.length > 0" class="space-y-2">
+      <div v-if="designerStore.availableTranslations.length > 0" class="space-y-2">
         <label class="text-sm font-medium text-foreground">Translations</label>
         <div class="space-y-2">
           <div
-            v-for="langCode in editorStore.availableTranslations"
+            v-for="langCode in designerStore.availableTranslations"
             :key="langCode"
             class="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
           >

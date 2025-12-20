@@ -4,7 +4,7 @@
  * Used by container, grid, stack, canvas blocks
  */
 const props = defineProps<{
-  type?: 'color' | 'image' | 'video' | 'gradient'
+  type?: 'color' | 'image' | 'video' | 'gradient' | 'content'
   // Image/video source
   image?: string
   video?: string
@@ -15,6 +15,11 @@ const props = defineProps<{
   // Overlay
   imageOverlay?: string
   imageOverlayOpacity?: number
+  // Content-aware background
+  contentImageSrc?: string
+  contentBlur?: number
+  contentSaturation?: number
+  contentScale?: number
 }>()
 </script>
 
@@ -53,5 +58,27 @@ const props = defineProps<{
     loop
     muted
     playsinline
+    draggable="false"
   />
+
+  <!-- Content-aware Background (Spotify-style blur) -->
+  <div
+    v-else-if="type === 'content' && props.contentImageSrc"
+    class="absolute inset-0 overflow-hidden pointer-events-none"
+  >
+    <img
+      :src="props.contentImageSrc"
+      class="absolute inset-0 w-full h-full object-cover"
+      :style="{
+        filter: `blur(${props.contentBlur ?? 40}px) saturate(${(props.contentSaturation ?? 150) / 100})`,
+        transform: `scale(${(props.contentScale ?? 120) / 100})`,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+      }"
+      draggable="false"
+    />
+  </div>
 </template>

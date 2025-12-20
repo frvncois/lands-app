@@ -1,7 +1,7 @@
 import { computed, type Ref, type ComputedRef } from 'vue'
-import type { SectionBlock, BaseBlockStyles, MaskShape, AnimationSettings, ViewportSize, BlockEffects, EffectState, EffectPreset } from '@/types/editor'
+import type { SectionBlock, BaseBlockStyles, MaskShape, AnimationSettings, ViewportSize, BlockEffects, EffectState, EffectPreset, GradientStop } from '@/types/designer'
 import { getResponsiveStyles } from '@/lib/style-utils'
-import { maskShapeClipPaths } from '@/lib/editor-utils'
+import { maskShapeClipPaths } from '@/lib/designer-utils'
 import {
   animationInitialStyleObjects,
   animationFinalStyleObjects,
@@ -14,6 +14,67 @@ import {
   getTransformOriginCSS,
   getPresetConfig,
 } from '@/lib/effect-utils'
+
+/**
+ * Convert vh units to use --designer-vh CSS variable for accurate preview height
+ * This accounts for the header height in the editor
+ */
+function convertVhToEditorVh(value: string): string {
+  if (!value || typeof value !== 'string') return value
+  // Match patterns like "100vh", "50vh", "calc(100vh - 20px)"
+  return value.replace(/(\d+(?:\.\d+)?)\s*vh/gi, (_, num) => {
+    return `calc(${num} * var(--designer-vh, 1vh))`
+  })
+}
+
+/**
+ * Apply opacity to a color value (hex, rgb, rgba, hsl, named colors)
+ */
+function applyColorOpacity(color: string, opacity: number): string {
+  if (opacity >= 100) return color
+  const alpha = opacity / 100
+
+  // Handle hex colors
+  if (color.startsWith('#')) {
+    const hex = color.slice(1)
+    let r: number, g: number, b: number
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16)
+      g = parseInt(hex[1] + hex[1], 16)
+      b = parseInt(hex[2] + hex[2], 16)
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16)
+      g = parseInt(hex.slice(2, 4), 16)
+      b = parseInt(hex.slice(4, 6), 16)
+    } else {
+      return color
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+
+  // Handle rgb/rgba
+  const rgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+  if (rgbMatch) {
+    const r = rgbMatch[1]
+    const g = rgbMatch[2]
+    const b = rgbMatch[3]
+    const existingAlpha = rgbMatch[4] ? parseFloat(rgbMatch[4]) : 1
+    return `rgba(${r}, ${g}, ${b}, ${existingAlpha * alpha})`
+  }
+
+  // Handle hsl/hsla
+  const hslMatch = color.match(/hsla?\((\d+),\s*([\d.]+)%,\s*([\d.]+)%(?:,\s*([\d.]+))?\)/)
+  if (hslMatch) {
+    const h = hslMatch[1]
+    const s = hslMatch[2]
+    const l = hslMatch[3]
+    const existingAlpha = hslMatch[4] ? parseFloat(hslMatch[4]) : 1
+    return `hsla(${h}, ${s}%, ${l}%, ${existingAlpha * alpha})`
+  }
+
+  // For named colors or unknown formats, wrap in rgba using CSS color-mix
+  return `color-mix(in srgb, ${color} ${opacity}%, transparent)`
+}
 
 /**
  * Get the "from" state for an effect, applying preset if set
@@ -76,10 +137,13 @@ export function pxToEm(value: string | number): string {
 function getHeightStyle(height?: string): string | undefined {
   if (!height || height === 'auto' || height === '0') return undefined
   // Handle legacy string values
-  if (height === 'full') return '100vh'
-  if (height === 'half') return '50vh'
-  // If value already has a unit (px, %, vh, vw, em, rem, etc.), return as-is
-  if (/[a-z%]/i.test(height)) return height
+  if (height === 'full') return 'calc(100 * var(--designer-vh, 1vh))'
+  if (height === 'half') return 'calc(50 * var(--designer-vh, 1vh))'
+  // If value already has a unit (px, %, vh, vw, em, rem, etc.)
+  if (/[a-z%]/i.test(height)) {
+    // Convert vh units to use --designer-vh for correct preview height
+    return convertVhToEditorVh(height)
+  }
   // Handle plain numeric values (legacy) - assume px
   const num = parseFloat(height)
   if (!isNaN(num) && num > 0) return `${num}px`
@@ -309,7 +373,9 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
 
     // Background (responsive)
     if (styles.backgroundColor) {
-      css.backgroundColor = styles.backgroundColor as string
+      const bgColor = styles.backgroundColor as string
+      const bgOpacity = (styles.backgroundColorOpacity as number) ?? 100
+      css.backgroundColor = applyColorOpacity(bgColor, bgOpacity)
     }
     if (styles.backgroundImage) {
       css.backgroundImage = `url(${styles.backgroundImage})`
@@ -318,12 +384,17 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
     }
     // Background gradient
     if (styles.backgroundGradient) {
-      const gradient = styles.backgroundGradient as { type: 'linear' | 'radial'; angle?: number; stops: { color: string; position: number }[] }
+      const gradient = styles.backgroundGradient as { type: 'linear' | 'radial'; angle?: number; stops: GradientStop[]; opacity?: number }
       if (gradient.stops && gradient.stops.length >= 2) {
+        const globalOpacity = gradient.opacity ?? 100
         const stops = gradient.stops
           .slice()
           .sort((a, b) => a.position - b.position)
-          .map(s => `${s.color} ${s.position}%`)
+          .map(s => {
+            const stopOpacity = (s.opacity ?? 100) * globalOpacity / 100
+            const colorWithOpacity = applyColorOpacity(s.color, stopOpacity)
+            return `${colorWithOpacity} ${s.position}%`
+          })
           .join(', ')
         if (gradient.type === 'radial') {
           css.background = `radial-gradient(circle, ${stops})`
@@ -396,9 +467,20 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
     if (allStyles.lineHeight) css.lineHeight = allStyles.lineHeight as string
     if (allStyles.letterSpacing) css.letterSpacing = pxToEm(allStyles.letterSpacing as string)
 
-    // Border radius (direct, non-responsive for now) - use em
-    if (allStyles.borderRadius) {
-      css.borderRadius = pxToEm(allStyles.borderRadius as string)
+    // Border radius (direct) - supports both string and object with individual corners
+    const borderRadiusValue = styles.borderRadius || allStyles.borderRadius
+    if (borderRadiusValue) {
+      if (typeof borderRadiusValue === 'string') {
+        css.borderRadius = pxToEm(borderRadiusValue)
+      } else {
+        // Object with individual corners
+        const br = borderRadiusValue as { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string }
+        const tl = br.topLeft ? pxToEm(br.topLeft) : '0'
+        const tr = br.topRight ? pxToEm(br.topRight) : '0'
+        const brr = br.bottomRight ? pxToEm(br.bottomRight) : '0'
+        const bl = br.bottomLeft ? pxToEm(br.bottomLeft) : '0'
+        css.borderRadius = `${tl} ${tr} ${brr} ${bl}`
+      }
     }
 
     // Flexbox properties for layout blocks (non-responsive for now)
@@ -429,18 +511,59 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
       css.width = getHeightStyle(styles.width as string) || 'auto'
     }
     if (styles.height) {
-      css.minHeight = getHeightStyle(styles.height as string) || 'auto'
+      const h = getHeightStyle(styles.height as string)
+      if (h) {
+        css.height = h
+        css.minHeight = h
+      }
+    }
+    // Size constraints (responsive) - min/max width and height
+    if (styles.minWidth) {
+      const minW = getHeightStyle(styles.minWidth as string)
+      if (minW) css.minWidth = minW
+    }
+    if (styles.maxWidth) {
+      const maxW = getHeightStyle(styles.maxWidth as string)
+      if (maxW) css.maxWidth = maxW
+    }
+    if (styles.minHeight) {
+      const minH = getHeightStyle(styles.minHeight as string)
+      if (minH) css.minHeight = minH
+    }
+    if (styles.maxHeight) {
+      const maxH = getHeightStyle(styles.maxHeight as string)
+      if (maxH) css.maxHeight = maxH
     }
 
     // Overflow (responsive) - uses clip-path to also clip position:fixed children
     // clip-path: inset(0 round <radius>) respects border-radius
     if (styles.overflow === 'hidden') {
-      // Get border-radius from styles (can be in border.radius or direct borderRadius)
+      // Get border-radius from styles (can be in border.radius, styles.borderRadius, or allStyles.borderRadius)
       const borderObj = styles.border as { radius?: string } | undefined
-      const radius = borderObj?.radius || (allStyles.borderRadius as string) || '0'
+      const radiusSource = styles.borderRadius || borderObj?.radius || allStyles.borderRadius
 
-      if (radius && radius !== '0') {
-        css.clipPath = `inset(0 round ${pxToEm(radius)})`
+      if (radiusSource) {
+        if (typeof radiusSource === 'string') {
+          if (radiusSource !== '0' && radiusSource !== '0px') {
+            css.clipPath = `inset(0 round ${pxToEm(radiusSource)})`
+          } else {
+            css.clipPath = 'inset(0)'
+          }
+        } else {
+          // Object with individual corners
+          const br = radiusSource as { topLeft?: string; topRight?: string; bottomRight?: string; bottomLeft?: string }
+          const tl = br.topLeft ? pxToEm(br.topLeft) : '0'
+          const tr = br.topRight ? pxToEm(br.topRight) : '0'
+          const brr = br.bottomRight ? pxToEm(br.bottomRight) : '0'
+          const bl = br.bottomLeft ? pxToEm(br.bottomLeft) : '0'
+          const hasRadius = (br.topLeft && br.topLeft !== '0') || (br.topRight && br.topRight !== '0') ||
+            (br.bottomRight && br.bottomRight !== '0') || (br.bottomLeft && br.bottomLeft !== '0')
+          if (hasRadius) {
+            css.clipPath = `inset(0 round ${tl} ${tr} ${brr} ${bl})`
+          } else {
+            css.clipPath = 'inset(0)'
+          }
+        }
       } else {
         css.clipPath = 'inset(0)'
       }
@@ -581,21 +704,25 @@ export function useBlockStyles(block: Ref<SectionBlock>, options: UseBlockStyles
       css.overflow = 'hidden'
     }
 
-    // Width - supports percentage or px (converted to em)
+    // Width - supports percentage, 'full', or px (converted to em)
     if (styles?.width) {
       const width = styles.width as string
-      if (width.endsWith('%')) {
+      if (width === 'full') {
+        css.width = '100%'
+      } else if (width.endsWith('%')) {
         css.width = width
       } else {
         css.width = pxToEm(width)
       }
     }
 
-    // Height - supports percentage or px (converted to em)
+    // Height - supports percentage, vh, or px (converted to em)
     if (styles?.height) {
       const height = styles.height as string
       if (height.endsWith('%')) {
         css.height = height
+      } else if (height.includes('vh')) {
+        css.height = convertVhToEditorVh(height)
       } else {
         css.height = pxToEm(height)
       }

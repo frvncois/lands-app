@@ -1,4 +1,4 @@
-import type { SectionBlock, PageSettings, ProjectTranslations } from '@/types/editor'
+import type { SectionBlock, PageSettings, ProjectTranslations } from '@/types/designer'
 
 // Project Plan Types
 export type ProjectPlan = 'free' | 'pro'

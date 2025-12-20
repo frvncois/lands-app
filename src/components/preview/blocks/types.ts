@@ -1,4 +1,4 @@
-import type { SectionBlock } from '@/types/editor'
+import type { SectionBlock } from '@/types/designer'
 
 /**
  * Standard props interface for all block preview components

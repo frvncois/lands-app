@@ -1,5 +1,5 @@
 import { shallowRef, computed, type Ref } from 'vue'
-import type { SectionBlock, PageSettings } from '@/types/editor'
+import type { SectionBlock, PageSettings } from '@/types/designer'
 import { deepClone } from './helpers'
 
 // History configuration

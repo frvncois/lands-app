@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
-import type { SectionBlock, VideoSettings, ViewportSize } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { SectionBlock, VideoSettings, ViewportSize } from '@/types/designer'
+import { useDesignerStore } from '@/stores/designer'
 import { useBlockStyles } from '../composables/useBlockStyles'
 import Icon from '@/components/ui/Icon.vue'
 
@@ -14,9 +14,9 @@ const props = defineProps<{
   styles: Record<string, string>
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const blockRef = toRef(props, 'block')
-const viewportRef = computed(() => editorStore.viewport as ViewportSize)
+const viewportRef = computed(() => designerStore.viewport as ViewportSize)
 
 // Use composable for video-specific styles
 const { getVideoStyles } = useBlockStyles(blockRef, { viewport: viewportRef })
@@ -34,6 +34,7 @@ const settings = computed(() => props.block.settings as VideoSettings)
       :muted="settings.muted"
       :controls="settings.controls"
       class="max-w-full"
+      draggable="false"
       :style="getVideoStyles()"
     />
     <div

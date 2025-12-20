@@ -88,7 +88,7 @@ async function acceptInvite() {
     }
 
     // Redirect to the project
-    router.push({ name: 'editor', params: { projectId: data.project_id } })
+    router.push({ name: 'designer', params: { projectId: data.project_id } })
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to accept invite'
   } finally {

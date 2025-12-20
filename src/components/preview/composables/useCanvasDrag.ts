@@ -1,13 +1,13 @@
 import { ref, onUnmounted } from 'vue'
-import type { CanvasSettings, CanvasChildPosition } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { CanvasSettings, CanvasChildPosition } from '@/types/designer'
+import { useDesignerStore } from '@/stores/designer'
 
 /**
  * Composable for canvas child drag positioning
  * Allows dragging children within a canvas block to position them
  */
 export function useCanvasDrag() {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   // Drag state
   const isDragging = ref(false)
@@ -23,7 +23,7 @@ export function useCanvasDrag() {
    */
   function getResponsiveChildPosition(settings: CanvasSettings, childId: string): CanvasChildPosition {
     const positions = settings.childPositions
-    const viewport = editorStore.viewport
+    const viewport = designerStore.viewport
     const defaultPos: CanvasChildPosition = { x: 10, y: 10 }
 
     // Cascade: check current viewport, then fall back to larger viewports
@@ -50,7 +50,7 @@ export function useCanvasDrag() {
     dragStartY.value = event.clientY
 
     // Get current position from parent's settings (viewport-aware)
-    const parent = editorStore.findParentBlock(blockId)
+    const parent = designerStore.findParentBlock(blockId)
     if (parent && parent.type === 'canvas') {
       const parentSettings = parent.settings as CanvasSettings
       const currentPos = getResponsiveChildPosition(parentSettings, blockId)
@@ -68,7 +68,7 @@ export function useCanvasDrag() {
   function onDrag(event: MouseEvent) {
     if (!isDragging.value || !currentBlockId.value || !currentParentId.value) return
 
-    const parent = editorStore.findParentBlock(currentBlockId.value)
+    const parent = designerStore.findParentBlock(currentBlockId.value)
     if (!parent || parent.type !== 'canvas') return
 
     // Find the canvas container element to get its dimensions
@@ -89,12 +89,12 @@ export function useCanvasDrag() {
 
     // Update the parent's childPositions for current viewport
     const parentSettings = parent.settings as CanvasSettings
-    const viewport = editorStore.viewport
+    const viewport = designerStore.viewport
     const currentPositions = parentSettings.childPositions || { desktop: {} }
     const viewportPositions = currentPositions[viewport] || {}
     const currentPos = viewportPositions[currentBlockId.value] || getResponsiveChildPosition(parentSettings, currentBlockId.value)
 
-    editorStore.updateBlockSettings(parent.id, {
+    designerStore.updateBlockSettings(parent.id, {
       childPositions: {
         ...currentPositions,
         [viewport]: {

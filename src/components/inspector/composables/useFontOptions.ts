@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 
 // Base fonts with their available weights
 const BASE_FONTS: Record<string, string[]> = {
@@ -55,10 +55,10 @@ function getWeightOptionsFromVariants(variants: string[]): { value: string; labe
 }
 
 export function useFontOptions(options?: { includeInherit?: boolean }) {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   const fontFamilyOptions = computed(() => {
-    const pageSettings = editorStore.pageSettings
+    const pageSettings = designerStore.pageSettings
     const customFonts = pageSettings.customFonts || []
     const googleFonts = pageSettings.googleFonts || []
 
@@ -91,13 +91,13 @@ export function useFontOptions(options?: { includeInherit?: boolean }) {
   })
 
   const defaultFontFamily = computed(() => {
-    return editorStore.pageSettings.fontFamily || 'Inter'
+    return designerStore.pageSettings.fontFamily || 'Inter'
   })
 
   // Get weight options for a specific font
   function getFontWeightOptions(fontFamily: string | undefined): { value: string; label: string }[] {
     const font = fontFamily || defaultFontFamily.value
-    const pageSettings = editorStore.pageSettings
+    const pageSettings = designerStore.pageSettings
 
     // Check base fonts
     const baseVariants = BASE_FONTS[font]

@@ -31,7 +31,7 @@ export interface SaveJob {
   timestamp: number
 }
 
-export interface EditorState {
+export interface DesignerState {
   blocks: unknown[]
   pageSettings: Record<string, unknown>
   translations?: Record<string, unknown>
@@ -98,8 +98,8 @@ if (typeof window !== 'undefined') {
  */
 export function enqueueSave(
   projectId: string,
-  prevState: EditorState | null,
-  nextState: EditorState
+  prevState: DesignerState | null,
+  nextState: DesignerState
 ): void {
   // Compute diff
   const diff = diffObjects(prevState, nextState)
@@ -140,8 +140,8 @@ export function enqueueSave(
  * Get the last saved snapshot for a project
  * Used to initialize diff computation
  */
-export function getLastSnapshot(projectId: string): EditorState | null {
-  return loadSnapshot(projectId) as EditorState | null
+export function getLastSnapshot(projectId: string): DesignerState | null {
+  return loadSnapshot(projectId) as DesignerState | null
 }
 
 /**

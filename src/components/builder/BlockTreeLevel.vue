@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { Icon, Tooltip } from '@/components/ui'
 import SidebarBlockPicker from './SidebarBlockPicker.vue'
-import { sectionBlockIcons, canHaveChildren } from '@/lib/editor-utils'
-import type { SectionBlock, SectionBlockType } from '@/types/editor'
+import { sectionBlockIcons, canHaveChildren, formChildBlockTypes } from '@/lib/designer-utils'
+import type { SectionBlock, SectionBlockType } from '@/types/designer'
 import type { DragState } from './composables/useSidebarDragState'
 
 interface Props {
@@ -39,7 +39,7 @@ const emit = defineEmits<{
   blockRowLeave: []
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const renameInputRef = ref<HTMLInputElement | null>(null)
 
 // Watch for rename mode to focus input
@@ -52,7 +52,7 @@ watch(() => props.renamingBlockId, async (newId) => {
 })
 
 const isExpanded = computed(() => props.expandedBlocks.has(props.block.id))
-const isSelected = computed(() => editorStore.selectedBlockId === props.block.id)
+const isSelected = computed(() => designerStore.selectedBlockId === props.block.id)
 const isDragging = computed(() => props.dragState.childInfo?.blockId === props.block.id)
 const isDropTarget = computed(() => {
   return props.parentId &&
@@ -62,6 +62,11 @@ const isDropTarget = computed(() => {
 
 const isHoverExpanding = computed(() => {
   return props.dragState.hoverExpandBlockId === props.block.id
+})
+
+// Check if block is in multi-selection
+const isMultiSelected = computed(() => {
+  return designerStore.selectedBlockIds.length > 1 && designerStore.selectedBlockIds.includes(props.block.id)
 })
 
 function canBlockExpand(block: SectionBlock): boolean {
@@ -79,8 +84,29 @@ function getBlockPickerLabel(block: SectionBlock): string {
   return 'Add block'
 }
 
-function handleClick() {
-  editorStore.selectBlock(props.block.id)
+// Get allowed block types for form blocks (form inputs + layout blocks)
+function getFormAllowedTypes(): string[] {
+  return [...formChildBlockTypes, 'stack', 'grid', 'container', 'text', 'heading'] as string[]
+}
+
+// Check if block is a form or is inside a form
+function isInsideForm(blockId: string): boolean {
+  let current = designerStore.findBlockById(blockId)
+  while (current) {
+    if (current.type === 'form') return true
+    const parent = designerStore.findParentBlock(current.id)
+    if (!parent) break
+    current = parent
+  }
+  return false
+}
+
+function handleClick(event: MouseEvent) {
+  if (event.shiftKey) {
+    designerStore.toggleBlockSelection(props.block.id)
+  } else {
+    designerStore.selectBlock(props.block.id)
+  }
 }
 
 function handleDragStart(event: DragEvent) {
@@ -91,7 +117,7 @@ function handleDragStart(event: DragEvent) {
 function handleDragOver(event: DragEvent) {
   if (!props.parentId) return
   emit('dragOver', props.parentId, props.childIndex, event)
-  // If this block can have children, emit hover event for auto-expand
+  // If this block can have children, also trigger auto-expand on hover
   if (canHaveChildren(props.block.type)) {
     emit('blockRowHover', props.block.id)
   }
@@ -195,16 +221,20 @@ const hasEffects = computed(() => {
   <div class="block-item">
     <!-- Block row -->
     <div
-      :draggable="!!parentId"
+      :draggable="!!parentId && renamingBlockId !== block.id"
       class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs transition-colors group"
       :class="[
         parentId ? 'cursor-grab' : 'cursor-pointer',
-        isSelected ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+        isSelected
+          ? 'bg-accent text-accent-foreground'
+          : isMultiSelected
+            ? 'bg-accent/70 text-accent-foreground ring-1 ring-primary/30'
+            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
         isDragging ? 'opacity-50' : '',
         isDropTarget ? 'border-t-2 border-primary' : '',
         isHoverExpanding ? 'ring-1 ring-primary/50 bg-primary/10' : '',
       ]"
-      @click="handleClick"
+      @click="handleClick($event)"
       @contextmenu="$emit('contextMenu', block.id, parentId ? 'child' : 'section', $event)"
       @dragstart="handleDragStart"
       @dragover="handleDragOver"
@@ -236,10 +266,11 @@ const hasEffects = computed(() => {
         ref="renameInputRef"
         type="text"
         :value="block.name"
-        class="flex-1 bg-transparent border border-primary rounded px-1 py-0 text-xs font-medium leading-4 outline-none"
+        class="flex-1 min-w-0 bg-transparent border-b border-primary px-0 py-0 text-xs font-medium leading-4 outline-none"
         @blur="handleRenameBlur"
         @keydown="handleRenameKeydown"
         @click.stop
+        @mousedown.stop
       />
       <span
         v-else
@@ -266,18 +297,6 @@ const hasEffects = computed(() => {
       class="mt-1"
       :class="depth === 0 ? 'ml-2.5' : 'ml-2.5'"
     >
-      <!-- Empty drop zone (when no children and dragging) -->
-      <div
-        v-if="!hasChildren && (dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType)"
-        class="flex items-center justify-center px-2 py-3 rounded-lg border-2 border-dashed transition-colors"
-        :class="isEmptyDropTarget ? 'border-primary bg-primary/10' : 'border-muted-foreground/30'"
-        @dragover="$emit('emptyParentDragOver', block.id, $event)"
-        @dragleave="$emit('emptyParentDragLeave')"
-        @drop.stop="$emit('emptyParentDrop', block.id, $event)"
-      >
-        <span class="text-xs text-muted-foreground">Drop here</span>
-      </div>
-
       <!-- Children -->
       <template v-if="hasChildren">
         <template v-for="(child, idx) in block.children" :key="child.id">
@@ -309,26 +328,40 @@ const hasEffects = computed(() => {
             @block-row-leave="handleChildBlockRowLeave"
           />
         </template>
-        <!-- Drop zone at end of children list (when dragging) -->
+        <!-- Drop zone at end of children list -->
         <div
-          v-if="dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType"
-          class="flex items-center justify-center px-2 py-1.5 rounded-lg border-2 border-dashed transition-colors mt-0.5"
-          :class="dragState.overChildInfo?.parentId === block.id && dragState.overChildInfo?.childIndex === block.children!.length ? 'border-primary bg-primary/10' : 'border-transparent hover:border-muted-foreground/30'"
-          @dragover.prevent.stop="$emit('dragOver', block.id, block.children!.length, $event)"
+          class="h-1 rounded"
+          :class="dragState.overChildInfo?.parentId === block.id && dragState.overChildInfo?.childIndex === block.children?.length ? 'bg-primary' : ''"
+          @dragover.prevent="$emit('dragOver', block.id, block.children?.length || 0, $event)"
           @dragleave="$emit('dragLeave')"
-          @drop.stop="$emit('drop', block.id, block.children!.length, $event)"
-        >
-          <span class="text-[10px] text-muted-foreground">Drop here</span>
-        </div>
+          @drop.prevent="$emit('drop', block.id, block.children?.length || 0, $event)"
+        />
+        <!-- Inline add block button (only on selected block, when not dragging) -->
+        <SidebarBlockPicker
+          v-if="isSelected && !dragState.childInfo && dragState.blockIndex === null && !dragState.newBlockType"
+          trigger-variant="inline"
+          :mode="getBlockPickerMode(block)"
+          :allowed-types="isInsideForm(block.id) ? getFormAllowedTypes() : undefined"
+          @select="handleAddBlock"
+        />
       </template>
 
-      <!-- Empty state: Show block picker when no children -->
-      <SidebarBlockPicker
-        v-if="!hasChildren && !dragState.childInfo && !dragState.blockIndex && !dragState.newBlockType"
-        :mode="getBlockPickerMode(block)"
-        :trigger-label="getBlockPickerLabel(block)"
-        @select="handleAddBlock"
-      />
+      <!-- Empty state: Drop zone + block picker when no children -->
+      <div
+        v-if="!hasChildren"
+        class="py-1 rounded"
+        :class="isEmptyDropTarget ? 'bg-primary/20 ring-1 ring-primary' : ''"
+        @dragover.prevent="$emit('emptyParentDragOver', block.id, $event)"
+        @dragleave="$emit('emptyParentDragLeave')"
+        @drop.prevent="$emit('emptyParentDrop', block.id, $event)"
+      >
+        <SidebarBlockPicker
+          :mode="getBlockPickerMode(block)"
+          :trigger-label="getBlockPickerLabel(block)"
+          :allowed-types="isInsideForm(block.id) ? getFormAllowedTypes() : undefined"
+          @select="handleAddBlock"
+        />
+      </div>
     </div>
   </div>
 </template>

@@ -1,21 +1,22 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { Modal, Button, Input, FormField } from '@/components/ui'
-import { sectionBlockLabels } from '@/lib/editor-utils'
-import type { SectionBlockType } from '@/types/editor'
+import { sectionBlockLabels } from '@/lib/designer-utils'
+import type { SectionBlockType } from '@/types/designer'
 
 const props = defineProps<{
   open: boolean
   blockId: string
   blockType: SectionBlockType
+  blockName?: string
 }>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 const styleName = ref('')
 const isCreating = ref(false)
@@ -23,12 +24,16 @@ const isCreating = ref(false)
 // Reset form when modal opens
 watch(() => props.open, (isOpen) => {
   if (isOpen) {
-    // Generate default name based on block type
-    const blockLabel = sectionBlockLabels[props.blockType] || props.blockType
-    const existingCount = editorStore.getSharedStylesForType(props.blockType).length
-    styleName.value = existingCount > 0
-      ? `${blockLabel} Style ${existingCount + 1}`
-      : `${blockLabel} Style`
+    // Use block name if provided, otherwise generate default name
+    if (props.blockName) {
+      styleName.value = props.blockName
+    } else {
+      const blockLabel = sectionBlockLabels[props.blockType] || props.blockType
+      const existingCount = designerStore.getSharedStylesForType(props.blockType).length
+      styleName.value = existingCount > 0
+        ? `${blockLabel} Style ${existingCount + 1}`
+        : `${blockLabel} Style`
+    }
   }
 })
 
@@ -41,7 +46,7 @@ async function handleCreate() {
 
   isCreating.value = true
   try {
-    editorStore.createSharedStyle(styleName.value.trim(), props.blockId)
+    designerStore.createSharedStyle(styleName.value.trim(), props.blockId)
     handleClose()
   } finally {
     isCreating.value = false

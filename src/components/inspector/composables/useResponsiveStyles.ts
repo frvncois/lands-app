@@ -1,5 +1,5 @@
 import { computed, type Ref, type ComputedRef } from 'vue'
-import type { ViewportSize, BaseBlockStyles, CoreBlockStyles } from '@/types/editor'
+import type { ViewportSize, BaseBlockStyles, CoreBlockStyles } from '@/types/designer'
 import { hasViewportOverride, getInheritedValue } from '@/lib/style-utils'
 
 /**

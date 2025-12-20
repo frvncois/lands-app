@@ -6,12 +6,17 @@ import SegmentedControl from '../SegmentedControl.vue'
 import SelectInput from '../SelectInput.vue'
 import SliderInput from '../SliderInput.vue'
 import SizeInput from '../SizeInput.vue'
+import ToggleInput from '../ToggleInput.vue'
 import { Icon } from '@/components/ui'
 
 const props = defineProps<{
   // Size
   width?: string
   height?: string
+  minWidth?: string
+  maxWidth?: string
+  minHeight?: string
+  maxHeight?: string
   // Layout
   direction?: string
   justify?: string
@@ -35,11 +40,25 @@ const props = defineProps<{
   // HTML Tag (for layout blocks)
   blockType?: string
   htmlTag?: string
+  // Slider options
+  slidesInView?: number
+  slideGap?: string
+  transition?: string
+  transitionDuration?: number
+  showArrows?: boolean
+  arrowPosition?: string
+  autoplay?: boolean
+  autoplayInterval?: number
+  pauseOnHover?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:width': [value: string]
   'update:height': [value: string]
+  'update:minWidth': [value: string]
+  'update:maxWidth': [value: string]
+  'update:minHeight': [value: string]
+  'update:maxHeight': [value: string]
   'update:direction': [value: string]
   'update:justify': [value: string]
   'update:align': [value: string]
@@ -51,7 +70,25 @@ const emit = defineEmits<{
   'update:flexMode': [value: string]
   'update:flexValue': [value: string]
   'update:htmlTag': [value: string]
+  // Slider options
+  'update:slidesInView': [value: number]
+  'update:slideGap': [value: string]
+  'update:transition': [value: string]
+  'update:transitionDuration': [value: number]
+  'update:showArrows': [value: boolean]
+  'update:arrowPosition': [value: string]
+  'update:autoplay': [value: boolean]
+  'update:autoplayInterval': [value: number]
+  'update:pauseOnHover': [value: boolean]
 }>()
+
+// Size constraints expand state
+const showWidthConstraints = ref(false)
+const showHeightConstraints = ref(false)
+
+// Auto-expand if constraints have values
+const hasWidthConstraints = computed(() => !!props.minWidth || !!props.maxWidth)
+const hasHeightConstraints = computed(() => !!props.minHeight || !!props.maxHeight)
 
 // Computed: is this a row direction flex layout?
 const isRow = computed(() => props.direction === 'row')
@@ -171,25 +208,96 @@ const layoutHtmlTagOptions = [
 const showHtmlTag = computed(() => ['container', 'stack', 'grid'].includes(props.blockType || ''))
 const htmlTagOptions = computed(() => props.blockType === 'container' ? containerHtmlTagOptions : layoutHtmlTagOptions)
 const defaultHtmlTag = computed(() => props.blockType === 'container' ? 'section' : 'div')
+
+// Slider options
+const isSlider = computed(() => props.blockType === 'slider')
+
+const sliderTransitionOptions = [
+  { value: 'slide', label: 'Slide' },
+  { value: 'fade', label: 'Fade' },
+]
+
+const sliderArrowPositionOptions = [
+  { value: 'inside', label: 'Inside' },
+  { value: 'outside', label: 'Outside' },
+]
 </script>
 
 <template>
   <InspectorSection title="Display" icon="style-row">
-    <!-- Size -->
+    <!-- Width with expandable min/max -->
     <InspectorField label="Width" horizontal>
-      <SizeInput
-        :model-value="width || ''"
-        placeholder="auto"
-        @update:model-value="emit('update:width', $event)"
-      />
+      <div class="flex items-center gap-1">
+        <button
+          type="button"
+          class="flex items-center justify-center w-5 h-5 rounded transition-colors shrink-0"
+          :class="showWidthConstraints || hasWidthConstraints ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent'"
+          title="Min/Max constraints"
+          @click="showWidthConstraints = !showWidthConstraints"
+        >
+          <Icon name="drag-vertical" :size="10" />
+        </button>
+        <SizeInput
+          :model-value="width || ''"
+          placeholder="auto"
+          @update:model-value="emit('update:width', $event)"
+        />
+      </div>
     </InspectorField>
+    <!-- Width constraints (min/max) -->
+    <template v-if="showWidthConstraints || hasWidthConstraints">
+      <InspectorField label="Min W" horizontal class="ml-2">
+        <SizeInput
+          :model-value="minWidth || ''"
+          placeholder="none"
+          @update:model-value="emit('update:minWidth', $event)"
+        />
+      </InspectorField>
+      <InspectorField label="Max W" horizontal class="ml-2">
+        <SizeInput
+          :model-value="maxWidth || ''"
+          placeholder="none"
+          @update:model-value="emit('update:maxWidth', $event)"
+        />
+      </InspectorField>
+    </template>
+
+    <!-- Height with expandable min/max -->
     <InspectorField label="Height" horizontal>
-      <SizeInput
-        :model-value="height || ''"
-        placeholder="auto"
-        @update:model-value="emit('update:height', $event)"
-      />
+      <div class="flex items-center gap-1">
+        <button
+          type="button"
+          class="flex items-center justify-center w-5 h-5 rounded transition-colors shrink-0"
+          :class="showHeightConstraints || hasHeightConstraints ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent'"
+          title="Min/Max constraints"
+          @click="showHeightConstraints = !showHeightConstraints"
+        >
+          <Icon name="drag-vertical" :size="10" />
+        </button>
+        <SizeInput
+          :model-value="height || ''"
+          placeholder="auto"
+          @update:model-value="emit('update:height', $event)"
+        />
+      </div>
     </InspectorField>
+    <!-- Height constraints (min/max) -->
+    <template v-if="showHeightConstraints || hasHeightConstraints">
+      <InspectorField label="Min H" horizontal class="ml-2">
+        <SizeInput
+          :model-value="minHeight || ''"
+          placeholder="none"
+          @update:model-value="emit('update:minHeight', $event)"
+        />
+      </InspectorField>
+      <InspectorField label="Max H" horizontal class="ml-2">
+        <SizeInput
+          :model-value="maxHeight || ''"
+          placeholder="none"
+          @update:model-value="emit('update:maxHeight', $event)"
+        />
+      </InspectorField>
+    </template>
 
     <!-- Grid child span (for blocks inside a grid) -->
     <template v-if="isGridChild">
@@ -345,5 +453,83 @@ const defaultHtmlTag = computed(() => props.blockType === 'container' ? 'section
         @update:model-value="emit('update:htmlTag', $event)"
       />
     </InspectorField>
+
+    <!-- Slider Options -->
+    <template v-if="isSlider">
+      <InspectorField label="Slides in View" horizontal>
+        <SliderInput
+          :model-value="String(slidesInView || 1)"
+          :min="1"
+          :max="5"
+          :step="0.5"
+          unit=""
+          @update:model-value="emit('update:slidesInView', Number($event))"
+        />
+      </InspectorField>
+      <InspectorField label="Slide Gap" horizontal>
+        <SizeInput
+          :model-value="slideGap || ''"
+          placeholder="0px"
+          @update:model-value="emit('update:slideGap', $event)"
+        />
+      </InspectorField>
+      <InspectorField label="Transition" horizontal>
+        <SelectInput
+          :model-value="transition || 'slide'"
+          :options="sliderTransitionOptions"
+          @update:model-value="emit('update:transition', $event)"
+        />
+      </InspectorField>
+      <InspectorField label="Duration" horizontal>
+        <SliderInput
+          :model-value="String(transitionDuration || 300)"
+          :min="100"
+          :max="1000"
+          :step="50"
+          unit="ms"
+          @update:model-value="emit('update:transitionDuration', Number($event))"
+        />
+      </InspectorField>
+      <div class="px-3 space-y-2">
+        <ToggleInput
+          :model-value="showArrows ?? true"
+          label="Show Arrows"
+          @update:model-value="emit('update:showArrows', $event)"
+        />
+      </div>
+      <InspectorField v-if="showArrows !== false" label="Arrow Position" horizontal>
+        <SelectInput
+          :model-value="arrowPosition || 'inside'"
+          :options="sliderArrowPositionOptions"
+          @update:model-value="emit('update:arrowPosition', $event)"
+        />
+      </InspectorField>
+      <div class="px-3 space-y-2">
+        <ToggleInput
+          :model-value="autoplay ?? false"
+          label="Autoplay"
+          @update:model-value="emit('update:autoplay', $event)"
+        />
+      </div>
+      <template v-if="autoplay">
+        <InspectorField label="Interval" horizontal>
+          <SliderInput
+            :model-value="String(autoplayInterval || 3000)"
+            :min="1000"
+            :max="10000"
+            :step="500"
+            unit="ms"
+            @update:model-value="emit('update:autoplayInterval', Number($event))"
+          />
+        </InspectorField>
+        <div class="px-3 space-y-2">
+          <ToggleInput
+            :model-value="pauseOnHover ?? true"
+            label="Pause on Hover"
+            @update:model-value="emit('update:pauseOnHover', $event)"
+          />
+        </div>
+      </template>
+    </template>
   </InspectorSection>
 </template>

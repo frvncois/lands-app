@@ -3,7 +3,7 @@
  * Extracts project branding, styles, and patterns for AI consistency
  */
 
-import type { SectionBlock, PageSettings } from '@/types/editor'
+import type { SectionBlock, PageSettings } from '@/types/designer'
 
 export interface ProjectContext {
   branding: {

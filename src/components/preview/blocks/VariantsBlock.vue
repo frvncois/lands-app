@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { SectionBlock, VariantsSettings, VariantsStyles } from '@/types/editor'
+import type { SectionBlock, VariantsSettings, VariantsStyles } from '@/types/designer'
 
 /**
  * VariantsBlock - Renders Shopify-style product variants

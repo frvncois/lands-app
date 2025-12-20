@@ -9,8 +9,8 @@ export function useAccountProjectActions() {
   const userStore = useUserStore()
 
   return {
-    openEditor: (id: string) =>
-      router.push({ name: 'editor', params: { projectId: id } }),
+    openDesigner: (id: string) =>
+      router.push({ name: 'designer', params: { projectId: id } }),
 
     openSettings: (id: string) =>
       router.push({ name: 'settings', params: { projectId: id } }),

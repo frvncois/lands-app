@@ -1,14 +1,15 @@
 import { ref, computed, type Ref } from 'vue'
-import type { SectionBlock, SectionBlockType, StackSettings } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
-import { canHaveChildren } from '@/lib/editor-utils'
+import type { SectionBlock, SectionBlockType, StackSettings } from '@/types/designer'
+import type { ListPresetType } from '@/lib/list-presets'
+import { useDesignerStore } from '@/stores/designer'
+import { canHaveChildren } from '@/lib/designer-utils'
 
 /**
  * Composable for handling block drag & drop operations
  * Supports both adding new blocks and reordering existing blocks
  */
 export function useBlockDragDrop(block: Ref<SectionBlock>) {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   // Drop target state
   const isDropTarget = ref(false)
@@ -20,7 +21,7 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
   // Check if this block is a list item (Stack directly inside Grid)
   const isListItem = computed(() => {
     if (block.value.type !== 'stack') return false
-    const parent = editorStore.findParentBlock(block.value.id)
+    const parent = designerStore.findParentBlock(block.value.id)
     return parent?.type === 'grid'
   })
 
@@ -32,6 +33,13 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
   }
 
   /**
+   * Check if drag event contains list preset type
+   */
+  function isListPresetDragType(event: DragEvent): boolean {
+    return event.dataTransfer?.types.includes('application/x-list-preset-type') || false
+  }
+
+  /**
    * Check if drag event contains block move data
    */
   function isBlockMoveDragType(event: DragEvent): boolean {
@@ -39,10 +47,10 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
   }
 
   /**
-   * Check if any valid drag type (new block or block move)
+   * Check if any valid drag type (new block, list preset, or block move)
    */
   function isValidDragType(event: DragEvent): boolean {
-    return isValidNewBlockDragType(event) || isBlockMoveDragType(event)
+    return isValidNewBlockDragType(event) || isListPresetDragType(event) || isBlockMoveDragType(event)
   }
 
   /**
@@ -50,8 +58,6 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
    */
   function handleDragEnter(event: DragEvent) {
     if (!isLayoutBlock.value) return
-    // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
-    if (isListItem.value) return
     if (isValidDragType(event)) {
       event.preventDefault()
       event.stopPropagation()
@@ -64,8 +70,6 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
    */
   function handleDragOver(event: DragEvent) {
     if (!isLayoutBlock.value) return
-    // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
-    if (isListItem.value) return
     if (isValidDragType(event)) {
       event.preventDefault()
       event.stopPropagation()
@@ -92,8 +96,6 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
    */
   function handleDrop(event: DragEvent) {
     if (!isLayoutBlock.value) return
-    // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
-    if (isListItem.value) return
     event.preventDefault()
     event.stopPropagation()
     isDropTarget.value = false
@@ -103,41 +105,44 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
     // Check for block move first
     const blockIdToMove = event.dataTransfer?.getData('application/x-block-move')
     if (blockIdToMove) {
-      // Don't allow dropping a block into itself or its children
+      // Don't allow dropping a block into itself
       if (blockIdToMove === block.value.id) return
 
       // Check if reordering within same parent
-      const blockParent = editorStore.findParentBlock(blockIdToMove)
+      const blockParent = designerStore.findParentBlock(blockIdToMove)
       const isSameParent = blockParent?.id === block.value.id
-
-      // Check if this is a List/Collection Grid (Grid with Stack children)
-      const isListCollectionGrid = block.value.type === 'grid' &&
-        block.value.children?.some(c => c.type === 'stack')
 
       if (isSameParent && dropIndex !== null) {
         // Reordering within this container
         const currentIndex = block.value.children?.findIndex(c => c.id === blockIdToMove) ?? -1
         if (currentIndex !== -1 && currentIndex !== dropIndex) {
           const targetIndex = currentIndex < dropIndex ? dropIndex - 1 : dropIndex
-          editorStore.reorderBlocks(currentIndex, targetIndex, block.value.id)
+          designerStore.reorderBlocks(currentIndex, targetIndex, block.value.id)
         }
-      } else if (!isListCollectionGrid) {
-        // Only allow moving blocks INTO this parent if it's NOT a List/Collection Grid
-        editorStore.moveBlockToParent(blockIdToMove, block.value.id, dropIndex ?? undefined)
       } else {
-        // List/Collection Grids only allow reordering their own items, not moves from outside
-        return
+        // Move block to this parent
+        designerStore.moveBlockToParent(blockIdToMove, block.value.id, dropIndex ?? undefined)
       }
-      editorStore.selectBlock(blockIdToMove)
+      designerStore.selectBlock(blockIdToMove)
+      return
+    }
+
+    // Check for list preset type
+    const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type') as ListPresetType
+    if (listPresetType) {
+      const newBlock = designerStore.addListPreset(listPresetType, dropIndex ?? undefined, block.value.id)
+      if (newBlock) {
+        designerStore.selectBlock(newBlock.id)
+      }
       return
     }
 
     // Check for section type (new block)
     const sectionType = event.dataTransfer?.getData('application/x-section-type')
     if (sectionType) {
-      const newBlock = editorStore.addBlock(sectionType as SectionBlockType, dropIndex ?? undefined, block.value.id)
+      const newBlock = designerStore.addBlock(sectionType as SectionBlockType, dropIndex ?? undefined, block.value.id)
       if (newBlock) {
-        editorStore.selectBlock(newBlock.id)
+        designerStore.selectBlock(newBlock.id)
       }
     }
   }
@@ -204,6 +209,7 @@ export function useBlockDragDrop(block: Ref<SectionBlock>) {
 
     // Drag type checks
     isValidNewBlockDragType,
+    isListPresetDragType,
     isBlockMoveDragType,
     isValidDragType,
 

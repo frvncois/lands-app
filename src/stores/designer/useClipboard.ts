@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import type { SectionBlock } from '@/types/editor'
-import { duplicateSectionBlock, canHaveChildren } from '@/lib/editor-utils'
+import type { SectionBlock } from '@/types/designer'
+import { duplicateSectionBlock, canHaveChildren } from '@/lib/designer-utils'
 import { deepClone } from './helpers'
 
 export interface UseClipboardOptions {

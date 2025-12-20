@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useEditorStore } from '@/stores/editor'
-import { alignmentOptions, fontWeightOptions } from '@/lib/editor-utils'
-import type { SpanStyles, BorderStyle } from '@/types/editor'
+import { useDesignerStore } from '@/stores/designer'
+import { alignmentOptions, fontWeightOptions } from '@/lib/designer-utils'
+import type { SpanStyles, BorderStyle } from '@/types/designer'
 
 import InspectorSection from './InspectorSection.vue'
 import InspectorField from './InspectorField.vue'
@@ -27,17 +27,17 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const { fontFamilyOptions } = useFontOptions({ includeInherit: true })
 
 // Get the parent block
 const parentBlock = computed(() => {
-  return editorStore.findBlockById(props.blockId)
+  return designerStore.findBlockById(props.blockId)
 })
 
 // Get the span data
 const span = computed(() => {
-  return editorStore.getSpanById(props.blockId, props.spanId)
+  return designerStore.getSpanById(props.blockId, props.spanId)
 })
 
 const spanStyles = computed(() => {
@@ -46,12 +46,12 @@ const spanStyles = computed(() => {
 
 // Update span name
 function updateName(name: string) {
-  editorStore.updateSpanName(props.blockId, props.spanId, name)
+  designerStore.updateSpanName(props.blockId, props.spanId, name)
 }
 
 // Update span styles
 function updateStyles(styles: Partial<SpanStyles>) {
-  editorStore.updateSpanStyles(props.blockId, props.spanId, styles)
+  designerStore.updateSpanStyles(props.blockId, props.spanId, styles)
 }
 
 // Style toggle functions
@@ -81,13 +81,13 @@ function deleteSpan() {
   }
 
   // Delete from store
-  editorStore.deleteSpan(props.blockId, props.spanId)
+  designerStore.deleteSpan(props.blockId, props.spanId)
   emit('close')
 }
 
 // Close inspector
 function handleClose() {
-  editorStore.selectSpan(null)
+  designerStore.selectSpan(null)
   emit('close')
 }
 </script>

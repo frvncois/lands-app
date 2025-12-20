@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { alignmentOptions } from '@/lib/editor-utils'
+import { alignmentOptions } from '@/lib/designer-utils'
 import { useFontOptions } from '../composables'
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'

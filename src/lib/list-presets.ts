@@ -7,13 +7,13 @@
  * - Shared style for all items
  */
 
-import { generateId } from './editor-utils'
+import { generateId } from './designer-utils'
 import type {
   SectionBlock,
   SectionBlockType,
   SharedStyle,
   BlockStyles,
-} from '@/types/editor'
+} from '@/types/designer'
 
 // ============================================
 // TYPES
@@ -577,9 +577,9 @@ function createCardItem(
         'Card Image',
         { src: image, alt: title },
         {
-          aspectRatio: '16/9',
+          aspectRatio: '16:9',
           objectFit: 'cover',
-          width: 'full',
+          width: '100%',
         }
       ),
       // Content
@@ -693,9 +693,9 @@ function createSliderItem(
         'Slide Image',
         { src: image, alt: title },
         {
-          aspectRatio: '4/3',
+          aspectRatio: '4:3',
           objectFit: 'cover',
-          width: 'full',
+          width: '100%',
         }
       ),
       createBlock(

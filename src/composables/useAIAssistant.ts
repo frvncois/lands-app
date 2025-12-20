@@ -1,13 +1,13 @@
 import { ref, computed, readonly, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/lib/supabase'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { useProjectStore } from '@/stores/project'
 import { useToast } from '@/stores/toast'
 import { executeAction, executeActions, describeAction, type AIAction } from '@/lib/aiActions'
 import { analyzeProjectContext, formatContextForAI, generateStyleInstructions } from '@/lib/aiContextAnalyzer'
 import { buildAIContext, getCompactSchema, getAllExamplesForPrompt } from '@/lib/ai'
-import type { SectionBlock } from '@/types/editor'
+import type { SectionBlock } from '@/types/designer'
 
 // ============================================
 // TYPES
@@ -56,7 +56,7 @@ function resetState() {
 // ============================================
 
 export function useAIAssistant() {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
   const projectStore = useProjectStore()
   const toast = useToast()
   const route = useRoute()
@@ -81,7 +81,7 @@ export function useAIAssistant() {
 
   // Watch for project changes and reset state
   watch(
-    () => editorStore.currentProjectId,
+    () => designerStore.currentProjectId,
     (newProjectId, oldProjectId) => {
       if (newProjectId !== oldProjectId && oldProjectId !== null) {
         console.log('[AI Assistant] Project changed, resetting state')
@@ -148,7 +148,7 @@ export function useAIAssistant() {
    * Get detailed info about selected block including full children tree
    */
   function getSelectedBlockInfo(): Record<string, unknown> | null {
-    const block = editorStore.selectedBlock
+    const block = designerStore.selectedBlock
     if (!block) return null
 
     // Recursively get block details including children
@@ -189,7 +189,7 @@ export function useAIAssistant() {
     }
 
     // Always include page settings
-    const ps = editorStore.pageSettings
+    const ps = designerStore.pageSettings
     context.pageSettings = {
       fontFamily: ps.fontFamily,
       backgroundColor: ps.backgroundColor,
@@ -205,8 +205,8 @@ export function useAIAssistant() {
     }
 
     // Block structure (always include)
-    if (editorStore.blocks.length > 0) {
-      context.blockStructure = summarizeBlocks(editorStore.blocks)
+    if (designerStore.blocks.length > 0) {
+      context.blockStructure = summarizeBlocks(designerStore.blocks)
     }
 
     // Selected block (detailed)
@@ -217,10 +217,10 @@ export function useAIAssistant() {
 
     // *** KEY: Analyze project patterns ***
     // This extracts branding, styles, patterns from existing content
-    if (editorStore.blocks.length > 0) {
+    if (designerStore.blocks.length > 0) {
       const projectContext = analyzeProjectContext(
-        editorStore.blocks,
-        editorStore.pageSettings,
+        designerStore.blocks,
+        designerStore.pageSettings,
         projectStore.settings?.seo
       )
 
@@ -310,11 +310,11 @@ export function useAIAssistant() {
         .filter(m => !m.actions || m.actions.length === 0)
         .map(m => ({ role: m.role, content: m.content }))
 
-      const projectId = editorStore.currentProjectId
+      const projectId = designerStore.currentProjectId
       const context = buildContext(content, needsFullAnalysis)
 
-      if (needsTranslationContext && editorStore.blocks.length > 0) {
-        context.translatableContent = simplifyBlocksForTranslation(editorStore.blocks)
+      if (needsTranslationContext && designerStore.blocks.length > 0) {
+        context.translatableContent = simplifyBlocksForTranslation(designerStore.blocks)
       }
 
       const { data, error: fnError } = await supabase.functions.invoke('ai-assistant', {
@@ -422,7 +422,7 @@ export function useAIAssistant() {
   }
 
   async function improveSelectedContent(): Promise<void> {
-    if (!editorStore.selectedBlock) {
+    if (!designerStore.selectedBlock) {
       toast.error('No block selected', 'Please select a block first')
       return
     }

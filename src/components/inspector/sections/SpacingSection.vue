@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Spacing } from '@/types/editor'
+import type { Spacing } from '@/types/designer'
 import InspectorSection from '../InspectorSection.vue'
 import BoxModelInput from '../BoxModelInput.vue'
 

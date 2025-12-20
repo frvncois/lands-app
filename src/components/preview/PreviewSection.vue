@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, toRef, provide, inject } from 'vue'
 import type { ComputedRef } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { useAIAssistant } from '@/composables/useAIAssistant'
 import type {
   SectionBlock,
@@ -12,7 +12,7 @@ import type {
   CanvasChildPosition,
   ViewportSize,
   ChildEffectOverride,
-} from '@/types/editor'
+} from '@/types/designer'
 import {
   calculateStaggerDelay,
   calculateGridStaggerDelay,
@@ -34,7 +34,7 @@ import {
 import { useBlockSettings } from './composables/useBlockSettings'
 import { useBlockStyles } from './composables/useBlockStyles'
 
-import { sectionBlockLabels, sectionBlockIcons, canHaveChildren } from '@/lib/editor-utils'
+import { sectionBlockLabels, sectionBlockIcons, canHaveChildren } from '@/lib/designer-utils'
 import { isListContainer } from '@/lib/list-presets'
 import type { ListPresetType } from '@/lib/list-presets'
 import ContextMenu from '@/components/ui/ContextMenu.vue'
@@ -56,7 +56,15 @@ import {
   ContainerBlock,
   StackBlock,
   GridBlock,
+  SliderBlock,
   CanvasBlock,
+  FormBlock,
+  FormInputBlock,
+  FormTextareaBlock,
+  FormCheckboxBlock,
+  FormRadioBlock,
+  FormButtonBlock,
+  FormLabelBlock,
 } from './blocks'
 
 const props = defineProps<{
@@ -65,12 +73,12 @@ const props = defineProps<{
   total: number
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const { isOpen: isAIOpen } = useAIAssistant()
 
 // Initialize composables with block ref
 const blockRef = toRef(props, 'block')
-const viewportRef = computed(() => editorStore.viewport as ViewportSize)
+const viewportRef = computed(() => designerStore.viewport as ViewportSize)
 const isAnimating = ref(false)
 
 // Effect state tracking
@@ -394,7 +402,7 @@ const sectionRef = ref<HTMLElement | null>(null)
 const editableRef = ref<HTMLElement | null>(null)
 
 // Check if this specific block is hovered (not parents)
-const isHovered = computed(() => editorStore.hoveredBlockId === props.block.id)
+const isHovered = computed(() => designerStore.hoveredBlockId === props.block.id)
 
 // Track if label should show below (when near top of viewport)
 const labelShowBelow = ref(false)
@@ -419,7 +427,7 @@ function updateLabelPosition() {
 
 // Check if animation preview is active for this block
 const isPreviewingAnimation = computed(() => {
-  return editorStore.isAnimationPreviewing(props.block.id)
+  return designerStore.isAnimationPreviewing(props.block.id)
 })
 
 // Watch for animation preview trigger from inspector
@@ -446,7 +454,7 @@ function playAnimation() {
 // Mouse enter/leave handlers with hover animation support
 function handleMouseEnter(event: MouseEvent) {
   event.stopPropagation() // Prevent parent blocks from also getting hovered
-  editorStore.hoverBlock(props.block.id)
+  designerStore.hoverBlock(props.block.id)
   updateLabelPosition()
 
   // Track hover state for effects
@@ -473,7 +481,7 @@ function handleMouseLeave(event: MouseEvent) {
   const isLeavingToAnotherBlock = relatedTarget?.closest('[data-preview-block]')
 
   if (!isLeavingToAnotherBlock) {
-    editorStore.hoverBlock(null)
+    designerStore.hoverBlock(null)
   }
 
   // Track hover state for effects
@@ -499,41 +507,41 @@ function handleMouseLeave(event: MouseEvent) {
 function handleContextMenu(event: MouseEvent) {
   event.preventDefault()
   event.stopPropagation()
-  editorStore.selectBlock(props.block.id)
+  designerStore.selectBlock(props.block.id)
   contextMenuRef.value?.open(event)
 }
 
 // Context menu actions
 function handleEditStyle() {
-  editorStore.selectBlock(props.block.id)
+  designerStore.selectBlock(props.block.id)
   // Inspector is shown when block is selected, ensure it's visible
-  if (editorStore.isInspectorCollapsed) {
-    editorStore.toggleInspector()
+  if (designerStore.isInspectorCollapsed) {
+    designerStore.toggleInspector()
   }
 }
 
 function handleCopyStyle() {
-  editorStore.copyBlockStyles(props.block.id)
+  designerStore.copyBlockStyles(props.block.id)
 }
 
 function handlePasteStyle() {
-  editorStore.pasteBlockStyles(props.block.id)
+  designerStore.pasteBlockStyles(props.block.id)
 }
 
 function handleCut() {
-  editorStore.cutBlock(props.block.id)
+  designerStore.cutBlock(props.block.id)
 }
 
 function handleCopy() {
-  editorStore.copyBlock(props.block.id)
+  designerStore.copyBlock(props.block.id)
 }
 
 function handlePaste() {
   // Paste into this block if it's a layout block, otherwise paste at root
   if (canHaveChildren(props.block.type)) {
-    editorStore.pasteBlock(props.block.id)
+    designerStore.pasteBlock(props.block.id)
   } else {
-    editorStore.pasteBlock()
+    designerStore.pasteBlock()
   }
 }
 
@@ -545,38 +553,38 @@ function openBlockPicker() {
 }
 
 function handleBlockPickerSelectBlock(type: string) {
-  const block = editorStore.addBlock(type as SectionBlockType, undefined, props.block.id)
+  const block = designerStore.addBlock(type as SectionBlockType, undefined, props.block.id)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
 }
 
 function handleBlockPickerSelectListPreset(type: ListPresetType) {
-  const block = editorStore.addListPreset(type, undefined, props.block.id)
+  const block = designerStore.addListPreset(type, undefined, props.block.id)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
 }
 
 // Add item to list container
 function handleAddListItem() {
-  const newItem = editorStore.addListItem(props.block.id)
+  const newItem = designerStore.addListItem(props.block.id)
   if (newItem) {
-    editorStore.selectBlock(newItem.id)
+    designerStore.selectBlock(newItem.id)
   }
 }
 
 // Add content block inside layout block
 function handleAddContentBlock(type: SectionBlockType) {
-  const block = editorStore.addBlock(type, undefined, props.block.id)
+  const block = designerStore.addBlock(type, undefined, props.block.id)
   if (block) {
-    editorStore.selectBlock(block.id)
+    designerStore.selectBlock(block.id)
   }
 }
 
 const isSelected = computed(() =>
-  editorStore.selectedBlockId === props.block.id &&
-  !editorStore.selectedItemId
+  designerStore.selectedBlockId === props.block.id &&
+  !designerStore.selectedItemId
 )
 
 // Show AI glow when block is selected and AI assistant is open
@@ -608,6 +616,22 @@ watch([isSelected, isHovered], ([selected, hovered], [prevSelected, prevHovered]
 // Clean up scroll listener on unmount
 onUnmounted(() => {
   scrollContainerRef?.removeEventListener('scroll', updateLabelPosition)
+})
+
+// When block becomes unselected, blur contenteditable and clear text selection
+watch(isSelected, (selected, wasSelected) => {
+  if (!selected && wasSelected && ['heading', 'text'].includes(props.block.type)) {
+    // Blur contenteditable
+    const editable = sectionRef.value?.querySelector('[contenteditable="true"]') as HTMLElement
+    if (editable && document.activeElement === editable) {
+      editable.blur()
+    }
+    // Clear text selection
+    const selection = window.getSelection()
+    if (selection) {
+      selection.removeAllRanges()
+    }
+  }
 })
 
 // ============================================
@@ -837,7 +861,7 @@ watch(
 
 // Watch for appear preview trigger from inspector
 watch(
-  () => editorStore.previewAppearBlockId,
+  () => designerStore.previewAppearBlockId,
   (blockId) => {
     if (blockId === props.block.id && appearEffect.value?.enabled) {
       // Reset and re-trigger the appear animation
@@ -884,21 +908,21 @@ const isListContainerBlock = computed(() => isListContainer(props.block))
 // Check if this block IS a list item (Stack directly inside Grid) - these can be dragged for reordering
 const isListItem = computed(() => {
   if (props.block.type !== 'stack') return false
-  const parent = editorStore.findParentBlock(props.block.id)
+  const parent = designerStore.findParentBlock(props.block.id)
   return parent?.type === 'grid'
 })
 
 // Check if this block is INSIDE a list item (child of Stack inside Grid) - these cannot be dragged
 const isBlockInsideListItem = computed(() => {
-  const parent = editorStore.findParentBlock(props.block.id)
+  const parent = designerStore.findParentBlock(props.block.id)
   if (!parent || parent.type !== 'stack') return false
-  const grandparent = editorStore.findParentBlock(parent.id)
+  const grandparent = designerStore.findParentBlock(parent.id)
   return grandparent?.type === 'grid'
 })
 
 // Check if this block is inside a Canvas parent
 const isInsideCanvas = computed(() => {
-  const parent = editorStore.findParentBlock(props.block.id)
+  const parent = designerStore.findParentBlock(props.block.id)
   return parent?.type === 'canvas'
 })
 
@@ -907,25 +931,94 @@ const isInsideCanvas = computed(() => {
 
 // Event handlers
 function handleClick(event: MouseEvent) {
+  const target = event.target as HTMLElement
+
+  // Check if click is on or inside a contenteditable element
+  const contentEditableEl = target.getAttribute('contenteditable') === 'true'
+    ? target
+    : target.closest('[contenteditable="true"]') as HTMLElement | null
+
+  if (contentEditableEl) {
+    // Find which block owns this contenteditable
+    const ownerBlock = contentEditableEl.closest('[data-preview-block]')
+    const ownerBlockId = ownerBlock?.getAttribute('data-block-id')
+
+    // Only handle if this contenteditable belongs to THIS block
+    if (ownerBlockId === props.block.id) {
+      // For contenteditable clicks in our own block:
+      // - Select the block if not already selected (for inspector)
+      // - But don't interfere with native text selection behavior
+      event.stopPropagation() // Stop here so parent blocks don't try to handle
+      if (designerStore.selectedBlockId !== props.block.id) {
+        // Delay selection to allow native focus to settle first
+        requestAnimationFrame(() => {
+          designerStore.selectBlock(props.block.id)
+        })
+      }
+      // Return without calling selectBlock synchronously - let native behavior work
+      return
+    }
+    // Contenteditable belongs to a child block - let it bubble, don't interfere
+    return
+  }
+
   event.stopPropagation()
-  editorStore.selectBlock(props.block.id)
+  designerStore.selectBlock(props.block.id)
+}
+
+// Double-click to focus contenteditable for text editing
+function handleDoubleClick(event: MouseEvent) {
+  const target = event.target as HTMLElement
+
+  // Check if double-click is directly on a contenteditable element
+  const isOnContentEditable = target.getAttribute('contenteditable') === 'true' ||
+                              target.closest('[contenteditable="true"]') !== null
+
+  // If double-clicking directly on contenteditable, let native behavior handle it
+  // (native behavior = select word)
+  if (isOnContentEditable) {
+    event.stopPropagation()
+    return
+  }
+
+  // If double-clicking on the wrapper (not the contenteditable itself),
+  // focus the contenteditable and place cursor
+  if (['heading', 'text'].includes(props.block.type) && sectionRef.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    const editable = sectionRef.value.querySelector('[contenteditable="true"]') as HTMLElement
+    if (editable) {
+      editable.focus()
+      const selection = window.getSelection()
+      if (selection) {
+        selection.removeAllRanges()
+        const range = document.caretRangeFromPoint(event.clientX, event.clientY)
+        if (range) {
+          selection.addRange(range)
+        }
+      }
+    }
+  }
 }
 
 function handleDuplicate() {
-  editorStore.duplicateBlock(props.block.id)
+  designerStore.duplicateBlock(props.block.id)
 }
 
 function handleWrapInStack() {
-  editorStore.wrapBlockInStack(props.block.id)
+  designerStore.wrapBlockInStack(props.block.id)
 }
 
 function handleWrapInLink() {
-  editorStore.wrapBlockInButton(props.block.id)
+  designerStore.wrapBlockInButton(props.block.id)
 }
 
-// Check if block is Stack or Button for conversion
+// Check if block is Stack, Button, or Grid for conversion
 const isStack = computed(() => props.block.type === 'stack')
 const isButton = computed(() => props.block.type === 'button')
+const isGrid = computed(() => props.block.type === 'grid')
+const isText = computed(() => props.block.type === 'text')
+const isHeading = computed(() => props.block.type === 'heading')
 
 // Check if block can be wrapped in a link (text, heading, image)
 const canWrapInLink = computed(() => {
@@ -933,29 +1026,41 @@ const canWrapInLink = computed(() => {
 })
 
 function handleConvertToButton() {
-  editorStore.convertBlockType(props.block.id, 'button')
+  designerStore.convertBlockType(props.block.id, 'button')
 }
 
 function handleConvertToStack() {
-  editorStore.convertBlockType(props.block.id, 'stack')
+  designerStore.convertBlockType(props.block.id, 'stack')
+}
+
+function handleConvertToGrid() {
+  designerStore.convertBlockType(props.block.id, 'grid')
+}
+
+function handleConvertToHeading() {
+  designerStore.convertBlockType(props.block.id, 'heading')
+}
+
+function handleConvertToText() {
+  designerStore.convertBlockType(props.block.id, 'text')
 }
 
 function handleCreateComponent() {
-  editorStore.createComponent(props.block.id)
+  designerStore.createComponent(props.block.id)
 }
 
 function handleDelete() {
-  editorStore.deleteBlock(props.block.id)
+  designerStore.deleteBlock(props.block.id)
 }
 
 // Z-index handlers for Canvas children
 function handleBringToFront() {
   if (!isInsideCanvas.value) return
-  const parent = editorStore.findParentBlock(props.block.id)
+  const parent = designerStore.findParentBlock(props.block.id)
   if (!parent || parent.type !== 'canvas') return
 
   const settings = parent.settings as CanvasSettings
-  const viewport = editorStore.viewport
+  const viewport = designerStore.viewport
   const viewportKey = viewport === 'desktop' ? 'desktop' : viewport === 'tablet' ? 'tablet' : 'mobile'
 
   // Find the max zIndex among all children
@@ -967,7 +1072,7 @@ function handleBringToFront() {
 
   // Set this child's zIndex to max + 1
   const currentPos = positions[props.block.id] || { x: 10, y: 10 }
-  editorStore.updateCanvasChildPosition(parent.id, props.block.id, {
+  designerStore.updateCanvasChildPosition(parent.id, props.block.id, {
     ...currentPos,
     zIndex: maxZ + 1,
   })
@@ -975,11 +1080,11 @@ function handleBringToFront() {
 
 function handleSendToBack() {
   if (!isInsideCanvas.value) return
-  const parent = editorStore.findParentBlock(props.block.id)
+  const parent = designerStore.findParentBlock(props.block.id)
   if (!parent || parent.type !== 'canvas') return
 
   const settings = parent.settings as CanvasSettings
-  const viewport = editorStore.viewport
+  const viewport = designerStore.viewport
   const viewportKey = viewport === 'desktop' ? 'desktop' : viewport === 'tablet' ? 'tablet' : 'mobile'
 
   // Find the min zIndex among all children
@@ -991,7 +1096,7 @@ function handleSendToBack() {
 
   // Set this child's zIndex to min - 1
   const currentPos = positions[props.block.id] || { x: 10, y: 10 }
-  editorStore.updateCanvasChildPosition(parent.id, props.block.id, {
+  designerStore.updateCanvasChildPosition(parent.id, props.block.id, {
     ...currentPos,
     zIndex: minZ - 1,
   })
@@ -999,26 +1104,26 @@ function handleSendToBack() {
 
 // Content change handlers for extracted block components
 function handleHeadingContentChange(newContent: string) {
-  if (editorStore.isEditingTranslation) {
-    editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
+  if (designerStore.isEditingTranslation) {
+    designerStore.updateBlockTranslation(props.block.id, 'content', newContent)
   } else if (newContent !== headingSettings.value?.content) {
-    editorStore.updateBlockSettings(props.block.id, { content: newContent })
+    designerStore.updateBlockSettings(props.block.id, { content: newContent })
   }
 }
 
 function handleTextContentChange(newContent: string) {
-  if (editorStore.isEditingTranslation) {
-    editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
+  if (designerStore.isEditingTranslation) {
+    designerStore.updateBlockTranslation(props.block.id, 'content', newContent)
   } else if (newContent !== textSettings.value?.content) {
-    editorStore.updateBlockSettings(props.block.id, { content: newContent })
+    designerStore.updateBlockSettings(props.block.id, { content: newContent })
   }
 }
 
 function handleButtonLabelChange(newLabel: string) {
-  if (editorStore.isEditingTranslation) {
-    editorStore.updateBlockTranslation(props.block.id, 'label', newLabel)
+  if (designerStore.isEditingTranslation) {
+    designerStore.updateBlockTranslation(props.block.id, 'label', newLabel)
   } else if (newLabel !== buttonSettings.value?.label) {
-    editorStore.updateBlockSettings(props.block.id, { label: newLabel })
+    designerStore.updateBlockSettings(props.block.id, { label: newLabel })
   }
 }
 
@@ -1028,16 +1133,16 @@ function handleInlineFormat(_command: string) {
   if (editableRef.value) {
     const newContent = editableRef.value.innerHTML.trim()
     if (props.block.type === 'heading') {
-      if (editorStore.isEditingTranslation) {
-        editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
+      if (designerStore.isEditingTranslation) {
+        designerStore.updateBlockTranslation(props.block.id, 'content', newContent)
       } else {
-        editorStore.updateBlockSettings(props.block.id, { content: newContent })
+        designerStore.updateBlockSettings(props.block.id, { content: newContent })
       }
     } else if (props.block.type === 'text') {
-      if (editorStore.isEditingTranslation) {
-        editorStore.updateBlockTranslation(props.block.id, 'content', newContent)
+      if (designerStore.isEditingTranslation) {
+        designerStore.updateBlockTranslation(props.block.id, 'content', newContent)
       } else {
-        editorStore.updateBlockSettings(props.block.id, { content: newContent })
+        designerStore.updateBlockSettings(props.block.id, { content: newContent })
       }
     }
   }
@@ -1047,18 +1152,23 @@ function handleInlineFormat(_command: string) {
 const isDropTarget = ref(false)
 const childDropIndex = ref<number | null>(null) // Index where child will be dropped
 
-// Check if this block can be dragged
+// Check if this block can be dragged from the content area
 // - Protected blocks (header/footer) cannot be dragged
-// - List items (Stack in Grid) CAN be dragged for reordering
-// - Blocks inside list items CANNOT be dragged
 // - Blocks inside Canvas use mouse drag for positioning, not HTML5 drag
+// - Text content blocks (heading, text) need text selection, so disable drag on content
 const canDragBlock = computed(() => {
   if (isProtectedBlock.value) return false
   if (isInsideCanvas.value) return false
-  // List items can be dragged for reordering
-  if (isListItem.value) return true
-  // Blocks inside list items cannot be dragged
-  if (isBlockInsideListItem.value) return false
+  // Disable drag on text content blocks to allow text selection
+  // Users can still drag from the label
+  if (['heading', 'text'].includes(props.block.type)) return false
+  return true
+})
+
+// Check if this block's label can be dragged (for reordering)
+// Label is always draggable except for protected blocks
+const canDragLabel = computed(() => {
+  if (isProtectedBlock.value) return false
   return true
 })
 
@@ -1074,7 +1184,7 @@ const canvasStartPosY = ref(0)
 // Helper to get child position for current viewport (cascading: mobile -> tablet -> desktop)
 function getResponsiveChildPosition(settings: CanvasSettings, childId: string): CanvasChildPosition {
   const positions = settings.childPositions
-  const viewport = editorStore.viewport
+  const viewport = designerStore.viewport
   const defaultPos: CanvasChildPosition = { x: 10, y: 10 }
 
   // Cascade: check current viewport, then fall back to larger viewports
@@ -1098,7 +1208,7 @@ function handleCanvasDragStart(event: MouseEvent) {
   canvasDragStartY.value = event.clientY
 
   // Get current position from parent's settings (viewport-aware)
-  const parent = editorStore.findParentBlock(props.block.id)
+  const parent = designerStore.findParentBlock(props.block.id)
   if (parent && parent.type === 'canvas') {
     const parentSettings = parent.settings as CanvasSettings
     const currentPos = getResponsiveChildPosition(parentSettings, props.block.id)
@@ -1113,7 +1223,7 @@ function handleCanvasDragStart(event: MouseEvent) {
 function handleCanvasDragMove(event: MouseEvent) {
   if (!isCanvasDragging.value) return
 
-  const parent = editorStore.findParentBlock(props.block.id)
+  const parent = designerStore.findParentBlock(props.block.id)
   if (!parent || parent.type !== 'canvas') return
 
   // Find the canvas container element to get its dimensions
@@ -1134,12 +1244,12 @@ function handleCanvasDragMove(event: MouseEvent) {
 
   // Update the parent's childPositions for current viewport
   const parentSettings = parent.settings as CanvasSettings
-  const viewport = editorStore.viewport
+  const viewport = designerStore.viewport
   const currentPositions = parentSettings.childPositions || { desktop: {} }
   const viewportPositions = currentPositions[viewport] || {}
   const currentPos = viewportPositions[props.block.id] || getResponsiveChildPosition(parentSettings, props.block.id)
 
-  editorStore.updateBlockSettings(parent.id, {
+  designerStore.updateBlockSettings(parent.id, {
     childPositions: {
       ...currentPositions,
       [viewport]: {
@@ -1160,9 +1270,76 @@ function handleCanvasDragEnd() {
   document.removeEventListener('mouseup', handleCanvasDragEnd)
 }
 
+// Track mousedown target to check in dragstart (for nested contenteditable detection)
+// When mousedown occurs on a contenteditable inside a draggable ancestor,
+// the dragstart event's target is the draggable ancestor, not the contenteditable.
+// So we track where the mousedown actually started.
+let lastMouseDownTarget: HTMLElement | null = null
+let disabledDraggableElements: HTMLElement[] = []
+
+function handleMouseDown(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  lastMouseDownTarget = target
+
+  // Check if mousedown is on a contenteditable element
+  const contentEditableEl = target.getAttribute('contenteditable') === 'true'
+    ? target
+    : target.closest('[contenteditable="true"]') as HTMLElement | null
+
+  if (contentEditableEl) {
+    // Find which block owns this contenteditable
+    const ownerBlock = contentEditableEl.closest('[data-preview-block]')
+    const ownerBlockId = ownerBlock?.getAttribute('data-block-id')
+
+    // If this contenteditable belongs to THIS block
+    if (ownerBlockId === props.block.id) {
+      event.stopPropagation()
+
+      // Temporarily disable draggable on ALL parent draggable elements
+      // This prevents the browser from entering drag mode at all
+      let parent = contentEditableEl.parentElement
+      while (parent) {
+        if (parent.getAttribute('draggable') === 'true') {
+          parent.setAttribute('draggable', 'false')
+          disabledDraggableElements.push(parent)
+        }
+        parent = parent.parentElement
+      }
+
+      // Restore draggable on mouseup
+      const restoreDraggable = () => {
+        disabledDraggableElements.forEach(el => {
+          el.setAttribute('draggable', 'true')
+        })
+        disabledDraggableElements = []
+        document.removeEventListener('mouseup', restoreDraggable)
+      }
+      document.addEventListener('mouseup', restoreDraggable)
+    }
+  }
+}
+
 // Drag handlers for moving this block (HTML5 drag for reordering)
 function handleBlockDragStart(event: DragEvent) {
-  if (!canDragBlock.value) return
+  const target = event.target as HTMLElement
+
+  // Don't start drag if mousedown originated from a contenteditable element (allow text selection)
+  // We check lastMouseDownTarget because event.target in dragstart is the draggable ancestor, not where mouse started
+  if (lastMouseDownTarget?.getAttribute('contenteditable') === 'true' || lastMouseDownTarget?.closest('[contenteditable="true"]')) {
+    event.preventDefault()
+    lastMouseDownTarget = null
+    return
+  }
+
+  // Check if dragging from label (has data-block-label attribute)
+  const isFromLabel = target.hasAttribute('data-block-label') || target.closest('[data-block-label]') !== null
+
+  // Allow drag from label (canDragLabel) or from content area (canDragBlock)
+  if (isFromLabel) {
+    if (!canDragLabel.value) return
+  } else {
+    if (!canDragBlock.value) return
+  }
 
   event.stopPropagation()
   if (event.dataTransfer) {
@@ -1180,31 +1357,34 @@ function isValidNewBlockDragType(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes('application/x-section-type') || false
 }
 
+// Check if drag event contains list preset type
+function isListPresetDragType(event: DragEvent): boolean {
+  return event.dataTransfer?.types.includes('application/x-list-preset-type') || false
+}
+
 // Check if drag event contains block move data
 function isBlockMoveDragType(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes('application/x-block-move') || false
 }
 
-// Check if any valid drag type (new block or block move)
+// Check if any valid drag type (new block, list preset, or block move)
 function isValidDragType(event: DragEvent): boolean {
-  return isValidNewBlockDragType(event) || isBlockMoveDragType(event)
+  return isValidNewBlockDragType(event) || isListPresetDragType(event) || isBlockMoveDragType(event)
 }
 
 function handleDragEnter(event: DragEvent) {
+  console.log('[DragEnter]', props.block.type, props.block.id, 'isLayout:', isLayoutBlock.value, 'validType:', isValidDragType(event))
   if (!isLayoutBlock.value) return
-  // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
-  if (isListItem.value) return
   if (isValidDragType(event)) {
     event.preventDefault()
     event.stopPropagation()
     isDropTarget.value = true
+    console.log('[DragEnter] Drop target set for:', props.block.type, props.block.id)
   }
 }
 
 function handleDragOver(event: DragEvent) {
   if (!isLayoutBlock.value) return
-  // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
-  if (isListItem.value) return
   if (isValidDragType(event)) {
     event.preventDefault()
     event.stopPropagation()
@@ -1224,9 +1404,8 @@ function handleDragLeave(event: DragEvent) {
 }
 
 function handleDrop(event: DragEvent) {
+  console.log('[Drop]', props.block.type, props.block.id, 'isLayout:', isLayoutBlock.value)
   if (!isLayoutBlock.value) return
-  // List items (Stack inside Grid) cannot be drop targets - they can only be reordered
-  if (isListItem.value) return
   event.preventDefault()
   event.stopPropagation()
   isDropTarget.value = false
@@ -1235,42 +1414,46 @@ function handleDrop(event: DragEvent) {
 
   // Check for block move first
   const blockIdToMove = event.dataTransfer?.getData('application/x-block-move')
+  console.log('[Drop] blockIdToMove:', blockIdToMove, 'dropIndex:', dropIndex)
   if (blockIdToMove) {
     // Don't allow dropping a block into itself or its children
     if (blockIdToMove === props.block.id) return
 
     // Check if reordering within same parent
-    const blockParent = editorStore.findParentBlock(blockIdToMove)
+    const blockParent = designerStore.findParentBlock(blockIdToMove)
     const isSameParent = blockParent?.id === props.block.id
-
-    // Check if this is a List/Collection Grid (Grid with Stack children)
-    const isListCollectionGrid = props.block.type === 'grid' &&
-      props.block.children?.some(c => c.type === 'stack')
 
     if (isSameParent && dropIndex !== null) {
       // Reordering within this container
       const currentIndex = props.block.children?.findIndex(c => c.id === blockIdToMove) ?? -1
       if (currentIndex !== -1 && currentIndex !== dropIndex) {
         const targetIndex = currentIndex < dropIndex ? dropIndex - 1 : dropIndex
-        editorStore.reorderBlocks(currentIndex, targetIndex, props.block.id)
+        designerStore.reorderBlocks(currentIndex, targetIndex, props.block.id)
       }
-    } else if (!isListCollectionGrid) {
-      // Only allow moving blocks INTO this parent if it's NOT a List/Collection Grid
-      editorStore.moveBlockToParent(blockIdToMove, props.block.id, dropIndex ?? undefined)
     } else {
-      // List/Collection Grids only allow reordering their own items, not moves from outside
-      return
+      // Move block to this parent
+      designerStore.moveBlockToParent(blockIdToMove, props.block.id, dropIndex ?? undefined)
     }
-    editorStore.selectBlock(blockIdToMove)
+    designerStore.selectBlock(blockIdToMove)
+    return
+  }
+
+  // Check for list preset type
+  const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type') as ListPresetType
+  if (listPresetType) {
+    const block = designerStore.addListPreset(listPresetType, dropIndex ?? undefined, props.block.id)
+    if (block) {
+      designerStore.selectBlock(block.id)
+    }
     return
   }
 
   // Check for section type
   const sectionType = event.dataTransfer?.getData('application/x-section-type')
   if (sectionType) {
-    const block = editorStore.addBlock(sectionType as SectionBlockType, dropIndex ?? undefined, props.block.id)
+    const block = designerStore.addBlock(sectionType as SectionBlockType, dropIndex ?? undefined, props.block.id)
     if (block) {
-      editorStore.selectBlock(block.id)
+      designerStore.selectBlock(block.id)
     }
   }
 }
@@ -1397,8 +1580,8 @@ const spanStylesCSS = computed(() => {
   }
 
   // Add hover/selection outline styles for spans
-  const selectedId = editorStore.selectedSpanId
-  const hoveredId = editorStore.hoveredSpanId
+  const selectedId = designerStore.selectedSpanId
+  const hoveredId = designerStore.hoveredSpanId
 
   if (selectedId && spans[selectedId]) {
     css += `[data-block-id="${props.block.id}"] .ld-styled-span[data-span-id="${selectedId}"] { outline: 2px solid var(--color-primary); outline-offset: 2px; }\n`
@@ -1417,7 +1600,7 @@ function handleSpanClick(event: MouseEvent) {
     const spanId = target.getAttribute('data-span-id')
     if (spanId) {
       event.stopPropagation()
-      editorStore.selectSpan(spanId)
+      designerStore.selectSpan(spanId)
     }
   }
 }
@@ -1428,7 +1611,7 @@ function handleSpanMouseOver(event: MouseEvent) {
   if (target.classList.contains('ld-styled-span')) {
     const spanId = target.getAttribute('data-span-id')
     if (spanId) {
-      editorStore.hoverSpan(spanId)
+      designerStore.hoverSpan(spanId)
     }
   }
 }
@@ -1436,7 +1619,7 @@ function handleSpanMouseOver(event: MouseEvent) {
 function handleSpanMouseOut(event: MouseEvent) {
   const target = event.target as HTMLElement
   if (target.classList.contains('ld-styled-span')) {
-    editorStore.hoverSpan(null)
+    designerStore.hoverSpan(null)
   }
 }
 
@@ -1446,16 +1629,25 @@ function handleSpanMouseOut(event: MouseEvent) {
   <section
     v-if="!isBlockHidden"
     ref="sectionRef"
-    class="w-full overflow-visible flex flex-col flex-1 min-h-0"
+    class="w-full flex flex-col min-h-0"
     :class="[
+      { 'flex-1': !blockStyles.height && blockStyles.height !== '100%' },
+      { 'h-full': blockStyles.height === '100%' },
+      { 'overflow-hidden': blockStyles.height && blockStyles.height !== '100%' },
+      { 'overflow-visible': !blockStyles.height },
       { 'relative': !wrapperStyles.position },
-      'cursor-pointer'
+      canDragBlock ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
     ]"
+    :draggable="canDragBlock"
     data-preview-block
     :data-block-id="block.id"
     :style="{ ...animationStyles, ...wrapperStyles, ...combinedEffectStyles }"
     @click="handleClick"
+    @dblclick="handleDoubleClick"
     @contextmenu="handleContextMenu"
+    @mousedown="handleMouseDown"
+    @dragstart="handleBlockDragStart"
+    @dragend="handleBlockDragEnd"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
     @wheel="handleWheel"
@@ -1481,19 +1673,20 @@ function handleSpanMouseOut(event: MouseEvent) {
     <!-- Section label -->
     <div
       v-if="isHovered || isSelected"
-      :draggable="canDragBlock"
+      :draggable="canDragLabel"
+      data-block-label
       class="absolute left-0 flex border items-center px-1.5 h-5 text-[10px] font-mono uppercase backdrop-blur-xs z-20 whitespace-nowrap pointer-events-auto"
       :class="[
         labelShowBelow ? 'top-full rounded-b' : 'bottom-full rounded-t',
         showAIGlow ? 'bg-violet-600 border-violet-500/10 text-violet-100' : isSelected ? 'bg-indigo-600 border-indigo-500/10 text-blue-100' : 'bg-indigo-600/50 border-indigo-500/10 text-blue-100',
-        canDragBlock || isInsideCanvas ? 'cursor-grab active:cursor-grabbing' : '',
+        canDragLabel || isInsideCanvas ? 'cursor-grab active:cursor-grabbing' : '',
         isCanvasDragging ? 'cursor-grabbing' : ''
       ]"
       @dragstart="handleBlockDragStart"
       @dragend="handleBlockDragEnd"
       @mousedown="isInsideCanvas ? handleCanvasDragStart($event) : undefined"
     >
-      <span v-if="canDragBlock || isInsideCanvas" class="w-2 h-2 rounded-full bg-blue-100 mr-1.5"></span>
+      <span v-if="canDragLabel || isInsideCanvas" class="w-2 h-2 rounded-full bg-blue-100 mr-1.5"></span>
       {{ block.name }}
     </div>
 
@@ -1513,6 +1706,7 @@ function handleSpanMouseOut(event: MouseEvent) {
       @child-drag-over="handleChildDragOver"
       @child-drag-leave="handleChildDragLeave"
       @add-block="handleAddContentBlock"
+      @add-list-preset="handleBlockPickerSelectListPreset"
     />
 
     <!-- ============================================ -->
@@ -1532,6 +1726,7 @@ function handleSpanMouseOut(event: MouseEvent) {
       @child-drag-over="handleChildDragOver"
       @child-drag-leave="handleChildDragLeave"
       @add-block="handleAddContentBlock"
+      @add-list-preset="handleBlockPickerSelectListPreset"
     />
 
     <!-- ============================================ -->
@@ -1550,6 +1745,27 @@ function handleSpanMouseOut(event: MouseEvent) {
       @child-drag-over="handleChildDragOver"
       @child-drag-leave="handleChildDragLeave"
       @add-block="handleAddContentBlock"
+      @add-list-preset="handleBlockPickerSelectListPreset"
+    />
+
+    <!-- ============================================ -->
+    <!-- SLIDER BLOCK -->
+    <!-- ============================================ -->
+    <SliderBlock
+      v-else-if="block.type === 'slider'"
+      :block="block"
+      :styles="blockStyles"
+      :is-drop-target="isDropTarget"
+      :child-drop-index="childDropIndex"
+      :is-selected="isSelected"
+      @drag-enter="handleDragEnter"
+      @drag-over="handleDragOver"
+      @drag-leave="handleDragLeave"
+      @drop="handleDrop"
+      @child-drag-over="handleChildDragOver"
+      @child-drag-leave="handleChildDragLeave"
+      @add-block="handleAddContentBlock"
+      @add-list-preset="handleBlockPickerSelectListPreset"
     />
 
     <!-- ============================================ -->
@@ -1648,6 +1864,83 @@ function handleSpanMouseOut(event: MouseEvent) {
       @drag-leave="handleDragLeave"
       @drop="handleDrop"
       @add-block="handleAddContentBlock"
+      @add-list-preset="handleBlockPickerSelectListPreset"
+    />
+
+    <!-- ============================================ -->
+    <!-- FORM BLOCK -->
+    <!-- ============================================ -->
+    <FormBlock
+      v-else-if="block.type === 'form'"
+      :block="block"
+      :styles="blockStyles"
+      :is-drop-target="isDropTarget"
+      :child-drop-index="childDropIndex"
+      @drag-enter="handleDragEnter"
+      @drag-over="handleDragOver"
+      @drag-leave="handleDragLeave"
+      @drop="handleDrop"
+      @child-drag-over="handleChildDragOver"
+      @child-drag-leave="handleChildDragLeave"
+      @add-block="handleAddContentBlock"
+    />
+
+    <!-- ============================================ -->
+    <!-- FORM INPUT BLOCK -->
+    <!-- ============================================ -->
+    <FormInputBlock
+      v-else-if="block.type === 'form-input'"
+      :block="block"
+      :styles="blockStyles"
+    />
+
+    <!-- ============================================ -->
+    <!-- FORM TEXTAREA BLOCK -->
+    <!-- ============================================ -->
+    <FormTextareaBlock
+      v-else-if="block.type === 'form-textarea'"
+      :block="block"
+      :styles="blockStyles"
+    />
+
+    <!-- ============================================ -->
+    <!-- FORM CHECKBOX BLOCK -->
+    <!-- ============================================ -->
+    <FormCheckboxBlock
+      v-else-if="block.type === 'form-checkbox'"
+      :block="block"
+      :styles="blockStyles"
+    />
+
+    <!-- ============================================ -->
+    <!-- FORM RADIO BLOCK -->
+    <!-- ============================================ -->
+    <FormRadioBlock
+      v-else-if="block.type === 'form-radio'"
+      :block="block"
+      :styles="blockStyles"
+    />
+
+    <!-- ============================================ -->
+    <!-- FORM BUTTON BLOCK -->
+    <!-- ============================================ -->
+    <FormButtonBlock
+      v-else-if="block.type === 'form-button'"
+      :ref="(el: any) => { if (el?.editableRef) editableRef = el.editableRef }"
+      :block="block"
+      :styles="blockStyles"
+      @content-change="(content: string) => designerStore.updateBlockSettings(block.id, { label: content })"
+    />
+
+    <!-- ============================================ -->
+    <!-- FORM LABEL BLOCK -->
+    <!-- ============================================ -->
+    <FormLabelBlock
+      v-else-if="block.type === 'form-label'"
+      :ref="(el: any) => { if (el?.editableRef) editableRef = el.editableRef }"
+      :block="block"
+      :styles="blockStyles"
+      @content-change="(content: string) => designerStore.updateBlockSettings(block.id, { content: content })"
     />
 
     <!-- ============================================ -->
@@ -1700,7 +1993,7 @@ function handleSpanMouseOut(event: MouseEvent) {
       <ContextMenuItem
         icon="app-paste"
         shortcut="⌘V"
-        :disabled="!editorStore.hasClipboardBlock"
+        :disabled="!designerStore.hasClipboardBlock"
         @click="handlePaste"
       >
         Paste
@@ -1714,7 +2007,7 @@ function handleSpanMouseOut(event: MouseEvent) {
       </ContextMenuItem>
       <ContextMenuItem
         icon="app-paste-style"
-        :disabled="!editorStore.hasClipboardStyles"
+        :disabled="!designerStore.hasClipboardStyles"
         @click="handlePasteStyle"
       >
         Paste style
@@ -1749,11 +2042,32 @@ function handleSpanMouseOut(event: MouseEvent) {
         Convert to link
       </ContextMenuItem>
       <ContextMenuItem
-        v-if="isButton"
+        v-if="isStack"
+        icon="grid-4"
+        @click="handleConvertToGrid"
+      >
+        Convert to grid
+      </ContextMenuItem>
+      <ContextMenuItem
+        v-if="isButton || isGrid"
         icon="style-row"
         @click="handleConvertToStack"
       >
         Convert to stack
+      </ContextMenuItem>
+      <ContextMenuItem
+        v-if="isText"
+        icon="text-style-heading-2"
+        @click="handleConvertToHeading"
+      >
+        Convert to heading
+      </ContextMenuItem>
+      <ContextMenuItem
+        v-if="isHeading"
+        icon="text-style-paragraph"
+        @click="handleConvertToText"
+      >
+        Convert to text
       </ContextMenuItem>
       <ContextMenuItem
         icon="package"

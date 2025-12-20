@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Spacing, BorderStyle, ShadowStyle, GradientStyle, AspectRatio, ObjectFit, MaskShape } from '@/types/editor'
+import type { Spacing, BorderStyle, BorderRadiusStyle, ShadowStyle, GradientStyle, AspectRatio, ObjectFit, MaskShape } from '@/types/designer'
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
 import Popover from '@/components/ui/Popover.vue'
 import Button from '@/components/ui/Button.vue'
 import Icon from '@/components/ui/Icon.vue'
 import BoxModelInput from '../BoxModelInput.vue'
+import BorderRadiusInput from '../BorderRadiusInput.vue'
 import BorderInput from '../BorderInput.vue'
 import ColorInput from '../ColorInput.vue'
 import SliderInput from '../SliderInput.vue'
@@ -21,7 +22,7 @@ const props = defineProps<{
   margin?: Spacing
   padding?: Spacing
   // Background
-  backgroundType?: 'color' | 'image' | 'video' | 'gradient'
+  backgroundType?: 'color' | 'image' | 'video' | 'gradient' | 'content'
   backgroundColor?: string
   backgroundImage?: string
   backgroundVideo?: string
@@ -31,10 +32,17 @@ const props = defineProps<{
   backgroundImageSaturation?: number
   backgroundImageOverlay?: string
   backgroundImageOverlayOpacity?: number
+  backgroundColorOpacity?: number
+  // Content-aware background
+  backgroundContentSource?: string // block ID of the image source
+  backgroundContentBlur?: number
+  backgroundContentSaturation?: number
+  backgroundContentScale?: number
+  availableContentImages?: Array<{ id: string; name: string; src: string }>
   // Shadow
   shadow?: ShadowStyle
   // Radius
-  borderRadius?: string
+  borderRadius?: string | BorderRadiusStyle
   // Border
   border?: BorderStyle
   // Overflow
@@ -76,20 +84,26 @@ const emit = defineEmits<{
   'update:margin': [value: Spacing]
   'update:padding': [value: Spacing]
   // Background
-  'update:backgroundType': [value: 'color' | 'image' | 'video' | 'gradient']
+  'update:backgroundType': [value: 'color' | 'image' | 'video' | 'gradient' | 'content']
   'update:backgroundColor': [value: string]
   'update:backgroundImage': [value: string]
   'update:backgroundVideo': [value: string]
-  'update:backgroundGradient': [value: GradientStyle]
+  'update:backgroundGradient': [value: GradientStyle | undefined]
   'update:backgroundImageOpacity': [value: number]
   'update:backgroundImageBlur': [value: number]
   'update:backgroundImageSaturation': [value: number]
   'update:backgroundImageOverlay': [value: string]
   'update:backgroundImageOverlayOpacity': [value: number]
+  'update:backgroundColorOpacity': [value: number]
+  // Content-aware background
+  'update:backgroundContentSource': [value: string]
+  'update:backgroundContentBlur': [value: number]
+  'update:backgroundContentSaturation': [value: number]
+  'update:backgroundContentScale': [value: number]
   // Shadow
   'update:shadow': [value: ShadowStyle]
   // Radius
-  'update:borderRadius': [value: string]
+  'update:borderRadius': [value: string | BorderRadiusStyle]
   // Border
   'update:border': [value: BorderStyle]
   // Overflow
@@ -129,6 +143,7 @@ const backgroundTypeOptions = [
   { value: 'gradient', label: 'Gradient', icon: 'style-gradient' },
   { value: 'image', label: 'Image', icon: 'content-image' },
   { value: 'video', label: 'Video', icon: 'content-video' },
+  { value: 'content', label: 'Content', icon: 'blur' },
 ]
 
 // Position options
@@ -224,7 +239,7 @@ function updateGradient(updates: Partial<GradientStyle>) {
   emit('update:backgroundGradient', { ...current, ...updates })
 }
 
-function updateGradientStop(index: number, updates: { color?: string; position?: number }) {
+function updateGradientStop(index: number, updates: { color?: string; position?: number; opacity?: number }) {
   const current = getGradientWithDefaults()
   const newStops = [...current.stops]
   const existingStop = newStops[index]
@@ -232,6 +247,7 @@ function updateGradientStop(index: number, updates: { color?: string; position?:
   newStops[index] = {
     color: updates.color ?? existingStop.color,
     position: updates.position ?? existingStop.position,
+    opacity: updates.opacity ?? existingStop.opacity,
   }
   emit('update:backgroundGradient', { ...current, stops: newStops })
 }
@@ -262,8 +278,14 @@ function resetSpacing() {
 function resetBackground() {
   emit('update:backgroundType', 'color')
   emit('update:backgroundColor', '')
+  emit('update:backgroundColorOpacity', 100)
   emit('update:backgroundImage', '')
   emit('update:backgroundVideo', '')
+  emit('update:backgroundGradient', undefined)
+  emit('update:backgroundContentSource', '')
+  emit('update:backgroundContentBlur', 40)
+  emit('update:backgroundContentSaturation', 150)
+  emit('update:backgroundContentScale', 120)
 }
 
 function resetShadow() {
@@ -271,7 +293,32 @@ function resetShadow() {
 }
 
 function resetRadius() {
-  emit('update:borderRadius', '0')
+  emit('update:borderRadius', { topLeft: '0', topRight: '0', bottomRight: '0', bottomLeft: '0', locked: true })
+  emit('update:overflow', 'visible')
+}
+
+// Helper to check if border radius has any non-zero value
+function hasNonZeroRadius(radius: string | BorderRadiusStyle | undefined): boolean {
+  if (!radius) return false
+  if (typeof radius === 'string') {
+    const num = parseFloat(radius)
+    return !isNaN(num) && num > 0
+  }
+  // Check all corners
+  const corners = [radius.topLeft, radius.topRight, radius.bottomRight, radius.bottomLeft]
+  return corners.some(corner => {
+    if (!corner) return false
+    const num = parseFloat(corner)
+    return !isNaN(num) && num > 0
+  })
+}
+
+function updateBorderRadius(value: string | BorderRadiusStyle) {
+  emit('update:borderRadius', value)
+  // Auto-set overflow to hidden when radius is added
+  if (hasNonZeroRadius(value)) {
+    emit('update:overflow', 'hidden')
+  }
 }
 
 function resetBorder() {
@@ -328,6 +375,7 @@ function getBackgroundPreview(): string {
   if (props.backgroundType === 'image' && props.backgroundImage) return 'Image'
   if (props.backgroundType === 'video' && props.backgroundVideo) return 'Video'
   if (props.backgroundType === 'gradient') return 'Gradient'
+  if (props.backgroundType === 'content') return 'Content'
   if (props.backgroundColor) return props.backgroundColor
   return 'None'
 }
@@ -349,8 +397,35 @@ function getBorderPreview(): string {
 
 // Get radius preview text
 function getRadiusPreview(): string {
-  if (!props.borderRadius || props.borderRadius === '0' || props.borderRadius === '0px') return 'None'
-  return props.borderRadius
+  if (!props.borderRadius) return 'None'
+  if (typeof props.borderRadius === 'string') {
+    if (props.borderRadius === '0' || props.borderRadius === '0px') return 'None'
+    return props.borderRadius
+  }
+  const { topLeft, topRight, bottomRight, bottomLeft } = props.borderRadius
+  const allZero = (!topLeft || topLeft === '0' || topLeft === '0px') &&
+    (!topRight || topRight === '0' || topRight === '0px') &&
+    (!bottomRight || bottomRight === '0' || bottomRight === '0px') &&
+    (!bottomLeft || bottomLeft === '0' || bottomLeft === '0px')
+  if (allZero) return 'None'
+  // Check if all values are the same
+  if (topLeft === topRight && topRight === bottomRight && bottomRight === bottomLeft) {
+    return topLeft || 'None'
+  }
+  return 'Mixed'
+}
+
+// Check if radius has a value set
+function hasRadiusValue(): boolean {
+  if (!props.borderRadius) return false
+  if (typeof props.borderRadius === 'string') {
+    return props.borderRadius !== '0' && props.borderRadius !== '0px' && props.borderRadius !== ''
+  }
+  const { topLeft, topRight, bottomRight, bottomLeft } = props.borderRadius
+  return !!(topLeft && topLeft !== '0' && topLeft !== '0px') ||
+    !!(topRight && topRight !== '0' && topRight !== '0px') ||
+    !!(bottomRight && bottomRight !== '0' && bottomRight !== '0px') ||
+    !!(bottomLeft && bottomLeft !== '0' && bottomLeft !== '0px')
 }
 
 // Get overflow preview text
@@ -493,12 +568,23 @@ function getTransformPreview(): string {
               </InspectorField>
 
               <!-- Color -->
-              <ColorInput
-                v-if="backgroundType === 'color' || !backgroundType"
-                :model-value="backgroundColor"
-                inline
-                @update:model-value="emit('update:backgroundColor', $event)"
-              />
+              <template v-if="backgroundType === 'color' || !backgroundType">
+                <ColorInput
+                  :model-value="backgroundColor"
+                  inline
+                  @update:model-value="emit('update:backgroundColor', $event)"
+                />
+                <InspectorField v-if="backgroundColor" label="Opacity" horizontal>
+                  <SliderInput
+                    :model-value="String(backgroundColorOpacity ?? 100)"
+                    :min="0"
+                    :max="100"
+                    :step="5"
+                    unit="%"
+                    @update:model-value="emit('update:backgroundColorOpacity', Number($event))"
+                  />
+                </InspectorField>
+              </template>
 
               <!-- Image -->
               <template v-else-if="backgroundType === 'image'">
@@ -577,34 +663,115 @@ function getTransformPreview(): string {
                   <div
                     v-for="(stop, index) in (backgroundGradient?.stops || defaultGradientStops)"
                     :key="index"
-                    class="flex items-center gap-2"
+                    class="space-y-1.5 p-2 bg-sidebar-accent/50 rounded-lg"
                   >
-                    <ColorInput
-                      :model-value="stop.color"
-                      swatch-only
-                      side="left"
-                      @update:model-value="updateGradientStop(index, { color: $event })"
-                    />
-                    <SliderInput
-                      class="flex-1"
-                      :model-value="String(stop.position)"
-                      :min="0"
-                      :max="100"
-                      :step="1"
-                      unit="%"
-                      @update:model-value="updateGradientStop(index, { position: Number($event) })"
-                    />
-                    <button
-                      v-if="(backgroundGradient?.stops?.length || 2) > 2"
-                      type="button"
-                      class="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                      @click.stop.prevent="removeGradientStop(index)"
-                    >
-                      <Icon name="app-delete" :size="12" />
-                    </button>
+                    <div class="flex items-center gap-2">
+                      <ColorInput
+                        :model-value="stop.color"
+                        swatch-only
+                        side="left"
+                        @update:model-value="updateGradientStop(index, { color: $event })"
+                      />
+                      <SliderInput
+                        class="flex-1"
+                        :model-value="String(stop.position)"
+                        :min="0"
+                        :max="100"
+                        :step="1"
+                        unit="%"
+                        @update:model-value="updateGradientStop(index, { position: Number($event) })"
+                      />
+                      <button
+                        v-if="(backgroundGradient?.stops?.length || 2) > 2"
+                        type="button"
+                        class="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                        @click.stop.prevent="removeGradientStop(index)"
+                      >
+                        <Icon name="app-delete" :size="12" />
+                      </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] text-muted-foreground w-10">Opacity</span>
+                      <SliderInput
+                        class="flex-1"
+                        :model-value="String(stop.opacity ?? 100)"
+                        :min="0"
+                        :max="100"
+                        :step="5"
+                        unit="%"
+                        @update:model-value="updateGradientStop(index, { opacity: Number($event) })"
+                      />
+                    </div>
                   </div>
                 </div>
 
+              </template>
+
+              <!-- Content-aware background -->
+              <template v-else-if="backgroundType === 'content'">
+                <InspectorField label="Source" horizontal>
+                  <SelectInput
+                    :model-value="backgroundContentSource || ''"
+                    :options="[
+                      { value: '', label: 'Select image...' },
+                      ...(availableContentImages || []).map(img => ({ value: img.id, label: img.name }))
+                    ]"
+                    @update:model-value="emit('update:backgroundContentSource', $event)"
+                  />
+                </InspectorField>
+
+                <!-- Preview of selected image -->
+                <div v-if="backgroundContentSource && availableContentImages?.find(i => i.id === backgroundContentSource)" class="mb-3">
+                  <div class="relative w-full h-20 rounded-lg overflow-hidden bg-sidebar-accent">
+                    <img
+                      :src="availableContentImages.find(i => i.id === backgroundContentSource)?.src"
+                      class="absolute inset-0 w-full h-full object-cover"
+                      :style="{
+                        filter: `blur(${(backgroundContentBlur ?? 40) / 2.5}px) saturate(${(backgroundContentSaturation ?? 150) / 100})`,
+                        transform: `scale(${(backgroundContentScale ?? 120) / 100})`
+                      }"
+                    />
+                  </div>
+                </div>
+
+                <div v-if="!availableContentImages?.length" class="text-xs text-muted-foreground py-2">
+                  No images found in this block or its children
+                </div>
+
+                <template v-if="backgroundContentSource">
+                  <InspectorField label="Blur" horizontal>
+                    <SliderInput
+                      :model-value="String(backgroundContentBlur ?? 40)"
+                      :min="0"
+                      :max="100"
+                      :step="5"
+                      unit="px"
+                      @update:model-value="emit('update:backgroundContentBlur', Number($event))"
+                    />
+                  </InspectorField>
+
+                  <InspectorField label="Saturation" horizontal>
+                    <SliderInput
+                      :model-value="String(backgroundContentSaturation ?? 150)"
+                      :min="0"
+                      :max="300"
+                      :step="10"
+                      unit="%"
+                      @update:model-value="emit('update:backgroundContentSaturation', Number($event))"
+                    />
+                  </InspectorField>
+
+                  <InspectorField label="Scale" horizontal>
+                    <SliderInput
+                      :model-value="String(backgroundContentScale ?? 120)"
+                      :min="100"
+                      :max="200"
+                      :step="5"
+                      unit="%"
+                      @update:model-value="emit('update:backgroundContentScale', Number($event))"
+                    />
+                  </InspectorField>
+                </template>
               </template>
             </div>
           </div>
@@ -721,7 +888,7 @@ function getTransformPreview(): string {
           >
             <span
               class="w-2 h-2 rounded-full shrink-0"
-              :class="borderRadius && borderRadius !== '0' && borderRadius !== '0px' ? 'bg-white' : 'bg-muted-foreground/30'"
+              :class="hasRadiusValue() ? 'bg-white' : 'bg-muted-foreground/30'"
             ></span>
             <span class="truncate">{{ getRadiusPreview() }}</span>
           </button>
@@ -739,13 +906,10 @@ function getTransformPreview(): string {
               <Button size="sm" @click.stop.prevent="close()">Apply</Button>
             </div>
             <!-- Content -->
-            <InspectorField label="Radius" horizontal>
-              <SizeInput
-                :model-value="borderRadius || ''"
-                placeholder="0"
-                @update:model-value="emit('update:borderRadius', $event)"
-              />
-            </InspectorField>
+            <BorderRadiusInput
+              :model-value="borderRadius"
+              @update:model-value="updateBorderRadius($event)"
+            />
           </div>
         </template>
       </Popover>
@@ -924,7 +1088,7 @@ function getTransformPreview(): string {
     </InspectorField>
 
     <!-- Transform -->
-    <InspectorField label="Transform" horizontal>
+    <InspectorField label="Position" horizontal>
       <Popover align="right" width="w-80">
         <template #trigger="{ toggle }">
           <button
@@ -944,7 +1108,7 @@ function getTransformPreview(): string {
             <div class="flex items-center gap-2 mb-3 pb-2">
               <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
                 <Icon name="style-color" :size="14" class="text-muted-foreground" />
-                Transform
+                Position
               </span>
               <div class="flex-1" />
               <Button size="sm" variant="outline" @click.stop.prevent="resetTransform(); close()">Reset</Button>

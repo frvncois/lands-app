@@ -4,7 +4,7 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthView from '@/views/AuthView.vue'
 import DashboardView from '@/views/DashboardView.vue'
-import EditorView from '@/views/EditorView.vue'
+import DesignerView from '@/views/DesignerView.vue'
 import ProjectSettingsView from '@/views/ProjectSettingsView.vue'
 import AccountView from '@/views/AccountView.vue'
 import InviteView from '@/views/InviteView.vue'
@@ -51,8 +51,14 @@ const router = createRouter({
         },
         {
           path: 'project/:projectId',
-          name: 'editor',
-          component: EditorView,
+          name: 'designer',
+          component: DesignerView,
+          meta: { requiresProject: true },
+        },
+        {
+          path: 'project/:projectId/content',
+          name: 'content',
+          component: () => import('@/views/ContentView.vue'),
           meta: { requiresProject: true },
         },
         {

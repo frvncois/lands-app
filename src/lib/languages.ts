@@ -2,7 +2,7 @@
  * Language utilities for multilingual support
  */
 
-import type { LanguageCode, LanguageInfo } from '@/types/editor'
+import type { LanguageCode, LanguageInfo } from '@/types/designer'
 
 // All supported languages with display info
 export const languages: LanguageInfo[] = [

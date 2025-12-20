@@ -10,8 +10,8 @@ import {
   type ToggleGroupConfig,
   type InlineGroupConfig,
 } from './inspector-config'
-import type { SectionBlockType } from '@/types/editor'
-import { getAllDescendants } from '@/lib/editor-utils'
+import type { SectionBlockType, SectionBlock } from '@/types/designer'
+import { getAllDescendants } from '@/lib/designer-utils'
 
 import InspectorSection from './InspectorSection.vue'
 import InspectorField from './InspectorField.vue'
@@ -24,6 +24,7 @@ import SizeInput from './SizeInput.vue'
 import SelectInput from './SelectInput.vue'
 import SegmentedControl from './SegmentedControl.vue'
 import LinkInput from './LinkInput.vue'
+import IconPickerInput from './IconPickerInput.vue'
 import Tooltip from '@/components/ui/Tooltip.vue'
 import {
   TypographySection,
@@ -43,7 +44,7 @@ const {
   isChildOfGrid,
   parentGridColumns,
   isInFlexContainer,
-  editorStore,
+  designerStore,
 } = useBlockInspector()
 
 const { fontFamilyOptions, defaultFontFamily } = useFontOptions()
@@ -61,6 +62,36 @@ const styles = computed(() => effectiveBlockStyles.value as Record<string, strin
 // Get ALL descendants (nested children) for effects targeting
 const allDescendants = computed(() => getAllDescendants(selectedBlock.value))
 
+// Get available content images for content-aware background
+const availableContentImages = computed(() => {
+  if (!selectedBlock.value) return []
+  const images: Array<{ id: string; name: string; src: string }> = []
+
+  // Helper to collect images from a block and its children
+  function collectImages(block: SectionBlock) {
+    if (block.type === 'image') {
+      const imgSettings = block.settings as { src?: string }
+      if (imgSettings.src) {
+        images.push({
+          id: block.id,
+          name: block.name || 'Image',
+          src: imgSettings.src
+        })
+      }
+    }
+    // Recurse into children
+    if (block.children) {
+      for (const child of block.children) {
+        collectImages(child)
+      }
+    }
+  }
+
+  // Collect from current block and its children
+  collectImages(selectedBlock.value)
+  return images
+})
+
 // Find the accordion item ancestor (if any)
 const accordionItemAncestor = computed(() => {
   if (!selectedBlock.value) return null
@@ -72,13 +103,13 @@ const accordionItemAncestor = computed(() => {
   }
 
   // Check ancestors for accordion item
-  let parent = editorStore.findParentBlock(selectedBlock.value.id)
+  let parent = designerStore.findParentBlock(selectedBlock.value.id)
   while (parent) {
     if (parent.type === 'stack' &&
         parent.name?.toLowerCase().includes('accordion item')) {
       return parent
     }
-    parent = editorStore.findParentBlock(parent.id)
+    parent = designerStore.findParentBlock(parent.id)
   }
 
   return null
@@ -92,20 +123,20 @@ const isInAccordionContext = computed(() => {
 // Get the accordion item's preview state (from editor store, not saved)
 const accordionPreviewState = computed(() => {
   if (!accordionItemAncestor.value) return 'open'
-  return editorStore.getAccordionPreviewState(accordionItemAncestor.value.id)
+  return designerStore.getAccordionPreviewState(accordionItemAncestor.value.id)
 })
 
 // Update the accordion item's preview state (editor-only, not saved)
 function updateAccordionPreviewState(state: 'closed' | 'open') {
   if (!accordionItemAncestor.value) return
-  editorStore.setAccordionPreviewState(accordionItemAncestor.value.id, state)
+  designerStore.setAccordionPreviewState(accordionItemAncestor.value.id, state)
 }
 
 // Translation-aware content getter
 function getTranslatableValue(key: string): string {
   if (!selectedBlock.value) return ''
-  if (editorStore.isEditingTranslation && editorStore.currentLanguage) {
-    const langTranslations = editorStore.translations.languages[editorStore.currentLanguage]
+  if (designerStore.isEditingTranslation && designerStore.currentLanguage) {
+    const langTranslations = designerStore.translations.languages[designerStore.currentLanguage]
     const blockTranslation = langTranslations?.blocks[selectedBlock.value.id] as Record<string, unknown> | undefined
     if (blockTranslation?.[key] !== undefined) {
       return blockTranslation[key] as string
@@ -117,9 +148,9 @@ function getTranslatableValue(key: string): string {
 // Translation-aware content setter
 function updateTranslatableValue(key: string, value: string) {
   if (!selectedBlock.value) return
-  if (editorStore.isEditingTranslation) {
+  if (designerStore.isEditingTranslation) {
     // Cast key to the expected type for the method
-    editorStore.updateBlockTranslation(selectedBlock.value.id, key as 'content' | 'label', value)
+    designerStore.updateBlockTranslation(selectedBlock.value.id, key as 'content' | 'label', value)
   } else {
     updateBlockSettings({ [key]: value })
   }
@@ -476,6 +507,13 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
                 :placeholder="(field as FieldConfig).placeholder"
                 @update:model-value="updateFieldValue(field as FieldConfig, $event)"
               />
+
+              <!-- Icon picker -->
+              <IconPickerInput
+                v-else-if="(field as FieldConfig).type === 'icon-picker'"
+                :model-value="getFieldValue(field as FieldConfig) as string"
+                @update:model-value="updateFieldValue(field as FieldConfig, $event)"
+              />
             </InspectorField>
           </template>
         </template>
@@ -496,6 +534,10 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         v-if="section === 'display'"
         :width="responsiveStyles.width"
         :height="responsiveStyles.height"
+        :min-width="responsiveStyles.minWidth"
+        :max-width="responsiveStyles.maxWidth"
+        :min-height="responsiveStyles.minHeight"
+        :max-height="responsiveStyles.maxHeight"
         :direction="styles.flexDirection"
         :justify="selectedBlock?.type === 'grid' ? styles.justifyItems : styles.justifyContent"
         :align="styles.alignItems"
@@ -508,14 +550,27 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         :flex-mode="(settings as Record<string, unknown>).flexMode as string | undefined"
         :flex-value="(settings as Record<string, unknown>).flexValue as string | undefined"
         :hide-direction="selectedBlock?.type === 'grid'"
-        :hide-layout="!['container', 'stack', 'grid', 'canvas', 'button'].includes(selectedBlock?.type || '')"
+        :hide-layout="!['container', 'stack', 'grid', 'canvas', 'button', 'form'].includes(selectedBlock?.type || '')"
         :is-grid="selectedBlock?.type === 'grid'"
         :is-grid-child="isChildOfGrid"
         :is-flex-child="isInFlexContainer"
         :block-type="selectedBlock?.type"
         :html-tag="(settings as Record<string, unknown>).htmlTag as string | undefined"
+        :slides-in-view="(settings as Record<string, unknown>).slidesInView as number | undefined"
+        :slide-gap="(settings as Record<string, unknown>).slideGap as string | undefined"
+        :transition="(settings as Record<string, unknown>).transition as string | undefined"
+        :transition-duration="(settings as Record<string, unknown>).transitionDuration as number | undefined"
+        :show-arrows="(settings as Record<string, unknown>).showArrows as boolean | undefined"
+        :arrow-position="(settings as Record<string, unknown>).arrowPosition as string | undefined"
+        :autoplay="(settings as Record<string, unknown>).autoplay as boolean | undefined"
+        :autoplay-interval="(settings as Record<string, unknown>).autoplayInterval as number | undefined"
+        :pause-on-hover="(settings as Record<string, unknown>).pauseOnHover as boolean | undefined"
         @update:width="updateBlockStyles({ width: $event })"
         @update:height="updateBlockStyles({ height: $event })"
+        @update:min-width="updateBlockStyles({ minWidth: $event })"
+        @update:max-width="updateBlockStyles({ maxWidth: $event })"
+        @update:min-height="updateBlockStyles({ minHeight: $event })"
+        @update:max-height="updateBlockStyles({ maxHeight: $event })"
         @update:direction="updateBlockStyles({ flexDirection: $event })"
         @update:justify="updateBlockStyles(selectedBlock?.type === 'grid' ? { justifyItems: $event } : { justifyContent: $event })"
         @update:align="updateBlockStyles({ alignItems: $event })"
@@ -527,6 +582,15 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         @update:flex-mode="updateBlockSettings({ flexMode: $event })"
         @update:flex-value="updateBlockSettings({ flexValue: $event })"
         @update:html-tag="updateBlockSettings({ htmlTag: $event })"
+        @update:slides-in-view="updateBlockSettings({ slidesInView: $event })"
+        @update:slide-gap="updateBlockSettings({ slideGap: $event })"
+        @update:transition="updateBlockSettings({ transition: $event })"
+        @update:transition-duration="updateBlockSettings({ transitionDuration: $event })"
+        @update:show-arrows="updateBlockSettings({ showArrows: $event })"
+        @update:arrow-position="updateBlockSettings({ arrowPosition: $event })"
+        @update:autoplay="updateBlockSettings({ autoplay: $event })"
+        @update:autoplay-interval="updateBlockSettings({ autoplayInterval: $event })"
+        @update:pause-on-hover="updateBlockSettings({ pauseOnHover: $event })"
       />
 
       <!-- Typography Section -->
@@ -563,8 +627,9 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         v-else-if="section === 'styles'"
         :margin="responsiveStyles.margin"
         :padding="responsiveStyles.padding"
-        :background-type="(settings as Record<string, unknown>).backgroundType as 'color' | 'image' | 'video' | 'gradient' | undefined"
+        :background-type="(settings as Record<string, unknown>).backgroundType as 'color' | 'image' | 'video' | 'gradient' | 'content' | undefined"
         :background-color="responsiveStyles.backgroundColor"
+        :background-color-opacity="responsiveStyles.backgroundColorOpacity"
         :background-image="(settings as Record<string, unknown>).backgroundImage as string | undefined"
         :background-video="(settings as Record<string, unknown>).backgroundVideo as string | undefined"
         :background-gradient="responsiveStyles.backgroundGradient"
@@ -573,6 +638,11 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         :background-image-saturation="(settings as Record<string, unknown>).backgroundImageSaturation as number | undefined"
         :background-image-overlay="(settings as Record<string, unknown>).backgroundImageOverlay as string | undefined"
         :background-image-overlay-opacity="(settings as Record<string, unknown>).backgroundImageOverlayOpacity as number | undefined"
+        :background-content-source="(settings as Record<string, unknown>).backgroundContentSource as string | undefined"
+        :background-content-blur="(settings as Record<string, unknown>).backgroundContentBlur as number | undefined"
+        :background-content-saturation="(settings as Record<string, unknown>).backgroundContentSaturation as number | undefined"
+        :background-content-scale="(settings as Record<string, unknown>).backgroundContentScale as number | undefined"
+        :available-content-images="availableContentImages"
         :shadow="responsiveStyles.shadow"
         :border-radius="responsiveStyles.borderRadius"
         :border="responsiveStyles.border"
@@ -603,6 +673,7 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         @update:padding="updateBlockStyles({ padding: $event })"
         @update:background-type="updateBlockSettings({ backgroundType: $event })"
         @update:background-color="updateBlockStyles({ backgroundColor: $event })"
+        @update:background-color-opacity="updateBlockStyles({ backgroundColorOpacity: $event })"
         @update:background-image="updateBlockSettings({ backgroundImage: $event })"
         @update:background-video="updateBlockSettings({ backgroundVideo: $event })"
         @update:background-gradient="updateBlockStyles({ backgroundGradient: $event })"
@@ -611,6 +682,10 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
         @update:background-image-saturation="updateBlockSettings({ backgroundImageSaturation: $event })"
         @update:background-image-overlay="updateBlockSettings({ backgroundImageOverlay: $event })"
         @update:background-image-overlay-opacity="updateBlockSettings({ backgroundImageOverlayOpacity: $event })"
+        @update:background-content-source="updateBlockSettings({ backgroundContentSource: $event })"
+        @update:background-content-blur="updateBlockSettings({ backgroundContentBlur: $event })"
+        @update:background-content-saturation="updateBlockSettings({ backgroundContentSaturation: $event })"
+        @update:background-content-scale="updateBlockSettings({ backgroundContentScale: $event })"
         @update:shadow="updateBlockStyles({ shadow: $event })"
         @update:border-radius="updateBlockStyles({ borderRadius: $event })"
         @update:border="updateBlockStyles({ border: $event })"
@@ -641,8 +716,10 @@ function isInlineGroup(field: FieldConfig | ToggleGroupConfig | InlineGroupConfi
       <EffectsSection
         v-else-if="section === 'effects'"
         :effects="(effectiveBlockStyles as Record<string, unknown>).effects as any"
+        :block-styles="effectiveBlockStyles as Record<string, unknown>"
         :descendants="allDescendants"
         @update:effects="updateBlockStyles({ effects: $event })"
+        @update:block-styles="updateBlockStyles($event)"
       />
     </template>
 

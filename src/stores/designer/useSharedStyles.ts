@@ -1,11 +1,11 @@
 import type { Ref } from 'vue'
-import type { SectionBlock, SectionBlockType, PageSettings, SharedStyle } from '@/types/editor'
+import type { SectionBlock, SectionBlockType, PageSettings, SharedStyle } from '@/types/designer'
 import {
   generateId,
   extractStyleSettings,
   applyStyleSettings,
   hasSharedStyleOverrides,
-} from '@/lib/editor-utils'
+} from '@/lib/designer-utils'
 import { deepClone } from './helpers'
 
 export interface UseSharedStylesOptions {

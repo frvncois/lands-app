@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import DOMPurify from 'dompurify'
-import type { SectionBlock, HeadingSettings } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { SectionBlock, HeadingSettings } from '@/types/designer'
+import { useDesignerStore } from '@/stores/designer'
 
 /**
  * HeadingBlock - Renders an inline-editable heading
@@ -20,7 +20,7 @@ const emit = defineEmits<{
   spanMouseOut: [event: MouseEvent]
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const editableRef = ref<HTMLElement | null>(null)
 
 const settings = computed(() => props.block.settings as HeadingSettings)
@@ -37,9 +37,9 @@ function sanitizeHtml(html: string | undefined): string {
 // Translation-aware content
 const displayContent = computed(() => {
   if (!settings.value) return ''
-  const lang = editorStore.currentLanguage
+  const lang = designerStore.currentLanguage
   if (lang) {
-    const langTranslations = editorStore.translations.languages[lang]
+    const langTranslations = designerStore.translations.languages[lang]
     const translated = langTranslations?.blocks[props.block.id]?.content
     if (translated !== undefined) return sanitizeHtml(translated)
   }
@@ -87,6 +87,7 @@ defineExpose({ editableRef })
     ]"
     :style="styles"
     contenteditable="true"
+    draggable="false"
     spellcheck="false"
     @blur="handleEdit($event)"
     @keydown.escape="handleEscapeKey($event)"
@@ -94,7 +95,7 @@ defineExpose({ editableRef })
     @click="emit('spanClick', $event)"
     @mouseover="emit('spanMouseOver', $event)"
     @mouseout="emit('spanMouseOut', $event)"
-    :key="`heading-${editorStore.currentLanguage || 'default'}`"
+    :key="`heading-${designerStore.currentLanguage || 'default'}`"
     v-html="displayContent || 'Heading'"
   />
 </template>

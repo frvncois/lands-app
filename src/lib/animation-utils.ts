@@ -4,7 +4,7 @@
  * Provides animation presets, CSS generation, and helpers for the animation system.
  */
 
-import type { AnimationSettings, AnimationPreset, AnimationTrigger, AnimationEasing } from '@/types/editor'
+import type { AnimationSettings, AnimationPreset, AnimationTrigger, AnimationEasing } from '@/types/designer'
 
 // ============================================
 // ANIMATION PRESET DEFINITIONS

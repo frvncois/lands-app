@@ -1,13 +1,13 @@
 import { ref, computed, onUnmounted, type Ref } from 'vue'
-import type { SectionBlock, GridSettings } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { SectionBlock, GridSettings } from '@/types/designer'
+import { useDesignerStore } from '@/stores/designer'
 
 /**
  * Composable for grid column resizing
  * Allows dragging handles between columns to adjust their widths
  */
 export function useGridResize(block: Ref<SectionBlock>) {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   // Resize state
   const isResizing = ref(false)
@@ -111,7 +111,7 @@ export function useGridResize(block: Ref<SectionBlock>) {
     newWidths[colIndex + 1] = Math.round(newRightWidth * 10) / 10
 
     // Update the grid settings
-    editorStore.updateBlockSettings(block.value.id, { columnWidths: newWidths })
+    designerStore.updateBlockSettings(block.value.id, { columnWidths: newWidths })
   }
 
   /**

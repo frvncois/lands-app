@@ -6,7 +6,7 @@ import { ACCOUNT_SETTINGS } from '@/settings/accountSettings'
 
 <template>
   <div class="flex-1 h-full overflow-y-auto bg-background">
-    <div class="max-w-6xl mx-auto p-8">
+    <div class="max-w-6xl mx-auto p-10">
       <Header
         title="Account Settings"
         description="Manage your profile, preferences, and projects."

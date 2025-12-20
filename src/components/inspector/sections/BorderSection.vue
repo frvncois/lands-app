@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BorderStyle } from '@/types/editor'
+import type { BorderStyle } from '@/types/designer'
 import InspectorSection from '../InspectorSection.vue'
 import BorderInput from '../BorderInput.vue'
 

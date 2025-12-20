@@ -13,8 +13,10 @@ export type SectionBlockType =
   | 'container'
   | 'grid'
   | 'stack'
+  | 'slider'
   | 'freeform'
   | 'canvas'
+  | 'form'
   // Content
   | 'heading'
   | 'text'
@@ -22,6 +24,13 @@ export type SectionBlockType =
   | 'video'
   | 'button'
   | 'icon'
+  // Form elements (can only exist inside form)
+  | 'form-input'
+  | 'form-textarea'
+  | 'form-checkbox'
+  | 'form-radio'
+  | 'form-button'
+  | 'form-label'
   // E-commerce
   | 'variants'
 
@@ -41,6 +50,15 @@ export type CanvasChildBlockType =
   | 'video'
   | 'button'
   | 'icon'
+
+// Form child block types (blocks that can ONLY exist inside form)
+export type FormChildBlockType =
+  | 'form-input'
+  | 'form-textarea'
+  | 'form-checkbox'
+  | 'form-radio'
+  | 'form-button'
+  | 'form-label'
 
 // Mask shapes for canvas/image blocks
 export type MaskShape = 'none' | 'circle' | 'rounded' | 'blob-1' | 'blob-2' | 'blob-3' | 'hexagon' | 'diamond' | 'arch'
@@ -148,6 +166,15 @@ export interface BorderStyle {
   sides?: string // comma-separated: "top,right,bottom,left"
 }
 
+// Border radius style - supports individual corners
+export interface BorderRadiusStyle {
+  topLeft?: string
+  topRight?: string
+  bottomRight?: string
+  bottomLeft?: string
+  locked?: boolean // When true, all corners use the same value
+}
+
 // Shadow style
 export interface ShadowStyle {
   enabled?: boolean
@@ -163,12 +190,14 @@ export interface ShadowStyle {
 export interface GradientStop {
   color: string
   position: number  // 0-100
+  opacity?: number  // 0-100, defaults to 100
 }
 
 export interface GradientStyle {
   type: 'linear' | 'radial'
   angle?: number  // 0-360 for linear
   stops: GradientStop[]
+  opacity?: number  // 0-100, overall gradient opacity
 }
 
 // ============================================
@@ -528,6 +557,10 @@ export interface CoreBlockStyles {
   // Size
   width?: string
   height?: string
+  minWidth?: string
+  maxWidth?: string
+  minHeight?: string
+  maxHeight?: string
   // Spacing
   padding?: Spacing
   margin?: Spacing
@@ -539,7 +572,7 @@ export interface CoreBlockStyles {
   backgroundGradient?: GradientStyle
   // Border
   border?: BorderStyle
-  borderRadius?: string
+  borderRadius?: string | BorderRadiusStyle
   // Shadow
   shadow?: ShadowStyle
   // Flexbox child properties
@@ -594,7 +627,7 @@ export interface ContainerSettings extends SharedBlockSettings {
   // HTML element type
   htmlTag?: ContainerHtmlTag
   // Background
-  backgroundType?: 'color' | 'image' | 'video'
+  backgroundType?: 'color' | 'image' | 'video' | 'content'
   backgroundImage?: string
   backgroundVideo?: string
   // Background image effects
@@ -603,6 +636,11 @@ export interface ContainerSettings extends SharedBlockSettings {
   backgroundImageSaturation?: number
   backgroundImageOverlay?: string
   backgroundImageOverlayOpacity?: number
+  // Content-aware background
+  backgroundContentSource?: string
+  backgroundContentBlur?: number
+  backgroundContentSaturation?: number
+  backgroundContentScale?: number
 }
 
 export interface ContainerStyles extends BaseBlockStyles {
@@ -631,7 +669,7 @@ export interface GridSettings extends SharedBlockSettings {
   rows?: number // number of rows for explicit grid
   rowHeights?: number[] // custom row heights as fr values
   // Background
-  backgroundType?: 'color' | 'image' | 'video'
+  backgroundType?: 'color' | 'image' | 'video' | 'content'
   backgroundImage?: string
   backgroundVideo?: string
   // Background image effects
@@ -640,6 +678,11 @@ export interface GridSettings extends SharedBlockSettings {
   backgroundImageSaturation?: number
   backgroundImageOverlay?: string
   backgroundImageOverlayOpacity?: number
+  // Content-aware background
+  backgroundContentSource?: string
+  backgroundContentBlur?: number
+  backgroundContentSaturation?: number
+  backgroundContentScale?: number
 }
 
 export interface GridStyles extends BaseBlockStyles {
@@ -668,7 +711,7 @@ export interface StackSettings extends SharedBlockSettings {
   // HTML element type
   htmlTag?: LayoutHtmlTag
   // Background
-  backgroundType?: 'color' | 'image' | 'video'
+  backgroundType?: 'color' | 'image' | 'video' | 'content'
   backgroundImage?: string
   backgroundVideo?: string
   // Background image effects
@@ -677,6 +720,11 @@ export interface StackSettings extends SharedBlockSettings {
   backgroundImageSaturation?: number
   backgroundImageOverlay?: string
   backgroundImageOverlayOpacity?: number
+  // Content-aware background
+  backgroundContentSource?: string
+  backgroundContentBlur?: number
+  backgroundContentSaturation?: number
+  backgroundContentScale?: number
 }
 
 export interface StackStyles extends BaseBlockStyles {
@@ -914,7 +962,7 @@ export interface ResponsiveCanvasChildPositions {
 // Canvas block settings
 export interface CanvasSettings extends SharedBlockSettings {
   // Background
-  backgroundType?: 'color' | 'image' | 'video'
+  backgroundType?: 'color' | 'image' | 'video' | 'content'
   backgroundImage?: string
   backgroundVideo?: string
   // Background image effects
@@ -923,6 +971,11 @@ export interface CanvasSettings extends SharedBlockSettings {
   backgroundImageSaturation?: number
   backgroundImageOverlay?: string
   backgroundImageOverlayOpacity?: number
+  // Content-aware background
+  backgroundContentSource?: string
+  backgroundContentBlur?: number
+  backgroundContentSaturation?: number
+  backgroundContentScale?: number
   // Size
   width?: string
   height?: string
@@ -933,6 +986,62 @@ export interface CanvasSettings extends SharedBlockSettings {
 
 export interface CanvasStyles extends BaseBlockStyles {
   // Canvas styles
+}
+
+// ============================================
+// SLIDER BLOCK
+// ============================================
+
+// Transition type for slider
+export type SliderTransition = 'slide' | 'fade'
+
+// Arrow position
+export type SliderArrowPosition = 'inside' | 'outside'
+
+// Child role (to identify arrows vs slides)
+export type SliderChildRole = 'slide' | 'arrow-prev' | 'arrow-next'
+
+// Slider block settings
+export interface SliderSettings extends SharedBlockSettings {
+  // Slides configuration
+  slidesInView: number // 1, 1.5, 2, 2.5, etc.
+  slidesInViewTablet?: number
+  slidesInViewMobile?: number
+  slideGap?: string // Gap between slides (e.g., "16px")
+
+  // Transition
+  transition: SliderTransition
+  transitionDuration?: number // ms, default 300
+
+  // Navigation arrows
+  showArrows?: boolean
+  arrowPosition?: SliderArrowPosition
+
+  // Autoplay
+  autoplay?: boolean
+  autoplayInterval?: number // ms, default 3000
+  pauseOnHover?: boolean
+
+  // Background (consistent with other layout blocks)
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
+  backgroundImageOpacity?: number
+  backgroundImageBlur?: number
+  backgroundImageSaturation?: number
+  backgroundImageOverlay?: string
+  backgroundImageOverlayOpacity?: number
+
+  // Child roles map (blockId -> role)
+  // This identifies which children are arrows vs slides
+  childRoles?: Record<string, SliderChildRole>
+}
+
+export interface SliderStyles extends BaseBlockStyles {
+  // Layout (flex-based like Stack)
+  alignment?: Alignment
+  alignItems?: AlignItems
+  gap?: string
 }
 
 // ============================================
@@ -955,6 +1064,148 @@ export interface VariantOptionType {
   name: string
   displayStyle: VariantDisplayStyle
   values: VariantOptionValue[]
+}
+
+// ============================================
+// FORM BLOCKS
+// ============================================
+
+// Form container (like stack, but for forms)
+export interface FormSettings extends SharedBlockSettings {
+  gap: string
+  // Form submission
+  action?: string // Form action URL
+  method?: 'GET' | 'POST'
+  // Background
+  backgroundType?: 'color' | 'image' | 'video'
+  backgroundImage?: string
+  backgroundVideo?: string
+  // Background image effects
+  backgroundImageOpacity?: number
+  backgroundImageBlur?: number
+  backgroundImageSaturation?: number
+  backgroundImageOverlay?: string
+  backgroundImageOverlayOpacity?: number
+}
+
+export interface FormStyles extends BaseBlockStyles {
+  alignment?: Alignment
+  // Flexbox properties (vertical stack by default)
+  flexDirection?: FlexDirection
+  justifyContent?: JustifyContent
+  alignItems?: AlignItems
+  flexWrap?: FlexWrap
+  gap?: string
+}
+
+// Form Input
+export interface FormInputSettings extends SharedBlockSettings {
+  name: string // Field name for form submission
+  placeholder?: string
+  label?: string
+  type?: 'text' | 'email' | 'password' | 'number' | 'tel' | 'url'
+  required?: boolean
+  defaultValue?: string
+}
+
+export interface FormInputStyles extends BaseBlockStyles {
+  // Typography
+  fontSize?: FontSize
+  fontWeight?: FontWeight
+  fontFamily?: string
+  color?: string
+  // Input styling
+  backgroundColor?: string
+  placeholderColor?: string
+}
+
+// Form Textarea
+export interface FormTextareaSettings extends SharedBlockSettings {
+  name: string
+  placeholder?: string
+  label?: string
+  required?: boolean
+  rows?: number
+  defaultValue?: string
+}
+
+export interface FormTextareaStyles extends BaseBlockStyles {
+  fontSize?: FontSize
+  fontWeight?: FontWeight
+  fontFamily?: string
+  color?: string
+  backgroundColor?: string
+  placeholderColor?: string
+}
+
+// Form Checkbox
+export interface FormCheckboxSettings extends SharedBlockSettings {
+  name: string
+  label: string
+  required?: boolean
+  defaultChecked?: boolean
+}
+
+export interface FormCheckboxStyles extends BaseBlockStyles {
+  fontSize?: FontSize
+  fontWeight?: FontWeight
+  color?: string
+  // Checkbox styling
+  checkboxSize?: string
+  checkboxColor?: string
+  checkboxBorderColor?: string
+  gap?: string
+}
+
+// Form Radio
+export interface FormRadioSettings extends SharedBlockSettings {
+  name: string // Shared name for radio group
+  label: string
+  value: string // Value when selected
+  defaultChecked?: boolean
+}
+
+export interface FormRadioStyles extends BaseBlockStyles {
+  fontSize?: FontSize
+  fontWeight?: FontWeight
+  color?: string
+  // Radio styling
+  radioSize?: string
+  radioColor?: string
+  radioBorderColor?: string
+  gap?: string
+}
+
+// Form Button (submit button)
+export interface FormButtonSettings extends SharedBlockSettings {
+  label: string
+  type?: 'submit' | 'reset' | 'button'
+}
+
+export interface FormButtonStyles extends BaseBlockStyles {
+  // Typography
+  fontSize?: FontSize
+  fontWeight?: FontWeight
+  fontFamily?: string
+  color?: string
+  // Button styling
+  backgroundColor?: string
+  hoverBackgroundColor?: string
+  hoverTextColor?: string
+}
+
+// Form Label
+export interface FormLabelSettings extends SharedBlockSettings {
+  content: string
+  for?: string // Associate with input by name
+}
+
+export interface FormLabelStyles extends BaseBlockStyles {
+  fontSize?: FontSize
+  fontWeight?: FontWeight
+  fontFamily?: string
+  color?: string
+  alignment?: Alignment
 }
 
 // Product variant
@@ -1017,6 +1268,7 @@ export type BlockStyles =
   | ContainerStyles
   | GridStyles
   | StackStyles
+  | SliderStyles
   | HeadingStyles
   | TextStyles
   | ImageStyles
@@ -1026,6 +1278,13 @@ export type BlockStyles =
   | FreeformStyles
   | CanvasStyles
   | VariantsStyles
+  | FormStyles
+  | FormInputStyles
+  | FormTextareaStyles
+  | FormCheckboxStyles
+  | FormRadioStyles
+  | FormButtonStyles
+  | FormLabelStyles
 
 // ============================================
 // SECTION BLOCK (UNIFIED)
@@ -1047,6 +1306,7 @@ export interface SectionBlock {
     | ContainerSettings
     | GridSettings
     | StackSettings
+    | SliderSettings
     | HeadingSettings
     | TextSettings
     | ImageSettings
@@ -1056,12 +1316,20 @@ export interface SectionBlock {
     | FreeformSettings
     | CanvasSettings
     | VariantsSettings
+    | FormSettings
+    | FormInputSettings
+    | FormTextareaSettings
+    | FormCheckboxSettings
+    | FormRadioSettings
+    | FormButtonSettings
+    | FormLabelSettings
 
   // Block-specific styles
   styles:
     | ContainerStyles
     | GridStyles
     | StackStyles
+    | SliderStyles
     | HeadingStyles
     | TextStyles
     | ImageStyles
@@ -1071,6 +1339,13 @@ export interface SectionBlock {
     | FreeformStyles
     | CanvasStyles
     | VariantsStyles
+    | FormStyles
+    | FormInputStyles
+    | FormTextareaStyles
+    | FormCheckboxStyles
+    | FormRadioStyles
+    | FormButtonStyles
+    | FormLabelStyles
 }
 
 // ============================================
@@ -1225,7 +1500,7 @@ export interface SavedComponent {
 // EDITOR STATE
 // ============================================
 
-export interface EditorState {
+export interface DesignerState {
   blocks: SectionBlock[]
   pageSettings: PageSettings
   selectedBlockId: string | null

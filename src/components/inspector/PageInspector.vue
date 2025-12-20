@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { useProjectsStore } from '@/stores/projects'
 import { useProjectStore } from '@/stores/project'
 import { useToast } from '@/stores/toast'
-import { generateId } from '@/lib/editor-utils'
+import { generateId } from '@/lib/designer-utils'
 import { planHasFeature } from '@/types/project'
 import { supabase } from '@/lib/supabase'
-import type { PageSettings, GoogleFont } from '@/types/editor'
+import type { PageSettings, GoogleFont } from '@/types/designer'
 
 import InspectorSection from './InspectorSection.vue'
 import InspectorField from './InspectorField.vue'
@@ -23,7 +23,7 @@ import Icon from '@/components/ui/Icon.vue'
 import ProjectFont from '@/components/modal/ProjectFont.vue'
 import PlanUpgrade from '@/components/modal/PlanUpgrade.vue'
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 const projectsStore = useProjectsStore()
 const projectStore = useProjectStore()
 const route = useRoute()
@@ -41,7 +41,7 @@ const canUseCustomCode = computed(() => {
   return planHasFeature(currentProject.value.plan, 'customCode')
 })
 
-const pageSettings = computed(() => editorStore.pageSettings)
+const pageSettings = computed(() => designerStore.pageSettings)
 const seoSettings = computed(() => projectStore.settings.seo)
 
 // Font options
@@ -108,7 +108,7 @@ function updateEditingColor(value: string) {
 }
 
 function updatePageSetting<K extends keyof PageSettings>(key: K, value: PageSettings[K]) {
-  editorStore.updatePageSettings({ [key]: value })
+  designerStore.updatePageSettings({ [key]: value })
 }
 
 function updateHeadingFont(fontFamily: string) {
@@ -116,9 +116,9 @@ function updateHeadingFont(fontFamily: string) {
   updatePageSetting('headingFontFamily', fontFamily)
 
   // Apply to all heading blocks
-  editorStore.blocks.forEach(function applyToBlock(block) {
+  designerStore.blocks.forEach(function applyToBlock(block) {
     if (block.type === 'heading') {
-      editorStore.updateBlockStyles(block.id, { fontFamily })
+      designerStore.updateBlockStyles(block.id, { fontFamily })
     }
     // Recurse into children
     if (block.children) {
@@ -132,9 +132,9 @@ function updateTextFont(fontFamily: string) {
   updatePageSetting('fontFamily', fontFamily)
 
   // Apply to all text blocks
-  editorStore.blocks.forEach(function applyToBlock(block) {
+  designerStore.blocks.forEach(function applyToBlock(block) {
     if (block.type === 'text') {
-      editorStore.updateBlockStyles(block.id, { fontFamily })
+      designerStore.updateBlockStyles(block.id, { fontFamily })
     }
     // Recurse into children
     if (block.children) {
@@ -251,7 +251,7 @@ function getBaseSizePreview(): string {
 
 // Reset functions for popovers
 function resetColorPalette() {
-  editorStore.updatePageSettings({
+  designerStore.updatePageSettings({
     backgroundColor: '#ffffff',
     textColor: '#171717',
     primaryColor: '#171717',
@@ -261,14 +261,14 @@ function resetColorPalette() {
 }
 
 function resetFontFamily() {
-  editorStore.updatePageSettings({
+  designerStore.updatePageSettings({
     headingFontFamily: 'Inter',
     fontFamily: 'Inter',
   })
 }
 
 function resetBaseSize() {
-  editorStore.updatePageSettings({
+  designerStore.updatePageSettings({
     baseFontSize: '16',
   })
 }

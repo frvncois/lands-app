@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent } from 'vue'
-import type { SectionBlock, SectionBlockType, GridSettings, GridStyles } from '@/types/editor'
-import { useEditorStore } from '@/stores/editor'
+import type { SectionBlock, SectionBlockType, GridSettings, GridStyles } from '@/types/designer'
+import type { ListPresetType } from '@/lib/list-presets'
+import { useDesignerStore } from '@/stores/designer'
 import { BackgroundMedia } from './index'
 import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
 
@@ -27,12 +28,35 @@ const emit = defineEmits<{
   (e: 'childDragOver', index: number, event: DragEvent): void
   (e: 'childDragLeave'): void
   (e: 'addBlock', type: SectionBlockType): void
+  (e: 'addListPreset', type: ListPresetType): void
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 const settings = computed(() => props.block.settings as GridSettings)
 const gridStyles = computed(() => props.block.styles as GridStyles)
+
+// Find content image source for content-aware background
+const contentImageSrc = computed(() => {
+  const sourceId = settings.value?.backgroundContentSource
+  if (!sourceId) return undefined
+
+  function findImageById(block: SectionBlock): string | undefined {
+    if (block.id === sourceId && block.type === 'image') {
+      const imgSettings = block.settings as { src?: string }
+      return imgSettings.src
+    }
+    if (block.children) {
+      for (const child of block.children) {
+        const found = findImageById(child)
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+
+  return findImageById(props.block)
+})
 
 // Dynamic HTML tag (defaults to 'div')
 const htmlTag = computed(() => settings.value?.htmlTag || 'div')
@@ -130,7 +154,7 @@ function handleColumnResizeMove(event: MouseEvent) {
   newWidths[colIndex] = Math.round(newLeftWidth * 10) / 10
   newWidths[colIndex + 1] = Math.round(newRightWidth * 10) / 10
 
-  editorStore.updateBlockSettings(props.block.id, { columnWidths: newWidths })
+  designerStore.updateBlockSettings(props.block.id, { columnWidths: newWidths })
 }
 
 function handleColumnResizeEnd() {
@@ -183,14 +207,17 @@ function getColumnResizeHandlePosition(columnIndex: number): string {
       :image-saturation="settings?.backgroundImageSaturation"
       :image-overlay="settings?.backgroundImageOverlay"
       :image-overlay-opacity="settings?.backgroundImageOverlayOpacity"
+      :content-image-src="contentImageSrc"
+      :content-blur="settings?.backgroundContentBlur"
+      :content-saturation="settings?.backgroundContentSaturation"
+      :content-scale="settings?.backgroundContentScale"
     />
 
     <!-- Grid container -->
     <component
       :is="htmlTag"
       :data-block-id="block.id"
-      class="relative z-10 grid transition-colors"
-      :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
+      class="relative z-10 grid"
       :style="{
         ...styles,
         marginTop: undefined,
@@ -198,7 +225,7 @@ function getColumnResizeHandlePosition(columnIndex: number): string {
         marginBottom: undefined,
         marginLeft: undefined,
         gridTemplateColumns,
-        'grid-auto-rows': 'minmax(80px, auto)',
+        'grid-auto-rows': 'minmax(auto)',
         gap: gridStyles?.gap || '16px',
         justifyItems: gridStyles?.justifyItems || 'flex-start',
         alignItems: gridStyles?.alignItems || 'flex-start',
@@ -219,20 +246,10 @@ function getColumnResizeHandlePosition(columnIndex: number): string {
           @dragover="emit('childDragOver', childIndex, $event)"
           @dragleave="emit('childDragLeave')"
         >
-          <!-- Drop indicator (left edge for grid) -->
-          <div
-            v-if="childDropIndex === childIndex"
-            class="absolute -left-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
-          />
           <PreviewSection
             :block="child"
             :index="childIndex"
             :total="block.children.length"
-          />
-          <!-- Drop indicator after last child -->
-          <div
-            v-if="childDropIndex === block.children.length && childIndex === block.children.length - 1"
-            class="absolute -right-2 top-0 bottom-0 w-1 bg-primary rounded-full z-10"
           />
         </div>
       </template>
@@ -245,6 +262,7 @@ function getColumnResizeHandlePosition(columnIndex: number): string {
             mode="nested"
             trigger-label="Add content"
             @select="(type: string) => emit('addBlock', type as SectionBlockType)"
+            @select-list-preset="(type: ListPresetType) => emit('addListPreset', type)"
           />
         </div>
       </template>

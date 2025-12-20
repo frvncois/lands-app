@@ -1,9 +1,9 @@
 import { computed } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import type {
   BaseBlockStyles,
   CoreBlockStyles,
-} from '@/types/editor'
+} from '@/types/designer'
 import {
   getResponsiveStyles,
   setViewportStyleOverrides,
@@ -14,13 +14,13 @@ import {
  * Handles block selection, settings/styles updates, and responsive styles.
  */
 export function useBlockInspector() {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   // Selected block
-  const selectedBlock = computed(() => editorStore.selectedBlock)
-  const selectedBlockId = computed(() => editorStore.selectedBlockId)
-  const currentViewport = computed(() => editorStore.viewport)
-  const pageSettings = computed(() => editorStore.pageSettings)
+  const selectedBlock = computed(() => designerStore.selectedBlock)
+  const selectedBlockId = computed(() => designerStore.selectedBlockId)
+  const currentViewport = computed(() => designerStore.viewport)
+  const pageSettings = computed(() => designerStore.pageSettings)
 
   // Get responsive styles for the current viewport (merged/cascaded)
   const responsiveStyles = computed((): CoreBlockStyles => {
@@ -37,26 +37,26 @@ export function useBlockInspector() {
   // Check if selected block is inside a flex container
   const isInFlexContainer = computed(() => {
     if (!selectedBlock.value) return false
-    const parent = editorStore.findParentBlock(selectedBlock.value.id)
+    const parent = designerStore.findParentBlock(selectedBlock.value.id)
     return parent?.type === 'stack' || parent?.type === 'container'
   })
 
   // Check if selected block is a direct child of a Grid
   const isChildOfGrid = computed(() => {
     if (!selectedBlock.value) return false
-    return editorStore.isDirectChildOfGrid(selectedBlock.value.id)
+    return designerStore.isDirectChildOfGrid(selectedBlock.value.id)
   })
 
   // Get the parent grid's column count
   const parentGridColumns = computed(() => {
     if (!selectedBlock.value) return null
-    return editorStore.getParentGridColumns(selectedBlock.value.id)
+    return designerStore.getParentGridColumns(selectedBlock.value.id)
   })
 
   // Update block settings
   function updateBlockSettings(settings: Record<string, unknown>) {
     if (!selectedBlock.value) return
-    editorStore.updateBlockSettings(selectedBlock.value.id, settings)
+    designerStore.updateBlockSettings(selectedBlock.value.id, settings)
   }
 
   // Update block styles (handles viewport-aware updates)
@@ -70,9 +70,9 @@ export function useBlockInspector() {
     if (hasCoreStyles && currentViewport.value !== 'desktop') {
       const currentStyles = (selectedBlock.value.styles || {}) as BaseBlockStyles
       const updatedStyles = setViewportStyleOverrides(currentStyles, currentViewport.value, styles as Partial<CoreBlockStyles>)
-      editorStore.updateBlockStyles(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true)
+      designerStore.updateBlockStyles(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true)
     } else {
-      editorStore.updateBlockStyles(selectedBlock.value.id, styles)
+      designerStore.updateBlockStyles(selectedBlock.value.id, styles)
     }
   }
 
@@ -87,23 +87,23 @@ export function useBlockInspector() {
     if (hasCoreStyles && currentViewport.value !== 'desktop') {
       const currentStyles = (selectedBlock.value.styles || {}) as BaseBlockStyles
       const updatedStyles = setViewportStyleOverrides(currentStyles, currentViewport.value, styles as Partial<CoreBlockStyles>)
-      editorStore.updateBlockStylesContinuous(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true)
+      designerStore.updateBlockStylesContinuous(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true)
     } else {
-      editorStore.updateBlockStylesContinuous(selectedBlock.value.id, styles)
+      designerStore.updateBlockStylesContinuous(selectedBlock.value.id, styles)
     }
   }
 
   // Update block settings continuously (for sliders, pickers during drag)
   function updateBlockSettingsContinuous(settings: Record<string, unknown>) {
     if (!selectedBlock.value) return
-    editorStore.updateBlockSettingsContinuous(selectedBlock.value.id, settings)
+    designerStore.updateBlockSettingsContinuous(selectedBlock.value.id, settings)
   }
 
   // Finalize continuous update (call on mouseup/blur after slider drag)
   // This syncs shared styles and ensures final state is saved properly
   function finalizeContinuousUpdate() {
     if (!selectedBlock.value) return
-    editorStore.finalizeContinuousUpdate(selectedBlock.value.id)
+    designerStore.finalizeContinuousUpdate(selectedBlock.value.id)
   }
 
   return {
@@ -127,6 +127,6 @@ export function useBlockInspector() {
     updateBlockSettingsContinuous,
     finalizeContinuousUpdate,
     // Re-export store for direct access
-    editorStore,
+    designerStore,
   }
 }

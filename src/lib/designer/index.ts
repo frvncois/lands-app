@@ -14,7 +14,7 @@ export {
   pendingSaveCount,
   isSyncing,
   type SaveJob,
-  type EditorState,
+  type DesignerState,
 } from './saveQueue'
 
 // Offline store

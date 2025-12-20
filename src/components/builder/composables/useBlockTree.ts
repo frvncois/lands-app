@@ -1,10 +1,10 @@
 import { ref, watch } from 'vue'
-import { useEditorStore } from '@/stores/editor'
-import { canHaveChildren } from '@/lib/editor-utils'
-import type { SectionBlock } from '@/types/editor'
+import { useDesignerStore } from '@/stores/designer'
+import { canHaveChildren } from '@/lib/designer-utils'
+import type { SectionBlock } from '@/types/designer'
 
 export function useBlockTree() {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
   const expandedBlocks = ref<Set<string>>(new Set())
 
   function toggleExpanded(blockId: string) {
@@ -30,7 +30,7 @@ export function useBlockTree() {
   function expandToBlock(blockId: string) {
     let currentId: string | null = blockId
     while (currentId) {
-      const parent = editorStore.findParentBlock(currentId)
+      const parent = designerStore.findParentBlock(currentId)
       if (parent) {
         expandedBlocks.value.add(parent.id)
         currentId = parent.id
@@ -39,7 +39,7 @@ export function useBlockTree() {
       }
     }
 
-    const block = editorStore.findBlockById(blockId)
+    const block = designerStore.findBlockById(blockId)
     if (block && canBlockExpand(block)) {
       expandedBlocks.value.add(blockId)
     }
@@ -51,7 +51,7 @@ export function useBlockTree() {
   }
 
   // Auto-expand ancestors when selection changes
-  watch(() => editorStore.selectedBlockId, (blockId) => {
+  watch(() => designerStore.selectedBlockId, (blockId) => {
     if (blockId) {
       expandToBlock(blockId)
     }

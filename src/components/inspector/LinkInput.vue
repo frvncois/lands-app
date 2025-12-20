@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 import { Icon } from '@/components/ui'
 
 const props = defineProps<{
@@ -12,7 +12,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 const isOpen = ref(false)
 const inputValue = ref(props.modelValue || '')
@@ -20,7 +20,7 @@ const dropdownRef = ref<HTMLElement | null>(null)
 
 // Get container blocks for section anchors
 const sectionBlocks = computed(() => {
-  return editorStore.blocks.filter(block =>
+  return designerStore.blocks.filter(block =>
     block.type === 'container' || block.type === 'stack' || block.type === 'grid'
   ).map(block => ({
     id: block.id,

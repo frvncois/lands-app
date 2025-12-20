@@ -1,9 +1,10 @@
 import { ref, computed } from 'vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
+import { canHaveChildren } from '@/lib/designer-utils'
 import type ContextMenu from '@/components/ui/ContextMenu.vue'
 
 export function useBlockContextMenu(expandBlock: (id: string) => void, collapseBlock: (id: string) => void) {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
   const contextMenuBlockId = ref<string | null>(null)
@@ -14,7 +15,7 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
 
   const contextMenuBlock = computed(() => {
     if (!contextMenuBlockId.value) return null
-    return editorStore.findBlockById(contextMenuBlockId.value)
+    return designerStore.findBlockById(contextMenuBlockId.value)
   })
 
   const canDuplicate = computed(() => !!contextMenuBlock.value)
@@ -30,56 +31,87 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
 
   function handleDuplicate() {
     if (!contextMenuBlockId.value) return
-    const newBlock = editorStore.duplicateBlock(contextMenuBlockId.value)
+    const newBlock = designerStore.duplicateBlock(contextMenuBlockId.value)
     if (newBlock) {
       expandBlock(newBlock.id)
-      editorStore.selectBlock(newBlock.id)
+      designerStore.selectBlock(newBlock.id)
     }
   }
 
   function handleDelete() {
     if (!contextMenuBlockId.value) return
-    editorStore.deleteBlock(contextMenuBlockId.value)
+    designerStore.deleteBlock(contextMenuBlockId.value)
     collapseBlock(contextMenuBlockId.value)
+  }
+
+  function handleCopy() {
+    if (!contextMenuBlockId.value) return
+    designerStore.copyBlock(contextMenuBlockId.value)
+  }
+
+  function handlePaste() {
+    if (!contextMenuBlockId.value) return
+    const block = designerStore.findBlockById(contextMenuBlockId.value)
+    if (!block) return
+
+    // If block can have children, paste inside it
+    // Otherwise paste as sibling (in same parent)
+    const parentId = canHaveChildren(block.type)
+      ? block.id
+      : designerStore.findParentBlock(contextMenuBlockId.value)?.id
+
+    const newBlock = designerStore.pasteBlock(parentId)
+    if (newBlock) {
+      expandBlock(newBlock.id)
+      designerStore.selectBlock(newBlock.id)
+    }
   }
 
   function handleCopyStyle() {
     if (!contextMenuBlockId.value) return
-    editorStore.copyBlockStyles(contextMenuBlockId.value)
+    designerStore.copyBlockStyles(contextMenuBlockId.value)
   }
 
   function handlePasteStyle() {
     if (!contextMenuBlockId.value) return
-    editorStore.pasteBlockStyles(contextMenuBlockId.value)
+    designerStore.pasteBlockStyles(contextMenuBlockId.value)
   }
 
   function handleCreateComponent() {
     if (!contextMenuBlockId.value) return
-    editorStore.createComponent(contextMenuBlockId.value)
+    designerStore.createComponent(contextMenuBlockId.value)
   }
 
   function handleWrapInStack() {
     if (!contextMenuBlockId.value) return
-    const stackBlock = editorStore.wrapBlockInStack(contextMenuBlockId.value)
+    const stackBlock = designerStore.wrapBlockInStack(contextMenuBlockId.value)
     if (stackBlock) {
       expandBlock(stackBlock.id)
     }
   }
 
-  // Check if block is a Stack (can convert to Button/link)
+  // Check if block is a Stack (can convert to Button/Grid)
   const isStack = computed(() => contextMenuBlock.value?.type === 'stack')
 
   // Check if block is a Button (can convert to Stack)
   const isButton = computed(() => contextMenuBlock.value?.type === 'button')
 
+  // Check if block is a Grid (can convert to Stack)
+  const isGrid = computed(() => contextMenuBlock.value?.type === 'grid')
+
   function handleConvertToButton() {
     if (!contextMenuBlockId.value) return
-    editorStore.convertBlockType(contextMenuBlockId.value, 'button')
+    designerStore.convertBlockType(contextMenuBlockId.value, 'button')
   }
 
   function handleConvertToStack() {
     if (!contextMenuBlockId.value) return
-    editorStore.convertBlockType(contextMenuBlockId.value, 'stack')
+    designerStore.convertBlockType(contextMenuBlockId.value, 'stack')
+  }
+
+  function handleConvertToGrid() {
+    if (!contextMenuBlockId.value) return
+    designerStore.convertBlockType(contextMenuBlockId.value, 'grid')
   }
 
   function handleRename() {
@@ -93,7 +125,7 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
 
   function finishRename(blockId: string, newName: string) {
     if (newName.trim()) {
-      editorStore.updateBlockName(blockId, newName.trim())
+      designerStore.updateBlockName(blockId, newName.trim())
     }
     renamingBlockId.value = null
   }
@@ -112,15 +144,19 @@ export function useBlockContextMenu(expandBlock: (id: string) => void, collapseB
     openContextMenu,
     handleDuplicate,
     handleDelete,
+    handleCopy,
+    handlePaste,
     handleCopyStyle,
     handlePasteStyle,
     handleCreateComponent,
     handleWrapInStack,
-    // Convert between Stack and Button
+    // Convert between Stack, Button, and Grid
     isStack,
     isButton,
+    isGrid,
     handleConvertToButton,
     handleConvertToStack,
+    handleConvertToGrid,
     // Rename
     renamingBlockId,
     handleRename,

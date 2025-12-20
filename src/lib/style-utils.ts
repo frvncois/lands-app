@@ -1,4 +1,4 @@
-import type { BaseBlockStyles, CoreBlockStyles, ViewportSize, Spacing, BorderStyle, ShadowStyle } from '@/types/editor'
+import type { BaseBlockStyles, CoreBlockStyles, ViewportSize, Spacing, BorderStyle, ShadowStyle } from '@/types/designer'
 
 // Define local types for this utility
 interface StylesWithText extends BaseBlockStyles {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useBlockInspector } from '../composables'
-import type { VariantsSettings, VariantsStyles, VariantOptionValue } from '@/types/editor'
+import type { VariantsSettings, VariantsStyles, VariantOptionValue } from '@/types/designer'
 
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'

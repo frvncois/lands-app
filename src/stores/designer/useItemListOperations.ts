@@ -1,4 +1,4 @@
-import { generateId } from '@/lib/editor-utils'
+import { generateId } from '@/lib/designer-utils'
 import { deepClone } from './helpers'
 
 /**

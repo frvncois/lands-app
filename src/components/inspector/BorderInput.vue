@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { BorderStyle } from '@/types/editor'
+import type { BorderStyle } from '@/types/designer'
 import { Icon, Tooltip } from '@/components/ui'
 import ColorInput from './ColorInput.vue'
 import SliderInput from './SliderInput.vue'

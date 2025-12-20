@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
-import type { SectionBlock, SectionBlockType, CanvasSettings, CanvasChildPosition } from '@/types/editor'
+import type { SectionBlock, SectionBlockType, CanvasSettings, CanvasChildPosition } from '@/types/designer'
+import type { ListPresetType } from '@/lib/list-presets'
 import { BackgroundMedia } from './index'
 import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
-import { useEditorStore } from '@/stores/editor'
+import { useDesignerStore } from '@/stores/designer'
 
 // Use async component to avoid circular dependency
 const PreviewSection = defineAsyncComponent(() => import('../PreviewSection.vue'))
@@ -23,16 +24,39 @@ const emit = defineEmits<{
   (e: 'dragLeave', event: DragEvent): void
   (e: 'drop', event: DragEvent): void
   (e: 'addBlock', type: SectionBlockType): void
+  (e: 'addListPreset', type: ListPresetType): void
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
 const settings = computed(() => props.block.settings as CanvasSettings)
+
+// Find content image source for content-aware background
+const contentImageSrc = computed(() => {
+  const sourceId = settings.value?.backgroundContentSource
+  if (!sourceId) return undefined
+
+  function findImageById(block: SectionBlock): string | undefined {
+    if (block.id === sourceId && block.type === 'image') {
+      const imgSettings = block.settings as { src?: string }
+      return imgSettings.src
+    }
+    if (block.children) {
+      for (const child of block.children) {
+        const found = findImageById(child)
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+
+  return findImageById(props.block)
+})
 
 // Get position for a canvas child based on current viewport
 function getCanvasChildPos(childId: string): CanvasChildPosition {
   const defaultPos: CanvasChildPosition = { x: 10, y: 10, width: undefined, zIndex: 1 }
-  const viewport = editorStore.viewport
+  const viewport = designerStore.viewport
   const positions = settings.value?.childPositions
   if (!positions) return defaultPos
 
@@ -50,8 +74,7 @@ function getCanvasChildPos(childId: string): CanvasChildPosition {
 <template>
   <div
     :data-block-id="block.id"
-    class="relative transition-colors"
-    :class="isDropTarget ? 'ring-2 ring-primary ring-dashed' : ''"
+    class="relative"
     :style="{
       ...styles,
       minHeight: styles.minHeight || '400px',
@@ -72,6 +95,10 @@ function getCanvasChildPos(childId: string): CanvasChildPosition {
       :image-saturation="settings?.backgroundImageSaturation"
       :image-overlay="settings?.backgroundImageOverlay"
       :image-overlay-opacity="settings?.backgroundImageOverlayOpacity"
+      :content-image-src="contentImageSrc"
+      :content-blur="settings?.backgroundContentBlur"
+      :content-saturation="settings?.backgroundContentSaturation"
+      :content-scale="settings?.backgroundContentScale"
     />
 
     <!-- Children with absolute positioning -->
@@ -104,6 +131,7 @@ function getCanvasChildPos(childId: string): CanvasChildPosition {
         mode="nested"
         trigger-label="Add content"
         @select="(type: string) => emit('addBlock', type as SectionBlockType)"
+        @select-list-preset="(type: ListPresetType) => emit('addListPreset', type)"
       />
     </div>
   </div>

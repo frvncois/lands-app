@@ -189,15 +189,15 @@
 }
 
 /* Disable text selection in editor preview except for editable areas */
-.editor-preview-container {
+.designer-preview-container {
   user-select: none;
   -webkit-user-select: none;
 }
 
-.editor-preview-container [contenteditable="true"],
-.editor-preview-container input,
-.editor-preview-container textarea,
-.editor-preview-container select {
+.designer-preview-container [contenteditable="true"],
+.designer-preview-container input,
+.designer-preview-container textarea,
+.designer-preview-container select {
   user-select: text;
   -webkit-user-select: text;
 }

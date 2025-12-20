@@ -5,11 +5,20 @@ import GeneralCard from '@/features/project-settings/GeneralCard.vue'
 // Sidebar navigation DSL
 export const PROJECT_NAV: SettingsSection[] = [
   {
-    id: 'editor',
-    title: 'Editor',
-    breadcrumbLabel: 'Editor',
-    icon: 'app-editor',
-    routeName: 'editor',
+    id: 'designer',
+    title: 'Designer',
+    breadcrumbLabel: 'Designer',
+    icon: 'app-designer',
+    routeName: 'designer',
+    showInHeader: true,
+    showInCommand: true,
+  },
+  {
+    id: 'content',
+    title: 'Content',
+    breadcrumbLabel: 'Content',
+    icon: 'lni-text-format',
+    routeName: 'content',
     showInHeader: true,
     showInCommand: true,
   },

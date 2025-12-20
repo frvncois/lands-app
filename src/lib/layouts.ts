@@ -1,12 +1,12 @@
-import type { SectionBlock, PageSettings, UseCaseCategory, ButtonSettings } from '@/types/editor'
+import type { SectionBlock, PageSettings, UseCaseCategory, ButtonSettings } from '@/types/designer'
 import {
   createSectionBlock,
   getDefaultPageSettings,
   generateId,
-} from './editor-utils'
+} from './designer-utils'
 
 // Re-export UseCaseCategory from editor types
-export type { UseCaseCategory } from '@/types/editor'
+export type { UseCaseCategory } from '@/types/designer'
 
 // ============================================
 // INTERFACES
@@ -183,6 +183,373 @@ export const CONTENT_SECTIONS: ContentSection[] = [
   { id: 'media', name: 'Media', description: 'Videos or music', icon: 'lni-play' },
   { id: 'shop', name: 'Shop', description: 'Products or merch', icon: 'lni-shopping-cart-1' },
 ]
+
+// ============================================
+// USE CASE SPECIFIC GOALS
+// ============================================
+
+export interface UseCaseGoal {
+  id: string
+  name: string
+  description: string
+  icon: string
+}
+
+export interface UseCaseGoalConfig {
+  useCase: UseCaseCategory
+  goals: UseCaseGoal[]
+}
+
+// Goals mapped to each use case
+export const USE_CASE_GOALS: UseCaseGoalConfig[] = [
+  // ===== PERSONAL & BIO =====
+  {
+    useCase: 'personal',
+    goals: [
+      { id: 'personal-landing', name: 'Personal Landing Page', description: 'Simple about me page', icon: 'lni-user-4' },
+      { id: 'personal-resume', name: 'Online Resume', description: 'Showcase experience & skills', icon: 'lni-graduation' },
+      { id: 'personal-blog', name: 'Blog / Writing', description: 'Share articles and thoughts', icon: 'lni-pencil-1' },
+      { id: 'personal-contact', name: 'Contact Page', description: 'Let people reach you', icon: 'lni-envelope-1' },
+    ],
+  },
+
+  // ===== LINKS & SOCIAL =====
+  {
+    useCase: 'links',
+    goals: [
+      { id: 'links-bio', name: 'Link in Bio', description: 'All your links in one place', icon: 'lni-link' },
+      { id: 'links-social', name: 'Social Hub', description: 'Connect all social profiles', icon: 'lni-network' },
+      { id: 'links-store', name: 'Mini Store', description: 'Links to products & merch', icon: 'lni-shopping-basket' },
+      { id: 'links-content', name: 'Content Links', description: 'Latest videos, posts, etc.', icon: 'lni-play' },
+    ],
+  },
+
+  // ===== PORTFOLIO & WORK =====
+  {
+    useCase: 'portfolio',
+    goals: [
+      { id: 'portfolio-showcase', name: 'Work Showcase', description: 'Display your best projects', icon: 'lni-gallery' },
+      { id: 'portfolio-case-studies', name: 'Case Studies', description: 'Deep dive into projects', icon: 'lni-book' },
+      { id: 'portfolio-hire', name: 'Get Hired', description: 'Attract job opportunities', icon: 'lni-briefcase-1' },
+      { id: 'portfolio-clients', name: 'Win Clients', description: 'Convert visitors to clients', icon: 'lni-handshake' },
+    ],
+  },
+
+  // ===== SERVICES & FREELANCE =====
+  {
+    useCase: 'services',
+    goals: [
+      { id: 'services-booking', name: 'Book Services', description: 'Get appointments & calls', icon: 'lni-calendar-2' },
+      { id: 'services-showcase', name: 'Service Showcase', description: 'Display what you offer', icon: 'lni-cog' },
+      { id: 'services-pricing', name: 'Show Pricing', description: 'Transparent pricing page', icon: 'lni-money-protection' },
+      { id: 'services-leads', name: 'Generate Leads', description: 'Collect inquiries', icon: 'lni-envelope-1' },
+    ],
+  },
+
+  // ===== STARTUP & BUSINESS =====
+  {
+    useCase: 'startup',
+    goals: [
+      { id: 'startup-launch', name: 'Launch Page', description: 'Announce your startup', icon: 'lni-rocket-3' },
+      { id: 'startup-waitlist', name: 'Build Waitlist', description: 'Collect early signups', icon: 'lni-users-2' },
+      { id: 'startup-investors', name: 'Attract Investors', description: 'Pitch to VCs & angels', icon: 'lni-investment' },
+      { id: 'startup-hiring', name: 'We\'re Hiring', description: 'Recruit team members', icon: 'lni-add-user' },
+    ],
+  },
+
+  // ===== PRODUCT & LAUNCH =====
+  {
+    useCase: 'product',
+    goals: [
+      { id: 'product-launch', name: 'Product Launch', description: 'Announce new product', icon: 'lni-gift' },
+      { id: 'product-preorder', name: 'Pre-orders', description: 'Collect pre-launch orders', icon: 'lni-shopping-basket' },
+      { id: 'product-waitlist', name: 'Waitlist', description: 'Build anticipation', icon: 'lni-timer' },
+      { id: 'product-sales', name: 'Direct Sales', description: 'Sell product directly', icon: 'lni-cart' },
+    ],
+  },
+
+  // ===== EVENT & CONFERENCE =====
+  {
+    useCase: 'event',
+    goals: [
+      { id: 'event-tickets', name: 'Sell Tickets', description: 'Event ticket sales', icon: 'lni-ticket-1' },
+      { id: 'event-rsvp', name: 'Collect RSVPs', description: 'Free event registration', icon: 'lni-checkmark-circle' },
+      { id: 'event-info', name: 'Event Info', description: 'Share schedule & details', icon: 'lni-information' },
+      { id: 'event-speakers', name: 'Speaker Lineup', description: 'Showcase speakers', icon: 'lni-mic' },
+    ],
+  },
+
+  // ===== RESTAURANT & MENU =====
+  {
+    useCase: 'restaurant',
+    goals: [
+      { id: 'restaurant-menu', name: 'Show Menu', description: 'Display food & drinks', icon: 'lni-dinner' },
+      { id: 'restaurant-reservation', name: 'Reservations', description: 'Book tables online', icon: 'lni-calendar-2' },
+      { id: 'restaurant-order', name: 'Online Orders', description: 'Takeout & delivery', icon: 'lni-delivery' },
+      { id: 'restaurant-info', name: 'Location & Hours', description: 'Find us easily', icon: 'lni-map-marker' },
+    ],
+  },
+
+  // ===== CREATOR & ARTIST =====
+  {
+    useCase: 'creator',
+    goals: [
+      { id: 'creator-landing', name: 'Artist Landing', description: 'Your creative home', icon: 'lni-brush' },
+      { id: 'creator-release', name: 'New Release', description: 'Promote single/album/work', icon: 'lni-music' },
+      { id: 'creator-tour', name: 'Tour / Shows', description: 'Upcoming performances', icon: 'lni-map' },
+      { id: 'creator-merch', name: 'Sell Merch', description: 'Merchandise store', icon: 'lni-tshirt' },
+      { id: 'creator-epk', name: 'Press Kit', description: 'Media & booking info', icon: 'lni-folder' },
+    ],
+  },
+
+  // ===== NEWSLETTER & SIGNUP =====
+  {
+    useCase: 'newsletter',
+    goals: [
+      { id: 'newsletter-subscribe', name: 'Newsletter Signup', description: 'Grow your list', icon: 'lni-envelope-1' },
+      { id: 'newsletter-lead', name: 'Lead Magnet', description: 'Free download for email', icon: 'lni-download' },
+      { id: 'newsletter-community', name: 'Join Community', description: 'Discord/Slack invite', icon: 'lni-users-2' },
+      { id: 'newsletter-course', name: 'Free Course', description: 'Email course signup', icon: 'lni-graduation' },
+    ],
+  },
+
+  // ===== WEDDING & CELEBRATION =====
+  {
+    useCase: 'wedding',
+    goals: [
+      { id: 'wedding-savedate', name: 'Save the Date', description: 'Announce your wedding', icon: 'lni-heart' },
+      { id: 'wedding-rsvp', name: 'Collect RSVPs', description: 'Guest responses', icon: 'lni-checkmark-circle' },
+      { id: 'wedding-info', name: 'Wedding Info', description: 'Schedule & venue details', icon: 'lni-information' },
+      { id: 'wedding-registry', name: 'Gift Registry', description: 'Link to registries', icon: 'lni-gift' },
+    ],
+  },
+
+  // ===== NONPROFIT & CAUSE =====
+  {
+    useCase: 'nonprofit',
+    goals: [
+      { id: 'nonprofit-donate', name: 'Collect Donations', description: 'Fundraising page', icon: 'lni-heart' },
+      { id: 'nonprofit-awareness', name: 'Raise Awareness', description: 'Share your mission', icon: 'lni-world-2' },
+      { id: 'nonprofit-volunteer', name: 'Recruit Volunteers', description: 'Get people involved', icon: 'lni-users-2' },
+      { id: 'nonprofit-event', name: 'Charity Event', description: 'Promote fundraiser', icon: 'lni-calendar-2' },
+    ],
+  },
+]
+
+// ============================================
+// GOAL → SECTION WEIGHTS
+// ============================================
+
+// Section weights for each goal (higher = more important, will be included)
+export const GOAL_SECTION_WEIGHTS: Record<string, Record<string, number>> = {
+  // ----- PERSONAL -----
+  'personal-landing': {
+    hero: 1.0, about: 1.0, social: 0.8, contact: 0.7,
+  },
+  'personal-resume': {
+    hero: 1.0, about: 0.9, portfolio: 0.9, testimonials: 0.7, contact: 0.8,
+  },
+  'personal-blog': {
+    hero: 0.9, about: 0.8, portfolio: 1.0, newsletter: 0.7, social: 0.6,
+  },
+  'personal-contact': {
+    hero: 0.8, about: 0.7, contact: 1.0, social: 0.6,
+  },
+
+  // ----- LINKS -----
+  'links-bio': {
+    hero: 0.9, links: 1.0, social: 0.9, about: 0.5,
+  },
+  'links-social': {
+    hero: 0.8, social: 1.0, links: 0.8, about: 0.5,
+  },
+  'links-store': {
+    hero: 0.8, links: 1.0, portfolio: 0.7, social: 0.6,
+  },
+  'links-content': {
+    hero: 0.9, links: 1.0, social: 0.8, newsletter: 0.6,
+  },
+
+  // ----- PORTFOLIO -----
+  'portfolio-showcase': {
+    hero: 1.0, about: 0.8, portfolio: 1.0, gallery: 0.7, contact: 0.6,
+  },
+  'portfolio-case-studies': {
+    hero: 0.9, about: 0.8, portfolio: 1.0, testimonials: 0.7, contact: 0.7,
+  },
+  'portfolio-hire': {
+    hero: 1.0, about: 0.9, portfolio: 1.0, testimonials: 0.8, contact: 1.0,
+  },
+  'portfolio-clients': {
+    hero: 1.0, services: 0.8, portfolio: 1.0, testimonials: 0.9, pricing: 0.7, contact: 1.0,
+  },
+
+  // ----- SERVICES -----
+  'services-booking': {
+    hero: 1.0, services: 1.0, testimonials: 0.8, contact: 1.0, faq: 0.6,
+  },
+  'services-showcase': {
+    hero: 1.0, services: 1.0, about: 0.7, testimonials: 0.7, contact: 0.8,
+  },
+  'services-pricing': {
+    hero: 0.9, services: 1.0, pricing: 1.0, faq: 0.8, contact: 0.7,
+  },
+  'services-leads': {
+    hero: 1.0, services: 0.9, testimonials: 0.8, contact: 1.0, newsletter: 0.7,
+  },
+
+  // ----- STARTUP -----
+  'startup-launch': {
+    hero: 1.0, features: 1.0, about: 0.7, testimonials: 0.6, cta: 1.0,
+  },
+  'startup-waitlist': {
+    hero: 1.0, features: 0.8, newsletter: 1.0, testimonials: 0.5, cta: 0.9,
+  },
+  'startup-investors': {
+    hero: 1.0, about: 0.9, features: 1.0, team: 0.9, testimonials: 0.7, contact: 0.8,
+  },
+  'startup-hiring': {
+    hero: 1.0, about: 0.9, team: 1.0, features: 0.7, contact: 1.0,
+  },
+
+  // ----- PRODUCT -----
+  'product-launch': {
+    hero: 1.0, features: 1.0, testimonials: 0.8, faq: 0.7, cta: 1.0,
+  },
+  'product-preorder': {
+    hero: 1.0, features: 0.9, pricing: 1.0, testimonials: 0.7, faq: 0.8, cta: 1.0,
+  },
+  'product-waitlist': {
+    hero: 1.0, features: 0.8, newsletter: 1.0, testimonials: 0.6, cta: 0.9,
+  },
+  'product-sales': {
+    hero: 1.0, features: 1.0, pricing: 1.0, testimonials: 0.9, faq: 0.8, cta: 1.0,
+  },
+
+  // ----- EVENT -----
+  'event-tickets': {
+    hero: 1.0, about: 0.7, schedule: 0.9, speakers: 0.7, location: 0.8, rsvp: 1.0,
+  },
+  'event-rsvp': {
+    hero: 1.0, about: 0.8, schedule: 0.9, location: 0.9, rsvp: 1.0, faq: 0.6,
+  },
+  'event-info': {
+    hero: 1.0, about: 0.9, schedule: 1.0, speakers: 0.8, location: 1.0, faq: 0.7,
+  },
+  'event-speakers': {
+    hero: 0.9, speakers: 1.0, schedule: 0.9, about: 0.7, rsvp: 0.8,
+  },
+
+  // ----- RESTAURANT -----
+  'restaurant-menu': {
+    hero: 1.0, menu: 1.0, about: 0.6, gallery: 0.7, location: 0.8,
+  },
+  'restaurant-reservation': {
+    hero: 0.9, menu: 0.8, about: 0.6, contact: 1.0, location: 0.9,
+  },
+  'restaurant-order': {
+    hero: 0.9, menu: 1.0, contact: 0.9, location: 0.7,
+  },
+  'restaurant-info': {
+    hero: 1.0, about: 0.8, menu: 0.7, location: 1.0, contact: 0.8,
+  },
+
+  // ----- CREATOR/ARTIST -----
+  'creator-landing': {
+    hero: 1.0, about: 0.9, portfolio: 0.9, social: 0.8, contact: 0.7,
+  },
+  'creator-release': {
+    hero: 1.0, about: 0.6, media: 0.9, social: 0.9, links: 0.8, newsletter: 0.7,
+  },
+  'creator-tour': {
+    hero: 1.0, schedule: 1.0, about: 0.6, location: 0.8, social: 0.7,
+  },
+  'creator-merch': {
+    hero: 0.9, portfolio: 1.0, shop: 1.0, social: 0.7, newsletter: 0.6,
+  },
+  'creator-epk': {
+    hero: 1.0, about: 1.0, portfolio: 0.9, gallery: 0.8, testimonials: 0.7, contact: 1.0,
+  },
+
+  // ----- NEWSLETTER -----
+  'newsletter-subscribe': {
+    hero: 1.0, features: 0.7, newsletter: 1.0, testimonials: 0.6, about: 0.5,
+  },
+  'newsletter-lead': {
+    hero: 1.0, features: 0.9, newsletter: 1.0, testimonials: 0.7, faq: 0.5,
+  },
+  'newsletter-community': {
+    hero: 1.0, about: 0.8, features: 0.7, newsletter: 1.0, social: 0.8,
+  },
+  'newsletter-course': {
+    hero: 1.0, features: 1.0, testimonials: 0.8, newsletter: 1.0, faq: 0.7,
+  },
+
+  // ----- WEDDING -----
+  'wedding-savedate': {
+    hero: 1.0, story: 0.9, location: 0.8, rsvp: 0.7,
+  },
+  'wedding-rsvp': {
+    hero: 1.0, story: 0.7, schedule: 0.9, location: 0.9, rsvp: 1.0, faq: 0.6,
+  },
+  'wedding-info': {
+    hero: 1.0, story: 0.8, schedule: 1.0, location: 1.0, gallery: 0.6, faq: 0.8,
+  },
+  'wedding-registry': {
+    hero: 0.9, story: 0.6, links: 1.0, rsvp: 0.7,
+  },
+
+  // ----- NONPROFIT -----
+  'nonprofit-donate': {
+    hero: 1.0, about: 0.9, impact: 1.0, testimonials: 0.8, donate: 1.0,
+  },
+  'nonprofit-awareness': {
+    hero: 1.0, about: 1.0, impact: 0.9, testimonials: 0.7, social: 0.8, newsletter: 0.6,
+  },
+  'nonprofit-volunteer': {
+    hero: 1.0, about: 0.9, impact: 0.8, contact: 1.0, faq: 0.6,
+  },
+  'nonprofit-event': {
+    hero: 1.0, about: 0.7, schedule: 0.9, location: 0.8, rsvp: 1.0, donate: 0.8,
+  },
+}
+
+// ============================================
+// FONT PRESETS
+// ============================================
+
+export interface FontPreset {
+  id: string
+  name: string
+  family: string
+  category: 'sans-serif' | 'serif' | 'display' | 'monospace'
+  googleFont: boolean
+}
+
+export const HEADING_FONTS: FontPreset[] = [
+  { id: 'inter', name: 'Inter', family: 'Inter', category: 'sans-serif', googleFont: true },
+  { id: 'geist', name: 'Geist', family: 'Geist', category: 'sans-serif', googleFont: false },
+  { id: 'space-grotesk', name: 'Space Grotesk', family: 'Space Grotesk', category: 'sans-serif', googleFont: true },
+  { id: 'sora', name: 'Sora', family: 'Sora', category: 'sans-serif', googleFont: true },
+  { id: 'dm-sans', name: 'DM Sans', family: 'DM Sans', category: 'sans-serif', googleFont: true },
+  { id: 'playfair', name: 'Playfair Display', family: 'Playfair Display', category: 'serif', googleFont: true },
+  { id: 'dm-serif', name: 'DM Serif Display', family: 'DM Serif Display', category: 'serif', googleFont: true },
+  { id: 'lora', name: 'Lora', family: 'Lora', category: 'serif', googleFont: true },
+]
+
+export const BODY_FONTS: FontPreset[] = [
+  { id: 'inter', name: 'Inter', family: 'Inter', category: 'sans-serif', googleFont: true },
+  { id: 'dm-sans', name: 'DM Sans', family: 'DM Sans', category: 'sans-serif', googleFont: true },
+  { id: 'outfit', name: 'Outfit', family: 'Outfit', category: 'sans-serif', googleFont: true },
+  { id: 'manrope', name: 'Manrope', family: 'Manrope', category: 'sans-serif', googleFont: true },
+  { id: 'source-serif', name: 'Source Serif Pro', family: 'Source Serif Pro', category: 'serif', googleFont: true },
+  { id: 'merriweather', name: 'Merriweather', family: 'Merriweather', category: 'serif', googleFont: true },
+  { id: 'lora', name: 'Lora', family: 'Lora', category: 'serif', googleFont: true },
+]
+
+// ============================================
+// USE CASE SECTIONS
+// ============================================
 
 // Map sections to use cases with defaults
 export const USE_CASE_SECTIONS: UseCaseSections[] = [
@@ -519,6 +886,53 @@ export function getSectionsForUseCase(useCase: UseCaseCategory): {
   }
 }
 
+/**
+ * Get goals available for a specific use case
+ */
+export function getGoalsForUseCase(useCase: UseCaseCategory): UseCaseGoal[] {
+  const config = USE_CASE_GOALS.find(c => c.useCase === useCase)
+  return config?.goals || []
+}
+
+/**
+ * Get recommended sections based on use case and goal
+ * Returns sections sorted by relevance with recommendations
+ */
+export function getRecommendedSections(
+  useCase: UseCaseCategory,
+  goalId: string
+): { available: ContentSection[]; recommended: string[] } {
+  // 1. Get base sections for use case
+  const useCaseMapping = USE_CASE_SECTIONS.find(m => m.useCase === useCase)
+  if (!useCaseMapping) {
+    return { available: [], recommended: [] }
+  }
+
+  // 2. Get goal weights
+  const goalWeights = GOAL_SECTION_WEIGHTS[goalId] || {}
+
+  // 3. Score and sort sections
+  const scoredSections = useCaseMapping.sections.map(sectionId => ({
+    id: sectionId,
+    score: goalWeights[sectionId] ?? 0.3, // Default weight for sections not in goal
+  }))
+
+  // Sort by score (highest first)
+  scoredSections.sort((a, b) => b.score - a.score)
+
+  // 4. Get recommended (score >= 0.6)
+  const recommended = scoredSections
+    .filter(s => s.score >= 0.6)
+    .map(s => s.id)
+
+  // 5. Map to ContentSection objects
+  const available = useCaseMapping.sections
+    .map(id => CONTENT_SECTIONS.find(s => s.id === id))
+    .filter((s): s is ContentSection => s !== undefined)
+
+  return { available, recommended }
+}
+
 export function getContentSectionById(id: string): ContentSection | undefined {
   return CONTENT_SECTIONS.find(s => s.id === id)
 }
@@ -718,7 +1132,7 @@ function createHeroSection(name: string, layoutStyle: LayoutStyle, palette: Colo
         id: generateId(),
         type: 'button',
         name: 'CTA Button',
-        settings: { label: 'Get Started', url: '#', variant: 'primary', size: 'lg' } as ButtonSettings,
+        settings: { label: 'Get Started', url: '#' } as ButtonSettings,
         styles: { backgroundColor: palette.colors.primary, textColor: palette.colors.background, borderRadius },
       },
     ],
@@ -1005,7 +1419,7 @@ function createContactSection(name: string, layoutStyle: LayoutStyle, palette: C
         id: generateId(),
         type: 'button',
         name: 'Email Button',
-        settings: { label: 'Contact Us', url: 'mailto:hello@example.com', variant: 'outline', size: 'lg' },
+        settings: { label: 'Contact Us', url: 'mailto:hello@example.com' },
         styles: { textColor: palette.colors.foreground, backgroundColor: 'transparent', border: { width: '1', color: palette.colors.foreground } },
       },
     ],
@@ -1044,7 +1458,7 @@ function createCTASection(name: string, layoutStyle: LayoutStyle, palette: Color
         id: generateId(),
         type: 'button',
         name: 'CTA Button',
-        settings: { label: 'Sign Up Now', url: '#', variant: 'primary', size: 'lg' } as ButtonSettings,
+        settings: { label: 'Sign Up Now', url: '#' } as ButtonSettings,
         styles: { backgroundColor: palette.colors.background, textColor: palette.colors.primary },
       },
     ],
@@ -1490,7 +1904,7 @@ function createPersonalBioLayout(): ProjectLayout {
       createBlock(
         'button',
         'Email Button',
-        { label: 'hello@alexjohnson.design', url: 'mailto:hello@alexjohnson.design', variant: 'outline', size: 'lg' },
+        { label: 'hello@alexjohnson.design', url: 'mailto:hello@alexjohnson.design' },
         { textColor: '#ffffff', backgroundColor: 'transparent', border: { width: '1', color: '#ffffff' } }
       ),
     ]

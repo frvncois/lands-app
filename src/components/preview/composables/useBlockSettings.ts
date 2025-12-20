@@ -14,7 +14,7 @@ import type {
   CanvasSettings,
   IconStyles,
   VariantsStyles,
-} from '@/types/editor'
+} from '@/types/designer'
 
 /**
  * Composable for extracting typed block settings and styles

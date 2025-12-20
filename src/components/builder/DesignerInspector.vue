@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, defineAsyncComponent, watch, nextTick, type Component } from 'vue'
-import { useEditorStore } from '@/stores/editor'
-import type { SectionBlockType } from '@/types/editor'
+import { useDesignerStore } from '@/stores/designer'
+import type { SectionBlockType } from '@/types/designer'
 import {
   sectionBlockLabels,
   sectionBlockIcons,
   flexBasisOptions,
-} from '@/lib/editor-utils'
+} from '@/lib/designer-utils'
 import {
   getResponsiveStyles,
   setViewportStyleOverrides,
@@ -17,7 +17,7 @@ import type {
   VariantsSettings,
   AnimationSettings,
   GoogleFont,
-} from '@/types/editor'
+} from '@/types/designer'
 
 import InspectorSection from '@/components/inspector/InspectorSection.vue'
 import InspectorField from '@/components/inspector/InspectorField.vue'
@@ -42,16 +42,16 @@ import Icon from '@/components/ui/Icon.vue'
 import Tooltip from '@/components/ui/Tooltip.vue'
 import Button from '@/components/ui/Button.vue'
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
 
-const selectedBlock = computed(() => editorStore.selectedBlock)
-const selectedSpanId = computed(() => editorStore.selectedSpanId)
-const pageSettings = computed(() => editorStore.pageSettings)
+const selectedBlock = computed(() => designerStore.selectedBlock)
+const selectedSpanId = computed(() => designerStore.selectedSpanId)
+const pageSettings = computed(() => designerStore.pageSettings)
 
 // Get the selected span data (when a span is selected)
 const selectedSpan = computed(() => {
   if (!selectedSpanId.value || !selectedBlock.value) return null
-  return editorStore.getSpanById(selectedBlock.value.id, selectedSpanId.value)
+  return designerStore.getSpanById(selectedBlock.value.id, selectedSpanId.value)
 })
 
 // Get the inspector component for the current block type
@@ -71,7 +71,7 @@ const CurrentBlockInspector = computed(() => {
 
   return null
 })
-const currentViewport = computed(() => editorStore.viewport)
+const currentViewport = computed(() => designerStore.viewport)
 
 // Get responsive styles for the current viewport (merged/cascaded)
 const responsiveStyles = computed((): CoreBlockStyles => {
@@ -82,20 +82,20 @@ const responsiveStyles = computed((): CoreBlockStyles => {
 // Check if selected block is inside a flex container (Stack or Container)
 const isInFlexContainer = computed(() => {
   if (!selectedBlock.value) return false
-  const parent = editorStore.findParentBlock(selectedBlock.value.id)
+  const parent = designerStore.findParentBlock(selectedBlock.value.id)
   return parent?.type === 'stack' || parent?.type === 'container'
 })
 
 // Check if selected block is a direct child of a Grid
 const isChildOfGrid = computed(() => {
   if (!selectedBlock.value) return false
-  return editorStore.isDirectChildOfGrid(selectedBlock.value.id)
+  return designerStore.isDirectChildOfGrid(selectedBlock.value.id)
 })
 
 // Get the parent grid's column count
 const parentGridColumns = computed(() => {
   if (!selectedBlock.value) return null
-  return editorStore.getParentGridColumns(selectedBlock.value.id)
+  return designerStore.getParentGridColumns(selectedBlock.value.id)
 })
 
 
@@ -117,7 +117,7 @@ const breadcrumbPath = computed<BreadcrumbItem[]>(() => {
   let currentId: string | null = selectedBlock.value.id
 
   while (currentId) {
-    const block = editorStore.findBlockById(currentId)
+    const block = designerStore.findBlockById(currentId)
     if (!block) break
 
     ancestors.unshift({
@@ -126,7 +126,7 @@ const breadcrumbPath = computed<BreadcrumbItem[]>(() => {
       icon: sectionBlockIcons[block.type]
     })
 
-    const parent = editorStore.findParentBlock(currentId)
+    const parent = designerStore.findParentBlock(currentId)
     currentId = parent?.id || null
   }
 
@@ -146,28 +146,28 @@ const breadcrumbPath = computed<BreadcrumbItem[]>(() => {
 function handleBreadcrumbClick(item: BreadcrumbItem) {
   if (item.id === null) {
     // Click on Page - deselect everything
-    editorStore.selectBlock(null)
-    editorStore.selectSpan(null)
+    designerStore.selectBlock(null)
+    designerStore.selectSpan(null)
   } else if (item.id.startsWith('item:')) {
     // Item is already selected, do nothing
   } else if (item.id.startsWith('span:')) {
     // Span is already selected, do nothing
   } else {
     // Select the block (and deselect span if any)
-    editorStore.selectSpan(null)
-    editorStore.selectBlock(item.id)
+    designerStore.selectSpan(null)
+    designerStore.selectBlock(item.id)
   }
 }
 
 // Handle closing the span inspector
 function handleCloseSpanInspector() {
-  editorStore.selectSpan(null)
+  designerStore.selectSpan(null)
 }
 
 // Update functions
 function updateBlockSettings(settings: Record<string, unknown>) {
   if (!selectedBlock.value) return
-  editorStore.updateBlockSettings(selectedBlock.value.id, settings)
+  designerStore.updateBlockSettings(selectedBlock.value.id, settings)
 }
 
 function updateBlockStyles(styles: Record<string, unknown>) {
@@ -181,10 +181,10 @@ function updateBlockStyles(styles: Record<string, unknown>) {
     // Update only the current viewport's overrides
     const currentStyles = (selectedBlock.value.styles || {}) as BaseBlockStyles
     const updatedStyles = setViewportStyleOverrides(currentStyles, currentViewport.value, styles as Partial<CoreBlockStyles>)
-    editorStore.updateBlockStyles(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true) // true = replace entire styles object
+    designerStore.updateBlockStyles(selectedBlock.value.id, updatedStyles as Record<string, unknown>, true) // true = replace entire styles object
   } else {
     // Desktop or non-responsive styles (like animation) - update normally
-    editorStore.updateBlockStyles(selectedBlock.value.id, styles)
+    designerStore.updateBlockStyles(selectedBlock.value.id, styles)
   }
 }
 
@@ -199,7 +199,7 @@ const showSharedStyleModal = ref(false)
 
 // Google Fonts handlers
 function handleGoogleFontsUpdate(fonts: GoogleFont[]) {
-  editorStore.updatePageSettings({ googleFonts: fonts })
+  designerStore.updatePageSettings({ googleFonts: fonts })
 }
 
 // Hovered breadcrumb item for expand animation
@@ -235,7 +235,7 @@ function updateBlockAnimation(animation: AnimationSettings) {
 // Trigger animation preview in the editor
 function handleAnimationPreview() {
   if (!selectedBlock.value) return
-  editorStore.triggerAnimationPreview(selectedBlock.value.id)
+  designerStore.triggerAnimationPreview(selectedBlock.value.id)
 }
 
 // Check if block supports animation
@@ -248,13 +248,13 @@ const blockSupportsAnimation = computed(() => {
   <aside
     class="group/inspector relative flex flex-col h-full bg-sidebar-background transition-[width] duration-300 ease-out"
     style="overflow-x: hidden !important;"
-    :class="editorStore.isInspectorCollapsed ? 'w-16' : 'w-65'"
+    :class="designerStore.isInspectorCollapsed ? 'w-16' : 'w-65'"
   >
     <!-- Left border toggle handle -->
     <div
       class="absolute top-0 left-0 w-1 h-full cursor-ew-resize z-10 transition-colors hover:bg-primary/50 active:bg-primary"
-      :class="editorStore.isInspectorCollapsed ? 'bg-transparent group-hover/inspector:bg-sidebar-border' : 'bg-sidebar-border group-hover/inspector:bg-sidebar-foreground/20'"
-      @click="editorStore.toggleInspector"
+      :class="designerStore.isInspectorCollapsed ? 'bg-transparent group-hover/inspector:bg-sidebar-border' : 'bg-sidebar-border group-hover/inspector:bg-sidebar-foreground/20'"
+      @click="designerStore.toggleInspector"
     >
       <div class="absolute top-1/2 -translate-y-1/2 -left-1.5 w-4 h-8 flex items-center justify-center opacity-0 group-hover/inspector:opacity-100 transition-opacity pointer-events-none">
         <div class="w-1 h-6 rounded-full bg-primary/50"></div>
@@ -262,7 +262,7 @@ const blockSupportsAnimation = computed(() => {
     </div>
 
     <!-- Collapsed state -->
-    <div v-if="editorStore.isInspectorCollapsed" class="flex flex-col items-center py-2 gap-1 pl-1">
+    <div v-if="designerStore.isInspectorCollapsed" class="flex flex-col items-center py-2 gap-1 pl-1">
       <button
         class="p-1.5 rounded-md transition-colors"
         :class="[
@@ -270,7 +270,7 @@ const blockSupportsAnimation = computed(() => {
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         ]"
-        @click="editorStore.selectBlock(null)"
+        @click="designerStore.selectBlock(null)"
       >
         <Tooltip text="Page" position="left">
           <Icon name="home-2" class="text-sm" />
@@ -278,15 +278,15 @@ const blockSupportsAnimation = computed(() => {
       </button>
       <div class="w-6 border-t border-sidebar-border my-1"></div>
       <button
-        v-for="block in editorStore.blocks"
+        v-for="block in designerStore.blocks"
         :key="block.id"
         class="p-1.5 rounded-md transition-colors"
         :class="[
-          editorStore.selectedBlockId === block.id
+          designerStore.selectedBlockId === block.id
             ? 'bg-accent text-accent-foreground'
             : 'text-muted-foreground hover:text-foreground hover:bg-accent'
         ]"
-        @click="editorStore.selectBlock(block.id)"
+        @click="designerStore.selectBlock(block.id)"
       >
         <Tooltip :text="block.name" position="left">
           <Icon :name="sectionBlockIcons[block.type]" :size="14" />
@@ -471,6 +471,7 @@ const blockSupportsAnimation = computed(() => {
     :open="showSharedStyleModal"
     :block-id="selectedBlock.id"
     :block-type="selectedBlock.type"
+    :block-name="selectedBlock.name"
     @update:open="showSharedStyleModal = $event"
   />
 </template>

@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
-import { useEditorStore } from '@/stores/editor'
-import { canHaveChildren } from '@/lib/editor-utils'
-import type { SectionBlockType } from '@/types/editor'
+import { useDesignerStore } from '@/stores/designer'
+import { canHaveChildren } from '@/lib/designer-utils'
+import type { SectionBlockType } from '@/types/designer'
 import type { ListPresetType } from '@/lib/list-presets'
 
 export interface DragState {
@@ -15,6 +15,8 @@ export interface DragState {
   overEmptyParentId: string | null
   // Auto-expand hover target
   hoverExpandBlockId: string | null
+  // Track which block was auto-expanded during drag (to collapse when leaving)
+  autoExpandedBlockId: string | null
   // New block type being dragged from section dropdown
   newBlockType: SectionBlockType | null
   // New list preset type being dragged from section dropdown
@@ -22,7 +24,7 @@ export interface DragState {
 }
 
 export function useSidebarDragState() {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   const dragState = reactive<DragState>({
     blockIndex: null,
@@ -31,6 +33,7 @@ export function useSidebarDragState() {
     overChildInfo: null,
     overEmptyParentId: null,
     hoverExpandBlockId: null,
+    autoExpandedBlockId: null,
     newBlockType: null,
     newListPresetType: null,
   })
@@ -38,10 +41,31 @@ export function useSidebarDragState() {
   // Timer for auto-expand on hover
   let hoverExpandTimer: ReturnType<typeof setTimeout> | null = null
 
-  function startHoverExpandTimer(blockId: string, expandBlock: (id: string) => void) {
+  // Helper to check if blockId is a descendant of parentId
+  function isChildOfBlock(blockId: string, parentId: string): boolean {
+    const parent = designerStore.findBlockById(parentId)
+    if (!parent?.children) return false
+    for (const child of parent.children) {
+      if (child.id === blockId) return true
+      if (isChildOfBlock(blockId, child.id)) return true
+    }
+    return false
+  }
+
+  function startHoverExpandTimer(blockId: string, expandBlock: (id: string) => void, collapseBlock: (id: string) => void) {
     // If already timing this same block, don't restart the timer
     if (dragState.hoverExpandBlockId === blockId && hoverExpandTimer) {
       return
+    }
+
+    // If this block is a child of the auto-expanded block, don't collapse parent
+    const isInAutoExpanded = dragState.autoExpandedBlockId && isChildOfBlock(blockId, dragState.autoExpandedBlockId)
+
+    // If hovering a different block and we have an auto-expanded one, collapse it
+    // (unless we're hovering its children)
+    if (dragState.autoExpandedBlockId && dragState.autoExpandedBlockId !== blockId && !isInAutoExpanded) {
+      collapseBlock(dragState.autoExpandedBlockId)
+      dragState.autoExpandedBlockId = null
     }
 
     // Clear any existing timer for a different block
@@ -50,7 +74,7 @@ export function useSidebarDragState() {
     }
 
     // Check if this block can have children
-    const block = editorStore.findBlockById(blockId)
+    const block = designerStore.findBlockById(blockId)
     if (!block || !canHaveChildren(block.type)) return
 
     dragState.hoverExpandBlockId = blockId
@@ -58,6 +82,7 @@ export function useSidebarDragState() {
     // Auto-expand after 500ms hover
     hoverExpandTimer = setTimeout(() => {
       expandBlock(blockId)
+      dragState.autoExpandedBlockId = blockId
       dragState.hoverExpandBlockId = null
       hoverExpandTimer = null
     }, 500)
@@ -71,14 +96,19 @@ export function useSidebarDragState() {
     dragState.hoverExpandBlockId = null
   }
 
-  function resetDragState() {
+  function resetDragState(collapseBlock?: (id: string) => void) {
     clearHoverExpandTimer()
+    // Collapse any auto-expanded block when drag ends
+    if (dragState.autoExpandedBlockId && collapseBlock) {
+      collapseBlock(dragState.autoExpandedBlockId)
+    }
     dragState.blockIndex = null
     dragState.overBlockIndex = null
     dragState.childInfo = null
     dragState.overChildInfo = null
     dragState.overEmptyParentId = null
     dragState.hoverExpandBlockId = null
+    dragState.autoExpandedBlockId = null
     dragState.newBlockType = null
     dragState.newListPresetType = null
   }
@@ -161,9 +191,9 @@ export function useSidebarDragState() {
   function handleBlockDrop(index: number, event?: DragEvent) {
     // Handle new block type being dropped from section dropdown
     if (dragState.newBlockType) {
-      const newBlock = editorStore.addBlock(dragState.newBlockType, index)
+      const newBlock = designerStore.addBlock(dragState.newBlockType, index)
       if (newBlock) {
-        editorStore.selectBlock(newBlock.id)
+        designerStore.selectBlock(newBlock.id)
       }
       resetDragState()
       return
@@ -171,9 +201,9 @@ export function useSidebarDragState() {
 
     // Handle list preset being dropped from section dropdown
     if (dragState.newListPresetType) {
-      const newBlock = editorStore.addListPreset(dragState.newListPresetType, index)
+      const newBlock = designerStore.addListPreset(dragState.newListPresetType, index)
       if (newBlock) {
-        editorStore.selectBlock(newBlock.id)
+        designerStore.selectBlock(newBlock.id)
       }
       resetDragState()
       return
@@ -183,9 +213,9 @@ export function useSidebarDragState() {
     if (event) {
       const sectionType = event.dataTransfer?.getData('application/x-section-type')
       if (sectionType) {
-        const newBlock = editorStore.addBlock(sectionType as SectionBlockType, index)
+        const newBlock = designerStore.addBlock(sectionType as SectionBlockType, index)
         if (newBlock) {
-          editorStore.selectBlock(newBlock.id)
+          designerStore.selectBlock(newBlock.id)
         }
         resetDragState()
         return
@@ -194,9 +224,9 @@ export function useSidebarDragState() {
       // Also check for list preset type (fallback)
       const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type')
       if (listPresetType) {
-        const newBlock = editorStore.addListPreset(listPresetType as ListPresetType, index)
+        const newBlock = designerStore.addListPreset(listPresetType as ListPresetType, index)
         if (newBlock) {
-          editorStore.selectBlock(newBlock.id)
+          designerStore.selectBlock(newBlock.id)
         }
         resetDragState()
         return
@@ -204,10 +234,9 @@ export function useSidebarDragState() {
     }
 
     if (dragState.blockIndex !== null && dragState.blockIndex !== index) {
-      editorStore.reorderBlocks(dragState.blockIndex, index)
+      designerStore.reorderBlocks(dragState.blockIndex, index)
     }
-    dragState.blockIndex = null
-    dragState.overBlockIndex = null
+    resetDragState()
   }
 
   function handleBlockDragEnd() {
@@ -225,7 +254,7 @@ export function useSidebarDragState() {
 
   // Helper to check if targetId is a descendant of blockId
   function isDescendantOf(blockId: string, targetId: string): boolean {
-    const block = editorStore.findBlockById(blockId)
+    const block = designerStore.findBlockById(blockId)
     if (!block?.children) return false
     for (const child of block.children) {
       if (child.id === targetId) return true
@@ -252,7 +281,7 @@ export function useSidebarDragState() {
 
     // Handle top-level block being dragged into a layout block
     if (dragState.blockIndex !== null) {
-      const draggedBlock = editorStore.blocks[dragState.blockIndex]
+      const draggedBlock = designerStore.blocks[dragState.blockIndex]
       if (!draggedBlock) return
       // Can't drop into itself
       if (draggedBlock.id === parentId) return
@@ -278,10 +307,10 @@ export function useSidebarDragState() {
   }
 
   // Handler for hovering over a block row (for auto-expand)
-  function handleBlockRowHover(blockId: string, expandBlock: (id: string) => void) {
+  function handleBlockRowHover(blockId: string, expandBlock: (id: string) => void, collapseBlock: (id: string) => void) {
     // Only start timer if we're actively dragging something
     if (dragState.childInfo || dragState.blockIndex !== null || dragState.newBlockType || dragState.newListPresetType) {
-      startHoverExpandTimer(blockId, expandBlock)
+      startHoverExpandTimer(blockId, expandBlock, collapseBlock)
     }
   }
 
@@ -296,9 +325,9 @@ export function useSidebarDragState() {
   function handleChildDrop(parentId: string, childIndex: number, expandBlock: (id: string) => void, event?: DragEvent) {
     // Handle new block type being dropped from section dropdown
     if (dragState.newBlockType) {
-      const newBlock = editorStore.addBlock(dragState.newBlockType, childIndex, parentId)
+      const newBlock = designerStore.addBlock(dragState.newBlockType, childIndex, parentId)
       if (newBlock) {
-        editorStore.selectBlock(newBlock.id)
+        designerStore.selectBlock(newBlock.id)
         expandBlock(parentId)
       }
       resetDragState()
@@ -307,9 +336,9 @@ export function useSidebarDragState() {
 
     // Handle list preset being dropped from section dropdown
     if (dragState.newListPresetType) {
-      const newBlock = editorStore.addListPreset(dragState.newListPresetType, childIndex, parentId)
+      const newBlock = designerStore.addListPreset(dragState.newListPresetType, childIndex, parentId)
       if (newBlock) {
-        editorStore.selectBlock(newBlock.id)
+        designerStore.selectBlock(newBlock.id)
         expandBlock(parentId)
       }
       resetDragState()
@@ -320,9 +349,9 @@ export function useSidebarDragState() {
     if (event) {
       const sectionType = event.dataTransfer?.getData('application/x-section-type')
       if (sectionType) {
-        const newBlock = editorStore.addBlock(sectionType as SectionBlockType, childIndex, parentId)
+        const newBlock = designerStore.addBlock(sectionType as SectionBlockType, childIndex, parentId)
         if (newBlock) {
-          editorStore.selectBlock(newBlock.id)
+          designerStore.selectBlock(newBlock.id)
           expandBlock(parentId)
         }
         resetDragState()
@@ -332,9 +361,9 @@ export function useSidebarDragState() {
       // Also check for list preset type (fallback)
       const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type')
       if (listPresetType) {
-        const newBlock = editorStore.addListPreset(listPresetType as ListPresetType, childIndex, parentId)
+        const newBlock = designerStore.addListPreset(listPresetType as ListPresetType, childIndex, parentId)
         if (newBlock) {
-          editorStore.selectBlock(newBlock.id)
+          designerStore.selectBlock(newBlock.id)
           expandBlock(parentId)
         }
         resetDragState()
@@ -344,9 +373,9 @@ export function useSidebarDragState() {
 
     // Handle top-level block being dropped into a layout block
     if (dragState.blockIndex !== null) {
-      const draggedBlock = editorStore.blocks[dragState.blockIndex]
+      const draggedBlock = designerStore.blocks[dragState.blockIndex]
       if (draggedBlock) {
-        editorStore.moveBlockToParent(draggedBlock.id, parentId, childIndex)
+        designerStore.moveBlockToParent(draggedBlock.id, parentId, childIndex)
         expandBlock(parentId)
       }
       resetDragState()
@@ -359,19 +388,17 @@ export function useSidebarDragState() {
 
     if (isSameParent) {
       if (dragState.childInfo.childIndex !== childIndex) {
-        editorStore.reorderBlocks(dragState.childInfo.childIndex, childIndex, parentId)
+        designerStore.reorderBlocks(dragState.childInfo.childIndex, childIndex, parentId)
       }
     } else {
-      editorStore.moveBlockToParent(dragState.childInfo.blockId, parentId, childIndex)
+      designerStore.moveBlockToParent(dragState.childInfo.blockId, parentId, childIndex)
     }
 
-    dragState.childInfo = null
-    dragState.overChildInfo = null
+    resetDragState()
   }
 
   function handleChildDragEnd() {
-    dragState.childInfo = null
-    dragState.overChildInfo = null
+    resetDragState()
   }
 
   // Empty parent drop handlers
@@ -392,7 +419,7 @@ export function useSidebarDragState() {
     }
 
     if (dragState.blockIndex !== null) {
-      const draggedBlock = editorStore.blocks[dragState.blockIndex]
+      const draggedBlock = designerStore.blocks[dragState.blockIndex]
       if (!draggedBlock) return
       // Can't drop into itself
       if (draggedBlock.id === parentId) return
@@ -418,9 +445,9 @@ export function useSidebarDragState() {
   function handleEmptyParentDrop(parentId: string, expandBlock: (id: string) => void, event?: DragEvent) {
     // Handle new block type being dropped from section dropdown
     if (dragState.newBlockType) {
-      const newBlock = editorStore.addBlock(dragState.newBlockType, 0, parentId)
+      const newBlock = designerStore.addBlock(dragState.newBlockType, 0, parentId)
       if (newBlock) {
-        editorStore.selectBlock(newBlock.id)
+        designerStore.selectBlock(newBlock.id)
         expandBlock(parentId)
       }
       resetDragState()
@@ -429,9 +456,9 @@ export function useSidebarDragState() {
 
     // Handle list preset being dropped from section dropdown
     if (dragState.newListPresetType) {
-      const newBlock = editorStore.addListPreset(dragState.newListPresetType, 0, parentId)
+      const newBlock = designerStore.addListPreset(dragState.newListPresetType, 0, parentId)
       if (newBlock) {
-        editorStore.selectBlock(newBlock.id)
+        designerStore.selectBlock(newBlock.id)
         expandBlock(parentId)
       }
       resetDragState()
@@ -442,9 +469,9 @@ export function useSidebarDragState() {
     if (event) {
       const sectionType = event.dataTransfer?.getData('application/x-section-type')
       if (sectionType) {
-        const newBlock = editorStore.addBlock(sectionType as SectionBlockType, 0, parentId)
+        const newBlock = designerStore.addBlock(sectionType as SectionBlockType, 0, parentId)
         if (newBlock) {
-          editorStore.selectBlock(newBlock.id)
+          designerStore.selectBlock(newBlock.id)
           expandBlock(parentId)
         }
         resetDragState()
@@ -454,9 +481,9 @@ export function useSidebarDragState() {
       // Also check for list preset type (fallback)
       const listPresetType = event.dataTransfer?.getData('application/x-list-preset-type')
       if (listPresetType) {
-        const newBlock = editorStore.addListPreset(listPresetType as ListPresetType, 0, parentId)
+        const newBlock = designerStore.addListPreset(listPresetType as ListPresetType, 0, parentId)
         if (newBlock) {
-          editorStore.selectBlock(newBlock.id)
+          designerStore.selectBlock(newBlock.id)
           expandBlock(parentId)
         }
         resetDragState()
@@ -465,22 +492,22 @@ export function useSidebarDragState() {
     }
 
     if (dragState.blockIndex !== null) {
-      const draggedBlock = editorStore.blocks[dragState.blockIndex]
+      const draggedBlock = designerStore.blocks[dragState.blockIndex]
       if (draggedBlock) {
-        editorStore.moveBlockToParent(draggedBlock.id, parentId, 0)
+        designerStore.moveBlockToParent(draggedBlock.id, parentId, 0)
         expandBlock(parentId)
       }
       resetDragState()
       return
     }
 
-    if (!dragState.childInfo) return
+    if (!dragState.childInfo) {
+      resetDragState()
+      return
+    }
 
-    editorStore.moveBlockToParent(dragState.childInfo.blockId, parentId, 0)
-
-    dragState.childInfo = null
-    dragState.overChildInfo = null
-    dragState.overEmptyParentId = null
+    designerStore.moveBlockToParent(dragState.childInfo.blockId, parentId, 0)
+    resetDragState()
   }
 
   return {

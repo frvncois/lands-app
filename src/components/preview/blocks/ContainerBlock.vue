@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
-import type { SectionBlock, SectionBlockType, ContainerSettings, ContainerStyles } from '@/types/editor'
+import type { SectionBlock, SectionBlockType, ContainerSettings, ContainerStyles } from '@/types/designer'
+import type { ListPresetType } from '@/lib/list-presets'
 import { BackgroundMedia } from './index'
 import SidebarBlockPicker from '@/components/builder/SidebarBlockPicker.vue'
+import { useDesignerStore } from '@/stores/designer'
 
 // Use async component to avoid circular dependency
 const PreviewSection = defineAsyncComponent(() => import('../PreviewSection.vue'))
@@ -25,10 +27,36 @@ const emit = defineEmits<{
   childDragOver: [index: number, event: DragEvent]
   childDragLeave: []
   addBlock: [type: SectionBlockType]
+  addListPreset: [type: ListPresetType]
 }>()
+
+const designerStore = useDesignerStore()
 
 const settings = computed(() => props.block.settings as ContainerSettings)
 const containerStyles = computed(() => props.block.styles as ContainerStyles)
+
+// Find content image source for content-aware background
+const contentImageSrc = computed(() => {
+  const sourceId = settings.value?.backgroundContentSource
+  if (!sourceId) return undefined
+
+  // Helper to find image block by ID recursively
+  function findImageById(block: SectionBlock): string | undefined {
+    if (block.id === sourceId && block.type === 'image') {
+      const imgSettings = block.settings as { src?: string }
+      return imgSettings.src
+    }
+    if (block.children) {
+      for (const child of block.children) {
+        const found = findImageById(child)
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+
+  return findImageById(props.block)
+})
 
 // Dynamic HTML tag (defaults to 'section' for container)
 const htmlTag = computed(() => settings.value?.htmlTag || 'section')
@@ -52,6 +80,28 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
   const flexValue = childSettings.flexValue as string || '1'
 
   const styles: Record<string, string> = {}
+
+  // Check if child has an explicit width - if so, don't let wrapper grow
+  const childStylesObj = child.styles as Record<string, unknown> | undefined
+  const desktopStyles = childStylesObj?.desktop as Record<string, unknown> | undefined
+  const tabletStyles = childStylesObj?.tablet as Record<string, unknown> | undefined
+  const mobileStyles = childStylesObj?.mobile as Record<string, unknown> | undefined
+
+  let childWidth: string | undefined
+  if (designerStore.viewport === 'mobile') {
+    childWidth = (mobileStyles?.width ?? tabletStyles?.width ?? desktopStyles?.width) as string | undefined
+  } else if (designerStore.viewport === 'tablet') {
+    childWidth = (tabletStyles?.width ?? desktopStyles?.width) as string | undefined
+  } else {
+    childWidth = desktopStyles?.width as string | undefined
+  }
+
+  const hasExplicitWidth = childWidth && childWidth !== '100%' && childWidth !== 'auto'
+
+  // If child has explicit width, wrapper should not grow - let the inner element's width work
+  if (hasExplicitWidth) {
+    return { flex: '0 0 auto' }
+  }
 
   switch (flexMode) {
     case 'grow':
@@ -77,8 +127,8 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
 <template>
   <component
     :is="htmlTag"
-    class="relative flex flex-1 min-h-0 transition-colors"
-    :class="isDropTarget ? 'ring-2 ring-primary ring-dashed bg-primary/5' : ''"
+    class="relative flex min-h-0"
+    :class="{ 'flex-1': !styles.height, 'overflow-hidden': styles.height }"
     :style="{
       ...styles,
       flexDirection: containerStyles?.flexDirection || styles.flexDirection || 'column',
@@ -101,20 +151,21 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
       :image-saturation="settings?.backgroundImageSaturation"
       :image-overlay="settings?.backgroundImageOverlay"
       :image-overlay-opacity="settings?.backgroundImageOverlayOpacity"
+      :content-image-src="contentImageSrc"
+      :content-blur="settings?.backgroundContentBlur"
+      :content-saturation="settings?.backgroundContentSaturation"
+      :content-scale="settings?.backgroundContentScale"
     />
 
     <!-- Children -->
     <template v-if="block.children && block.children.length > 0">
       <template v-for="(child, childIndex) in block.children" :key="child.id">
-        <!-- Drop indicator before this child -->
         <div
-          v-if="childDropIndex === childIndex"
-          class="absolute left-0 right-0 h-1 bg-primary rounded-full z-10 -translate-y-2"
-          :style="{ top: `${childIndex * 100 / block.children.length}%` }"
-        />
-        <div
-          class="z-10 flex flex-col min-h-0"
-          :class="{ 'relative': !isChildAbsoluteOrFixed(child) }"
+          class="z-10 flex flex-col min-h-0 min-w-0"
+          :class="{
+            'relative': !isChildAbsoluteOrFixed(child),
+            'h-full': (child.styles as Record<string, unknown>)?.height === '100%' || (child.styles as Record<string, unknown>)?.desktop?.height === '100%'
+          }"
           :style="getChildFlexStyles(child)"
           @dragover="emit('childDragOver', childIndex, $event)"
           @dragleave="emit('childDragLeave')"
@@ -126,11 +177,6 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
           />
         </div>
       </template>
-      <!-- Drop indicator after last child -->
-      <div
-        v-if="childDropIndex === block.children.length"
-        class="h-1 bg-primary rounded-full"
-      />
     </template>
 
     <!-- Empty State -->
@@ -142,6 +188,7 @@ function getChildFlexStyles(child: SectionBlock): Record<string, string> {
         mode="nested"
         trigger-label="Add content"
         @select="(type: string) => emit('addBlock', type as SectionBlockType)"
+        @select-list-preset="(type: ListPresetType) => emit('addListPreset', type)"
       />
     </div>
   </component>

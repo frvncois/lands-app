@@ -39,7 +39,7 @@ async function handleProjectLeft() {
           variant="link"
           size="xs"
           class="h-auto p-0 truncate"
-          @click="actions.openEditor(project.id)"
+          @click="actions.openDesigner(project.id)"
         >
           {{ project.title }}
         </Button>
@@ -67,8 +67,8 @@ async function handleProjectLeft() {
         <Dropdown.Item v-if="project.isPublished" icon="app-show" @click="actions.viewSite(project)">
           View Site
         </Dropdown.Item>
-        <Dropdown.Item icon="lni-pencil-1" @click="actions.openEditor(project.id)">
-          Open Editor
+        <Dropdown.Item icon="lni-pencil-1" @click="actions.openDesigner(project.id)">
+          Open Designer
         </Dropdown.Item>
         <Dropdown.Item icon="lni-bar-chart-4" @click="actions.openAnalytics(project.id)">
           Analytics

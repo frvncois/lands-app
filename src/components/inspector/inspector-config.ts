@@ -1,4 +1,4 @@
-import type { SectionBlockType } from '@/types/editor'
+import type { SectionBlockType } from '@/types/designer'
 import {
   headingLevelOptions as headingLevelOptionsRaw,
   buttonSizeOptions as buttonSizeOptionsRaw,
@@ -6,7 +6,7 @@ import {
   maskShapeLabels,
   justifyContentOptions as justifyContentOptionsRaw,
   alignItemsOptions as alignItemsOptionsRaw,
-} from '@/lib/editor-utils'
+} from '@/lib/designer-utils'
 
 // Field type definitions
 export type FieldType =
@@ -20,6 +20,7 @@ export type FieldType =
   | 'select'
   | 'segmented'
   | 'link'
+  | 'icon-picker'
 
 // Select/Segmented option type
 export interface SelectOption {
@@ -361,16 +362,15 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
         fields: [
           {
             key: 'icon',
-            type: 'text',
-            label: 'Icon Name',
-            placeholder: 'content-icon',
+            type: 'icon-picker',
+            label: 'Icon',
           },
           {
             key: 'size',
             type: 'slider',
             label: 'Size',
             horizontal: true,
-            props: { min: 12, max: 96, step: 4, unit: 'px', defaultValue: '24' },
+            props: { min: 12, max: 200, step: 4, unit: 'px', defaultValue: '24' },
           },
           {
             key: 'linkUrl',
@@ -416,8 +416,254 @@ export const inspectorConfig: Partial<Record<SectionBlockType, BlockInspectorCon
     sections: ['display', 'styles', 'effects'],
   },
 
+  slider: {
+    sections: ['display', 'styles', 'effects'],
+  },
+
   canvas: {
     sections: ['display', 'styles', 'effects'],
+  },
+
+  // Form blocks
+  form: {
+    content: [
+      {
+        title: 'Form',
+        icon: 'form',
+        fields: [
+          {
+            key: 'action',
+            type: 'text',
+            label: 'Action URL',
+            placeholder: '/submit or https://...',
+          },
+          {
+            key: 'method',
+            type: 'segmented',
+            label: 'Method',
+            horizontal: true,
+            props: {
+              options: [
+                { value: 'POST', label: 'POST' },
+                { value: 'GET', label: 'GET' },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+    sections: ['display', 'styles', 'effects'],
+  },
+
+  'form-input': {
+    content: [
+      {
+        title: 'Input',
+        icon: 'form-input',
+        fields: [
+          {
+            key: 'name',
+            type: 'text',
+            label: 'Name',
+            placeholder: 'email',
+          },
+          {
+            key: 'placeholder',
+            type: 'text',
+            label: 'Placeholder',
+            placeholder: 'Enter your email...',
+            translatable: true,
+          },
+          {
+            key: 'type',
+            type: 'select',
+            label: 'Type',
+            horizontal: true,
+            props: {
+              options: [
+                { value: 'text', label: 'Text' },
+                { value: 'email', label: 'Email' },
+                { value: 'password', label: 'Password' },
+                { value: 'number', label: 'Number' },
+                { value: 'tel', label: 'Phone' },
+                { value: 'url', label: 'URL' },
+              ],
+            },
+          },
+          {
+            key: 'required',
+            type: 'toggle',
+            label: 'Required',
+          },
+        ],
+      },
+    ],
+    sections: ['typography', 'display', 'styles', 'effects'],
+  },
+
+  'form-textarea': {
+    content: [
+      {
+        title: 'Textarea',
+        icon: 'form-textarea',
+        fields: [
+          {
+            key: 'name',
+            type: 'text',
+            label: 'Name',
+            placeholder: 'message',
+          },
+          {
+            key: 'placeholder',
+            type: 'text',
+            label: 'Placeholder',
+            placeholder: 'Enter your message...',
+            translatable: true,
+          },
+          {
+            key: 'rows',
+            type: 'slider',
+            label: 'Rows',
+            horizontal: true,
+            props: { min: 2, max: 20, step: 1, defaultValue: '4' },
+          },
+          {
+            key: 'required',
+            type: 'toggle',
+            label: 'Required',
+          },
+        ],
+      },
+    ],
+    sections: ['typography', 'display', 'styles', 'effects'],
+  },
+
+  'form-checkbox': {
+    content: [
+      {
+        title: 'Checkbox',
+        icon: 'form-checkbox',
+        fields: [
+          {
+            key: 'name',
+            type: 'text',
+            label: 'Name',
+            placeholder: 'consent',
+          },
+          {
+            key: 'label',
+            type: 'text',
+            label: 'Label',
+            placeholder: 'I agree to the terms',
+            translatable: true,
+          },
+          {
+            key: 'required',
+            type: 'toggle',
+            label: 'Required',
+          },
+          {
+            key: 'defaultChecked',
+            type: 'toggle',
+            label: 'Checked by default',
+          },
+        ],
+      },
+    ],
+    sections: ['typography', 'display', 'styles', 'effects'],
+  },
+
+  'form-radio': {
+    content: [
+      {
+        title: 'Radio',
+        icon: 'form-radio',
+        fields: [
+          {
+            key: 'name',
+            type: 'text',
+            label: 'Group Name',
+            placeholder: 'option',
+          },
+          {
+            key: 'label',
+            type: 'text',
+            label: 'Label',
+            placeholder: 'Option A',
+            translatable: true,
+          },
+          {
+            key: 'value',
+            type: 'text',
+            label: 'Value',
+            placeholder: 'option-a',
+          },
+          {
+            key: 'defaultChecked',
+            type: 'toggle',
+            label: 'Checked by default',
+          },
+        ],
+      },
+    ],
+    sections: ['typography', 'display', 'styles', 'effects'],
+  },
+
+  'form-button': {
+    content: [
+      {
+        title: 'Submit Button',
+        icon: 'form-button',
+        fields: [
+          {
+            key: 'label',
+            type: 'text',
+            label: 'Label',
+            placeholder: 'Submit',
+            translatable: true,
+          },
+          {
+            key: 'type',
+            type: 'segmented',
+            label: 'Type',
+            horizontal: true,
+            props: {
+              options: [
+                { value: 'submit', label: 'Submit' },
+                { value: 'reset', label: 'Reset' },
+                { value: 'button', label: 'Button' },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+    sections: ['typography', 'display', 'styles', 'effects'],
+  },
+
+  'form-label': {
+    content: [
+      {
+        title: 'Label',
+        icon: 'form-label',
+        fields: [
+          {
+            key: 'content',
+            type: 'text',
+            label: 'Text',
+            placeholder: 'Label',
+            translatable: true,
+          },
+          {
+            key: 'for',
+            type: 'text',
+            label: 'For Input',
+            placeholder: 'input name',
+          },
+        ],
+      },
+    ],
+    sections: ['typography', 'display', 'styles', 'effects'],
   },
 
 }

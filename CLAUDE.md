@@ -24,7 +24,7 @@ npm run preview      # Preview production build
 - **State**: Pinia 3.0
 - **Styling**: Tailwind CSS 4.1
 - **Backend**: Supabase (PostgreSQL + Auth + Edge Functions)
-- **Icons**: Lineicons
+- **Icons**: Lineicons + Lucide
 - **Fonts**: Geist Sans & Geist Mono
 
 ### Directory Structure
@@ -32,24 +32,24 @@ npm run preview      # Preview production build
 ```
 src/
 ├── components/
-│   ├── builder/       # Editor UI (Sidebar, Preview, Inspector)
+│   ├── builder/       # Designer UI (Sidebar, Preview, Inspector)
 │   ├── inspector/     # Property inputs and sections
 │   ├── preview/       # Block rendering components
 │   ├── modal/         # Dialog modals
 │   ├── ui/            # Design system components
 │   └── common/        # App shell (Header, Sidebar)
 ├── stores/            # Pinia stores
-│   ├── editor.ts      # Main editor state + block operations
-│   ├── editor/        # Editor composables (history, clipboard, etc.)
+│   ├── designer.ts    # Main designer state + block operations
+│   ├── designer/      # Designer composables (history, clipboard, etc.)
 │   ├── projects.ts    # Project CRUD + collaborators
 │   ├── project.ts     # Single project settings
 │   └── user.ts        # Authentication + profile
 ├── types/
-│   └── editor.ts      # Block types, settings, styles (~1200 lines)
+│   └── designer.ts    # Block types, settings, styles (~1200 lines)
 ├── lib/
-│   ├── editor-utils.ts    # Block factories, defaults, helpers
+│   ├── designer-utils.ts  # Block factories, defaults, helpers
 │   ├── supabase/          # Database client + types
-│   └── editor/            # Save queue, offline store, diff
+│   └── designer/          # Save queue, offline store, diff
 ├── views/             # Page components
 ├── pages/             # Feature pages (analytics, integrations)
 ├── features/          # Feature-specific composables
@@ -62,7 +62,7 @@ supabase/
 
 ### Key Stores
 
-**`editor.ts`** - Central editor state:
+**`designer.ts`** - Central designer state:
 - `blocks: SectionBlock[]` - Page content tree
 - `pageSettings: PageSettings` - Global page config
 - `selectedBlockId` - Currently selected block
@@ -84,10 +84,11 @@ Blocks are the core content units. Each block has:
 - `styles` - Visual styling (padding, colors, etc.)
 - `children` - Nested blocks (for layout types)
 
-**Layout blocks** (can have children): `container`, `grid`, `stack`, `canvas`
-**Content blocks**: `heading`, `text`, `image`, `video`, `button`, `icon`
+**Layout blocks** (can have children): `container`, `grid`, `stack`, `canvas`, `slider`, `form`
+**Content blocks**: `heading`, `text`, `image`, `video`, `button`, `icon`, `divider`
+**Form blocks** (only valid inside `form`): `form-input`, `form-textarea`, `form-checkbox`, `form-radio`, `form-button`, `form-label`
 
-Block operations always call `rebuildBlockIndex()` after structural changes.
+Block operations always call `rebuildBlockIndex()` after structural changes. Use `canHaveChildren()` and `isFormChildBlock()` from `designer-utils.ts` to validate nesting.
 
 ### Responsive Styles
 
@@ -102,10 +103,10 @@ Desktop styles are base, tablet/mobile inherit and override.
 
 ### File Conventions
 
-- **Components**: PascalCase (`EditorSidebar.vue`)
+- **Components**: PascalCase (`DesignerSidebar.vue`)
 - **Composables**: camelCase with `use` prefix (`useTheme.ts`)
-- **Stores**: camelCase (`editor.ts`)
-- **Utilities**: kebab-case (`editor-utils.ts`)
+- **Stores**: camelCase (`designer.ts`)
+- **Utilities**: kebab-case (`designer-utils.ts`)
 
 ### Path Alias
 
@@ -113,19 +114,31 @@ Desktop styles are base, tablet/mobile inherit and override.
 
 ## Key Patterns
 
-1. **Block Index**: The editor maintains `blockIndex: Map<string, SectionBlock>` for O(1) lookups. Always call `rebuildBlockIndex()` after structural changes.
+1. **Block Index**: The designer store maintains `blockIndex: Map<string, SectionBlock>` for O(1) lookups. Always call `rebuildBlockIndex()` after structural changes.
 
 2. **Change Tracking**: Call `markAsChangedWithHistory()` before mutations to enable undo/redo and queue saves.
 
 3. **Optimistic Updates**: Stores perform optimistic updates with rollback on failure.
 
-4. **Composable Architecture**: Editor features are split into composables in `stores/editor/`:
+4. **Composable Architecture**: Designer features are split into composables in `stores/designer/`:
    - `useHistory` - Undo/redo
    - `useClipboard` - Copy/paste
    - `useSharedStyles` - Style presets
    - `useTranslations` - i18n
 
 5. **Inspector Pattern**: Block inspectors are in `components/inspector/blocks/`. Use `useBlockInspector()` composable for common functionality.
+
+6. **Block Creation**: Use factory functions from `designer-utils.ts` (`createSectionBlock()`, `duplicateSectionBlock()`) instead of manually constructing block objects. These ensure proper defaults and ID generation.
+
+7. **Style Utilities**: Use `getResponsiveStyles()` from `lib/style-utils.ts` to compute merged styles across viewports. Animation effects are in `lib/effect-utils.ts`.
+
+## Environment
+
+Requires `.env` with:
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon/public key
+
+Never use service-role keys in frontend code; privileged operations belong in Edge Functions.
 
 ## Database
 
@@ -142,3 +155,4 @@ Located in `supabase/functions/`:
 - `send-invite-email` - Collaboration invites
 - `integration-oauth` - OAuth flows
 - `google-fonts`, `unsplash-search` - External APIs
+- `ai-assistant` - AI-powered content generation

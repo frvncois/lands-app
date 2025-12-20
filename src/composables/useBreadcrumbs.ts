@@ -36,7 +36,7 @@ export function useBreadcrumbs() {
       items.push({
         label: project.value.title,
         route: {
-          name: 'editor',
+          name: 'designer',
           params: { projectId: projectId.value },
         },
       })

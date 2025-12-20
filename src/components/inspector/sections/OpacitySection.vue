@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { mixBlendModeOptions } from '@/lib/editor-utils'
+import { mixBlendModeOptions } from '@/lib/designer-utils'
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
 import SliderInput from '../SliderInput.vue'

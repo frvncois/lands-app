@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
-import type { GoogleFont } from '@/types/editor'
+import type { GoogleFont } from '@/types/designer'
 import { Button, Input, Spinner } from '@/components/ui'
 import Icon from '@/components/ui/Icon.vue'
 

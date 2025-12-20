@@ -1,4 +1,4 @@
-import type { SectionBlockType } from '@/types/editor'
+import type { SectionBlockType } from '@/types/designer'
 
 /**
  * Configuration for block rendering behavior
@@ -81,6 +81,26 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     isLayout: true,
     defaultTag: 'div',
   },
+  slider: {
+    label: 'Slider',
+    icon: 'lni-gallery',
+    hasChildren: true,
+    hasBackground: true,
+    hasEmptyState: true,
+    supportsInlineEdit: false,
+    isLayout: true,
+    defaultTag: 'div',
+  },
+  form: {
+    label: 'Form',
+    icon: 'form',
+    hasChildren: true,
+    hasBackground: true,
+    hasEmptyState: true,
+    supportsInlineEdit: false,
+    isLayout: true,
+    defaultTag: 'form',
+  },
 
   // Content blocks
   heading: {
@@ -155,6 +175,70 @@ export const blockRenderConfig: Record<SectionBlockType, BlockRenderConfig> = {
     supportsInlineEdit: false,
     isLayout: false,
     defaultTag: 'div',
+  },
+
+  // Form element blocks
+  'form-input': {
+    label: 'Input',
+    icon: 'form-input',
+    hasChildren: false,
+    hasBackground: false,
+    hasEmptyState: false,
+    supportsInlineEdit: false,
+    isLayout: false,
+    defaultTag: 'input',
+  },
+  'form-textarea': {
+    label: 'Textarea',
+    icon: 'form-textarea',
+    hasChildren: false,
+    hasBackground: false,
+    hasEmptyState: false,
+    supportsInlineEdit: false,
+    isLayout: false,
+    defaultTag: 'textarea',
+  },
+  'form-checkbox': {
+    label: 'Checkbox',
+    icon: 'form-checkbox',
+    hasChildren: false,
+    hasBackground: false,
+    hasEmptyState: false,
+    supportsInlineEdit: false,
+    isLayout: false,
+    defaultTag: 'input',
+  },
+  'form-radio': {
+    label: 'Radio',
+    icon: 'form-radio',
+    hasChildren: false,
+    hasBackground: false,
+    hasEmptyState: false,
+    supportsInlineEdit: false,
+    isLayout: false,
+    defaultTag: 'input',
+  },
+  'form-button': {
+    label: 'Submit Button',
+    icon: 'form-button',
+    hasChildren: false,
+    hasBackground: false,
+    hasEmptyState: false,
+    supportsInlineEdit: true,
+    editableFields: ['label'],
+    isLayout: false,
+    defaultTag: 'button',
+  },
+  'form-label': {
+    label: 'Label',
+    icon: 'form-label',
+    hasChildren: false,
+    hasBackground: false,
+    hasEmptyState: false,
+    supportsInlineEdit: true,
+    editableFields: ['content'],
+    isLayout: false,
+    defaultTag: 'label',
   },
 
 }

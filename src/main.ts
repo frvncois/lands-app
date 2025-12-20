@@ -6,7 +6,7 @@ import './assets/main.css'
 import router from './router'
 import { useUserStore } from './stores/user'
 import { registerVisibilityHandler } from './lib/supabase'
-import { initSaveQueue } from './lib/editor'
+import { initSaveQueue } from './lib/designer'
 
 const app = createApp(App)
 const pinia = createPinia()

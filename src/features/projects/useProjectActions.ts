@@ -7,7 +7,7 @@ export function useProjectActions() {
 
   return {
     edit: (id: string) =>
-      router.push({ name: 'editor', params: { projectId: id } }),
+      router.push({ name: 'designer', params: { projectId: id } }),
 
     settings: (id: string) =>
       router.push({ name: 'settings', params: { projectId: id } }),

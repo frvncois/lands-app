@@ -1,6 +1,6 @@
-import { useEditorStore } from '@/stores/editor'
-import { generateId, getDefaultSettings, getDefaultStyles, canHaveChildren } from '@/lib/editor-utils'
-import type { SectionBlock, SectionBlockType } from '@/types/editor'
+import { useDesignerStore } from '@/stores/designer'
+import { generateId, getDefaultSettings, getDefaultStyles, canHaveChildren } from '@/lib/designer-utils'
+import type { SectionBlock, SectionBlockType } from '@/types/designer'
 
 // Types
 export interface CreateSectionAction {
@@ -91,27 +91,27 @@ export interface ActionResult {
 }
 
 export function executeAction(action: AIAction): ActionResult {
-  const editorStore = useEditorStore()
+  const designerStore = useDesignerStore()
 
   try {
     switch (action.type) {
       case 'create_section':
-        return executeCreateSection(action, editorStore)
+        return executeCreateSection(action, designerStore)
       case 'update_block':
-        return executeUpdateBlock(action, editorStore)
+        return executeUpdateBlock(action, designerStore)
       case 'update_page_settings':
-        editorStore.updatePageSettings(action.settings)
+        designerStore.updatePageSettings(action.settings)
         return { success: true, message: 'Updated page settings' }
       case 'add_animation':
-        return executeAddAnimation(action, editorStore)
+        return executeAddAnimation(action, designerStore)
       case 'translate_block':
-        return executeTranslateBlock(action, editorStore)
+        return executeTranslateBlock(action, designerStore)
       case 'seo_suggestion':
         return { success: true, message: 'SEO suggestions provided' }
       case 'add_children':
-        return executeAddChildren(action, editorStore)
+        return executeAddChildren(action, designerStore)
       case 'duplicate_block':
-        return executeDuplicateBlock(action, editorStore)
+        return executeDuplicateBlock(action, designerStore)
       default:
         return { success: false, message: 'Unknown action type' }
     }
@@ -124,7 +124,7 @@ export function executeActions(actions: AIAction[]): ActionResult[] {
   return actions.map(executeAction)
 }
 
-function executeCreateSection(action: CreateSectionAction, editorStore: ReturnType<typeof useEditorStore>): ActionResult {
+function executeCreateSection(action: CreateSectionAction, designerStore: ReturnType<typeof useDesignerStore>): ActionResult {
   const { section } = action
 
   const containerBlock: SectionBlock = {
@@ -136,7 +136,7 @@ function executeCreateSection(action: CreateSectionAction, editorStore: ReturnTy
     children: section.children?.map(buildBlockFromAI) || [],
   }
 
-  editorStore.addPresetBlock(containerBlock)
+  designerStore.addPresetBlock(containerBlock)
   return { success: true, message: `Created "${section.name}"`, blockId: containerBlock.id }
 }
 
@@ -195,64 +195,64 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
   return result
 }
 
-function executeUpdateBlock(action: UpdateBlockAction, editorStore: ReturnType<typeof useEditorStore>): ActionResult {
-  const targetId = action.blockId === 'selected' ? editorStore.selectedBlockId : action.blockId
+function executeUpdateBlock(action: UpdateBlockAction, designerStore: ReturnType<typeof useDesignerStore>): ActionResult {
+  const targetId = action.blockId === 'selected' ? designerStore.selectedBlockId : action.blockId
   if (!targetId) return { success: false, message: 'No block selected' }
 
-  const block = editorStore.findBlockById(targetId)
+  const block = designerStore.findBlockById(targetId)
   if (!block) return { success: false, message: 'Block not found' }
 
-  editorStore.selectBlock(targetId)
-  if (action.settings) editorStore.updateBlockSettings(targetId, action.settings)
-  if (action.styles) editorStore.updateBlockStyles(targetId, action.styles)
+  designerStore.selectBlock(targetId)
+  if (action.settings) designerStore.updateBlockSettings(targetId, action.settings)
+  if (action.styles) designerStore.updateBlockStyles(targetId, action.styles)
 
   return { success: true, message: `Updated "${block.name}"`, blockId: targetId }
 }
 
-function executeAddAnimation(action: AddAnimationAction, editorStore: ReturnType<typeof useEditorStore>): ActionResult {
-  const targetId = action.blockId === 'selected' ? editorStore.selectedBlockId : action.blockId
+function executeAddAnimation(action: AddAnimationAction, designerStore: ReturnType<typeof useDesignerStore>): ActionResult {
+  const targetId = action.blockId === 'selected' ? designerStore.selectedBlockId : action.blockId
   if (!targetId) return { success: false, message: 'No block selected' }
 
-  const block = editorStore.findBlockById(targetId)
+  const block = designerStore.findBlockById(targetId)
   if (!block) return { success: false, message: 'Block not found' }
 
-  editorStore.selectBlock(targetId)
-  editorStore.updateBlockStyles(targetId, {
+  designerStore.selectBlock(targetId)
+  designerStore.updateBlockStyles(targetId, {
     animation: { type: action.animation.type, duration: action.animation.duration, delay: action.animation.delay, easing: action.animation.easing, trigger: 'onLoad' }
   })
-  editorStore.triggerAnimationPreview(targetId)
+  designerStore.triggerAnimationPreview(targetId)
 
   return { success: true, message: `Added ${action.animation.type} animation`, blockId: targetId }
 }
 
-function executeTranslateBlock(action: TranslateBlockAction, editorStore: ReturnType<typeof useEditorStore>): ActionResult {
-  const targetId = action.blockId === 'selected' ? editorStore.selectedBlockId : action.blockId
+function executeTranslateBlock(action: TranslateBlockAction, designerStore: ReturnType<typeof useDesignerStore>): ActionResult {
+  const targetId = action.blockId === 'selected' ? designerStore.selectedBlockId : action.blockId
   if (!targetId) return { success: false, message: 'No block selected' }
 
   // Save current language and switch to target language
-  const previousLanguage = editorStore.currentLanguage
-  editorStore.setCurrentLanguage(action.language as import('@/types/editor').LanguageCode)
+  const previousLanguage = designerStore.currentLanguage
+  designerStore.setCurrentLanguage(action.language as import('@/types/designer').LanguageCode)
 
   // Apply translations
   for (const [field, value] of Object.entries(action.translations)) {
-    editorStore.updateBlockTranslation(targetId, field as 'content' | 'label' | 'alt' | 'placeholder', value)
+    designerStore.updateBlockTranslation(targetId, field as 'content' | 'label' | 'alt' | 'placeholder', value)
   }
 
   // Restore previous language
-  editorStore.setCurrentLanguage(previousLanguage)
+  designerStore.setCurrentLanguage(previousLanguage)
 
   return { success: true, message: `Translated to ${action.language}`, blockId: targetId }
 }
 
-function executeAddChildren(action: AddChildrenAction, editorStore: ReturnType<typeof useEditorStore>): ActionResult {
+function executeAddChildren(action: AddChildrenAction, designerStore: ReturnType<typeof useDesignerStore>): ActionResult {
   console.log('[AI Actions] executeAddChildren called with:', { blockId: action.blockId, childrenCount: action.children?.length })
 
-  const targetId = action.blockId === 'selected' ? editorStore.selectedBlockId : action.blockId
+  const targetId = action.blockId === 'selected' ? designerStore.selectedBlockId : action.blockId
   console.log('[AI Actions] Target ID resolved to:', targetId)
 
   if (!targetId) return { success: false, message: 'No block selected' }
 
-  const parentBlock = editorStore.findBlockById(targetId)
+  const parentBlock = designerStore.findBlockById(targetId)
   console.log('[AI Actions] Parent block found:', parentBlock?.type, parentBlock?.name)
 
   if (!parentBlock) return { success: false, message: 'Parent block not found' }
@@ -268,17 +268,17 @@ function executeAddChildren(action: AddChildrenAction, editorStore: ReturnType<t
 
   for (const child of newChildren) {
     console.log('[AI Actions] Adding child to parent:', child.id, '->', targetId)
-    editorStore.addPresetBlock(child, undefined, targetId)
+    designerStore.addPresetBlock(child, undefined, targetId)
   }
 
   return { success: true, message: `Added ${newChildren.length} item${newChildren.length > 1 ? 's' : ''}`, blockId: targetId }
 }
 
-function executeDuplicateBlock(action: DuplicateBlockAction, editorStore: ReturnType<typeof useEditorStore>): ActionResult {
-  const targetId = action.blockId === 'selected' ? editorStore.selectedBlockId : action.blockId
+function executeDuplicateBlock(action: DuplicateBlockAction, designerStore: ReturnType<typeof useDesignerStore>): ActionResult {
+  const targetId = action.blockId === 'selected' ? designerStore.selectedBlockId : action.blockId
   if (!targetId) return { success: false, message: 'No block selected' }
 
-  const block = editorStore.findBlockById(targetId)
+  const block = designerStore.findBlockById(targetId)
   if (!block) return { success: false, message: 'Block not found' }
 
   const count = Math.min(action.count || 1, 10) // Limit to 10 copies
@@ -286,14 +286,14 @@ function executeDuplicateBlock(action: DuplicateBlockAction, editorStore: Return
 
   for (let i = 0; i < count; i++) {
     // Duplicate the block - returns the new block, not ID
-    const newBlock = editorStore.duplicateBlock(targetId)
+    const newBlock = designerStore.duplicateBlock(targetId)
     if (newBlock) {
       createdIds.push(newBlock.id)
 
       // Apply custom settings to root if provided
       const settings = action.updateSettings?.[i]
       if (settings) {
-        editorStore.updateBlockSettings(newBlock.id, settings)
+        designerStore.updateBlockSettings(newBlock.id, settings)
       }
 
       // Apply nested child updates if provided
@@ -302,7 +302,7 @@ function executeDuplicateBlock(action: DuplicateBlockAction, editorStore: Return
         for (const update of childUpdatesForCopy) {
           const childBlock = getBlockByPath(newBlock, update.path)
           if (childBlock) {
-            editorStore.updateBlockSettings(childBlock.id, update.settings)
+            designerStore.updateBlockSettings(childBlock.id, update.settings)
           }
         }
       }

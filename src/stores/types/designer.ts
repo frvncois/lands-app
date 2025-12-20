@@ -745,7 +745,7 @@ export interface ProjectTranslations {
 // EDITOR STATE
 // ============================================
 
-export interface EditorState {
+export interface DesignerState {
   blocks: SectionBlock[]
   pageSettings: PageSettings
   selectedBlockId: string | null

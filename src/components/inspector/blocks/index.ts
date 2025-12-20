@@ -2,7 +2,7 @@
  * Block Inspector Components
  *
  * Inspector components for each block type.
- * Used with defineAsyncComponent for lazy loading in EditorInspector.
+ * Used with defineAsyncComponent for lazy loading in DesignerInspector.
  */
 
 // Content blocks

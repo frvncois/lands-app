@@ -5,8 +5,8 @@ import type {
   VariantOptionType,
   VariantOptionValue,
   ProductVariant,
-} from '@/types/editor'
-import { generateId } from '@/lib/editor-utils'
+} from '@/types/designer'
+import { generateId } from '@/lib/designer-utils'
 import { Button, Input } from '@/components/ui'
 import Modal from '@/components/ui/Modal.vue'
 import ColorInput from '@/components/inspector/ColorInput.vue'

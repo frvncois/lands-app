@@ -10,7 +10,8 @@ import type {
   CanvasSettings,
   CanvasChildPosition,
   SavedComponent,
-} from '@/types/editor'
+  HeadingSettings,
+} from '@/types/designer'
 import type { ProjectContent } from '@/types/project'
 import {
   createSectionBlock,
@@ -18,7 +19,9 @@ import {
   duplicateSectionBlock,
   canHaveChildren,
   generateId,
-} from '@/lib/editor-utils'
+  isFormChildBlock,
+  getSemanticHeadingLevel,
+} from '@/lib/designer-utils'
 import { createListPreset, type ListPresetType } from '@/lib/list-presets'
 import { getThemeById } from '@/lib/themes'
 import { getLayoutById } from '@/lib/layouts'
@@ -31,8 +34,8 @@ import {
   hasPendingSaves,
   isSyncing,
   saveQueueState,
-  type EditorState,
-} from '@/lib/editor'
+  type DesignerState,
+} from '@/lib/designer'
 
 // Import composables
 import {
@@ -50,12 +53,12 @@ import {
   buildBlockIndex,
   buildBlockIndexes,
   MAX_LAYOUT_NESTING_DEPTH,
-} from '@/stores/editor/index'
+} from '@/stores/designer/index'
 
 // Re-export ViewportSize for consumers
 export type { ViewportSize }
 
-export const useEditorStore = defineStore('editor', () => {
+export const useDesignerStore = defineStore('designer', () => {
   const toast = useToast()
 
   // ============================================
@@ -66,6 +69,7 @@ export const useEditorStore = defineStore('editor', () => {
   const blocks = ref<SectionBlock[]>([])
   const pageSettings = ref<PageSettings>(getDefaultPageSettings())
   const selectedBlockId = ref<string | null>(null)
+  const selectedBlockIds = ref<string[]>([]) // Multi-selection support
   const selectedItemId = ref<string | null>(null)
   const hoveredBlockId = ref<string | null>(null)
   const selectedSpanId = ref<string | null>(null)
@@ -117,9 +121,9 @@ export const useEditorStore = defineStore('editor', () => {
   // ============================================
 
   // Last saved snapshot for diff computation
-  const lastSavedSnapshot = ref<EditorState | null>(null)
+  const lastSavedSnapshot = ref<DesignerState | null>(null)
 
-  function getCurrentState(): EditorState {
+  function getCurrentState(): DesignerState {
     return {
       blocks: blocks.value,
       pageSettings: pageSettings.value as Record<string, unknown>,
@@ -136,7 +140,7 @@ export const useEditorStore = defineStore('editor', () => {
       const currentState = getCurrentState()
       enqueueSave(currentProjectId.value, lastSavedSnapshot.value, currentState)
       // Update snapshot after enqueueing (use deepClone for Vue Proxy compatibility)
-      lastSavedSnapshot.value = deepClone(currentState) as EditorState
+      lastSavedSnapshot.value = deepClone(currentState) as DesignerState
     }
   }
 
@@ -467,6 +471,13 @@ export const useEditorStore = defineStore('editor', () => {
     markAsChangedWithHistory()
 
     const block = createSectionBlock(type)
+
+    // Apply semantic heading level for headings
+    if (type === 'heading') {
+      const parent = parentId ? findBlockById(parentId) : null
+      const semanticLevel = getSemanticHeadingLevel(blocks.value, parent, findParentBlock)
+      ;(block.settings as HeadingSettings).level = semanticLevel
+    }
 
     if (parentId) {
       const parent = findBlockById(parentId)
@@ -885,15 +896,55 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  function moveBlockToParent(blockId: string, newParentId: string, toIndex?: number) {
+  // Check if a block has a form ancestor (including the target block itself)
+  function hasFormAncestor(blockId: string): boolean {
     const block = findBlockById(blockId)
     if (!block) return false
+    if (block.type === 'form') return true
+
+    let parent = findParentBlock(blockId)
+    while (parent) {
+      if (parent.type === 'form') return true
+      parent = findParentBlock(parent.id)
+    }
+    return false
+  }
+
+  // Check if a target block is inside a form (or is the form itself)
+  function isInsideForm(blockId: string): boolean {
+    return hasFormAncestor(blockId)
+  }
+
+  function moveBlockToParent(blockId: string, newParentId: string, toIndex?: number) {
+    console.log('[moveBlockToParent] blockId:', blockId, 'newParentId:', newParentId, 'toIndex:', toIndex)
+    const block = findBlockById(blockId)
+    if (!block) {
+      console.log('[moveBlockToParent] FAILED - block not found')
+      return false
+    }
 
     const currentParent = findParentBlock(blockId)
     const newParent = findBlockById(newParentId)
+    console.log('[moveBlockToParent] currentParent:', currentParent?.id, 'newParent:', newParent?.id, 'newParent.type:', newParent?.type)
 
-    if (currentParent?.id === newParentId) return false
-    if (!newParent || !canHaveChildren(newParent.type)) return false
+    if (currentParent?.id === newParentId) {
+      console.log('[moveBlockToParent] FAILED - same parent')
+      return false
+    }
+    if (!newParent || !canHaveChildren(newParent.type)) {
+      console.log('[moveBlockToParent] FAILED - newParent invalid or cannot have children')
+      return false
+    }
+
+    // Prevent form child blocks from being moved outside a form
+    if (isFormChildBlock(block.type)) {
+      // Check if new parent is inside a form
+      const newParentInForm = newParent.type === 'form' || isInsideForm(newParentId)
+      if (!newParentInForm) {
+        console.warn('Form elements can only be placed inside a Form block')
+        return false
+      }
+    }
 
     markAsChangedWithHistory()
 
@@ -925,6 +976,12 @@ export const useEditorStore = defineStore('editor', () => {
   function moveBlockToRoot(blockId: string, toIndex?: number) {
     const block = findBlockById(blockId)
     if (!block) return false
+
+    // Prevent form child blocks from being moved to root level
+    if (isFormChildBlock(block.type)) {
+      console.warn('Form elements can only be placed inside a Form block')
+      return false
+    }
 
     const currentParent = findParentBlock(blockId)
     if (!currentParent) return false
@@ -974,10 +1031,166 @@ export const useEditorStore = defineStore('editor', () => {
   function selectBlock(blockId: string | null, itemId: string | null = null) {
     selectedBlockId.value = blockId
     selectedItemId.value = itemId
+    // Clear multi-selection when single selecting
+    selectedBlockIds.value = blockId ? [blockId] : []
     // Clear span selection when selecting a different block
     if (blockId !== selectedBlockId.value) {
       selectedSpanId.value = null
     }
+  }
+
+  // Toggle block selection for multi-select (shift+click)
+  function toggleBlockSelection(blockId: string) {
+    const index = selectedBlockIds.value.indexOf(blockId)
+    if (index === -1) {
+      // Add to selection
+      selectedBlockIds.value = [...selectedBlockIds.value, blockId]
+      // Update primary selection to the most recent
+      selectedBlockId.value = blockId
+    } else {
+      // Remove from selection
+      selectedBlockIds.value = selectedBlockIds.value.filter(id => id !== blockId)
+      // Update primary selection
+      if (selectedBlockIds.value.length > 0) {
+        selectedBlockId.value = selectedBlockIds.value[selectedBlockIds.value.length - 1] ?? null
+      } else {
+        selectedBlockId.value = null
+      }
+    }
+    selectedItemId.value = null
+  }
+
+  // Clear multi-selection
+  function clearMultiSelection() {
+    selectedBlockIds.value = selectedBlockId.value ? [selectedBlockId.value] : []
+  }
+
+  // Check if a block is in the multi-selection
+  function isBlockSelected(blockId: string): boolean {
+    return selectedBlockIds.value.includes(blockId)
+  }
+
+  // Duplicate multiple blocks
+  function duplicateMultipleBlocks(blockIds: string[]) {
+    if (blockIds.length === 0) return
+
+    markAsChangedWithHistory()
+
+    for (const blockId of blockIds) {
+      const block = findBlockById(blockId)
+      if (!block) continue
+
+      const duplicate = duplicateSectionBlock(block)
+      const parent = findParentBlock(blockId)
+
+      if (parent && parent.children) {
+        const index = parent.children.findIndex(b => b.id === blockId)
+        parent.children.splice(index + 1, 0, duplicate)
+      } else {
+        const index = blocks.value.findIndex(b => b.id === blockId)
+        blocks.value.splice(index + 1, 0, duplicate)
+      }
+    }
+
+    rebuildBlockIndex()
+  }
+
+  // Delete multiple blocks
+  function deleteMultipleBlocks(blockIds: string[]) {
+    if (blockIds.length === 0) return
+
+    markAsChangedWithHistory()
+
+    for (const blockId of blockIds) {
+      const block = findBlockById(blockId)
+      if (!block) continue
+
+      const parent = findParentBlock(blockId)
+
+      if (parent && parent.children) {
+        const index = parent.children.findIndex(b => b.id === blockId)
+        if (index !== -1) parent.children.splice(index, 1)
+      } else {
+        const index = blocks.value.findIndex(b => b.id === blockId)
+        if (index !== -1) blocks.value.splice(index, 1)
+      }
+    }
+
+    selectedBlockId.value = null
+    selectedBlockIds.value = []
+    rebuildBlockIndex()
+  }
+
+  // Wrap multiple blocks in a stack
+  function wrapBlocksInStack(blockIds: string[]) {
+    if (blockIds.length === 0) return
+
+    markAsChangedWithHistory()
+
+    // Get all blocks and verify they share the same parent
+    const blocksToWrap: SectionBlock[] = []
+    let commonParent: SectionBlock | null = null
+    let isRootLevel = false
+
+    for (const blockId of blockIds) {
+      const block = findBlockById(blockId)
+      if (!block) continue
+
+      const parent = findParentBlock(blockId)
+
+      if (blocksToWrap.length === 0) {
+        commonParent = parent
+        isRootLevel = !parent
+      } else {
+        // Check if same parent
+        if ((isRootLevel && parent) || (!isRootLevel && parent?.id !== commonParent?.id)) {
+          // Different parents, can't wrap together
+          console.warn('Cannot wrap blocks with different parents')
+          return
+        }
+      }
+
+      blocksToWrap.push(block)
+    }
+
+    if (blocksToWrap.length === 0) return
+
+    // Create new stack
+    const stack = createSectionBlock('stack')
+    stack.children = []
+
+    // Get the list to operate on
+    const blockList = isRootLevel ? blocks.value : (commonParent?.children || [])
+
+    // Find indices and sort them
+    const indices = blocksToWrap
+      .map(b => blockList.findIndex(item => item.id === b.id))
+      .filter(i => i !== -1)
+      .sort((a, b) => a - b)
+
+    if (indices.length === 0) return
+
+    // Insert stack at the position of the first block
+    const insertIndex = indices[0]
+
+    // Remove blocks from their parent (in reverse order to maintain indices)
+    for (let i = indices.length - 1; i >= 0; i--) {
+      const idx = indices[i]
+      if (idx === undefined) continue
+      const block = blockList.splice(idx, 1)[0]
+      if (block) stack.children!.unshift(block) // Add to front to maintain order
+    }
+
+    // Insert the stack
+    if (insertIndex !== undefined) {
+      blockList.splice(insertIndex, 0, stack)
+    }
+
+    // Select the new stack
+    selectedBlockId.value = stack.id
+    selectedBlockIds.value = [stack.id]
+
+    rebuildBlockIndex()
   }
 
   function hoverBlock(blockId: string | null) {
@@ -1204,7 +1417,7 @@ export const useEditorStore = defineStore('editor', () => {
       history.clearHistory()
 
       // Initialize snapshot for diff computation (use deepClone for Vue Proxy compatibility)
-      lastSavedSnapshot.value = deepClone(getCurrentState()) as EditorState
+      lastSavedSnapshot.value = deepClone(getCurrentState()) as DesignerState
 
       // Clear any stale queue entries for this project (we just loaded fresh data)
       clearProjectQueue(projectId)
@@ -1370,6 +1583,7 @@ export const useEditorStore = defineStore('editor', () => {
     blocks,
     pageSettings,
     selectedBlockId,
+    selectedBlockIds,
     selectedItemId,
     hoveredBlockId,
     isLoading,
@@ -1461,6 +1675,12 @@ export const useEditorStore = defineStore('editor', () => {
     moveBlockUp,
     moveBlockDown,
     selectBlock,
+    toggleBlockSelection,
+    clearMultiSelection,
+    isBlockSelected,
+    duplicateMultipleBlocks,
+    deleteMultipleBlocks,
+    wrapBlocksInStack,
     hoverBlock,
     // Components
     components,

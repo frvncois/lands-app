@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { BlockEffects, HoverEffect, ScrollEffect, AppearEffect, LoopEffect, EffectState, EffectPreset, EffectEasing, TransformOrigin, StaggerConfig, ChildEffectOverride } from '@/types/editor'
+import { computed, ref } from 'vue'
+import type { BlockEffects, HoverEffect, ScrollEffect, AppearEffect, LoopEffect, EffectState, EffectPreset, EffectEasing, TransformOrigin, StaggerConfig, ChildEffectOverride } from '@/types/designer'
 import { presetOptions, easingOptions, transformOriginOptions, getPresetConfig } from '@/lib/effect-utils'
-import type { DescendantBlock } from '@/lib/editor-utils'
-import { useEditorStore } from '@/stores/editor'
+import type { DescendantBlock } from '@/lib/designer-utils'
+import { useDesignerStore } from '@/stores/designer'
 import InspectorSection from '../InspectorSection.vue'
 import InspectorField from '../InspectorField.vue'
 import Popover from '@/components/ui/Popover.vue'
@@ -16,21 +17,198 @@ import ColorInput from '../ColorInput.vue'
 
 const props = defineProps<{
   effects?: BlockEffects
+  // Current block styles for prefilling effect values
+  blockStyles?: Record<string, unknown>
   // All descendant blocks (including nested) for child effect targeting
   descendants?: DescendantBlock[]
 }>()
 
 const emit = defineEmits<{
   'update:effects': [value: BlockEffects]
+  'update:blockStyles': [value: Record<string, unknown>]
 }>()
 
-const editorStore = useEditorStore()
+const designerStore = useDesignerStore()
+
+// Extract current style values from block styles for prefilling effects
+function getCurrentStyleValues(): EffectState {
+  if (!props.blockStyles) return {}
+
+  const styles = props.blockStyles
+  const state: EffectState = {}
+
+  // Opacity (stored as 0-100 or 0-1)
+  if (styles.opacity !== undefined) {
+    const opacityValue = Number(styles.opacity)
+    state.opacity = opacityValue > 1 ? opacityValue : opacityValue * 100
+  }
+
+  // Background color
+  if (styles.backgroundColor) {
+    state.backgroundColor = styles.backgroundColor as string
+  }
+
+  // Text color
+  if (styles.color) {
+    state.color = styles.color as string
+  }
+
+  // Transform values
+  if (styles.scale !== undefined) {
+    state.scale = Number(styles.scale) / 100 // stored as percentage
+  }
+  if (styles.rotate) {
+    state.rotate = styles.rotate as string
+  }
+  if (styles.translateX) {
+    state.translateX = styles.translateX as string
+  }
+  if (styles.translateY) {
+    state.translateY = styles.translateY as string
+  }
+
+  // Border radius
+  if (styles.borderRadius) {
+    if (typeof styles.borderRadius === 'string') {
+      state.borderRadius = styles.borderRadius
+    } else if (typeof styles.borderRadius === 'object') {
+      // Use topLeft as the value for effects (simplification)
+      const br = styles.borderRadius as { topLeft?: string }
+      state.borderRadius = br.topLeft || ''
+    }
+  }
+
+  // Border from border object
+  if (styles.border && typeof styles.border === 'object') {
+    const border = styles.border as { width?: string; color?: string }
+    if (border.width) state.borderWidth = border.width
+    if (border.color) state.borderColor = border.color
+  }
+
+  // Blur
+  if (styles.blur) {
+    state.blur = styles.blur as string
+  }
+
+  // Shadow
+  if (styles.shadow && typeof styles.shadow === 'object') {
+    const shadow = styles.shadow as { x?: string; y?: string; blur?: string; color?: string; enabled?: boolean }
+    if (shadow.enabled) {
+      if (shadow.x) state.shadowX = shadow.x
+      if (shadow.y) state.shadowY = shadow.y
+      if (shadow.blur) state.shadowBlur = shadow.blur
+      if (shadow.color) state.shadowColor = shadow.color
+    }
+  }
+
+  // Padding
+  if (styles.padding && typeof styles.padding === 'object') {
+    const padding = styles.padding as { top?: string; right?: string; bottom?: string; left?: string }
+    if (padding.top) state.paddingTop = padding.top
+    if (padding.right) state.paddingRight = padding.right
+    if (padding.bottom) state.paddingBottom = padding.bottom
+    if (padding.left) state.paddingLeft = padding.left
+  }
+
+  // Width/Height
+  if (styles.width) {
+    state.width = styles.width as string
+  }
+  if (styles.height) {
+    state.height = styles.height as string
+  }
+
+  return state
+}
+
+// Computed FROM state - reads directly from current block styles
+const fromState = computed<EffectState>(() => getCurrentStyleValues())
+
+// Convert effect state key/value to block style update
+function effectKeyToStyleUpdate(key: keyof EffectState, value: string | number): Record<string, unknown> {
+  const styles = props.blockStyles || {}
+
+  switch (key) {
+    case 'opacity':
+      // Effect uses 0-100, styles use 0-1 or 0-100
+      return { opacity: Number(value) }
+    case 'backgroundColor':
+      return { backgroundColor: value }
+    case 'color':
+      return { color: value }
+    case 'scale':
+      // Effect uses 0-2, styles use percentage 0-200
+      return { scale: Number(value) * 100 }
+    case 'rotate':
+      return { rotate: value }
+    case 'translateX':
+      return { translateX: value }
+    case 'translateY':
+      return { translateY: value }
+    case 'borderRadius':
+      return { borderRadius: value }
+    case 'borderWidth': {
+      const currentBorder = (styles.border as Record<string, unknown>) || {}
+      return { border: { ...currentBorder, width: value } }
+    }
+    case 'borderColor': {
+      const currentBorder = (styles.border as Record<string, unknown>) || {}
+      return { border: { ...currentBorder, color: value } }
+    }
+    case 'blur':
+      return { blur: value }
+    case 'shadowX': {
+      const currentShadow = (styles.shadow as Record<string, unknown>) || { enabled: true }
+      return { shadow: { ...currentShadow, x: value } }
+    }
+    case 'shadowY': {
+      const currentShadow = (styles.shadow as Record<string, unknown>) || { enabled: true }
+      return { shadow: { ...currentShadow, y: value } }
+    }
+    case 'shadowBlur': {
+      const currentShadow = (styles.shadow as Record<string, unknown>) || { enabled: true }
+      return { shadow: { ...currentShadow, blur: value } }
+    }
+    case 'shadowColor': {
+      const currentShadow = (styles.shadow as Record<string, unknown>) || { enabled: true }
+      return { shadow: { ...currentShadow, color: value } }
+    }
+    case 'paddingTop': {
+      const currentPadding = (styles.padding as Record<string, unknown>) || {}
+      return { padding: { ...currentPadding, top: value } }
+    }
+    case 'paddingRight': {
+      const currentPadding = (styles.padding as Record<string, unknown>) || {}
+      return { padding: { ...currentPadding, right: value } }
+    }
+    case 'paddingBottom': {
+      const currentPadding = (styles.padding as Record<string, unknown>) || {}
+      return { padding: { ...currentPadding, bottom: value } }
+    }
+    case 'paddingLeft': {
+      const currentPadding = (styles.padding as Record<string, unknown>) || {}
+      return { padding: { ...currentPadding, left: value } }
+    }
+    case 'width':
+      return { width: value }
+    case 'height':
+      return { height: value }
+    default:
+      return {}
+  }
+}
+
+// Update block style (for FROM values)
+function updateBlockStyle(key: keyof EffectState, value: string | number) {
+  const styleUpdate = effectKeyToStyleUpdate(key, value)
+  emit('update:blockStyles', styleUpdate)
+}
 
 // Preview appear animation
 function previewAppear() {
-  const blockId = editorStore.selectedBlockId
+  const blockId = designerStore.selectedBlockId
   if (blockId) {
-    editorStore.triggerAppearPreview(blockId)
+    designerStore.triggerAppearPreview(blockId)
   }
 }
 
@@ -165,13 +343,13 @@ function getPropertyConfig(key: string): PropertyConfig | null {
   return null
 }
 
-// Check which properties are active (have values in from or to)
-function getActiveProperties(from?: EffectState, to?: EffectState): string[] {
+// Check which properties are active (have values in to state)
+// FROM now reads from block styles, so we only check TO for active properties
+function getActiveProperties(to?: EffectState): string[] {
   const active: string[] = []
   for (const key of allPropertyKeys) {
-    const fromVal = from?.[key as keyof EffectState]
     const toVal = to?.[key as keyof EffectState]
-    if (fromVal !== undefined || toVal !== undefined) {
+    if (toVal !== undefined) {
       active.push(key)
     }
   }
@@ -222,14 +400,25 @@ function applyPreset(preset: EffectPreset): { from: EffectState; to: EffectState
   }
 }
 
-// Initialize effect with defaults (no properties by default)
+// Initialize effect with defaults - auto-detect current block styles and add them to TO
 function initHover() {
+  // Get current style values from the block
+  const currentStyles = getCurrentStyleValues()
+
+  // Build initial TO state with current values for properties that exist
+  const initialTo: EffectState = {}
+  for (const key of Object.keys(currentStyles) as (keyof EffectState)[]) {
+    if (currentStyles[key] !== undefined) {
+      // Add to TO with the same value as FROM (no change initially)
+      initialTo[key] = currentStyles[key] as any
+    }
+  }
+
   updateHover({
     type: 'hover',
     enabled: true,
     preset: 'custom',
-    from: {},
-    to: {},
+    to: initialTo,
     duration: 300,
     delay: 0,
     easing: 'ease-out',
@@ -237,18 +426,42 @@ function initHover() {
 }
 
 function initScroll() {
+  // Get current style values from the block
+  const currentStyles = getCurrentStyleValues()
+
+  // Build initial TO state with current values for properties that exist
+  const initialTo: EffectState = {}
+  for (const key of Object.keys(currentStyles) as (keyof EffectState)[]) {
+    if (currentStyles[key] !== undefined) {
+      initialTo[key] = currentStyles[key] as any
+    }
+  }
+
   updateScroll({
     type: 'scroll',
     enabled: true,
+    to: initialTo,
   })
 }
 
 function initAppear() {
+  // Get current style values from the block
+  const currentStyles = getCurrentStyleValues()
+
+  // Build initial TO state with current values for properties that exist
+  const initialTo: EffectState = {}
+  for (const key of Object.keys(currentStyles) as (keyof EffectState)[]) {
+    if (currentStyles[key] !== undefined) {
+      initialTo[key] = currentStyles[key] as any
+    }
+  }
+
   updateAppear({
     type: 'appear',
     enabled: true,
     trigger: 'inView',
-    preset: 'fade-in',
+    preset: 'custom',
+    to: initialTo,
     duration: 400,
     easing: 'ease-out',
   })
@@ -277,11 +490,21 @@ function resetAppear() {
 }
 
 function initLoop() {
+  // Get current style values from the block
+  const currentStyles = getCurrentStyleValues()
+
+  // Build initial TO state with current values for properties that exist
+  const initialTo: EffectState = {}
+  for (const key of Object.keys(currentStyles) as (keyof EffectState)[]) {
+    if (currentStyles[key] !== undefined) {
+      initialTo[key] = currentStyles[key] as any
+    }
+  }
+
   updateLoop({
     type: 'loop',
     enabled: true,
-    from: {},
-    to: {},
+    to: initialTo,
     duration: 1000,
     loop: true,
     reverse: false,
@@ -559,9 +782,9 @@ function getLoopPreview(): string {
 }
 
 // Update effect state helpers
+// FROM values now update the actual block styles (not stored in effect)
 function updateHoverFrom(key: keyof EffectState, value: string | number) {
-  const currentFrom = props.effects?.hover?.from || { ...defaultFromState }
-  updateHover({ from: { ...currentFrom, [key]: value }, preset: 'custom' })
+  updateBlockStyle(key, value)
 }
 
 function updateHoverTo(key: keyof EffectState, value: string | number) {
@@ -570,8 +793,7 @@ function updateHoverTo(key: keyof EffectState, value: string | number) {
 }
 
 function updateScrollFrom(key: keyof EffectState, value: string | number) {
-  const currentFrom = props.effects?.scroll?.from || { ...defaultFromState }
-  updateScroll({ from: { ...currentFrom, [key]: value } })
+  updateBlockStyle(key, value)
 }
 
 function updateScrollTo(key: keyof EffectState, value: string | number) {
@@ -580,8 +802,7 @@ function updateScrollTo(key: keyof EffectState, value: string | number) {
 }
 
 function updateAppearFrom(key: keyof EffectState, value: string | number) {
-  const currentFrom = props.effects?.appear?.from || { ...defaultFromState }
-  updateAppear({ from: { ...currentFrom, [key]: value }, preset: 'custom' })
+  updateBlockStyle(key, value)
 }
 
 function updateAppearTo(key: keyof EffectState, value: string | number) {
@@ -590,8 +811,7 @@ function updateAppearTo(key: keyof EffectState, value: string | number) {
 }
 
 function updateLoopFrom(key: keyof EffectState, value: string | number) {
-  const currentFrom = props.effects?.loop?.from || {}
-  updateLoop({ from: { ...currentFrom, [key]: value } })
+  updateBlockStyle(key, value)
 }
 
 function updateLoopTo(key: keyof EffectState, value: string | number) {
@@ -599,14 +819,12 @@ function updateLoopTo(key: keyof EffectState, value: string | number) {
   updateLoop({ to: { ...currentTo, [key]: value } })
 }
 
-// Add a property to both From and To states
+// Add a property to the TO state only (FROM reads from block styles)
 function addHoverProperty(key: string) {
   const config = getPropertyConfig(key)
   if (!config) return
-  const currentFrom = props.effects?.hover?.from || {}
   const currentTo = props.effects?.hover?.to || {}
   updateHover({
-    from: { ...currentFrom, [key]: config.default },
     to: { ...currentTo, [key]: config.default },
   })
 }
@@ -614,10 +832,8 @@ function addHoverProperty(key: string) {
 function addScrollProperty(key: string) {
   const config = getPropertyConfig(key)
   if (!config) return
-  const currentFrom = props.effects?.scroll?.from || {}
   const currentTo = props.effects?.scroll?.to || {}
   updateScroll({
-    from: { ...currentFrom, [key]: config.default },
     to: { ...currentTo, [key]: config.default },
   })
 }
@@ -625,10 +841,8 @@ function addScrollProperty(key: string) {
 function addAppearProperty(key: string) {
   const config = getPropertyConfig(key)
   if (!config) return
-  const currentFrom = props.effects?.appear?.from || {}
   const currentTo = props.effects?.appear?.to || {}
   updateAppear({
-    from: { ...currentFrom, [key]: config.default },
     to: { ...currentTo, [key]: config.default },
     preset: 'custom',
   })
@@ -637,52 +851,42 @@ function addAppearProperty(key: string) {
 function addLoopProperty(key: string) {
   const config = getPropertyConfig(key)
   if (!config) return
-  const currentFrom = props.effects?.loop?.from || {}
   const currentTo = props.effects?.loop?.to || {}
   updateLoop({
-    from: { ...currentFrom, [key]: config.default },
     to: { ...currentTo, [key]: config.default },
   })
 }
 
-// Remove a property from both From and To states
+// Remove a property from TO state only (FROM reads from block styles)
 function removeHoverProperty(key: string) {
-  const currentFrom = { ...props.effects?.hover?.from }
   const currentTo = { ...props.effects?.hover?.to }
-  delete currentFrom[key as keyof EffectState]
   delete currentTo[key as keyof EffectState]
-  updateHover({ from: currentFrom, to: currentTo })
+  updateHover({ to: currentTo })
 }
 
 function removeScrollProperty(key: string) {
-  const currentFrom = { ...props.effects?.scroll?.from }
   const currentTo = { ...props.effects?.scroll?.to }
-  delete currentFrom[key as keyof EffectState]
   delete currentTo[key as keyof EffectState]
-  updateScroll({ from: currentFrom, to: currentTo })
+  updateScroll({ to: currentTo })
 }
 
 function removeAppearProperty(key: string) {
-  const currentFrom = { ...props.effects?.appear?.from }
   const currentTo = { ...props.effects?.appear?.to }
-  delete currentFrom[key as keyof EffectState]
   delete currentTo[key as keyof EffectState]
-  updateAppear({ from: currentFrom, to: currentTo, preset: 'custom' })
+  updateAppear({ to: currentTo, preset: 'custom' })
 }
 
 function removeLoopProperty(key: string) {
-  const currentFrom = { ...props.effects?.loop?.from }
   const currentTo = { ...props.effects?.loop?.to }
-  delete currentFrom[key as keyof EffectState]
   delete currentTo[key as keyof EffectState]
-  updateLoop({ from: currentFrom, to: currentTo })
+  updateLoop({ to: currentTo })
 }
 
-// Get active properties for each effect type
-const hoverActiveProps = computed(() => getActiveProperties(props.effects?.hover?.from, props.effects?.hover?.to))
-const scrollActiveProps = computed(() => getActiveProperties(props.effects?.scroll?.from, props.effects?.scroll?.to))
-const appearActiveProps = computed(() => getActiveProperties(props.effects?.appear?.from, props.effects?.appear?.to))
-const loopActiveProps = computed(() => getActiveProperties(props.effects?.loop?.from, props.effects?.loop?.to))
+// Get active properties for each effect type (based on TO state only, FROM reads from block styles)
+const hoverActiveProps = computed(() => getActiveProperties(props.effects?.hover?.to))
+const scrollActiveProps = computed(() => getActiveProperties(props.effects?.scroll?.to))
+const appearActiveProps = computed(() => getActiveProperties(props.effects?.appear?.to))
+const loopActiveProps = computed(() => getActiveProperties(props.effects?.loop?.to))
 
 // Toggle expanded sections
 const showHoverAdvanced = ref(false)
@@ -801,20 +1005,20 @@ function updateAppearChildTo(childId: string, key: keyof EffectState, value: str
   updateAppearChildOverride(childId, { to: { ...currentTo, [key]: value } })
 }
 
-// Get active properties for child overrides
+// Get active properties for child overrides (based on TO state only)
 function getHoverChildActiveProps(childId: string): string[] {
   const override = getOrCreateHoverChildOverride(childId)
-  return getActiveProperties(override.from, override.to)
+  return getActiveProperties(override.to)
 }
 
 function getScrollChildActiveProps(childId: string): string[] {
   const override = getOrCreateScrollChildOverride(childId)
-  return getActiveProperties(override.from, override.to)
+  return getActiveProperties(override.to)
 }
 
 function getAppearChildActiveProps(childId: string): string[] {
   const override = getOrCreateAppearChildOverride(childId)
-  return getActiveProperties(override.from, override.to)
+  return getActiveProperties(override.to)
 }
 
 // Add property to child override
@@ -882,8 +1086,6 @@ function removeAppearChildProperty(childId: string, key: string) {
   delete currentTo[key as keyof EffectState]
   updateAppearChildOverride(childId, { from: currentFrom, to: currentTo })
 }
-
-import { ref, computed } from 'vue'
 </script>
 
 <template>
@@ -904,7 +1106,7 @@ import { ref, computed } from 'vue'
           </button>
         </template>
         <template #default="{ close: closePopover }">
-        <div class="p-3" @click.stop>
+        <div class="p-3 max-h-[70vh] overflow-y-auto" @click.stop>
             <!-- ==================== EDITING CHILD VIEW ==================== -->
             <template v-if="editingHoverChildId && editingHoverChild">
               <!-- Breadcrumb Navigation -->
@@ -934,15 +1136,6 @@ import { ref, computed } from 'vue'
                   Remove
                 </button>
               </div>
-
-              <!-- Child Preset Selector -->
-              <InspectorField label="Preset" horizontal class="mb-3">
-                <SelectInput
-                  :options="presetSelectOptions"
-                  :model-value="getOrCreateHoverChildOverride(editingHoverChildId).preset || 'custom'"
-                  @update:model-value="(v: string) => updateHoverChildOverride(editingHoverChildId!, applyChildPreset(v as EffectPreset))"
-                />
-              </InspectorField>
 
               <!-- Child From/To Tab Selector -->
               <div class="flex gap-1 p-0.5 bg-secondary/50 rounded-md mb-3">
@@ -1101,15 +1294,6 @@ import { ref, computed } from 'vue'
                 <Button size="sm" @click.stop.prevent="closePopover()">Apply</Button>
               </div>
 
-              <!-- Preset Selector -->
-              <InspectorField label="Preset" horizontal class="mb-3">
-                <SelectInput
-                  :options="presetSelectOptions"
-                  :model-value="effects!.hover!.preset || 'custom'"
-                  @update:model-value="onHoverPresetChange"
-                />
-              </InspectorField>
-
               <!-- From/To Tab Selector -->
               <div class="flex gap-1 p-0.5 bg-secondary/50 rounded-md mb-3">
                 <button
@@ -1139,7 +1323,7 @@ import { ref, computed } from 'vue'
                       <!-- Slider input for opacity, scale -->
                       <SliderInput
                         v-if="getPropertyConfig(propKey)?.type === 'slider'"
-                        :model-value="String(hoverActiveTab === 'from' ? (effects!.hover!.from?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.hover!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
+                        :model-value="String(hoverActiveTab === 'from' ? (fromState[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.hover!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
                         :min="getPropertyConfig(propKey)?.min"
                         :max="getPropertyConfig(propKey)?.max"
                         :step="getPropertyConfig(propKey)?.step"
@@ -1149,14 +1333,14 @@ import { ref, computed } from 'vue'
                       <!-- Color input -->
                       <ColorInput
                         v-else-if="getPropertyConfig(propKey)?.type === 'color'"
-                        :model-value="(hoverActiveTab === 'from' ? effects!.hover!.from?.[propKey as keyof EffectState] : effects!.hover!.to?.[propKey as keyof EffectState]) as string | undefined"
+                        :model-value="(hoverActiveTab === 'from' ? fromState[propKey as keyof EffectState] : effects!.hover!.to?.[propKey as keyof EffectState]) as string | undefined"
                         swatch-only
                         @update:model-value="hoverActiveTab === 'from' ? updateHoverFrom(propKey as keyof EffectState, $event) : updateHoverTo(propKey as keyof EffectState, $event)"
                       />
                       <!-- Size input (default) -->
                       <SizeInput
                         v-else
-                        :model-value="String(hoverActiveTab === 'from' ? (effects!.hover!.from?.[propKey as keyof EffectState] || '') : (effects!.hover!.to?.[propKey as keyof EffectState] || ''))"
+                        :model-value="String(hoverActiveTab === 'from' ? (fromState[propKey as keyof EffectState] || '') : (effects!.hover!.to?.[propKey as keyof EffectState] || ''))"
                         :placeholder="String(getPropertyConfig(propKey)?.default || '0')"
                         @update:model-value="hoverActiveTab === 'from' ? updateHoverFrom(propKey as keyof EffectState, $event) : updateHoverTo(propKey as keyof EffectState, $event)"
                       />
@@ -1310,7 +1494,7 @@ import { ref, computed } from 'vue'
           </button>
         </template>
         <template #default="{ close: closePopover }">
-        <div class="p-3" @click.stop>
+        <div class="p-3 max-h-[70vh] overflow-y-auto" @click.stop>
             <!-- ==================== EDITING CHILD VIEW ==================== -->
             <template v-if="editingScrollChildId && editingScrollChild">
               <!-- Breadcrumb Navigation -->
@@ -1561,7 +1745,7 @@ import { ref, computed } from 'vue'
                       <!-- Slider input for opacity, scale -->
                       <SliderInput
                         v-if="getPropertyConfig(propKey)?.type === 'slider'"
-                        :model-value="String(scrollActiveTab === 'from' ? (effects!.scroll!.from?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.scroll!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
+                        :model-value="String(scrollActiveTab === 'from' ? (fromState[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.scroll!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
                         :min="getPropertyConfig(propKey)?.min"
                         :max="getPropertyConfig(propKey)?.max"
                         :step="getPropertyConfig(propKey)?.step"
@@ -1571,14 +1755,14 @@ import { ref, computed } from 'vue'
                       <!-- Color input -->
                       <ColorInput
                         v-else-if="getPropertyConfig(propKey)?.type === 'color'"
-                        :model-value="(scrollActiveTab === 'from' ? effects!.scroll!.from?.[propKey as keyof EffectState] : effects!.scroll!.to?.[propKey as keyof EffectState]) as string | undefined"
+                        :model-value="(scrollActiveTab === 'from' ? fromState[propKey as keyof EffectState] : effects!.scroll!.to?.[propKey as keyof EffectState]) as string | undefined"
                         swatch-only
                         @update:model-value="scrollActiveTab === 'from' ? updateScrollFrom(propKey as keyof EffectState, $event) : updateScrollTo(propKey as keyof EffectState, $event)"
                       />
                       <!-- Size input (default) -->
                       <SizeInput
                         v-else
-                        :model-value="String(scrollActiveTab === 'from' ? (effects!.scroll!.from?.[propKey as keyof EffectState] || '') : (effects!.scroll!.to?.[propKey as keyof EffectState] || ''))"
+                        :model-value="String(scrollActiveTab === 'from' ? (fromState[propKey as keyof EffectState] || '') : (effects!.scroll!.to?.[propKey as keyof EffectState] || ''))"
                         :placeholder="String(getPropertyConfig(propKey)?.default || '0')"
                         @update:model-value="scrollActiveTab === 'from' ? updateScrollFrom(propKey as keyof EffectState, $event) : updateScrollTo(propKey as keyof EffectState, $event)"
                       />
@@ -1773,7 +1957,7 @@ import { ref, computed } from 'vue'
           </button>
         </template>
         <template #default="{ close: closePopover }">
-        <div class="p-3" @click.stop>
+        <div class="p-3 max-h-[70vh] overflow-y-auto" @click.stop>
             <!-- ==================== EDITING CHILD VIEW ==================== -->
             <template v-if="editingAppearChildId && editingAppearChild">
               <!-- Breadcrumb Navigation -->
@@ -2014,7 +2198,7 @@ import { ref, computed } from 'vue'
                       <!-- Slider input for opacity, scale -->
                       <SliderInput
                         v-if="getPropertyConfig(propKey)?.type === 'slider'"
-                        :model-value="String(appearActiveTab === 'from' ? (effects!.appear!.from?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.appear!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
+                        :model-value="String(appearActiveTab === 'from' ? (fromState[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.appear!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
                         :min="getPropertyConfig(propKey)?.min"
                         :max="getPropertyConfig(propKey)?.max"
                         :step="getPropertyConfig(propKey)?.step"
@@ -2024,14 +2208,14 @@ import { ref, computed } from 'vue'
                       <!-- Color input -->
                       <ColorInput
                         v-else-if="getPropertyConfig(propKey)?.type === 'color'"
-                        :model-value="(appearActiveTab === 'from' ? effects!.appear!.from?.[propKey as keyof EffectState] : effects!.appear!.to?.[propKey as keyof EffectState]) as string | undefined"
+                        :model-value="(appearActiveTab === 'from' ? fromState[propKey as keyof EffectState] : effects!.appear!.to?.[propKey as keyof EffectState]) as string | undefined"
                         swatch-only
                         @update:model-value="appearActiveTab === 'from' ? updateAppearFrom(propKey as keyof EffectState, $event) : updateAppearTo(propKey as keyof EffectState, $event)"
                       />
                       <!-- Size input (default) -->
                       <SizeInput
                         v-else
-                        :model-value="String(appearActiveTab === 'from' ? (effects!.appear!.from?.[propKey as keyof EffectState] || '') : (effects!.appear!.to?.[propKey as keyof EffectState] || ''))"
+                        :model-value="String(appearActiveTab === 'from' ? (fromState[propKey as keyof EffectState] || '') : (effects!.appear!.to?.[propKey as keyof EffectState] || ''))"
                         :placeholder="String(getPropertyConfig(propKey)?.default || '0')"
                         @update:model-value="appearActiveTab === 'from' ? updateAppearFrom(propKey as keyof EffectState, $event) : updateAppearTo(propKey as keyof EffectState, $event)"
                       />
@@ -2211,7 +2395,7 @@ import { ref, computed } from 'vue'
           </button>
         </template>
         <template #default="{ close: closePopover }">
-        <div class="p-3" @click.stop>
+        <div class="p-3 max-h-[70vh] overflow-y-auto" @click.stop>
             <!-- Header with Reset and Apply -->
             <div class="flex items-center gap-2 mb-3 pb-2">
               <span class="flex items-center gap-2 text-xs font-semibold text-foreground uppercase tracking-wide">
@@ -2252,7 +2436,7 @@ import { ref, computed } from 'vue'
                     <!-- Slider input for opacity, scale -->
                     <SliderInput
                       v-if="getPropertyConfig(propKey)?.type === 'slider'"
-                      :model-value="String(loopActiveTab === 'from' ? (effects!.loop!.from?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.loop!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
+                      :model-value="String(loopActiveTab === 'from' ? (fromState[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default) : (effects!.loop!.to?.[propKey as keyof EffectState] ?? getPropertyConfig(propKey)?.default))"
                       :min="getPropertyConfig(propKey)?.min"
                       :max="getPropertyConfig(propKey)?.max"
                       :step="getPropertyConfig(propKey)?.step"
@@ -2262,14 +2446,14 @@ import { ref, computed } from 'vue'
                     <!-- Color input -->
                     <ColorInput
                       v-else-if="getPropertyConfig(propKey)?.type === 'color'"
-                      :model-value="(loopActiveTab === 'from' ? effects!.loop!.from?.[propKey as keyof EffectState] : effects!.loop!.to?.[propKey as keyof EffectState]) as string | undefined"
+                      :model-value="(loopActiveTab === 'from' ? fromState[propKey as keyof EffectState] : effects!.loop!.to?.[propKey as keyof EffectState]) as string | undefined"
                       swatch-only
                       @update:model-value="loopActiveTab === 'from' ? updateLoopFrom(propKey as keyof EffectState, $event) : updateLoopTo(propKey as keyof EffectState, $event)"
                     />
                     <!-- Size input (default) -->
                     <SizeInput
                       v-else
-                      :model-value="String(loopActiveTab === 'from' ? (effects!.loop!.from?.[propKey as keyof EffectState] || '') : (effects!.loop!.to?.[propKey as keyof EffectState] || ''))"
+                      :model-value="String(loopActiveTab === 'from' ? (fromState[propKey as keyof EffectState] || '') : (effects!.loop!.to?.[propKey as keyof EffectState] || ''))"
                       :placeholder="String(getPropertyConfig(propKey)?.default || '0')"
                       @update:model-value="loopActiveTab === 'from' ? updateLoopFrom(propKey as keyof EffectState, $event) : updateLoopTo(propKey as keyof EffectState, $event)"
                     />

@@ -1,4 +1,4 @@
-import type { SectionBlock, SectionBlockType } from '@/types/editor'
+import type { SectionBlock, SectionBlockType } from '@/types/designer'
 
 /**
  * Editor Helpers
