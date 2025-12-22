@@ -261,7 +261,8 @@ watch(isOpen, async (open) => {
 })
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
+  // Use capture phase to catch clicks before they're stopped by stopPropagation
+  document.addEventListener('mousedown', handleClickOutside, true)
   window.addEventListener('resize', updatePosition)
   window.addEventListener('scroll', updatePosition, true)
 
@@ -274,7 +275,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('mousedown', handleClickOutside, true)
   window.removeEventListener('resize', updatePosition)
   window.removeEventListener('scroll', updatePosition, true)
 })

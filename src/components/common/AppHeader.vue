@@ -33,70 +33,17 @@ const showTranslateModal = ref(false)
 const showPublishedModal = ref(false)
 const showNewProjectModal = ref(false)
 const showAIModal = ref(false)
-const hoveredProjectId = ref<string | null>(null)
-const hoveredProjectRect = ref<DOMRect | null>(null)
-const isHoveringPopover = ref(false)
+const projectDropdownRef = ref<{ close: () => void } | null>(null)
 const userDropdownRef = ref<{ close: () => void } | null>(null)
-let leaveTimeout: ReturnType<typeof setTimeout> | null = null
-
-// Track hovered project position for popover
-function handleProjectHover(projectId: string, event: MouseEvent) {
-  if (leaveTimeout) {
-    clearTimeout(leaveTimeout)
-    leaveTimeout = null
-  }
-  hoveredProjectId.value = projectId
-  const target = event.currentTarget as HTMLElement
-  hoveredProjectRect.value = target.getBoundingClientRect()
-}
-
-function handleProjectLeave() {
-  // Delay closing to allow mouse to reach popover
-  leaveTimeout = setTimeout(() => {
-    if (!isHoveringPopover.value) {
-      hoveredProjectId.value = null
-      hoveredProjectRect.value = null
-    }
-  }, 100)
-}
-
-function handlePopoverEnter() {
-  if (leaveTimeout) {
-    clearTimeout(leaveTimeout)
-    leaveTimeout = null
-  }
-  isHoveringPopover.value = true
-}
-
-function handlePopoverLeave() {
-  isHoveringPopover.value = false
-  hoveredProjectId.value = null
-  hoveredProjectRect.value = null
-}
-
-// Get popover position
-const popoverStyle = computed(() => {
-  if (!hoveredProjectRect.value) return {}
-  return {
-    top: `${hoveredProjectRect.value.top}px`,
-    left: `${hoveredProjectRect.value.right + 8}px`,
-  }
-})
 
 // User info
 const user = computed(() => userStore.settings.profile)
-
-// Close dropdown and navigate
-function closeDropdownAndNavigate(routeName: string, params?: Record<string, string>) {
-  userDropdownRef.value?.close()
-  hoveredProjectId.value = null
-  router.push({ name: routeName, params })
-}
-
-// Get project initial for avatar
-function getProjectInitial(title: string) {
-  return title.charAt(0).toUpperCase()
-}
+const userEmail = computed(() => userStore.authUser?.email || '')
+const userInitial = computed(() => {
+  if (user.value?.name) return user.value.name.charAt(0).toUpperCase()
+  if (userEmail.value) return userEmail.value.charAt(0).toUpperCase()
+  return '?'
+})
 
 // Translation helpers
 const currentLanguageDisplay = computed(() => {
@@ -112,9 +59,13 @@ function handleLanguageChange(langCode: LanguageCode | null) {
   designerStore.setCurrentLanguage(langCode)
 }
 
-// Check if we're in a project context
+// Route checks
 const isProjectRoute = computed(() => !!route.params.projectId)
 const isDesignerRoute = computed(() => route.name === 'designer')
+const isContentRoute = computed(() => route.name === 'content')
+const isAnalyticsRoute = computed(() => route.name === 'analytics')
+const isSettingsRoute = computed(() => route.name === 'settings')
+const isEditorRoute = computed(() => isDesignerRoute.value || isContentRoute.value)
 const projectId = computed(() => route.params.projectId as string | undefined)
 
 // Close AI modal when leaving project routes
@@ -130,27 +81,36 @@ const currentProject = computed(() => {
   return projectsStore.getProjectById(projectId.value)
 })
 
-// Get current page name for dropdown display
-const currentPageName = computed(() => {
-  if (currentProject.value) {
-    // On project routes, show project name + current section
-    const section = route.name === 'designer' ? 'Designer'
-      : route.name === 'content' ? 'Content'
-      : route.name === 'analytics' ? 'Analytics'
-      : route.name === 'settings' ? 'Settings'
-      : ''
-    return section ? `${currentProject.value.title} / ${section}` : currentProject.value.title
-  }
-  // Non-project routes
-  switch (route.name) {
-    case 'dashboard': return 'Dashboard'
-    case 'account': return 'Account'
-    default: return 'Lands'
-  }
-})
-
 // Get all projects for the dropdown
 const projects = computed(() => projectsStore.projects)
+
+// Get project initial for avatar
+function getProjectInitial(title: string) {
+  return title.charAt(0).toUpperCase()
+}
+
+// Project route tabs
+const projectTabs = computed(() => [
+  { name: 'content', label: 'Edit', icon: 'app-content' },
+  { name: 'designer', label: 'Style', icon: 'app-designer' },
+  { name: 'analytics', label: 'Grow', icon: 'app-analytics' },
+  { name: 'settings', label: 'Settings', icon: 'app-settings' },
+])
+
+function navigateToProjectRoute(routeName: string) {
+  if (projectId.value) {
+    router.push({ name: routeName, params: { projectId: projectId.value } })
+  }
+}
+
+function switchToProject(newProjectId: string) {
+  projectDropdownRef.value?.close()
+  // Navigate to same route type but different project
+  const currentRouteName = route.name as string
+  const validRoutes = ['designer', 'content', 'analytics', 'settings']
+  const targetRoute = validRoutes.includes(currentRouteName) ? currentRouteName : 'designer'
+  router.push({ name: targetRoute, params: { projectId: newProjectId } })
+}
 
 // Command item type
 interface CommandItem {
@@ -193,7 +153,6 @@ let recoveringTimeout: ReturnType<typeof setTimeout> | null = null
 
 watch(() => connectionState.value, (newState) => {
   if (newState === 'recovering') {
-    // Wait 2 seconds before showing "Reconnecting"
     recoveringTimeout = setTimeout(() => {
       showRecovering.value = true
     }, 2000)
@@ -268,6 +227,7 @@ function handleCommandSelect() {
 }
 
 async function signOut() {
+  userDropdownRef.value?.close()
   await userStore.signOut()
   router.push({ name: 'auth' })
 }
@@ -278,79 +238,117 @@ function onProjectCreated(newProjectId: string) {
 </script>
 
 <template>
-  <header class="relative flex items-center justify-between h-14 px-4 bg-sidebar-background border-b border-sidebar-border z-50">
-    <!-- Left: Logo + User Dropdown -->
-    <div class="flex items-center gap-2">
+  <header class="flex items-center h-14 px-4 bg-sidebar-background border-b border-sidebar-border z-50">
+    <!-- Left: Logo + Project/Page + Route Tabs -->
+    <div class="flex items-center gap-3 flex-1">
       <!-- Logo -->
-      <router-link :to="{ name: 'dashboard' }" class="flex items-center gap-2 p-1 mr-1">
-        <LandsLogo class="w-6 h-6 shrink-0" />
+      <router-link :to="{ name: 'dashboard' }" class="flex items-center p-1 shrink-0">
+        <LandsLogo class="w-6 h-6" />
       </router-link>
 
-      <!-- User Dropdown -->
-      <Dropdown ref="userDropdownRef" align="left" width="min-w-56" :close-on-click="false">
-        <template #trigger="{ toggle }">
-          <button
-            class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors"
-            @click="toggle"
-          >
-            <span class="text-sm font-medium text-foreground max-w-48 truncate">{{ currentPageName }}</span>
-            <Icon name="chevron-down" class="text-[10px] text-muted-foreground" />
-          </button>
-        </template>
-
-        <!-- Projects Section -->
-        <div class="px-2 pt-2 pb-1">
-          <p class="text-[10px] uppercase tracking-wider text-muted-foreground font-medium px-2 mb-1">Projects</p>
-        </div>
-        <div class="max-h-64 overflow-y-auto">
-          <div
-            v-for="project in projects"
-            :key="project.id"
-            @mouseenter="handleProjectHover(project.id, $event)"
-            @mouseleave="handleProjectLeave"
-          >
-            <!-- Project Item -->
+      <!-- Project Dropdown (when on project route) -->
+      <template v-if="isProjectRoute && currentProject">
+        <Dropdown ref="projectDropdownRef" align="left" width="min-w-64">
+          <template #trigger="{ toggle }">
             <button
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer hover:bg-accent/75"
-              :class="currentProject?.id === project.id ? 'bg-accent/50' : ''"
+              class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors max-w-48"
+              @click="toggle"
             >
-              <span class="flex-1 text-left truncate text-foreground">{{ project.title }}</span>
-              <Icon name="chevron-right" :size="10" class="text-muted-foreground shrink-0" />
+              <span class="text-sm font-medium text-foreground truncate">{{ currentProject.title }}</span>
+              <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0" />
             </button>
+          </template>
+
+          <!-- Current project info -->
+          <div class="px-3 py-2 border-b border-border">
+            <div class="flex items-center gap-2">
+              <div
+                v-if="currentProject.thumbnail"
+                class="w-8 h-8 rounded bg-cover bg-center shrink-0 border border-border"
+                :style="{ backgroundImage: `url(${currentProject.thumbnail})` }"
+              ></div>
+              <div
+                v-else
+                class="w-8 h-8 rounded bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground shrink-0"
+              >
+                {{ getProjectInitial(currentProject.title) }}
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-foreground truncate">{{ currentProject.title }}</p>
+                <div class="flex items-center gap-1.5">
+                  <Badge :variant="currentProject.isPublished ? 'success' : 'secondary'" size="xs" dot>
+                    {{ currentProject.isPublished ? 'Published' : 'Draft' }}
+                  </Badge>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- Other projects -->
+          <div class="py-1">
+            <p class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Switch Project</p>
+            <div class="max-h-48 overflow-y-auto">
+              <button
+                v-for="project in projects.filter(p => p.id !== currentProject?.id)"
+                :key="project.id"
+                class="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+                @click="switchToProject(project.id)"
+              >
+                <div
+                  v-if="project.thumbnail"
+                  class="w-6 h-6 rounded bg-cover bg-center shrink-0 border border-border"
+                  :style="{ backgroundImage: `url(${project.thumbnail})` }"
+                ></div>
+                <div
+                  v-else
+                  class="w-6 h-6 rounded bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0"
+                >
+                  {{ getProjectInitial(project.title) }}
+                </div>
+                <span class="flex-1 text-left truncate text-foreground">{{ project.title }}</span>
+              </button>
+            </div>
+          </div>
+
+          <Dropdown.Divider />
+          <Dropdown.Item icon="plus" @click="projectDropdownRef?.close(); showNewProjectModal = true">
+            New Project
+          </Dropdown.Item>
+        </Dropdown>
+
+        <!-- Route Tabs -->
+        <div class="flex items-center gap-1 ml-2">
+          <button
+            v-for="tab in projectTabs"
+            :key="tab.name"
+            class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
+            :class="route.name === tab.name
+              ? 'bg-accent text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'"
+            @click="navigateToProjectRoute(tab.name)"
+          >
+            {{ tab.label }}
+          </button>
         </div>
-        <Dropdown.Item icon="plus" @click="userDropdownRef?.close(); showNewProjectModal = true">
-          New Project
-        </Dropdown.Item>
+      </template>
 
-        <Dropdown.Divider />
-
-        <!-- Navigation -->
-        <Dropdown.Item icon="app-dashboard" @click="closeDropdownAndNavigate('dashboard')">
-          Dashboard
-        </Dropdown.Item>
-        <Dropdown.Item icon="app-user" @click="closeDropdownAndNavigate('account')">
-          Account
-        </Dropdown.Item>
-
-        <Dropdown.Divider />
-
-        <!-- Logout -->
-        <Dropdown.Item icon="app-logout" @click="userDropdownRef?.close(); signOut()">
-          Sign Out
-        </Dropdown.Item>
-      </Dropdown>
+      <!-- Dashboard/Account label (when not on project route) -->
+      <template v-else>
+        <span class="text-sm font-medium text-foreground">
+          {{ route.name === 'account' ? 'Account' : 'Dashboard' }}
+        </span>
+      </template>
     </div>
 
-    <!-- Project Route: Center Controls -->
-    <div v-if="isProjectRoute && isDesignerRoute" class="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
+    <!-- Center: Editor Controls (only on Designer/Content routes) -->
+    <div v-if="isProjectRoute && isEditorRoute" class="flex items-center gap-4">
       <!-- Undo/Redo Buttons -->
       <div class="flex items-center gap-1">
         <button
           class="p-1.5 rounded-md transition-colors"
           :class="designerStore.canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
           :disabled="!designerStore.canUndo"
-          title="Undo"
+          title="Undo (⌘Z)"
           @click="designerStore.undo()"
         >
           <Icon name="app-undo" class="text-sm" />
@@ -359,7 +357,7 @@ function onProjectCreated(newProjectId: string) {
           class="p-1.5 rounded-md transition-colors"
           :class="designerStore.canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
           :disabled="!designerStore.canRedo"
-          title="Redo"
+          title="Redo (⌘⇧Z)"
           @click="designerStore.redo()"
         >
           <Icon name="app-redo" class="text-sm" />
@@ -404,7 +402,7 @@ function onProjectCreated(newProjectId: string) {
           >
             <Icon name="globe-1" class="text-sm" />
             <span>{{ currentLanguageDisplay }}</span>
-            <Icon name="chevron-down" class="text-[10px] text-muted-foreground" />
+            <Icon name="chevron-down" :size="10" class="text-muted-foreground" />
           </button>
         </template>
 
@@ -437,15 +435,15 @@ function onProjectCreated(newProjectId: string) {
       </Dropdown>
     </div>
 
-    <!-- Right Side -->
-    <div class="flex items-center gap-3">
+    <!-- Right: Actions + User Menu -->
+    <div class="flex items-center gap-3 flex-1 justify-end">
       <!-- Non-Project Route: Search -->
       <template v-if="!isProjectRoute">
         <Button variant="outline" size="sm" @click="showCommand = true">
           <Icon name="search-1" class="text-xs" />
           <span class="hidden sm:inline">Search...</span>
           <kbd class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-            <span>&#8984;</span><span>K</span>
+            <span>⌘</span><span>K</span>
           </kbd>
         </Button>
       </template>
@@ -459,7 +457,7 @@ function onProjectCreated(newProjectId: string) {
           @click="showAIModal = true"
         >
           <Icon name="app-ai" class="text-xs" />
-          AI Assistant
+          <span class="hidden lg:inline">AI Assistant</span>
         </Button>
 
         <!-- Collaborator Changes Alert -->
@@ -495,6 +493,39 @@ function onProjectCreated(newProjectId: string) {
           {{ isPublishing ? 'Publishing...' : (currentProject?.isPublished ? 'Update' : 'Publish') }}
         </Button>
       </template>
+
+      <!-- User Avatar Dropdown -->
+      <Dropdown ref="userDropdownRef" align="right" width="min-w-48">
+        <template #trigger="{ toggle }">
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+            @click="toggle"
+          >
+            {{ userInitial }}
+          </button>
+        </template>
+
+        <!-- User info -->
+        <div class="px-3 py-2 border-b border-border">
+          <p class="text-sm font-medium text-foreground truncate">
+            {{ user?.name || userEmail }}
+          </p>
+          <p v-if="user?.name" class="text-xs text-muted-foreground truncate">{{ userEmail }}</p>
+        </div>
+
+        <Dropdown.Item icon="app-dashboard" @click="userDropdownRef?.close(); router.push({ name: 'dashboard' })">
+          Dashboard
+        </Dropdown.Item>
+        <Dropdown.Item icon="app-user" @click="userDropdownRef?.close(); router.push({ name: 'account' })">
+          Account Settings
+        </Dropdown.Item>
+
+        <Dropdown.Divider />
+
+        <Dropdown.Item icon="app-logout" @click="signOut">
+          Sign Out
+        </Dropdown.Item>
+      </Dropdown>
     </div>
   </header>
 
@@ -527,78 +558,4 @@ function onProjectCreated(newProjectId: string) {
 
   <!-- AI Assistant Modal -->
   <AIAssistant v-model:open="showAIModal" />
-
-  <!-- Project Popover (Teleported) -->
-  <Teleport to="body">
-    <div
-      v-if="hoveredProjectId && hoveredProjectRect"
-      class="fixed w-56 bg-popover border border-border rounded-xl shadow-lg z-[100] p-3"
-      :style="popoverStyle"
-      @mouseenter="handlePopoverEnter"
-      @mouseleave="handlePopoverLeave"
-    >
-      <template v-for="project in projects" :key="project.id">
-        <template v-if="project.id === hoveredProjectId">
-          <!-- Project Info -->
-          <div class="flex items-start gap-3 mb-3">
-            <!-- Thumbnail -->
-            <div
-              v-if="project.thumbnail"
-              class="w-12 h-12 rounded-lg bg-cover bg-center shrink-0 border border-border"
-              :style="{ backgroundImage: `url(${project.thumbnail})` }"
-            ></div>
-            <div
-              v-else
-              class="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center text-lg font-semibold text-muted-foreground shrink-0"
-            >
-              {{ getProjectInitial(project.title) }}
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-foreground truncate">{{ project.title }}</p>
-              <div class="flex items-center gap-1.5 mt-1">
-                <Badge :variant="project.isPublished ? 'success' : 'secondary'" size="xs" dot>
-                  {{ project.isPublished ? 'Published' : 'Draft' }}
-                </Badge>
-                <Badge :variant="project.plan === 'pro' ? 'info' : 'outline'" size="xs">
-                  {{ project.plan === 'pro' ? 'Pro' : 'Free' }}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="space-y-1">
-            <button
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-foreground hover:bg-accent"
-              @click="closeDropdownAndNavigate('designer', { projectId: project.id })"
-            >
-              <Icon name="app-designer" :size="14" />
-              <span>Designer</span>
-            </button>
-            <button
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-foreground hover:bg-accent"
-              @click="closeDropdownAndNavigate('content', { projectId: project.id })"
-            >
-              <Icon name="lni-text-format" :size="14" />
-              <span>Content</span>
-            </button>
-            <button
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-foreground hover:bg-accent"
-              @click="closeDropdownAndNavigate('analytics', { projectId: project.id })"
-            >
-              <Icon name="app-analytics" :size="14" />
-              <span>Analytics</span>
-            </button>
-            <button
-              class="w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors text-foreground hover:bg-accent"
-              @click="closeDropdownAndNavigate('settings', { projectId: project.id })"
-            >
-              <Icon name="app-settings" :size="14" />
-              <span>Settings</span>
-            </button>
-          </div>
-        </template>
-      </template>
-    </div>
-  </Teleport>
 </template>

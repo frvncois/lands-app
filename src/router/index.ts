@@ -73,13 +73,7 @@ const router = createRouter({
           component: () => import('@/pages/analytics/AnalyticsPage.vue'),
           meta: { requiresProject: true },
         },
-        {
-          path: 'project/:projectId/integration',
-          name: 'integration',
-          component: () => import('@/pages/integrations/IntegrationsPage.vue'),
-          meta: { requiresProject: true },
-        },
-        {
+                {
           path: 'account',
           name: 'account',
           component: AccountView,

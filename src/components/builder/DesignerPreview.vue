@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useDesignerStore } from '@/stores/designer'
 import PreviewSection from '@/components/preview/PreviewSection.vue'
+import SelectionOverlay from '@/components/preview/SelectionOverlay.vue'
 import { createSectionBlock } from '@/lib/designer-utils'
 import type { ListPresetType } from '@/lib/list-presets'
 import type { SectionBlockType } from '@/types/designer'
@@ -105,10 +106,24 @@ const googleFontsKey = computed(() =>
 )
 watch(googleFontsKey, () => loadGoogleFonts())
 
+// ESC key to deselect and blur
+function handleKeyDown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    // Blur any focused contenteditable first
+    const activeEl = document.activeElement as HTMLElement
+    if (activeEl?.getAttribute('contenteditable') === 'true') {
+      activeEl.blur()
+    }
+    // Deselect the block
+    designerStore.selectBlock(null)
+  }
+}
+
 // Load fonts on mount
 onMounted(() => {
   loadCustomFonts()
   loadGoogleFonts()
+  document.addEventListener('keydown', handleKeyDown)
 })
 
 // Cleanup on unmount
@@ -119,6 +134,7 @@ onUnmounted(() => {
   if (loadedGoogleFontsLink.value) {
     loadedGoogleFontsLink.value.remove()
   }
+  document.removeEventListener('keydown', handleKeyDown)
 })
 
 // Context menu for viewport
@@ -241,9 +257,16 @@ const pageClasses = computed(() => {
 })
 
 function handlePreviewClick(event: MouseEvent) {
-  // Deselect if clicking on empty preview area
-  if (event.target === event.currentTarget) {
+  // Deselect if clicking on empty preview area (not on a block)
+  const target = event.target as HTMLElement
+  const isOnBlock = target.closest('[data-preview-block]')
+  if (!isOnBlock) {
     designerStore.selectBlock(null)
+    // Also blur any focused contenteditable
+    const activeEl = document.activeElement as HTMLElement
+    if (activeEl?.getAttribute('contenteditable') === 'true') {
+      activeEl.blur()
+    }
   }
 }
 
@@ -413,17 +436,19 @@ function handleSectionDrop(event: DragEvent) {
 <template>
   <!-- clip-path creates containing block for fixed elements without breaking scroll -->
   <div class="flex-1 flex flex-col h-full overflow-hidden" style="clip-path: inset(0);">
-    <!-- Preview area -->
-    <div
-      ref="scrollContainerRef"
-      class="flex-1 overflow-auto transition-colors [&>*]:min-h-full"
-      :class="isDragOver ? 'bg-primary/5' : ''"
-      @click="handlePreviewClick"
-      @dragenter="handleDragEnter"
-      @dragover="handleDragOver"
-      @dragleave="handleDragLeave"
-      @drop="handleDrop"
-    >
+    <!-- Preview area wrapper (relative for overlay positioning) -->
+    <div class="flex-1 relative overflow-hidden">
+      <!-- Scroll container -->
+      <div
+        ref="scrollContainerRef"
+        class="absolute inset-0 overflow-auto transition-colors [&>*]:min-h-full"
+        :class="isDragOver ? 'bg-primary/5' : ''"
+        @click="handlePreviewClick"
+        @dragenter="handleDragEnter"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
+      >
       <!-- Viewport container -->
       <div
         class="h-full mx-auto transition-all duration-300"
@@ -468,6 +493,10 @@ function handleSectionDrop(event: DragEvent) {
           </div>
         </div>
       </div>
+      </div>
+
+      <!-- Selection Overlay (rendered outside content flow to avoid overflow:hidden clipping) -->
+      <SelectionOverlay :scroll-container="scrollContainerRef" />
     </div>
 
     <!-- Viewport Context Menu -->

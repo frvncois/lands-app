@@ -17,12 +17,13 @@ const visibleSections = computed(() =>
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="columns-2 gap-6">
     <component
       v-for="section in visibleSections"
       :key="section.id"
       :is="section.component"
       :category="section.id"
+      class="break-inside-avoid mb-6"
     />
   </div>
 </template>

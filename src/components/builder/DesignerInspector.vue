@@ -248,7 +248,7 @@ const blockSupportsAnimation = computed(() => {
   <aside
     class="group/inspector relative flex flex-col h-full bg-sidebar-background transition-[width] duration-300 ease-out"
     style="overflow-x: hidden !important;"
-    :class="designerStore.isInspectorCollapsed ? 'w-16' : 'w-65'"
+    :class="designerStore.isInspectorCollapsed ? 'w-16' : 'w-60'"
   >
     <!-- Left border toggle handle -->
     <div

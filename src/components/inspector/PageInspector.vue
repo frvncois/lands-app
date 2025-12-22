@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDesignerStore } from '@/stores/designer'
 import { useProjectsStore } from '@/stores/projects'
-import { useProjectStore } from '@/stores/project'
 import { useToast } from '@/stores/toast'
 import { generateId } from '@/lib/designer-utils'
 import { planHasFeature } from '@/types/project'
@@ -12,8 +11,6 @@ import type { PageSettings, GoogleFont } from '@/types/designer'
 
 import InspectorSection from './InspectorSection.vue'
 import InspectorField from './InspectorField.vue'
-import TextInput from './TextInput.vue'
-import ImageInput from './ImageInput.vue'
 import SliderInput from './SliderInput.vue'
 import SelectInput from './SelectInput.vue'
 import ToggleInput from './ToggleInput.vue'
@@ -25,7 +22,6 @@ import PlanUpgrade from '@/components/modal/PlanUpgrade.vue'
 
 const designerStore = useDesignerStore()
 const projectsStore = useProjectsStore()
-const projectStore = useProjectStore()
 const route = useRoute()
 const toast = useToast()
 
@@ -42,7 +38,6 @@ const canUseCustomCode = computed(() => {
 })
 
 const pageSettings = computed(() => designerStore.pageSettings)
-const seoSettings = computed(() => projectStore.settings.seo)
 
 // Font options
 const fontFamilyOptions = [
@@ -595,49 +590,6 @@ function resetBaseSize() {
           @update:model-value="updatePageSetting('smoothScroll', $event)"
         />
       </div>
-    </InspectorSection>
-
-    <!-- SEO Settings -->
-    <InspectorSection title="SEO" icon="app-seo">
-      <InspectorField label="Meta Title">
-        <TextInput
-          :model-value="seoSettings.metaTitle || ''"
-          placeholder="Page title for search engines"
-          @update:model-value="projectStore.updateSEO({ metaTitle: $event })"
-        />
-      </InspectorField>
-      <InspectorField label="Meta Description">
-        <textarea
-          :value="seoSettings.metaDescription || ''"
-          placeholder="Brief description for search results..."
-          rows="2"
-          class="w-full px-3 py-2 text-xs bg-secondary border border-sidebar-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-          @input="projectStore.updateSEO({ metaDescription: ($event.target as HTMLTextAreaElement).value })"
-        />
-      </InspectorField>
-      <InspectorField label="Keywords">
-        <TextInput
-          :model-value="seoSettings.keywords || ''"
-          placeholder="keyword1, keyword2, keyword3"
-          @update:model-value="projectStore.updateSEO({ keywords: $event })"
-        />
-      </InspectorField>
-      <InspectorField label="OG Image">
-        <ImageInput
-          :model-value="seoSettings.ogImage || ''"
-          placeholder="Social share image URL"
-          hide-search
-          @update:model-value="projectStore.updateSEO({ ogImage: $event })"
-        />
-      </InspectorField>
-      <InspectorField label="Favicon">
-        <ImageInput
-          :model-value="seoSettings.favicon || ''"
-          placeholder="Favicon URL"
-          hide-search
-          @update:model-value="projectStore.updateSEO({ favicon: $event })"
-        />
-      </InspectorField>
     </InspectorSection>
 
     <!-- Custom Code -->

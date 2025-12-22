@@ -11,7 +11,6 @@ import SelectInput from '@/components/inspector/SelectInput.vue'
 const props = defineProps<{
   block: SectionBlock
   depth: number
-  path: string[]
 }>()
 
 const designerStore = useDesignerStore()
@@ -106,93 +105,99 @@ const blockLabel = computed(() => sectionBlockLabels[props.block.type])
 
 <template>
   <div
-    class="rounded-lg border border-sidebar-border bg-card overflow-hidden"
-    :style="{ marginLeft: `${depth * 8}px` }"
+    class="rounded border border-sidebar-border bg-card overflow-hidden"
+    :style="{ marginLeft: `${depth * 6}px` }"
   >
-    <!-- Block Header -->
+    <!-- Compact Block Header -->
     <button
-      class="w-full flex items-center gap-2 px-3 py-2 border-b border-sidebar-border bg-secondary/30 hover:bg-secondary/50 transition-colors"
+      class="w-full flex items-center gap-1.5 px-2 py-1.5 bg-secondary/20 hover:bg-secondary/40 transition-colors"
       @click="selectBlock"
     >
-      <Icon :name="blockIcon" class="text-muted-foreground" :size="14" />
-      <span class="text-xs font-medium text-foreground truncate">{{
+      <Icon :name="blockIcon" class="text-muted-foreground" :size="12" />
+      <span class="text-[11px] font-medium text-foreground truncate flex-1 text-left">{{
         block.name
       }}</span>
-      <span class="text-[10px] text-muted-foreground ml-auto">{{
+      <span class="text-[9px] text-muted-foreground uppercase">{{
         blockLabel
       }}</span>
     </button>
 
-    <!-- Content Fields -->
-    <div class="p-3 space-y-3">
-      <div v-for="field in fields" :key="field.key" class="space-y-1">
-        <label class="text-[11px] text-muted-foreground font-medium">{{
-          field.label
-        }}</label>
+    <!-- Compact Content Fields -->
+    <div class="p-2 space-y-2">
+      <div v-for="field in fields" :key="field.key">
+        <!-- Inline label for compact fields -->
+        <div v-if="field.type === 'text' || field.type === 'select'" class="flex items-center gap-2">
+          <label class="text-[10px] text-muted-foreground w-12 shrink-0">{{
+            field.label
+          }}</label>
+          <TextInput
+            v-if="field.type === 'text'"
+            :model-value="
+              field.key === 'content' ? stripHtml(getSetting(field.key)) : getSetting(field.key)
+            "
+            size="sm"
+            class="flex-1"
+            @update:model-value="updateSetting(field.key, $event)"
+          />
+          <SelectInput
+            v-else-if="field.type === 'select'"
+            :model-value="getSetting(field.key)"
+            :options="field.options || []"
+            size="sm"
+            class="flex-1"
+            @update:model-value="updateSetting(field.key, $event)"
+          />
+        </div>
 
-        <TextInput
-          v-if="field.type === 'text'"
-          :model-value="
-            field.key === 'content' ? stripHtml(getSetting(field.key)) : getSetting(field.key)
-          "
-          size="sm"
-          @update:model-value="updateSetting(field.key, $event)"
-        />
-
-        <textarea
-          v-else-if="field.type === 'textarea'"
-          :value="stripHtml(getSetting(field.key))"
-          rows="3"
-          class="w-full px-3 py-2 text-xs bg-secondary border border-sidebar-border rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-          @input="
-            updateSetting(
-              field.key,
-              ($event.target as HTMLTextAreaElement).value
-            )
-          "
-        />
-
-        <ImageInput
-          v-else-if="field.type === 'image'"
-          :model-value="getSetting(field.key)"
-          @update:model-value="updateSetting(field.key, $event)"
-        />
-
-        <SelectInput
-          v-else-if="field.type === 'select'"
-          :model-value="getSetting(field.key)"
-          :options="field.options || []"
-          size="sm"
-          @update:model-value="updateSetting(field.key, $event)"
-        />
+        <!-- Stacked for textarea and image -->
+        <div v-else class="space-y-1">
+          <label class="text-[10px] text-muted-foreground">{{ field.label }}</label>
+          <textarea
+            v-if="field.type === 'textarea'"
+            :value="stripHtml(getSetting(field.key))"
+            rows="2"
+            class="w-full px-2 py-1.5 text-[11px] bg-secondary border border-sidebar-border rounded resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+            @input="
+              updateSetting(
+                field.key,
+                ($event.target as HTMLTextAreaElement).value
+              )
+            "
+          />
+          <ImageInput
+            v-else-if="field.type === 'image'"
+            :model-value="getSetting(field.key)"
+            @update:model-value="updateSetting(field.key, $event)"
+          />
+        </div>
       </div>
 
       <!-- List Item Management (for containers with shared style children) -->
       <div
         v-if="isListContainer"
-        class="pt-3 mt-3 border-t border-sidebar-border"
+        class="pt-2 mt-2 border-t border-sidebar-border"
       >
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-medium text-muted-foreground"
-            >Items ({{ listItems.length }})</span
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] text-muted-foreground"
+            >{{ listItems.length }} items</span
           >
-          <Button variant="ghost" size="xs" @click="addListItem">
-            + Add Item
+          <Button variant="ghost" size="xs" class="h-5 text-[10px] px-1.5" @click="addListItem">
+            + Add
           </Button>
         </div>
 
-        <div class="space-y-1">
+        <div v-if="listItems.length > 0" class="mt-1.5 space-y-0.5">
           <div
             v-for="(item, index) in listItems"
             :key="item.id"
-            class="flex items-center justify-between px-2 py-1.5 bg-secondary/50 rounded text-xs"
+            class="flex items-center justify-between px-1.5 py-1 bg-secondary/30 rounded text-[10px]"
           >
-            <span class="text-muted-foreground">Item {{ index + 1 }}</span>
+            <span class="text-muted-foreground">{{ index + 1 }}. {{ item.name }}</span>
             <button
-              class="text-destructive hover:underline text-[10px]"
+              class="text-destructive/70 hover:text-destructive text-[9px]"
               @click="removeListItem(item.id)"
             >
-              Remove
+              ×
             </button>
           </div>
         </div>

@@ -26,6 +26,8 @@ import {
 import {
   STAGGER_CONTEXT_KEY,
   CHILD_EFFECTS_CONTEXT_KEY,
+  READONLY_MODE_KEY,
+  CONTENT_PREVIEW_MODE_KEY,
   type StaggerContext,
   type ChildEffectsContext,
 } from './injection-keys'
@@ -67,6 +69,7 @@ import {
   FormLabelBlock,
 } from './blocks'
 
+
 const props = defineProps<{
   block: SectionBlock
   index: number
@@ -75,6 +78,15 @@ const props = defineProps<{
 
 const designerStore = useDesignerStore()
 const { isOpen: isAIOpen } = useAIAssistant()
+
+// Check if we're in readonly mode (content preview)
+const isReadonlyMode = inject(READONLY_MODE_KEY, false)
+// Check if we're in content preview mode (show hover for content blocks)
+const isContentPreviewMode = inject(CONTENT_PREVIEW_MODE_KEY, false)
+
+// Content block types that should show hover in content preview mode
+const contentBlockTypes: SectionBlockType[] = ['heading', 'text', 'image', 'video', 'button', 'icon']
+const isContentBlock = computed(() => contentBlockTypes.includes(props.block.type))
 
 // Initialize composables with block ref
 const blockRef = toRef(props, 'block')
@@ -402,7 +414,13 @@ const sectionRef = ref<HTMLElement | null>(null)
 const editableRef = ref<HTMLElement | null>(null)
 
 // Check if this specific block is hovered (not parents)
-const isHovered = computed(() => designerStore.hoveredBlockId === props.block.id)
+// In content preview mode, only show hover for content blocks
+const isHovered = computed(() => {
+  const isBlockHovered = designerStore.hoveredBlockId === props.block.id
+  if (!isReadonlyMode) return isBlockHovered
+  if (isContentPreviewMode && isContentBlock.value) return isBlockHovered
+  return false
+})
 
 // Track if label should show below (when near top of viewport)
 const labelShowBelow = ref(false)
@@ -454,10 +472,16 @@ function playAnimation() {
 // Mouse enter/leave handlers with hover animation support
 function handleMouseEnter(event: MouseEvent) {
   event.stopPropagation() // Prevent parent blocks from also getting hovered
-  designerStore.hoverBlock(props.block.id)
-  updateLabelPosition()
 
-  // Track hover state for effects
+  // Update hover state in designer store
+  // In content preview mode, track hover for all blocks (outline visibility is filtered in isHovered computed)
+  const shouldUpdateHover = !isReadonlyMode || isContentPreviewMode
+  if (shouldUpdateHover) {
+    designerStore.hoverBlock(props.block.id)
+    updateLabelPosition()
+  }
+
+  // Track hover state for effects (still works in readonly mode for animations)
   isEffectHovering.value = true
 
   // Apply hover animation styles (legacy system)
@@ -480,7 +504,10 @@ function handleMouseLeave(event: MouseEvent) {
   const relatedTarget = event.relatedTarget as HTMLElement | null
   const isLeavingToAnotherBlock = relatedTarget?.closest('[data-preview-block]')
 
-  if (!isLeavingToAnotherBlock) {
+  // Update hover state in designer store
+  // In content preview mode, track hover for all blocks (outline visibility is filtered in isHovered computed)
+  const shouldUpdateHover = !isReadonlyMode || isContentPreviewMode
+  if (shouldUpdateHover && !isLeavingToAnotherBlock) {
     designerStore.hoverBlock(null)
   }
 
@@ -505,6 +532,9 @@ function handleMouseLeave(event: MouseEvent) {
 
 // Context menu handler
 function handleContextMenu(event: MouseEvent) {
+  // In readonly mode, don't show context menu
+  if (isReadonlyMode) return
+
   event.preventDefault()
   event.stopPropagation()
   designerStore.selectBlock(props.block.id)
@@ -582,7 +612,9 @@ function handleAddContentBlock(type: SectionBlockType) {
   }
 }
 
+// Disabled in readonly mode
 const isSelected = computed(() =>
+  !isReadonlyMode &&
   designerStore.selectedBlockId === props.block.id &&
   !designerStore.selectedItemId
 )
@@ -938,6 +970,35 @@ function handleClick(event: MouseEvent) {
     ? target
     : target.closest('[contenteditable="true"]') as HTMLElement | null
 
+  // In content preview mode, allow contenteditable focus for inline editing
+  if (isContentPreviewMode && contentEditableEl) {
+    // Find which block owns this contenteditable
+    const ownerBlock = contentEditableEl.closest('[data-preview-block]')
+    const ownerBlockId = ownerBlock?.getAttribute('data-block-id')
+
+    // Only handle if this contenteditable belongs to THIS block
+    if (ownerBlockId === props.block.id) {
+      event.stopPropagation()
+      // Select the block to show selection outline
+      designerStore.selectBlock(props.block.id)
+      // Focus the contenteditable element for editing
+      contentEditableEl.focus()
+      return
+    }
+    // Contenteditable belongs to a child block - let it bubble
+    return
+  }
+
+  // In content preview mode, clicking on content blocks should select them (for outline)
+  if (isContentPreviewMode && isContentBlock.value) {
+    event.stopPropagation()
+    designerStore.selectBlock(props.block.id)
+    return
+  }
+
+  // In readonly mode, don't handle clicks (no selection)
+  if (isReadonlyMode) return
+
   if (contentEditableEl) {
     // Find which block owns this contenteditable
     const ownerBlock = contentEditableEl.closest('[data-preview-block]')
@@ -973,6 +1034,36 @@ function handleDoubleClick(event: MouseEvent) {
   // Check if double-click is directly on a contenteditable element
   const isOnContentEditable = target.getAttribute('contenteditable') === 'true' ||
                               target.closest('[contenteditable="true"]') !== null
+
+  // In content preview mode, allow double-click to select word in contenteditable
+  if (isContentPreviewMode) {
+    if (isOnContentEditable) {
+      event.stopPropagation()
+      // Let native behavior select the word
+      return
+    }
+    // If double-clicking on the wrapper in content preview, focus the contenteditable
+    if (['heading', 'text'].includes(props.block.type) && sectionRef.value) {
+      event.preventDefault()
+      event.stopPropagation()
+      const editable = sectionRef.value.querySelector('[contenteditable="true"]') as HTMLElement
+      if (editable) {
+        editable.focus()
+        const selection = window.getSelection()
+        if (selection) {
+          selection.removeAllRanges()
+          const range = document.caretRangeFromPoint(event.clientX, event.clientY)
+          if (range) {
+            selection.addRange(range)
+          }
+        }
+      }
+    }
+    return
+  }
+
+  // In readonly mode, don't handle double-clicks (no editing)
+  if (isReadonlyMode) return
 
   // If double-clicking directly on contenteditable, let native behavior handle it
   // (native behavior = select word)
@@ -1157,6 +1248,7 @@ const childDropIndex = ref<number | null>(null) // Index where child will be dro
 // - Blocks inside Canvas use mouse drag for positioning, not HTML5 drag
 // - Text content blocks (heading, text) need text selection, so disable drag on content
 const canDragBlock = computed(() => {
+  if (isReadonlyMode) return false
   if (isProtectedBlock.value) return false
   if (isInsideCanvas.value) return false
   // Disable drag on text content blocks to allow text selection
@@ -1165,9 +1257,25 @@ const canDragBlock = computed(() => {
   return true
 })
 
+// Cursor class based on mode and block type
+const cursorClass = computed(() => {
+  // In content preview mode, use appropriate cursor for content editing
+  if (isContentPreviewMode) {
+    // Text/heading blocks should show text cursor to indicate editability
+    if (['heading', 'text'].includes(props.block.type)) {
+      return 'cursor-text'
+    }
+    // Other blocks use default cursor
+    return 'cursor-default'
+  }
+  // In designer mode, use grab/pointer based on draggability
+  return canDragBlock.value ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+})
+
 // Check if this block's label can be dragged (for reordering)
 // Label is always draggable except for protected blocks
 const canDragLabel = computed(() => {
+  if (isReadonlyMode) return false
   if (isProtectedBlock.value) return false
   return true
 })
@@ -1636,7 +1744,7 @@ function handleSpanMouseOut(event: MouseEvent) {
       { 'overflow-hidden': blockStyles.height && blockStyles.height !== '100%' },
       { 'overflow-visible': !blockStyles.height },
       { 'relative': !wrapperStyles.position },
-      canDragBlock ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+      cursorClass
     ]"
     :draggable="canDragBlock"
     data-preview-block
@@ -1652,44 +1760,6 @@ function handleSpanMouseOut(event: MouseEvent) {
     @mouseleave="handleMouseLeave"
     @wheel="handleWheel"
   >
-    <!-- Hover outline - violet when in target selection mode -->
-    <div
-      v-if="isHovered && !isSelected"
-      class="absolute inset-0 border-1 border-primary/40 pointer-events-none z-10"
-    />
-
-    <!-- Selection outline -->
-    <div
-      v-if="isSelected && !showAIGlow"
-      class="absolute inset-0 border-1 border-border-outline pointer-events-none z-10"
-    />
-
-    <!-- AI Assistant glow - purple when AI is open and block is selected -->
-    <div
-      v-if="showAIGlow"
-      class="absolute inset-0 border-2 border-violet-500 pointer-events-none z-10 rounded-sm shadow-[0_0_12px_rgba(139,92,246,0.5),inset_0_0_12px_rgba(139,92,246,0.1)]"
-    />
-
-    <!-- Section label -->
-    <div
-      v-if="isHovered || isSelected"
-      :draggable="canDragLabel"
-      data-block-label
-      class="absolute left-0 flex border items-center px-1.5 h-5 text-[10px] font-mono uppercase backdrop-blur-xs z-20 whitespace-nowrap pointer-events-auto"
-      :class="[
-        labelShowBelow ? 'top-full rounded-b' : 'bottom-full rounded-t',
-        showAIGlow ? 'bg-violet-600 border-violet-500/10 text-violet-100' : isSelected ? 'bg-indigo-600 border-indigo-500/10 text-blue-100' : 'bg-indigo-600/50 border-indigo-500/10 text-blue-100',
-        canDragLabel || isInsideCanvas ? 'cursor-grab active:cursor-grabbing' : '',
-        isCanvasDragging ? 'cursor-grabbing' : ''
-      ]"
-      @dragstart="handleBlockDragStart"
-      @dragend="handleBlockDragEnd"
-      @mousedown="isInsideCanvas ? handleCanvasDragStart($event) : undefined"
-    >
-      <span v-if="canDragLabel || isInsideCanvas" class="w-2 h-2 rounded-full bg-blue-100 mr-1.5"></span>
-      {{ block.name }}
-    </div>
-
     <!-- ============================================ -->
     <!-- CONTAINER BLOCK -->
     <!-- ============================================ -->
@@ -2105,6 +2175,7 @@ function handleSpanMouseOut(event: MouseEvent) {
 
     <!-- Inject span styles for this block -->
     <component v-if="spanStylesCSS" :is="'style'" v-html="spanStylesCSS" />
+
   </section>
 </template>
 

@@ -2,7 +2,6 @@
 import { watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDesignerStore } from '@/stores/designer'
-import ContentEditor from '@/components/content/ContentEditor.vue'
 import ContentPreview from '@/components/content/ContentPreview.vue'
 
 const route = useRoute()
@@ -64,8 +63,5 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex h-full">
-    <ContentEditor class="w-[400px] flex-shrink-0 border-r border-sidebar-border" />
-    <ContentPreview class="flex-1" />
-  </div>
+  <ContentPreview class="h-full" />
 </template>

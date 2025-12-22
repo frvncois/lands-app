@@ -56,13 +56,12 @@ const buttonContentTypes = ['text', 'icon', 'image'] as SectionBlockType[]
 </script>
 
 <template>
-  <a
-    :href="settings?.url || '#'"
-    :target="settings?.newTab ? '_blank' : undefined"
-    :rel="settings?.newTab ? 'noopener noreferrer' : undefined"
+  <component
+    :is="'div'"
     class="inline-flex cursor-pointer no-underline"
     :style="combinedStyles"
-    @click.prevent.stop
+    :data-link-url="settings?.url"
+    :data-link-new-tab="settings?.newTab"
     @dragenter="emit('dragEnter', $event)"
     @dragover="emit('dragOver', $event)"
     @dragleave="emit('dragLeave', $event)"
@@ -109,5 +108,5 @@ const buttonContentTypes = ['text', 'icon', 'image'] as SectionBlockType[]
         </div>
       </Dropdown>
     </div>
-  </a>
+  </component>
 </template>

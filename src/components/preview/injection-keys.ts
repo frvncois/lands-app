@@ -29,3 +29,9 @@ export interface ChildEffectsContext {
 // Shared injection keys - must be the same Symbol instance across all components
 export const STAGGER_CONTEXT_KEY: InjectionKey<StaggerContext | null> = Symbol('staggerContext')
 export const CHILD_EFFECTS_CONTEXT_KEY: InjectionKey<ComputedRef<ChildEffectsContext | null>> = Symbol('childEffectsContext')
+
+// Read-only mode for content preview (disables selection, drag-drop, editing)
+export const READONLY_MODE_KEY: InjectionKey<boolean> = Symbol('readonlyMode')
+
+// Content preview mode - shows hover outlines only for editable content blocks
+export const CONTENT_PREVIEW_MODE_KEY: InjectionKey<boolean> = Symbol('contentPreviewMode')
