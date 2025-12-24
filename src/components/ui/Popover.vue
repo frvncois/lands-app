@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { useDesignerStore } from '@/stores/designer'
+import { useEditorStore } from '@/stores/editor'
 
 interface Props {
   align?: 'left' | 'right' | 'center'
@@ -165,9 +165,9 @@ function handlePopoverClick(event: MouseEvent) {
   event.stopPropagation()
 }
 
-// Close popover when selected block changes
-const designerStore = useDesignerStore()
-watch(() => designerStore.selectedBlockId, () => {
+// Close popover when selected section changes
+const editor = useEditorStore()
+watch(() => editor.selectedSectionId, () => {
   if (isOpen.value) {
     close()
   }
@@ -208,7 +208,7 @@ defineExpose({ open, close, toggle, isOpen })
           v-if="isOpen"
           ref="popoverRef"
           :class="[
-            'fixed bg-popover border border-border rounded-xl shadow-xl z-[100]',
+            'fixed bg-popover border border-border rounded-xl shadow-xl z-[10000]',
             width,
             actualPosition === 'top' ? 'origin-bottom' : 'origin-top',
           ]"

@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+/**
+ * APP HEADER
+ * Simplified for new section-based editor
+ */
+
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
-import { useDesignerStore } from '@/stores/designer'
+import { useEditorStore } from '@/stores/editor'
 import { useUserStore } from '@/stores/user'
-import { connectionState } from '@/lib/supabase'
-import { Button, Command, Dropdown, Icon, Avatar, Badge } from '@/components/ui'
+import { Button, Command, Dropdown, Icon, Badge } from '@/components/ui'
 import LandsLogo from '@/assets/LandsLogo.vue'
-import ProjectTranslate from '@/components/modal/ProjectTranslate.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
-import ProjectCreateWizard from '@/components/modal/ProjectCreateWizard/index.vue'
-import AIAssistant from '@/components/modal/AIAssistant.vue'
-import { getLanguageByCode } from '@/lib/languages'
-import type { LanguageCode } from '@/types/designer'
+import ProjectCreate from '@/components/modal/ProjectCreate.vue'
+import ProjectTranslation from '@/components/modal/ProjectTranslation.vue'
 
 const route = useRoute()
 const router = useRouter()
 const projectsStore = useProjectsStore()
-const designerStore = useDesignerStore()
+const editor = useEditorStore()
 const userStore = useUserStore()
 
 // Fetch projects on mount if not already loaded
@@ -29,12 +30,53 @@ onMounted(() => {
 
 const showCommand = ref(false)
 const isPublishing = ref(false)
-const showTranslateModal = ref(false)
 const showPublishedModal = ref(false)
 const showNewProjectModal = ref(false)
-const showAIModal = ref(false)
+const showTranslationModal = ref(false)
 const projectDropdownRef = ref<{ close: () => void } | null>(null)
 const userDropdownRef = ref<{ close: () => void } | null>(null)
+const languageDropdownRef = ref<{ close: () => void } | null>(null)
+
+// Language options
+const LANGUAGE_OPTIONS: Record<string, string> = {
+  en: 'English',
+  fr: 'Français',
+  es: 'Español',
+  de: 'Deutsch',
+  it: 'Italiano',
+  pt: 'Português',
+  nl: 'Nederlands',
+  pl: 'Polski',
+  ru: 'Русский',
+  ja: '日本語',
+  zh: '中文',
+  ko: '한국어',
+  ar: 'العربية',
+}
+
+function getLanguageLabel(code: string): string {
+  return LANGUAGE_OPTIONS[code] || code
+}
+
+function getCurrentLanguageLabel(): string {
+  if (!editor.hasTranslations) return 'Translations'
+  const current = editor.currentLanguage || editor.defaultLanguage
+  return getLanguageLabel(current)
+}
+
+function switchLanguage(code: string) {
+  languageDropdownRef.value?.close()
+  if (code === editor.defaultLanguage) {
+    editor.setCurrentLanguage(null)
+  } else {
+    editor.setCurrentLanguage(code)
+  }
+}
+
+function openTranslationModal() {
+  languageDropdownRef.value?.close()
+  showTranslationModal.value = true
+}
 
 // User info
 const user = computed(() => userStore.settings.profile)
@@ -45,35 +87,10 @@ const userInitial = computed(() => {
   return '?'
 })
 
-// Translation helpers
-const currentLanguageDisplay = computed(() => {
-  if (!designerStore.currentLanguage) {
-    const defaultLang = getLanguageByCode(designerStore.translations.defaultLanguage)
-    return defaultLang ? `Default (${defaultLang.name})` : 'Default'
-  }
-  const lang = getLanguageByCode(designerStore.currentLanguage)
-  return lang ? lang.name : designerStore.currentLanguage
-})
-
-function handleLanguageChange(langCode: LanguageCode | null) {
-  designerStore.setCurrentLanguage(langCode)
-}
-
 // Route checks
 const isProjectRoute = computed(() => !!route.params.projectId)
 const isDesignerRoute = computed(() => route.name === 'designer')
-const isContentRoute = computed(() => route.name === 'content')
-const isAnalyticsRoute = computed(() => route.name === 'analytics')
-const isSettingsRoute = computed(() => route.name === 'settings')
-const isEditorRoute = computed(() => isDesignerRoute.value || isContentRoute.value)
 const projectId = computed(() => route.params.projectId as string | undefined)
-
-// Close AI modal when leaving project routes
-watch(isProjectRoute, (isProject) => {
-  if (!isProject) {
-    showAIModal.value = false
-  }
-})
 
 // Get current project
 const currentProject = computed(() => {
@@ -89,11 +106,9 @@ function getProjectInitial(title: string) {
   return title.charAt(0).toUpperCase()
 }
 
-// Project route tabs
+// Project route tabs (simplified)
 const projectTabs = computed(() => [
-  { name: 'content', label: 'Edit', icon: 'app-content' },
-  { name: 'designer', label: 'Style', icon: 'app-designer' },
-  { name: 'analytics', label: 'Grow', icon: 'app-analytics' },
+  { name: 'designer', label: 'Editor', icon: 'app-designer' },
   { name: 'settings', label: 'Settings', icon: 'app-settings' },
 ])
 
@@ -105,11 +120,7 @@ function navigateToProjectRoute(routeName: string) {
 
 function switchToProject(newProjectId: string) {
   projectDropdownRef.value?.close()
-  // Navigate to same route type but different project
-  const currentRouteName = route.name as string
-  const validRoutes = ['designer', 'content', 'analytics', 'settings']
-  const targetRoute = validRoutes.includes(currentRouteName) ? currentRouteName : 'designer'
-  router.push({ name: targetRoute, params: { projectId: newProjectId } })
+  router.push({ name: 'designer', params: { projectId: newProjectId } })
 }
 
 // Command item type
@@ -143,62 +154,12 @@ const commandItems = computed(() => {
   return items
 })
 
-// Connection state - only show issues if actually problematic
-const isRecovering = computed(() => connectionState.value === 'recovering')
-const isUnhealthy = computed(() => connectionState.value === 'unhealthy')
-
-// Only show "Reconnecting" if it's taking a while (more than 2 seconds)
-const showRecovering = ref(false)
-let recoveringTimeout: ReturnType<typeof setTimeout> | null = null
-
-watch(() => connectionState.value, (newState) => {
-  if (newState === 'recovering') {
-    recoveringTimeout = setTimeout(() => {
-      showRecovering.value = true
-    }, 2000)
-  } else {
-    if (recoveringTimeout) {
-      clearTimeout(recoveringTimeout)
-      recoveringTimeout = null
-    }
-    showRecovering.value = false
-  }
-}, { immediate: true })
-
-// Save queue state from editor store
-const isOffline = computed(() => designerStore.isOffline)
-const isSyncing = computed(() => designerStore.isSyncingChanges)
-const hasPendingChanges = computed(() => designerStore.hasPendingChanges)
-
-// Save status dot class
-const saveStatusDotClass = computed(() => {
-  if (isOffline.value) return 'bg-red-500'
-  if (isUnhealthy.value) return 'bg-red-500'
-  if (showRecovering.value) return 'bg-amber-500 animate-pulse'
-  if (isSyncing.value) return 'bg-blue-500 animate-pulse'
-  if (designerStore.isSaving) return 'bg-muted-foreground animate-pulse'
-  if (designerStore.hasUnsavedChanges || hasPendingChanges.value) return 'bg-amber-500'
-  return 'bg-green-500'
-})
-
-// Can save: not offline, not recovering, and not already saving
-const canSave = computed(() => !isOffline.value && !showRecovering.value && !designerStore.isSaving)
-
 async function handlePublish() {
   if (!projectId.value || isPublishing.value) return
 
   isPublishing.value = true
 
   try {
-    // First save any unsaved changes
-    if (designerStore.hasUnsavedChanges) {
-      const saved = await designerStore.saveProject()
-      if (!saved) {
-        isPublishing.value = false
-        return
-      }
-    }
-
     // Ensure content is loaded in the store
     if (!projectsStore.getProjectContent(projectId.value)) {
       await projectsStore.fetchProjectContent(projectId.value)
@@ -212,14 +173,6 @@ async function handlePublish() {
   } finally {
     isPublishing.value = false
   }
-}
-
-async function handleSave() {
-  if (!designerStore.hasUnsavedChanges && !designerStore.isSaving) {
-    return
-  }
-
-  await designerStore.saveProject()
 }
 
 function handleCommandSelect() {
@@ -250,13 +203,10 @@ function onProjectCreated(newProjectId: string) {
       <template v-if="isProjectRoute && currentProject">
         <Dropdown ref="projectDropdownRef" align="left" width="min-w-64">
           <template #trigger="{ toggle }">
-            <button
-              class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border hover:bg-secondary transition-colors max-w-48"
-              @click="toggle"
-            >
-              <span class="text-sm font-medium text-foreground truncate">{{ currentProject.title }}</span>
+            <Button variant="outline" size="sm" class="max-w-48" @click="toggle">
+              <span class="truncate">{{ currentProject.title }}</span>
               <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0" />
-            </button>
+            </Button>
           </template>
 
           <!-- Current project info -->
@@ -289,7 +239,7 @@ function onProjectCreated(newProjectId: string) {
             <p class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Switch Project</p>
             <div class="max-h-48 overflow-y-auto">
               <button
-                v-for="project in projects.filter(p => p.id !== currentProject?.id)"
+                v-for="project in projects.filter((p: any) => p.id !== currentProject?.id)"
                 :key="project.id"
                 class="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
                 @click="switchToProject(project.id)"
@@ -317,18 +267,17 @@ function onProjectCreated(newProjectId: string) {
         </Dropdown>
 
         <!-- Route Tabs -->
-        <div class="flex items-center gap-1 ml-2">
-          <button
+        <div class="flex items-center gap-1">
+          <Button
             v-for="tab in projectTabs"
             :key="tab.name"
-            class="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
-            :class="route.name === tab.name
-              ? 'bg-accent text-foreground'
-              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'"
+            variant="ghost"
+            size="sm"
+            :class="route.name === tab.name ? 'bg-accent text-foreground' : ''"
             @click="navigateToProjectRoute(tab.name)"
           >
             {{ tab.label }}
-          </button>
+          </Button>
         </div>
       </template>
 
@@ -340,98 +289,121 @@ function onProjectCreated(newProjectId: string) {
       </template>
     </div>
 
-    <!-- Center: Editor Controls (only on Designer/Content routes) -->
-    <div v-if="isProjectRoute && isEditorRoute" class="flex items-center gap-4">
+    <!-- Center: Editor Controls -->
+    <div v-if="isProjectRoute && isDesignerRoute" class="flex items-center gap-4">
       <!-- Undo/Redo Buttons -->
       <div class="flex items-center gap-1">
         <button
           class="p-1.5 rounded-md transition-colors"
-          :class="designerStore.canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
-          :disabled="!designerStore.canUndo"
+          :class="editor.canUndo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
+          :disabled="!editor.canUndo"
           title="Undo (⌘Z)"
-          @click="designerStore.undo()"
+          @click="editor.undo()"
         >
           <Icon name="app-undo" class="text-sm" />
         </button>
         <button
           class="p-1.5 rounded-md transition-colors"
-          :class="designerStore.canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
-          :disabled="!designerStore.canRedo"
+          :class="editor.canRedo ? 'text-muted-foreground hover:text-foreground hover:bg-secondary' : 'text-muted-foreground/30 cursor-not-allowed'"
+          :disabled="!editor.canRedo"
           title="Redo (⌘⇧Z)"
-          @click="designerStore.redo()"
+          @click="editor.redo()"
         >
           <Icon name="app-redo" class="text-sm" />
         </button>
       </div>
 
-      <div class="h-5 w-px bg-border"></div>
-
-      <!-- Viewport Toggle -->
-      <div class="flex items-center gap-1 p-1 rounded-lg bg-secondary">
+      <!-- View Mode Switcher (Desktop/Mobile) -->
+      <div class="flex items-center gap-0.5 p-0.5 bg-secondary rounded-md">
         <button
-          class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-          :class="designerStore.viewport === 'desktop' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="designerStore.setViewport('desktop')"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors"
+          :class="editor.previewMode === 'desktop'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'"
+          title="Desktop view"
+          @click="editor.setPreviewMode('desktop')"
         >
-          Desktop
+          <Icon name="device-desktop" :size="14" />
+          <span>Desktop</span>
         </button>
         <button
-          class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-          :class="designerStore.viewport === 'tablet' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="designerStore.setViewport('tablet')"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors"
+          :class="editor.previewMode === 'mobile'
+            ? 'bg-background text-foreground shadow-sm'
+            : 'text-muted-foreground hover:text-foreground'"
+          title="Mobile view"
+          @click="editor.setPreviewMode('mobile')"
         >
-          Tablet
-        </button>
-        <button
-          class="px-3 py-1 text-xs font-medium rounded-md transition-colors"
-          :class="designerStore.viewport === 'mobile' ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-          @click="designerStore.setViewport('mobile')"
-        >
-          Mobile
+          <Icon name="device-mobile" :size="14" />
+          <span>Mobile</span>
         </button>
       </div>
 
-      <div class="h-5 w-px bg-border"></div>
-
       <!-- Language Selector -->
-      <Dropdown width="min-w-48">
+      <Dropdown ref="languageDropdownRef" align="left" width="min-w-48">
         <template #trigger="{ toggle }">
           <button
-            class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary text-foreground hover:bg-secondary/80 transition-colors whitespace-nowrap"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors"
+            :class="editor.hasTranslations
+              ? 'text-foreground hover:bg-accent'
+              : 'bg-secondary text-foreground hover:text-foreground hover:bg-secondary'"
             @click="toggle"
           >
-            <Icon name="globe-1" class="text-sm" />
-            <span>{{ currentLanguageDisplay }}</span>
-            <Icon name="chevron-down" :size="10" class="text-muted-foreground" />
+            <Icon name="app-language" :size="14" />
+            <span>{{ getCurrentLanguageLabel() }}</span>
+            <Icon name="chevron-down" :size="14" class="text-foreground" />
           </button>
         </template>
 
-        <!-- Default language option -->
-        <Dropdown.Item @click="handleLanguageChange(null)">
-          <span v-if="designerStore.currentLanguage === null" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
-          <span v-else class="w-1.5 h-1.5 shrink-0"></span>
-          <span>Default ({{ getLanguageByCode(designerStore.translations.defaultLanguage)?.name }})</span>
-        </Dropdown.Item>
-
-        <!-- Translation languages -->
-        <template v-if="designerStore.availableTranslations.length > 0">
+        <!-- No translations configured -->
+        <template v-if="!editor.hasTranslations">
+          <div class="px-3 py-2 text-xs text-muted-foreground">
+            No translations added yet
+          </div>
           <Dropdown.Divider />
-          <Dropdown.Item
-            v-for="langCode in designerStore.availableTranslations"
-            :key="langCode"
-            @click="handleLanguageChange(langCode)"
-          >
-            <span v-if="designerStore.currentLanguage === langCode" class="w-1.5 h-1.5 rounded-full bg-foreground shrink-0"></span>
-            <span v-else class="w-1.5 h-1.5 shrink-0"></span>
-            <span>{{ getLanguageByCode(langCode)?.name }}</span>
+          <Dropdown.Item icon="plus" @click="openTranslationModal">
+            Add Translation
           </Dropdown.Item>
         </template>
 
-        <!-- Translation settings option -->
-        <Dropdown.Divider />
-        <Dropdown.Item icon="app-settings" @click="showTranslateModal = true">
-          Translation Settings
-        </Dropdown.Item>
+        <!-- Translations configured - show language list -->
+        <template v-else>
+          <!-- Default language -->
+          <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            Default
+          </div>
+          <button
+            class="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+            :class="{ 'bg-accent': !editor.currentLanguage }"
+            @click="switchLanguage(editor.defaultLanguage)"
+          >
+            <span class="flex-1 text-left">{{ getLanguageLabel(editor.defaultLanguage) }}</span>
+            <Icon v-if="!editor.currentLanguage" name="checkmark" :size="14" class="text-primary" />
+          </button>
+
+          <!-- Other languages -->
+          <template v-if="editor.translationSettings?.languages.length">
+            <Dropdown.Divider />
+            <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+              Translations
+            </div>
+            <button
+              v-for="lang in editor.translationSettings?.languages"
+              :key="lang"
+              class="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
+              :class="{ 'bg-accent': editor.currentLanguage === lang }"
+              @click="switchLanguage(lang)"
+            >
+              <span class="flex-1 text-left">{{ getLanguageLabel(lang) }}</span>
+              <Icon v-if="editor.currentLanguage === lang" name="checkmark" :size="14" class="text-primary" />
+            </button>
+          </template>
+
+          <Dropdown.Divider />
+          <Dropdown.Item icon="plus" @click="openTranslationModal">
+            Manage Translations
+          </Dropdown.Item>
+        </template>
       </Dropdown>
     </div>
 
@@ -448,45 +420,20 @@ function onProjectCreated(newProjectId: string) {
         </Button>
       </template>
 
-      <!-- Project Route: AI Assistant + Save + Publish -->
+      <!-- Project Route: Save + Publish -->
       <template v-if="isProjectRoute && currentProject">
-        <!-- AI Assistant Button -->
-        <Button
-          variant="outline"
-          size="sm"
-          @click="showAIModal = true"
-        >
-          <Icon name="app-ai" class="text-xs" />
-          <span class="hidden lg:inline">AI Assistant</span>
-        </Button>
-
-        <!-- Collaborator Changes Alert -->
-        <Button
-          v-if="designerStore.hasCollaboratorChanges"
-          variant="outline"
-          size="sm"
-          class="text-amber-600 border-amber-300 hover:bg-amber-50"
-          @click="designerStore.reloadProjectContent()"
-        >
-          <Icon name="app-undo" class="text-xs" />
-          Reload
-        </Button>
-
-        <!-- Save Button -->
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="!canSave || (!designerStore.hasUnsavedChanges && !hasPendingChanges)"
-          @click="handleSave"
-        >
-          <span :class="['w-1.5 h-1.5 rounded-full shrink-0', saveStatusDotClass]"></span>
-          <span v-if="isOffline">Offline</span>
-          <span v-else-if="showRecovering">Reconnecting...</span>
-          <span v-else-if="isUnhealthy">Connection Issue</span>
-          <span v-else-if="isSyncing || designerStore.isSaving">Syncing...</span>
-          <span v-else-if="designerStore.hasUnsavedChanges || hasPendingChanges">Save</span>
-          <span v-else>Saved</span>
-        </Button>
+        <!-- Save indicator -->
+        <div class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md">
+          <span
+            :class="[
+              'w-1.5 h-1.5 rounded-full',
+              editor.isDirty ? 'bg-amber-500' : 'bg-green-500'
+            ]"
+          ></span>
+          <span class="text-muted-foreground">
+            {{ editor.isDirty ? 'Unsaved' : 'Saved' }}
+          </span>
+        </div>
 
         <!-- Publish Button -->
         <Button size="sm" :loading="isPublishing" @click="handlePublish">
@@ -538,9 +485,6 @@ function onProjectCreated(newProjectId: string) {
     @select="handleCommandSelect"
   />
 
-  <!-- Translation Modal -->
-  <ProjectTranslate v-model:open="showTranslateModal" />
-
   <!-- Published Modal -->
   <ProjectPublished
     v-if="currentProject"
@@ -550,12 +494,14 @@ function onProjectCreated(newProjectId: string) {
     :custom-domain="currentProject.customDomain"
   />
 
-  <!-- New Project Wizard -->
-  <ProjectCreateWizard
+  <!-- New Project Modal -->
+  <ProjectCreate
     v-model:open="showNewProjectModal"
     @created="onProjectCreated"
   />
 
-  <!-- AI Assistant Modal -->
-  <AIAssistant v-model:open="showAIModal" />
+  <!-- Translation Modal -->
+  <ProjectTranslation
+    v-model:open="showTranslationModal"
+  />
 </template>

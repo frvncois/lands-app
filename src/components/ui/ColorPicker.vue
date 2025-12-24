@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useDesignerStore } from '@/stores/designer'
+import { useEditorStore } from '@/stores/editor'
 
 const props = defineProps<{
   modelValue: string | undefined
@@ -14,7 +14,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const designerStore = useDesignerStore()
+const editor = useEditorStore()
 
 const isOpen = ref(false)
 const triggerRef = ref<HTMLElement | null>(null)
@@ -146,7 +146,7 @@ onUnmounted(() => {
 })
 
 function loadRecentColors() {
-  const projectId = designerStore.currentProjectId
+  const projectId = editor.projectId
   if (!projectId) return
 
   const stored = localStorage.getItem(`recentColors_${projectId}`)
@@ -160,7 +160,7 @@ function loadRecentColors() {
 }
 
 function saveRecentColor(color: string) {
-  const projectId = designerStore.currentProjectId
+  const projectId = editor.projectId
   if (!projectId || !color) return
 
   const normalizedColor = color.toUpperCase()
@@ -444,7 +444,7 @@ function clearColor() {
       </div>
 
       <!-- HEX Input + None button -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center">
         <input
           type="text"
           :value="localValue"
@@ -469,7 +469,7 @@ function clearColor() {
     </div>
 
     <!-- Swatch-only with HEX input -->
-    <div v-else-if="swatchOnly" class="flex items-center gap-2">
+    <div v-else-if="swatchOnly" class="flex items-center">
       <!-- HEX value input -->
       <input
         type="text"
@@ -504,7 +504,7 @@ function clearColor() {
       v-else
       ref="triggerRef"
       type="button"
-      class="flex items-center gap-2 w-full h-9 px-2 bg-secondary border border-border rounded-md hover:bg-secondary/80 transition-colors"
+      class="flex items-center w-full h-9 px-2 bg-secondary border border-border rounded-md hover:bg-secondary/80 transition-colors"
       @click="togglePopover"
     >
       <!-- Color preview swatch -->
@@ -630,12 +630,12 @@ function clearColor() {
         </div>
 
         <!-- HEX Input + None button -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center justify-between">
           <input
             type="text"
             :value="localValue"
             placeholder="#000000"
-            class="flex-1 h-8 px-3 text-sm bg-secondary border border-border rounded-md text-foreground placeholder:text-muted-foreground font-mono uppercase"
+            class="w-20 h-6 px-1.5 text-xxs font-mono text-muted-foreground bg-transparent focus:outline-none focus:ring-0 uppercase placeholder:normal-case"
             maxlength="7"
             @input="handleHexInput"
             @blur="handleHexBlur"

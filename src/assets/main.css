@@ -8,6 +8,248 @@
 @import '@fontsource/geist-mono/600.css';
 @import '@fontsource/geist-mono/700.css';
 
+/* ============================================
+   CUSTOM FONTS
+   Local fonts from /assets/fonts
+   ============================================ */
+
+/* Satoshi - Modern geometric sans-serif */
+@font-face {
+  font-family: 'Satoshi';
+  src: url('./fonts/Satoshi/Satoshi-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Clash Grotesk - Bold display sans */
+@font-face {
+  font-family: 'Clash Grotesk';
+  src: url('./fonts/ClashGrotesk/ClashGrotesk-Variable.woff2') format('woff2');
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Cabinet Grotesk - Clean grotesque */
+@font-face {
+  font-family: 'Cabinet Grotesk';
+  src: url('./fonts/CabinetGrotesk/CabinetGrotesk-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Switzer - Neutral Swiss style */
+@font-face {
+  font-family: 'Switzer';
+  src: url('./fonts/Switzer/Switzer-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Supreme - Contemporary sans */
+@font-face {
+  font-family: 'Supreme';
+  src: url('./fonts/Supreme/Supreme-Variable.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Public Sans - US Government font */
+@font-face {
+  font-family: 'Public Sans';
+  src: url('./fonts/PublicSans/PublicSans-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Familjen Grotesk - Friendly grotesque */
+@font-face {
+  font-family: 'Familjen Grotesk';
+  src: url('./fonts/FamiljenGrotesk/FamiljenGrotesk-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ranade - Geometric humanist */
+@font-face {
+  font-family: 'Ranade';
+  src: url('./fonts/Ranade/Ranade-Variable.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Author - Elegant serif */
+@font-face {
+  font-family: 'Author';
+  src: url('./fonts/Author/Author-Variable.woff2') format('woff2');
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Boska - Editorial serif */
+@font-face {
+  font-family: 'Boska';
+  src: url('./fonts/Boska/Boska-Variable.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Instrument Serif - Classic serif */
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('./fonts/InstrumentSerif/InstrumentSerif-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('./fonts/InstrumentSerif/InstrumentSerif-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Rowan - Warm serif */
+@font-face {
+  font-family: 'Rowan';
+  src: url('./fonts/Rowan/Rowan-Variable.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Quilon - Modern serif */
+@font-face {
+  font-family: 'Quilon';
+  src: url('./fonts/Quilon/Quilon-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Melodrama - Display serif */
+@font-face {
+  font-family: 'Melodrama';
+  src: url('./fonts/Melodrama/Melodrama-Variable.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Telma - Rounded friendly */
+@font-face {
+  font-family: 'Telma';
+  src: url('./fonts/Telma/Telma-Variable.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Pramukh Rounded - Soft rounded */
+@font-face {
+  font-family: 'Pramukh Rounded';
+  src: url('./fonts/PramukhRounded/PramukhRounded-Variable.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Hoover - Retro rounded */
+@font-face {
+  font-family: 'Hoover';
+  src: url('./fonts/Hoover/Hoover-Variable.woff2') format('woff2');
+  font-weight: 100 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Sharpie - Marker style */
+@font-face {
+  font-family: 'Sharpie';
+  src: url('./fonts/Sharpie/Sharpie-Variable.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Styro - Stencil display */
+@font-face {
+  font-family: 'Styro';
+  src: url('./fonts/Styro/Styro-Variable.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* New Title - Display title */
+@font-face {
+  font-family: 'New Title';
+  src: url('./fonts/NewTitle/NewTitle-Variable.woff2') format('woff2');
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Display fonts (single weight) */
+@font-face {
+  font-family: 'Aktura';
+  src: url('./fonts/Aktura/Aktura-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Boxing';
+  src: url('./fonts/Boxing/Boxing-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kihim';
+  src: url('./fonts/Kihim/Kihim-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Rosaline';
+  src: url('./fonts/Rosaline/Rosaline-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stardom';
+  src: url('./fonts/Stardom/Stardom-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pencerio';
+  src: url('./fonts/Pencerio/Pencerio-Hairline.woff2') format('woff2');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -65,10 +307,10 @@
 
 /* Dark theme overrides */
 .dark {
-  --color-background: oklch(14.958% 0.00002 271.152);
+  --color-background: oklch(0.175 0 0);
   --color-foreground: oklch(0.85 0 0);
 
-  --color-card: oklch(0.175 0 0);
+  --color-card: oklch(0.195 0 0);
   --color-card-foreground: oklch(0.985 0 0);
 
   --color-border-outline: oklch(45.721% 0.30221 265.119);

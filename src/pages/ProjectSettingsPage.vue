@@ -71,7 +71,7 @@ watch(
 
 <template>
   <div class="flex-1 h-full overflow-y-auto bg-background">
-    <div class="max-w-6xl mx-auto p-8">
+    <div class="max-w-6xl mx-auto p-10">
       <Header
         title="Project Settings"
         description="Manage your project configuration, publishing, and integrations."

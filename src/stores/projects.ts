@@ -2,19 +2,28 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase, ensureHealthy } from '@/lib/supabase'
 import type { Json } from '@/lib/supabase/types'
-import type { Project, ProjectIntegration, IntegrationProvider, ProjectContent, Collaborator, CollaboratorInvite, CollaboratorRole } from '@/types/project'
-import { getDefaultPageSettings } from '@/lib/designer-utils'
+import type { Project, ProjectIntegration, IntegrationProvider, PageContent, Collaborator, CollaboratorInvite, CollaboratorRole } from '@/types/project'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/stores/toast'
-import type { ProjectLayout, ColorPalette, StylePreset, LayoutStyle, UseCaseCategory } from '@/lib/layouts'
-import { generateProjectFromWizard } from '@/lib/layouts'
+
+// Default content for new projects
+function createDefaultPageContent(): PageContent {
+  return {
+    themeId: 'minimal',
+    sections: [],
+    meta: {
+      title: '',
+      description: '',
+    },
+  }
+}
 
 export const useProjectsStore = defineStore('projects', () => {
   const toast = useToast()
 
   // State
   const projects = ref<Project[]>([])
-  const projectContents = ref<Map<string, ProjectContent>>(new Map())
+  const projectContents = ref<Map<string, PageContent>>(new Map())
   const integrations = ref<ProjectIntegration[]>([])
   const collaborators = ref<Collaborator[]>([])
   const collaboratorInvites = ref<CollaboratorInvite[]>([])
@@ -38,7 +47,7 @@ export const useProjectsStore = defineStore('projects', () => {
     return integrations.value.find(i => i.projectId === projectId && i.provider === provider)
   }
 
-  function getProjectContent(projectId: string): ProjectContent | undefined {
+  function getProjectContent(projectId: string): PageContent | undefined {
     return projectContents.value.get(projectId)
   }
 
@@ -105,7 +114,7 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function createProject(title: string, layout?: ProjectLayout, customSlug?: string, retryCount = 0): Promise<Project | null> {
+  async function createProject(title: string, customSlug?: string, retryCount = 0): Promise<Project | null> {
     const MAX_RETRIES = 1
     const userStore = useUserStore()
 
@@ -126,7 +135,7 @@ export const useProjectsStore = defineStore('projects', () => {
         const recovered = await ensureHealthy()
         if (recovered) {
           console.log('Connection recovered, retrying create...')
-          return createProject(title, layout, customSlug, retryCount + 1)
+          return createProject(title, customSlug, retryCount + 1)
         }
       }
 
@@ -141,16 +150,9 @@ export const useProjectsStore = defineStore('projects', () => {
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '')
 
-    // Use layout content if provided, otherwise use defaults
-    const defaultContent: ProjectContent = layout
-      ? {
-          blocks: layout.blocks,
-          pageSettings: layout.pageSettings,
-        }
-      : {
-          blocks: [],
-          pageSettings: getDefaultPageSettings(),
-        }
+    // Create default content for new projects
+    const defaultContent = createDefaultPageContent()
+    defaultContent.meta.title = title
 
     try {
       console.log('createProject: Inserting project for user', userStore.authUser.id)
@@ -181,7 +183,7 @@ export const useProjectsStore = defineStore('projects', () => {
           const recovered = await ensureHealthy()
           if (recovered) {
             console.log('Connection recovered, retrying create...')
-            return createProject(title, layout, customSlug, retryCount + 1)
+            return createProject(title, customSlug, retryCount + 1)
           }
         }
 
@@ -190,11 +192,11 @@ export const useProjectsStore = defineStore('projects', () => {
 
       console.log('createProject: Project created', data)
 
-      // Insert default content
+      // Insert default content (storing sections in blocks column, meta in page_settings)
       const { error: contentError } = await supabase.from('project_content').insert({
         project_id: data.id,
-        blocks: defaultContent.blocks as unknown as Json,
-        page_settings: defaultContent.pageSettings as unknown as Json,
+        blocks: { themeId: defaultContent.themeId, sections: defaultContent.sections } as unknown as Json,
+        page_settings: defaultContent.meta as unknown as Json,
       })
 
       if (contentError) {
@@ -216,45 +218,6 @@ export const useProjectsStore = defineStore('projects', () => {
       toast.error('Failed to create project', errorMessage)
       return null
     }
-  }
-
-  /**
-   * Create a project from wizard selections
-   */
-  interface WizardOptions {
-    title: string
-    description?: string
-    useCase: UseCaseCategory
-    sections: string[]
-    layoutStyle: LayoutStyle
-    palette: ColorPalette
-    style: StylePreset
-  }
-
-  async function createProjectFromWizard(options: WizardOptions): Promise<Project | null> {
-    const { title, description, useCase, sections, layoutStyle, palette, style } = options
-
-    // Generate project content from wizard selections
-    const generated = generateProjectFromWizard({
-      useCase,
-      sections,
-      layoutStyle,
-      palette,
-      style,
-    })
-
-    // Create project layout from generated content
-    const layout: ProjectLayout = {
-      id: 'wizard-generated',
-      name: title,
-      description: description || '',
-      useCase,
-      pageSettings: generated.pageSettings,
-      blocks: generated.blocks,
-    }
-
-    // Use the existing createProject method with the generated layout
-    return createProject(title, layout)
   }
 
   async function updateProject(id: string, updates: Partial<Project>): Promise<boolean> {
@@ -342,7 +305,7 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function fetchProjectContent(projectId: string): Promise<ProjectContent | null> {
+  async function fetchProjectContent(projectId: string): Promise<PageContent | null> {
     try {
       const { data, error: fetchError } = await supabase
         .from('project_content')
@@ -353,25 +316,35 @@ export const useProjectsStore = defineStore('projects', () => {
       if (fetchError) throw fetchError
 
       if (data) {
-        // Extract translations and components from page_settings (they're stored embedded)
-        const rawPageSettings = data.page_settings as Record<string, unknown> | null
-        const { translations, components, ...pageSettings } = rawPageSettings || {}
+        // New format: blocks contains { themeId, sections, translation, translations }, page_settings contains meta
+        const blocksData = data.blocks as Record<string, unknown> | null
+        const metaData = data.page_settings as Record<string, unknown> | null
 
-        const content: ProjectContent = {
-          blocks: data.blocks as unknown as ProjectContent['blocks'],
-          pageSettings: pageSettings as unknown as ProjectContent['pageSettings'],
-          translations: translations as ProjectContent['translations'],
-          components: components as ProjectContent['components'],
+        const content: PageContent = {
+          themeId: (blocksData?.themeId as string) || 'minimal',
+          sections: (blocksData?.sections as PageContent['sections']) || [],
+          meta: {
+            title: (metaData?.title as string) || '',
+            description: (metaData?.description as string) || '',
+            ogImage: metaData?.ogImage as string,
+            favicon: metaData?.favicon as string,
+          },
         }
+
+        // Load translation data if present
+        if (blocksData?.translation) {
+          content.translation = blocksData.translation as PageContent['translation']
+        }
+        if (blocksData?.translations) {
+          content.translations = blocksData.translations as PageContent['translations']
+        }
+
         projectContents.value.set(projectId, content)
         return content
       }
 
       // Return default content if none exists
-      const defaultContent: ProjectContent = {
-        blocks: [],
-        pageSettings: getDefaultPageSettings(),
-      }
+      const defaultContent = createDefaultPageContent()
       projectContents.value.set(projectId, defaultContent)
       return defaultContent
     } catch (e) {
@@ -380,7 +353,7 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function saveProjectContent(projectId: string, content: ProjectContent, retryCount = 0): Promise<boolean> {
+  async function saveProjectContent(projectId: string, content: PageContent, retryCount = 0): Promise<boolean> {
     const MAX_RETRIES = 1
 
     // Check if user is authenticated before attempting save
@@ -421,11 +394,18 @@ export const useProjectsStore = defineStore('projects', () => {
     }
 
     try {
-      // Prepare page_settings with translations and components embedded
-      const pageSettingsWithExtra = {
-        ...content.pageSettings,
-        translations: content.translations,
-        components: content.components,
+      // Store sections, theme, and translations in blocks column; meta in page_settings
+      const blocksData: Record<string, unknown> = {
+        themeId: content.themeId,
+        sections: content.sections,
+      }
+
+      // Include translation data if present
+      if (content.translation) {
+        blocksData.translation = content.translation
+      }
+      if (content.translations) {
+        blocksData.translations = content.translations
       }
 
       const { error: upsertError } = await supabase
@@ -433,8 +413,8 @@ export const useProjectsStore = defineStore('projects', () => {
         .upsert(
           {
             project_id: projectId,
-            blocks: content.blocks as unknown as Json,
-            page_settings: pageSettingsWithExtra as unknown as Json,
+            blocks: blocksData as unknown as Json,
+            page_settings: content.meta as unknown as Json,
             updated_at: new Date().toISOString(),
           },
           {
@@ -525,14 +505,25 @@ export const useProjectsStore = defineStore('projects', () => {
 
       // Copy the content too
       const originalContent = projectContents.value.get(id)
-      const newContent: ProjectContent = originalContent
+      const newContent: PageContent = originalContent
         ? JSON.parse(JSON.stringify(originalContent))
-        : { blocks: [], pageSettings: getDefaultPageSettings() }
+        : createDefaultPageContent()
+
+      const blocksData: Record<string, unknown> = {
+        themeId: newContent.themeId,
+        sections: newContent.sections,
+      }
+      if (newContent.translation) {
+        blocksData.translation = newContent.translation
+      }
+      if (newContent.translations) {
+        blocksData.translations = newContent.translations
+      }
 
       await supabase.from('project_content').insert({
         project_id: data.id,
-        blocks: newContent.blocks as unknown as Json,
-        page_settings: newContent.pageSettings as unknown as Json,
+        blocks: blocksData as unknown as Json,
+        page_settings: newContent.meta as unknown as Json,
       })
 
       const newProject = mapDbToProject(data)
@@ -1073,7 +1064,6 @@ export const useProjectsStore = defineStore('projects', () => {
     // Actions - Projects
     fetchProjects,
     createProject,
-    createProjectFromWizard,
     updateProject,
     deleteProject,
     duplicateProject,

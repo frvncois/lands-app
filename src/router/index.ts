@@ -56,12 +56,6 @@ const router = createRouter({
           meta: { requiresProject: true },
         },
         {
-          path: 'project/:projectId/content',
-          name: 'content',
-          component: () => import('@/views/ContentView.vue'),
-          meta: { requiresProject: true },
-        },
-        {
           path: 'project/:projectId/settings',
           name: 'settings',
           component: ProjectSettingsView,

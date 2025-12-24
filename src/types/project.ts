@@ -1,9 +1,71 @@
-import type { SectionBlock, PageSettings, ProjectTranslations, SavedComponent } from '@/types/designer'
+/**
+ * PROJECT TYPES
+ *
+ * Clean, consolidated project type definitions.
+ */
 
-// Project Plan Types
+import type { SectionInstance } from '@/types/sections'
+
+// ============================================
+// PAGE CONTENT
+// ============================================
+
+/** SEO and metadata for a page */
+export interface PageMeta {
+  title: string
+  description: string
+  ogImage?: string
+  favicon?: string
+}
+
+/** Translation settings */
+export interface TranslationSettings {
+  defaultLanguage: string
+  languages: string[]
+}
+
+/** Translated content for a section (only text and image fields) */
+export type TranslatedSectionData = Record<string, unknown>
+
+/** Translations map: language code -> section id -> field data */
+export type TranslationsMap = Record<string, Record<string, TranslatedSectionData>>
+
+/** The content of a page - what the editor manipulates */
+export interface PageContent {
+  themeId: string
+  sections: SectionInstance[]
+  meta: PageMeta
+  /** Translation settings (optional) */
+  translation?: TranslationSettings
+  /** Translated content per language */
+  translations?: TranslationsMap
+}
+
+// ============================================
+// PROJECT
+// ============================================
+
 export type ProjectPlan = 'free' | 'pro' | 'business'
 
-// Plan Feature Keys
+export interface Project {
+  id: string
+  userId: string
+  title: string
+  slug: string
+  description?: string
+  thumbnail?: string
+  isPublished: boolean
+  publishedUrl?: string
+  customDomain?: string
+  plan: ProjectPlan
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================
+// PLANS & FEATURES
+// ============================================
+
 export type PlanFeature =
   | 'landsDomain'
   | 'customDomain'
@@ -14,17 +76,15 @@ export type PlanFeature =
   | 'customFonts'
   | 'customCode'
 
-// Plan Definition
 export interface PlanDefinition {
   id: ProjectPlan
   name: string
-  price: number // Monthly price in USD, 0 for free
+  price: number
   description: string
   features: Record<PlanFeature, boolean>
-  featureLabels: string[] // Marketing-friendly feature list
+  featureLabels: string[]
 }
 
-// Plan Definitions
 export const PLAN_DEFINITIONS: Record<ProjectPlan, PlanDefinition> = {
   free: {
     id: 'free',
@@ -96,22 +156,18 @@ export const PLAN_DEFINITIONS: Record<ProjectPlan, PlanDefinition> = {
   },
 }
 
-// Helper to check if a plan has a specific feature
 export function planHasFeature(plan: ProjectPlan, feature: PlanFeature): boolean {
   return PLAN_DEFINITIONS[plan]?.features[feature] ?? false
 }
 
-// Helper to get plan definition
 export function getPlanDefinition(plan: ProjectPlan): PlanDefinition {
   return PLAN_DEFINITIONS[plan]
 }
 
-// Helper to check if upgrade is needed for a feature
-export function needsUpgradeForFeature(plan: ProjectPlan, feature: PlanFeature): boolean {
-  return !planHasFeature(plan, feature)
-}
+// ============================================
+// COLLABORATORS
+// ============================================
 
-// Collaborator Types
 export type CollaboratorRole = 'admin' | 'editor'
 export type InviteStatus = 'pending' | 'accepted' | 'declined' | 'expired'
 
@@ -139,7 +195,6 @@ export interface CollaboratorInvite {
   expiresAt: string
 }
 
-// Role permissions description
 export const COLLABORATOR_ROLE_INFO: Record<CollaboratorRole, { label: string; description: string }> = {
   admin: {
     label: 'Admin',
@@ -151,36 +206,10 @@ export const COLLABORATOR_ROLE_INFO: Record<CollaboratorRole, { label: string; d
   },
 }
 
-// Project Content (the actual page data)
-export interface ProjectContent {
-  blocks: SectionBlock[]
-  pageSettings: PageSettings
-  translations?: ProjectTranslations
-  components?: SavedComponent[]
-}
+// ============================================
+// INTEGRATIONS
+// ============================================
 
-// Project (for list/dashboard views)
-export interface Project {
-  id: string
-  userId: string
-  title: string
-  slug: string
-  description?: string
-  thumbnail?: string
-  isPublished: boolean
-  publishedUrl?: string
-  customDomain?: string
-  plan: ProjectPlan
-  createdAt: string
-  updatedAt: string
-}
-
-// Full Project with content (for editor)
-export interface ProjectWithContent extends Project {
-  content: ProjectContent
-}
-
-// Integration Types
 export type IntegrationType = 'email' | 'payment' | 'other'
 
 export type IntegrationProvider =
@@ -220,9 +249,7 @@ export interface IntegrationDefinition {
   configFields: IntegrationConfigField[]
 }
 
-// Available integration definitions (static)
 export const INTEGRATION_DEFINITIONS: IntegrationDefinition[] = [
-  // Email Marketing
   {
     id: 'mailchimp',
     name: 'Mailchimp',
@@ -252,7 +279,6 @@ export const INTEGRATION_DEFINITIONS: IntegrationDefinition[] = [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'Enter your API key', required: true },
     ],
   },
-  // Payment
   {
     id: 'stripe',
     name: 'Stripe',
@@ -283,7 +309,6 @@ export const INTEGRATION_DEFINITIONS: IntegrationDefinition[] = [
       { key: 'storeId', label: 'Store ID', type: 'text', placeholder: 'Enter store ID', required: true },
     ],
   },
-  // Other
   {
     id: 'zapier',
     name: 'Zapier',
@@ -313,7 +338,10 @@ export function getIntegrationsByCategory(category: IntegrationType): Integratio
   return INTEGRATION_DEFINITIONS.filter(d => d.category === category)
 }
 
-// SEO Settings
+// ============================================
+// PROJECT SETTINGS
+// ============================================
+
 export interface SEOSettings {
   metaTitle?: string
   metaDescription?: string
@@ -322,7 +350,6 @@ export interface SEOSettings {
   keywords?: string
 }
 
-// Analytics Settings (Umami-based)
 export interface AnalyticsSettings {
   enabled: boolean
   umamiSiteId?: string
@@ -331,7 +358,6 @@ export interface AnalyticsSettings {
   googleAnalyticsId?: string
 }
 
-// Publish Settings
 export interface PublishSettings {
   isPublished: boolean
   publishedAt?: string
@@ -339,14 +365,12 @@ export interface PublishSettings {
   password?: string
 }
 
-// Domain Settings
 export interface DomainSettings {
-  subdomain: string // e.g., "mysite" for mysite.lands.app
-  customDomain?: string // e.g., "www.example.com"
+  subdomain: string
+  customDomain?: string
   customDomainVerified: boolean
 }
 
-// Project Settings
 export interface ProjectSettings {
   id: string
   title: string
@@ -361,7 +385,6 @@ export interface ProjectSettings {
   plan: ProjectPlan
 }
 
-// Default project settings
 export function getDefaultProjectSettings(): ProjectSettings {
   return {
     id: '',
@@ -393,5 +416,24 @@ export function getDefaultProjectSettings(): ProjectSettings {
       customDomainVerified: false,
     },
     plan: 'free',
+  }
+}
+
+// ============================================
+// DEFAULTS
+// ============================================
+
+export function createDefaultPageMeta(): PageMeta {
+  return {
+    title: '',
+    description: '',
+  }
+}
+
+export function createDefaultPageContent(): PageContent {
+  return {
+    themeId: 'minimal',
+    sections: [],
+    meta: createDefaultPageMeta(),
   }
 }

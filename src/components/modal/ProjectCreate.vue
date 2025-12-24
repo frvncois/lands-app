@@ -154,7 +154,7 @@ async function createProject() {
 
   isCreating.value = true
   try {
-    const project = await projectsStore.createProject(projectTitle.value, undefined, projectSlug.value)
+    const project = await projectsStore.createProject(projectTitle.value, projectSlug.value)
     if (project) {
       emit('created', project.id)
       close()

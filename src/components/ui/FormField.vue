@@ -11,7 +11,7 @@ defineProps<Props>()
 
 <template>
   <div class="space-y-1.5">
-    <label v-if="label" class="flex items-center font-mono uppercase gap-1 text-xxs text-accent-foreground tracking-wide">
+    <label v-if="label" class="flex items-center gap-1 text-xs text-muted-foreground tracking-wide">
       {{ label }}
       <span v-if="required" class="text-destructive">*</span>
     </label>

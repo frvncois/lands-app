@@ -2,157 +2,222 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-**Lands** is a visual landing page builder SaaS. Users create and publish landing pages through a drag-and-drop WYSIWYG editor. Built with Vue 3, TypeScript, Pinia, and Supabase.
-
-## Commands
+## Development Commands
 
 ```bash
 npm run dev          # Start Vite dev server
-npm run build        # Type-check + production build
-npm run type-check   # Vue TSC type checking only
+npm run build        # Type-check + production build (parallel)
+npm run type-check   # Run vue-tsc for TypeScript validation
 npm run preview      # Preview production build
 ```
 
-## Architecture
+**Node requirement:** ^20.19.0 || >=22.12.0
 
-### Tech Stack
-- **Frontend**: Vue 3.5 (Composition API, `<script setup>`)
-- **Language**: TypeScript 5.9 (strict mode)
-- **Build**: Vite 7.2
-- **State**: Pinia 3.0
-- **Styling**: Tailwind CSS 4.1
-- **Backend**: Supabase (PostgreSQL + Auth + Edge Functions)
-- **Icons**: Lineicons + Lucide
-- **Fonts**: Geist Sans & Geist Mono
+## Architecture Overview
+
+This is **lands-app**, a Vue 3 landing page builder with section-based editing. Users create landing pages by adding, configuring, and styling pre-defined section types.
+
+### Core Concepts
+
+**Section-Based Architecture** (not block-by-block):
+- `SectionDefinition` = structure + component + schema (in `lib/section-registry.ts`)
+- `SectionInstance` = content data + style overrides (stored in editor state)
+- Section components receive props and emit `update`/`selectField` events
+- Inspector UI is auto-generated from section field schemas
+
+**Theme System:**
+- Themes are pure data (`lib/themes/`) defining tokens: colors, fonts, spacing, radius, buttons
+- Applied as CSS variables to document root for preview
+- Per-section and per-field style overrides layer on top of base theme
 
 ### Directory Structure
 
 ```
 src/
 ├── components/
-│   ├── builder/       # Designer UI (Sidebar, Preview, Inspector)
-│   ├── inspector/     # Property inputs and sections
-│   ├── preview/       # Block rendering components
-│   ├── modal/         # Dialog modals
-│   ├── ui/            # Design system components
-│   └── common/        # App shell (Header, Sidebar)
-├── stores/            # Pinia stores
-│   ├── designer.ts    # Main designer state + block operations
-│   ├── designer/      # Designer composables (history, clipboard, etc.)
-│   ├── projects.ts    # Project CRUD + collaborators
-│   ├── project.ts     # Single project settings
-│   └── user.ts        # Authentication + profile
-├── types/
-│   └── designer.ts    # Block types, settings, styles (~1200 lines)
+│   ├── editor/       # PageEditor, SectionList, StyleInspector, FieldRenderer
+│   ├── sections/     # Section components (Hero, Links, Features, etc.)
+│   ├── ui/           # 50+ base UI components (Button, Card, Modal, etc.)
+│   ├── auth/         # Login/signup
+│   ├── common/       # AppHeader, shared layout
+│   ├── modal/        # Dialogs (ProjectCreate, ProjectDelete, etc.)
+│   └── storefront/   # Published site display
+├── stores/           # Pinia state management
+│   ├── user.ts       # Auth + profile + preferences
+│   ├── projects.ts   # Projects collection + collaborators
+│   ├── project.ts    # Current project settings
+│   ├── editor.ts     # Sections, theme, undo/redo history
+│   └── toast.ts      # Notifications
 ├── lib/
-│   ├── designer-utils.ts  # Block factories, defaults, helpers
-│   ├── supabase/          # Database client + types
-│   └── designer/          # Save queue, offline store, diff
-├── views/             # Page components
-├── pages/             # Feature pages (analytics, integrations)
-├── features/          # Feature-specific composables
-└── router/            # Vue Router config
-
-supabase/
-├── migrations/        # Database schema
-└── functions/         # Edge functions (Deno)
+│   ├── supabase/     # Client setup, caching, connection health
+│   ├── themes/       # Theme definitions (minimal, bold, dark)
+│   └── section-registry.ts  # Section definitions + factory
+├── types/
+│   ├── sections.ts   # SectionInstance, FieldSchema, ThemeTokens
+│   └── project.ts    # Project, Collaborator, Integration types
+├── composables/      # useTheme, useFeatureGate, useProjectCapabilities
+├── views/            # Top-level pages (DesignerView, DashboardView, etc.)
+└── router/           # Vue Router config + auth guards
 ```
 
-### Key Stores
+### Key Patterns
 
-**`designer.ts`** - Central designer state:
-- `blocks: SectionBlock[]` - Page content tree
-- `pageSettings: PageSettings` - Global page config
-- `selectedBlockId` - Currently selected block
-- `blockIndex: Map<string, SectionBlock>` - O(1) lookups
-- Block CRUD: `addBlock()`, `deleteBlock()`, `duplicateBlock()`
-- History: `undo()`, `redo()` (max 10 snapshots)
-- Auto-save via queue-based system with diffs
+**Editor Layout (PageEditor.vue):**
+```
+┌────────────────────────────────────────────┐
+│              AppHeader + Toolbar            │
+├──────────────┬──────────────┬──────────────┤
+│ SectionList  │    Canvas    │   Style      │
+│   (left)     │   (center)   │  Inspector   │
+│              │              │   (right)    │
+└──────────────┴──────────────┴──────────────┘
+```
 
-**`projects.ts`** - Project management:
-- CRUD operations with optimistic updates
-- Collaborator invites and management
-- Project publishing via Edge Functions
-
-### Block System
-
-Blocks are the core content units. Each block has:
-- `id`, `type`, `name`
-- `settings` - Content configuration (text, URLs, etc.)
-- `styles` - Visual styling (padding, colors, etc.)
-- `children` - Nested blocks (for layout types)
-
-**Layout blocks** (can have children): `container`, `grid`, `stack`, `canvas`, `slider`, `form`
-**Content blocks**: `heading`, `text`, `image`, `video`, `button`, `icon`, `divider`
-**Form blocks** (only valid inside `form`): `form-input`, `form-textarea`, `form-checkbox`, `form-radio`, `form-button`, `form-label`
-
-Block operations always call `rebuildBlockIndex()` after structural changes. Use `canHaveChildren()` and `isFormChildBlock()` from `designer-utils.ts` to validate nesting.
-
-### Responsive Styles
-
-Styles support viewport overrides:
+**Section Component Contract:**
 ```typescript
-interface BaseBlockStyles extends CoreBlockStyles {
-  tablet?: Partial<CoreBlockStyles>
-  mobile?: Partial<CoreBlockStyles>
-}
+// Props
+data: TData              // Content from editor
+variant: string          // Layout variant
+editable?: boolean       // Edit mode flag
+activeField?: string     // Currently selected field
+fieldStyles?: FieldStyles
+sectionStyles?: SectionStyleProperties
+
+// Emits
+emit('update', key, value)    // Update field value
+emit('selectField', key)      // Select field for styling
 ```
-Desktop styles are base, tablet/mobile inherit and override.
 
-### File Conventions
+**Field Schema Types:** TextField, RichTextField, ImageField, UrlField, BooleanField, SelectField, RepeaterField
 
-- **Components**: PascalCase (`DesignerSidebar.vue`)
-- **Composables**: camelCase with `use` prefix (`useTheme.ts`)
-- **Stores**: camelCase (`designer.ts`)
-- **Utilities**: kebab-case (`designer-utils.ts`)
+### State Management
 
-### Path Alias
+- `useEditorStore`: Sections array, theme (base + overrides), history (max 50 states), dirty flag
+- `useUserStore`: Auth state, profile, preferences (light/dark/system theme)
+- `useProjectsStore`: All projects, project contents, integrations, collaborators
+- `useProjectStore`: Current project's extended settings (SEO, analytics, domains)
 
-`@/*` maps to `./src/*` (configured in `tsconfig.app.json`)
+### Supabase Integration
 
-## Key Patterns
+- PKCE auth flow with auto token refresh
+- In-memory cache: `cachedFetch(key, fetcher, ttl)`, `invalidateCache(prefix?)`
+- Connection health monitoring with recovery on tab visibility change
+- Tables: profiles, user_preferences, projects, project_settings, project_contents, project_integrations, collaborators
 
-1. **Block Index**: The designer store maintains `blockIndex: Map<string, SectionBlock>` for O(1) lookups. Always call `rebuildBlockIndex()` after structural changes.
+### Styling
 
-2. **Change Tracking**: Call `markAsChangedWithHistory()` before mutations to enable undo/redo and queue saves.
+- Tailwind CSS 4 with `@tailwindcss/vite` plugin
+- Theme tokens become CSS variables (`--color-primary`, `--font-heading`, `--spacing-section`)
+- 11 custom fonts loaded via @font-face in `assets/main.css`
+- Dark mode via `useTheme()` composable + `document.documentElement.classList.toggle('dark')`
 
-3. **Optimistic Updates**: Stores perform optimistic updates with rollback on failure.
+### Keyboard Shortcuts (in editor)
 
-4. **Composable Architecture**: Designer features are split into composables in `stores/designer/`:
-   - `useHistory` - Undo/redo
-   - `useClipboard` - Copy/paste
-   - `useSharedStyles` - Style presets
-   - `useTranslations` - i18n
+- `Cmd+Z` / `Cmd+Shift+Z`: Undo/redo
+- `Delete`/`Backspace`: Delete selected section
+- Arrow keys: Navigate between sections
 
-5. **Inspector Pattern**: Block inspectors are in `components/inspector/blocks/`. Use `useBlockInspector()` composable for common functionality.
+---
 
-6. **Block Creation**: Use factory functions from `designer-utils.ts` (`createSectionBlock()`, `duplicateSectionBlock()`) instead of manually constructing block objects. These ensure proper defaults and ID generation.
+## 🔒 Frozen Architecture (V2)
 
-7. **Style Utilities**: Use `getResponsiveStyles()` from `lib/style-utils.ts` to compute merged styles across viewports. Animation effects are in `lib/effect-utils.ts`.
+> ⚠️ HISTORICAL NOTE
+> The V2 section system freeze is no longer active.
+> This section is kept for reference only.
 
-## Environment
+The Lands V2 section system is **FROZEN**.
 
-Requires `.env` with:
-- `VITE_SUPABASE_URL` - Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon/public key
+Claude must treat the following as **non-negotiable constraints**:
 
-Never use service-role keys in frontend code; privileged operations belong in Edge Functions.
+### What Is Frozen
+- Section registry
+- Approved section list
+- Variants per section
+- Content schemas
+- Style options and their scoping rules
+- Inspector separation (Content vs Style)
 
-## Database
+### Approved Sections (V2)
+The ONLY allowed section types are:
 
-Uses Supabase with Row-Level Security:
-- `projects` - Project metadata
-- `project_content` - Blocks & page settings (JSONB)
-- `collaborators` / `collaborator_invites` - Team access
-- Edge functions use `service_role` for admin operations
+- header
+- hero
+- media-text
+- text
+- cards
+- links
+- accordion
+- cta
+- subscribe
+- contact
+- gallery
+- footer
+- logoList
+- promo
 
-## Supabase Edge Functions
+No other section types may exist in V2.
 
-Located in `supabase/functions/`:
-- `publish-project` - Deploy to CDN
-- `send-invite-email` - Collaboration invites
-- `integration-oauth` - OAuth flows
-- `google-fonts`, `unsplash-search` - External APIs
-- `ai-assistant` - AI-powered content generation
+### Hard Rules (Must Never Be Broken)
+- Do NOT add new sections
+- Do NOT add new variants
+- Do NOT add new style options
+- Do NOT add inspector UI without schema backing
+- Do NOT introduce layout logic into themes
+- Do NOT introduce theme logic into sections
+- Do NOT keep "temporary" or commented-out code paths
+
+### Allowed Extensions
+The ONLY allowed ways to extend Lands post-freeze are:
+- Client-specific custom blocks (namespaced, isolated)
+- Client-specific themes
+- Future V3 work in a separate branch
+
+Core V2 sections must NEVER be modified for client needs.
+
+### Audit Requirement
+Any attempt to change:
+- sections
+- variants
+- schemas
+- inspector behavior
+- registry contents
+
+REQUIRES a full system self-audit before implementation.
+
+Details are documented in FREEZE.md.
+
+Claude must obey these rules at all times.
+
+---
+
+## 🔓 Active Refactor Mode (V3)
+
+The Lands codebase is now in **Active Refactor Mode**.
+
+Claude is explicitly allowed to:
+- Modify section schemas
+- Add or remove fields
+- Add or remove style options
+- Change rendering behavior
+- Improve consistency across sections
+- Introduce new editor capabilities
+
+### Refactor Rules (Must Be Followed)
+
+Even though the freeze is lifted, the following rules apply:
+
+- Changes must be intentional, not accidental
+- Similar sections should converge, not diverge
+- Style systems must remain centralized
+- Field and section responsibilities must stay clear
+- No "temporary" hacks or commented-out logic
+- When a change affects multiple sections, it should be applied consistently
+
+### Required Discipline
+
+For every significant change, Claude must:
+- Explain WHY the change is needed
+- Explain WHAT existing behavior is replaced
+- Identify any breaking changes
+
+This is not experimentation — it is controlled evolution.
