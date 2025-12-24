@@ -13,7 +13,12 @@
  */
 
 import type { ContactData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles, ItemStyleProperties } from '@/types/sections'
+import type {
+  SectionStyleProperties,
+  FieldStyles,
+  ItemStyleProperties,
+  SelectionPayload,
+} from '@/types/sections'
 import ContactStacked from './contact/ContactStacked.vue'
 import ContactSplit from './contact/ContactSplit.vue'
 
@@ -31,12 +36,12 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
-function handleSelectField(fieldKey: string) {
-  emit('selectField', fieldKey)
+function handleSelectField(payload: SelectionPayload | string) {
+  emit('selectField', payload)
 }
 
 function handleUpdate(fieldKey: string, value: unknown) {

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <g id="apple-tv-remote-gen6" transform="translate(0 24) rotate(-90)">
+    <rect id="Rectangle_10" data-name="Rectangle 10" width="24" height="24" fill="none"/>
+    <rect id="Rectangle_11" data-name="Rectangle 11" width="24" height="24" fill="none"/>
+    <rect id="Rectangle_12" data-name="Rectangle 12" width="10" height="18" rx="2" transform="translate(17 21) rotate(180)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+    <circle id="Ellipse_1" data-name="Ellipse 1" cx="2.5" cy="2.5" r="2.5" transform="translate(9.5 6)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+    <line id="Line_17" data-name="Line 17" y2="2.5" transform="translate(13.5 14)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+    <path id="Path_54" data-name="Path 54" d="M10.5,14.019l-.005-.005.005-.005.005.005-.005.005" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+    <path id="Path_55" data-name="Path 55" d="M10.5,16.5l-.005,0,.005,0,.005,0-.005,0" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  </g>
+</svg>

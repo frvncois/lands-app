@@ -13,8 +13,16 @@
  * NO buttons - Cards is informational only.
  */
 
+import { computed } from 'vue'
+import { useEditorStore } from '@/stores/editor'
 import type { CardsData } from '@/lib/section-registry'
-import type { SectionStyleProperties, ItemStyleProperties, FieldStyles } from '@/types/sections'
+import type {
+  SectionStyleProperties,
+  ItemStyleProperties,
+  FieldStyles,
+  SelectionPayload,
+  ActiveNodeType,
+} from '@/types/sections'
 import CardsGrid from './cards/CardsGrid.vue'
 import CardsCarousel from './cards/CardsCarousel.vue'
 import CardsRow from './cards/CardsRow.vue'
@@ -26,17 +34,28 @@ const props = defineProps<{
   itemStyles?: ItemStyleProperties
   fieldStyles?: FieldStyles
   editable?: boolean
-  activeField?: string | null
   hiddenFields?: string[]
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload]
   'update': [fieldKey: string, value: unknown]
 }>()
 
-function handleSelectField(fieldKey: string) {
-  emit('selectField', fieldKey)
+const editor = useEditorStore()
+
+const currentNode = computed(() => {
+  if (!props.editable) return null
+  return editor.activeNode || null
+})
+
+const activeNodeId = computed(() => currentNode.value?.id ?? null)
+const activeNodeType = computed<ActiveNodeType | null>(() => currentNode.value?.type ?? null)
+const activeFieldKey = computed(() => currentNode.value?.fieldKey ?? null)
+const activeItemId = computed(() => currentNode.value?.itemId ?? null)
+
+function handleSelectField(payload: SelectionPayload) {
+  emit('selectField', payload)
 }
 
 function handleUpdate(fieldKey: string, value: unknown) {
@@ -52,7 +71,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :item-styles="itemStyles"
     :field-styles="fieldStyles"
     :editable="editable"
-    :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"
@@ -64,7 +86,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :item-styles="itemStyles"
     :field-styles="fieldStyles"
     :editable="editable"
-    :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"
@@ -76,7 +101,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :item-styles="itemStyles"
     :field-styles="fieldStyles"
     :editable="editable"
-    :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"

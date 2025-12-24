@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <g id="Group_2" data-name="Group 2" transform="translate(-502 -274)">
+    <g id="section-header" transform="translate(6 -9)">
+      <path id="Path_1" data-name="Path 1" d="M19.948,22H4.052A2.052,2.052,0,0,1,2,19.948v-4.9A2.052,2.052,0,0,1,4.052,13h15.9A2.052,2.052,0,0,1,22,15.052v4.9A2.052,2.052,0,0,1,19.948,22Z" transform="translate(496 278)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_2" data-name="Path 2" d="M17.931,19H12.069A1.07,1.07,0,0,1,11,17.931v-.862A1.07,1.07,0,0,1,12.069,16h5.862A1.07,1.07,0,0,1,19,17.069v.862A1.07,1.07,0,0,1,17.931,19Z" transform="translate(496 278)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_3" data-name="Path 3" d="M7.561,16.439a1.5,1.5,0,1,1-2.121,0,1.5,1.5,0,0,1,2.121,0" transform="translate(496 278)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+    </g>
+    <path id="Path_56" data-name="Path 56" d="M24,24H0V0H24Z" transform="translate(502 274)" fill="none"/>
+  </g>
+</svg>

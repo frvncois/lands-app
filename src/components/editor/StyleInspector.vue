@@ -33,8 +33,13 @@ const currentTheme = computed(() => editor.theme)
 const selectedSection = computed(() => editor.selectedSection)
 const selectedDefinition = computed(() => editor.selectedSectionDefinition)
 const variants = computed(() => editor.selectedSectionVariants)
-const activeField = computed(() => editor.activeField)
+const activeNode = computed(() => editor.activeNode)
+const activeFieldKey = computed(() => editor.activeFieldKey)
+const activeFieldPath = computed(() => editor.activeFieldPath)
+const activeItemId = computed(() => editor.activeItemId)
 const activeItemIndex = computed(() => editor.activeItemIndex)
+const isFormContext = computed(() => editor.isFormSelection)
+const isEditingItem = computed(() => activeNode.value?.type === 'item')
 
 // Get section data with translations applied (if editing a translated language)
 const sectionData = computed(() => {
@@ -50,58 +55,45 @@ const editingImageField = ref<string | null>(null) // For repeater item image fi
 function handleImageUploaded(url: string) {
   if (!selectedSection.value) return
 
-  // Check if we're editing a repeater item media field (nested object with src)
-  if (editingMediaField.value && activeItemIndex.value !== null && activeField.value) {
+  if (editingMediaField.value && isEditingItem.value && activeFieldKey.value && activeItemId.value) {
     const currentMedia = (activeItemData.value?.[editingMediaField.value] as { type?: string }) || {}
     updateItemField(editingMediaField.value, { type: currentMedia.type || 'image', src: url, alt: '' })
     editingMediaField.value = null
-  }
-  // Check if we're editing a repeater item image field
-  else if (editingImageField.value && activeItemIndex.value !== null && activeField.value) {
+  } else if (editingImageField.value && isEditingItem.value && activeFieldKey.value && activeItemId.value) {
     updateItemField(editingImageField.value, url)
     editingImageField.value = null
-  }
-  // Check if we're editing a top-level media field (object with src)
-  else if (isTopLevelMediaField() && activeField.value) {
+  } else if (isTopLevelMediaField() && activeFieldKey.value) {
     const currentType = getMediaType()
-    updateField(activeField.value, { type: currentType, src: url, alt: '' })
-  }
-  else if (activeField.value) {
-    updateField(activeField.value, url)
+    updateField(activeFieldKey.value, { type: currentType, src: url, alt: '' })
+  } else if (activeFieldKey.value) {
+    updateField(activeFieldKey.value, url)
   }
 }
 
 function handleUnsplashSelect(url: string) {
   if (!selectedSection.value) return
 
-  // Check if we're editing a repeater item media field (nested object with src)
-  if (editingMediaField.value && activeItemIndex.value !== null && activeField.value) {
+  if (editingMediaField.value && isEditingItem.value && activeFieldKey.value && activeItemId.value) {
     const currentMedia = (activeItemData.value?.[editingMediaField.value] as { type?: string }) || {}
     updateItemField(editingMediaField.value, { type: currentMedia.type || 'image', src: url, alt: '' })
     editingMediaField.value = null
-  }
-  // Check if we're editing a repeater item image field
-  else if (editingImageField.value && activeItemIndex.value !== null && activeField.value) {
+  } else if (editingImageField.value && isEditingItem.value && activeFieldKey.value && activeItemId.value) {
     updateItemField(editingImageField.value, url)
     editingImageField.value = null
-  }
-  // Check if we're editing a top-level media field (object with src)
-  else if (isTopLevelMediaField() && activeField.value) {
+  } else if (isTopLevelMediaField() && activeFieldKey.value) {
     const currentType = getMediaType()
-    updateField(activeField.value, { type: currentType, src: url, alt: '' })
-  }
-  else if (activeField.value) {
-    updateField(activeField.value, url)
+    updateField(activeFieldKey.value, { type: currentType, src: url, alt: '' })
+  } else if (activeFieldKey.value) {
+    updateField(activeFieldKey.value, url)
   }
 }
 
 function removeImage() {
-  if (!selectedSection.value || !activeField.value) return
-  // For top-level media fields, clear the entire object
+  if (!selectedSection.value || !activeFieldKey.value) return
   if (isTopLevelMediaField()) {
-    updateField(activeField.value, { type: 'image', src: '', alt: '' })
+    updateField(activeFieldKey.value, { type: 'image', src: '', alt: '' })
   } else {
-    updateField(activeField.value, '')
+    updateField(activeFieldKey.value, '')
   }
 }
 
@@ -142,10 +134,16 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   }, obj)
 }
 
+function getNestedItems(obj: Record<string, unknown>, path: string): Record<string, unknown>[] | null {
+  const value = getNestedValue(obj, path)
+  if (!Array.isArray(value)) return null
+  return value as Record<string, unknown>[]
+}
+
 // Helper to check if current field is a top-level media field (object with src, not string)
 function isTopLevelMediaField(): boolean {
   if (!activeFieldDef.value || activeFieldDef.value.type !== 'media') return false
-  if (activeItemIndex.value !== null) return false // In repeater item, handled separately
+  if (isEditingItem.value) return false // In repeater item, handled separately
   return true
 }
 
@@ -169,9 +167,9 @@ function getMediaType(): 'image' | 'video' {
 
 // Helper to update media type for top-level media field
 function setMediaType(newType: 'image' | 'video') {
-  if (!activeFieldDef.value || !activeField.value) return
+  if (!activeFieldDef.value || !activeFieldKey.value) return
   const currentMedia = sectionData.value[activeFieldDef.value.key] as { type?: string; src?: string; alt?: string } | undefined
-  updateField(activeField.value, {
+  updateField(activeFieldKey.value, {
     type: newType,
     src: currentMedia?.src || '',
     alt: currentMedia?.alt || ''
@@ -235,22 +233,14 @@ function getFontLabel(value: string): string {
 
 // Get the active field definition
 const activeFieldDef = computed(() => {
-  if (!activeField.value || !selectedDefinition.value) return null
-  return selectedDefinition.value.schema.find(f => f.key === activeField.value)
+  if (!activeFieldKey.value || !selectedDefinition.value) return null
+  return selectedDefinition.value.schema.find(f => f.key === activeFieldKey.value)
 })
 
 // Get the active field value using nested path resolution
 const activeFieldValue = computed(() => {
   if (!activeFieldDef.value) return ''
   return getNestedValue(sectionData.value, activeFieldDef.value.key) ?? ''
-})
-
-// Check if we're in form context (contact section form)
-// Uses simple prefix check - 'form.' is unique to contact sections
-const isFormContext = computed(() => {
-  const field = activeField.value
-  if (!field) return false
-  return field.startsWith('form.')
 })
 
 // Get form fields array for form inspector
@@ -270,55 +260,64 @@ const formSubmitLabel = computed(() => {
 // Add a new form field
 function addFormField() {
   if (!selectedSection.value) return
-  const currentFields = formFields.value as Record<string, unknown>[]
-  const newField = { name: 'New Field', type: 'text', placeholder: '' }
-  updateField('form.fields', [...currentFields, newField])
+  editor.addRepeaterItem(selectedSection.value.id, 'form.fields')
 }
 
 // Remove a form field
 function removeFormField(index: number) {
   if (!selectedSection.value) return
-  const currentFields = [...formFields.value] as Record<string, unknown>[]
-  currentFields.splice(index, 1)
-  updateField('form.fields', currentFields)
+  const id = getFormFieldId(index)
+  if (!id) return
+  editor.removeRepeaterItem(selectedSection.value.id, 'form.fields', id)
 }
 
 // Update a form field property
 function updateFormField(index: number, key: string, value: unknown) {
   if (!selectedSection.value) return
-  const currentFields = [...formFields.value] as Record<string, unknown>[]
-  currentFields[index] = { ...currentFields[index], [key]: value }
-  updateField('form.fields', currentFields)
+  const id = getFormFieldId(index)
+  if (!id) return
+  editor.updateRepeaterItem(selectedSection.value.id, 'form.fields', id, { [key]: value })
 }
 
 // Select a specific form field
 function selectFormField(index: number) {
-  editor.setActiveField('form.fields')
-  editor.setActiveItem(index)
+  if (!selectedSection.value) return
+  const id = getFormFieldId(index)
+  editor.selectFormNode(selectedSection.value.id, id)
 }
 
 // Move form field up
 function moveFormFieldUp(index: number) {
   if (index <= 0 || !selectedSection.value) return
-  const currentFields = [...formFields.value] as Record<string, unknown>[]
-  const temp = currentFields[index]!
-  currentFields[index] = currentFields[index - 1]!
-  currentFields[index - 1] = temp
-  updateField('form.fields', currentFields)
-  // Keep selection on the moved item
-  editor.setActiveItem(index - 1)
+  const id = getFormFieldId(index)
+  if (!id) return
+  editor.reorderRepeaterItem(selectedSection.value.id, 'form.fields', id, index - 1)
+  editor.selectFormNode(selectedSection.value.id, id)
 }
 
 // Move form field down
 function moveFormFieldDown(index: number) {
   if (index >= formFields.value.length - 1 || !selectedSection.value) return
-  const currentFields = [...formFields.value] as Record<string, unknown>[]
-  const temp = currentFields[index]!
-  currentFields[index] = currentFields[index + 1]!
-  currentFields[index + 1] = temp
-  updateField('form.fields', currentFields)
-  // Keep selection on the moved item
-  editor.setActiveItem(index + 1)
+  const id = getFormFieldId(index)
+  if (!id) return
+  editor.reorderRepeaterItem(selectedSection.value.id, 'form.fields', id, index + 1)
+  editor.selectFormNode(selectedSection.value.id, id)
+}
+
+function getFormFieldId(index: number): string | undefined {
+  if (!selectedSection.value) return undefined
+  const form = (selectedSection.value.data.form as { fields?: Record<string, unknown>[] } | undefined)?.fields
+  const field = form?.[index]
+  const id = field && typeof field === 'object' ? (field as Record<string, unknown>).id : undefined
+  return typeof id === 'string' ? id : undefined
+}
+
+function getRepeaterItemId(index: number): string | undefined {
+  if (!selectedSection.value || !activeFieldDef.value) return undefined
+  const items = getNestedItems(selectedSection.value.data, activeFieldDef.value.key)
+  const item = items?.[index]
+  const id = item && typeof item === 'object' ? (item as Record<string, unknown>).id : undefined
+  return typeof id === 'string' ? id : undefined
 }
 
 // Get form input styles
@@ -361,7 +360,10 @@ function addRepeaterItem() {
 
 // Select repeater item for editing
 function selectRepeaterItem(index: number) {
-  editor.setActiveItem(index)
+  if (!selectedSection.value || !activeFieldDef.value) return
+  const id = getRepeaterItemId(index)
+  if (!id) return
+  editor.selectItemNode(selectedSection.value.id, activeFieldDef.value.key, id)
 }
 
 // Get item label for repeater list
@@ -377,11 +379,6 @@ function getRepeaterItemLabel(item: unknown, index: number): string {
   }
   return `Item ${index + 1}`
 }
-
-// Check if we're editing a repeater item
-const isEditingItem = computed(() => {
-  return activeFieldDef.value?.type === 'repeater' && activeItemIndex.value !== null
-})
 
 // Get the repeater field definition
 const activeRepeaterDef = computed(() => {
@@ -413,9 +410,13 @@ const activeItemSchema = computed(() => {
 
 // Get the current item data (with translations applied)
 const activeItemData = computed(() => {
-  if (!isEditingItem.value || !selectedSection.value || !activeField.value || activeItemIndex.value === null) return null
-  const items = sectionData.value[activeField.value] as Record<string, unknown>[]
-  return items?.[activeItemIndex.value] || null
+  if (!isEditingItem.value || !selectedSection.value || !activeFieldKey.value || !activeItemId.value) return null
+  const baseItems = getNestedItems(selectedSection.value.data, activeFieldKey.value)
+  if (!baseItems) return null
+  const index = baseItems.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === activeItemId.value)
+  if (index === -1) return null
+  const translatedItems = getNestedItems(sectionData.value as Record<string, unknown>, activeFieldKey.value)
+  return translatedItems?.[index] || null
 })
 
 // Get item display label for breadcrumb
@@ -462,14 +463,14 @@ const styleOptions = computed(() => {
 
 // Get button-related fields (shown when buttonText field is active)
 const buttonFields = computed(() => {
-  if (!selectedDefinition.value || activeField.value !== 'buttonText') return []
+  if (!selectedDefinition.value || activeFieldPath.value !== 'buttonText') return []
   return selectedDefinition.value.schema.filter(f => f.category === 'button')
 })
 
 // Get current field styles for the active field
 const activeFieldStyles = computed<FieldStyleProperties>(() => {
-  if (!selectedSection.value || !activeField.value) return {}
-  return selectedSection.value.fieldStyles?.[activeField.value] || {}
+  if (!selectedSection.value || !activeFieldPath.value) return {}
+  return selectedSection.value.fieldStyles?.[activeFieldPath.value] || {}
 })
 
 // Get current section styles
@@ -494,9 +495,15 @@ const styleDefaults = {
   sectionSpacingY: { min: 0, max: 200, default: 64 },
 }
 
+const showItemFontSizeControl = computed(() => {
+  const type = selectedSection.value?.type
+  if (!type) return true
+  return type !== 'gallery'
+})
+
 function updateActiveFieldStyle(styleKey: keyof FieldStyleProperties, value: unknown) {
-  if (!selectedSection.value || !activeField.value) return
-  editor.updateFieldStyle(selectedSection.value.id, activeField.value, styleKey, value)
+  if (!selectedSection.value || !activeFieldPath.value) return
+  editor.updateFieldStyle(selectedSection.value.id, activeFieldPath.value, styleKey, value)
 }
 
 function updateSectionStyle(styleKey: string, value: unknown) {
@@ -511,15 +518,18 @@ function updateItemStyle(styleKey: string, value: unknown) {
 
 function goToThemes() {
   editor.selectSection(null)
-  editor.setActiveField(null)
 }
 
 function goToSection() {
-  editor.setActiveField(null)
+  if (selectedSection.value) {
+    editor.selectSection(selectedSection.value.id)
+  }
 }
 
 function goToRepeater() {
-  editor.setActiveItem(null)
+  if (selectedSection.value && activeFieldKey.value) {
+    editor.selectFieldNode(selectedSection.value.id, activeFieldKey.value)
+  }
 }
 
 function selectTheme(themeId: string) {
@@ -551,13 +561,13 @@ function updateField(key: string, value: unknown) {
 }
 
 function updateItemField(fieldKey: string, value: unknown) {
-  if (!selectedSection.value || !activeField.value || activeItemIndex.value === null) return
-  editor.updateRepeaterItem(selectedSection.value.id, activeField.value, activeItemIndex.value, { [fieldKey]: value })
+  if (!selectedSection.value || !activeFieldKey.value || !activeItemId.value) return
+  editor.updateRepeaterItem(selectedSection.value.id, activeFieldKey.value, activeItemId.value, { [fieldKey]: value })
 }
 
 function deleteItem() {
-  if (!selectedSection.value || !activeField.value || activeItemIndex.value === null) return
-  editor.removeRepeaterItem(selectedSection.value.id, activeField.value, activeItemIndex.value)
+  if (!selectedSection.value || !activeFieldKey.value || !activeItemId.value) return
+  editor.removeRepeaterItem(selectedSection.value.id, activeFieldKey.value, activeItemId.value)
 }
 </script>
 
@@ -576,10 +586,10 @@ function deleteItem() {
         <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
         <button
           class="flex items-center gap-1.5 text-sm font-semibold transition-colors"
-          :class="activeField ? 'text-muted-foreground hover:text-foreground' : 'text-foreground'"
+          :class="activeFieldPath ? 'text-muted-foreground hover:text-foreground' : 'text-foreground'"
           @click="goToSection"
         >
-          <Icon :name="selectedDefinition.icon" :size="12" :class="activeField ? 'text-muted-foreground' : 'text-primary'" />
+          <Icon :name="selectedDefinition.icon" :size="12" :class="activeFieldPath ? 'text-muted-foreground' : 'text-primary'" />
           {{ selectedDefinition.displayName }}
         </button>
         <!-- Form context breadcrumb (always shows "Form") -->
@@ -816,7 +826,7 @@ function deleteItem() {
             <!-- Default item styles for other sections -->
             <div v-else class="flex flex-col gap-4">
               <!-- Font Size -->
-              <div class="flex items-center justify-between gap-3">
+              <div v-if="showItemFontSizeControl" class="flex items-center justify-between gap-3">
                 <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
                 <Slider
                   :model-value="itemStyles.fontSize ?? styleDefaults.fontSize.default"
@@ -904,7 +914,7 @@ function deleteItem() {
                 v-for="(field, index) in formFields"
                 :key="index"
                 class="flex items-center gap-2 p-2 rounded-md border border-border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                :class="{ 'ring-2 ring-primary': activeField === 'form.fields' && activeItemIndex === index }"
+                :class="{ 'ring-2 ring-primary': activeFieldPath === 'form.fields' && activeItemIndex === index }"
                 @click="selectFormField(index)"
               >
                 <!-- Reorder buttons -->
@@ -937,7 +947,7 @@ function deleteItem() {
           </div>
 
           <!-- Selected Field Editor -->
-          <div v-if="activeField === 'form.fields' && activeItemIndex !== null" class="px-4 py-4 border-b border-border">
+          <div v-if="activeFieldPath === 'form.fields' && activeItemIndex !== null" class="px-4 py-4 border-b border-border">
             <div class="mb-4">
               <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Field Settings
@@ -1744,7 +1754,7 @@ function deleteItem() {
               </div>
 
               <!-- Button-only styles -->
-              <template v-if="activeField === 'buttonText'">
+              <template v-if="activeFieldPath === 'buttonText'">
                 <!-- Background Color -->
                 <div class="flex items-center justify-between gap-3">
                   <label class="text-xs text-muted-foreground whitespace-nowrap">Background</label>

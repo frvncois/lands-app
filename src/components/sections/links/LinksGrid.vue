@@ -14,9 +14,21 @@
  */
 
 import type { LinksData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles, ItemStyleProperties } from '@/types/sections'
+import type {
+  SectionStyleProperties,
+  FieldStyles,
+  ItemStyleProperties,
+  SelectionPayload,
+  ActiveNodeType,
+} from '@/types/sections'
 import EditableText from '../EditableText.vue'
-import { resolveSectionStyles, getTextStyle, getImageStyle } from '@/lib/section-styles'
+import {
+  resolveSectionStyles,
+  getTextStyle,
+  getImageStyle,
+  resolveItemContainerStyles,
+  resolveItemTypographyStyles,
+} from '@/lib/section-styles'
 
 const props = defineProps<{
   data: LinksData
@@ -25,11 +37,15 @@ const props = defineProps<{
   itemStyles?: ItemStyleProperties
   editable?: boolean
   activeField?: string | null
+  activeNodeId?: string | null
+  activeNodeType?: ActiveNodeType | null
+  activeFieldKey?: string | null
+  activeItemId?: string | null
   hiddenFields?: string[]
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
@@ -46,23 +62,40 @@ function getHeaderFieldStyle(fieldKey: string, defaultFont: string = '--font-bod
  * Applied to each item wrapper - shared across all items
  */
 function getItemContainerStyle(): Record<string, string> {
-  const styles = props.itemStyles
-  if (!styles) return {}
-
-  const result: Record<string, string> = {}
-  if (styles.fontSize) result.fontSize = `${styles.fontSize}px`
-  if (styles.backgroundColor) result.backgroundColor = styles.backgroundColor
-  if (styles.borderRadius !== undefined) result.borderRadius = `${styles.borderRadius}px`
-  if (styles.spacingX !== undefined) result.paddingLeft = result.paddingRight = `${styles.spacingX}px`
-  if (styles.spacingY !== undefined) result.paddingTop = result.paddingBottom = `${styles.spacingY}px`
-  return result
+  return resolveItemContainerStyles(props.itemStyles)
 }
 
-function handleItemClick(e: MouseEvent, index: number) {
+function getItemTypographyStyle(): Record<string, string> {
+  return resolveItemTypographyStyles(props.itemStyles)
+}
+
+function getLinkId(link: LinksData['items'][number], fallback: number): string | null {
+  if (link?.id) return link.id
+  return fallback.toString()
+}
+
+function isLinkActive(link: LinksData['items'][number], index: number): boolean {
+  if (!props.editable) return false
+  const linkId = getLinkId(link, index)
+  if (!linkId) return false
+  return (
+    props.activeNodeType === 'item' &&
+    props.activeFieldKey === 'items' &&
+    props.activeItemId === linkId
+  )
+}
+
+function handleItemClick(e: MouseEvent, link: LinksData['items'][number], index: number) {
   if (!props.editable) return
   e.preventDefault()
   e.stopPropagation()
-  emit('selectField', `items.${index}`)
+  const linkId = getLinkId(link, index)
+  if (!linkId) return
+  emit('selectField', {
+    type: 'item',
+    fieldKey: 'items',
+    itemId: linkId,
+  })
 }
 
 function handleSelectField(fieldKey: string) {
@@ -118,31 +151,36 @@ function handleUpdate(fieldKey: string, value: unknown) {
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-md)]">
         <a
           v-for="(link, index) in data.items"
-          :key="index"
+          :key="link.id || index"
           :href="editable ? '#' : (link.url || '#')"
           class="block p-[var(--spacing-lg)] bg-[var(--color-surface)] rounded-[var(--radius-lg)] hover:bg-[var(--color-secondary)] transition-colors"
           :class="[
-            editable && 'cursor-pointer transition-all duration-150',
-            editable && activeField !== `items.${index}` && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-            editable && activeField === `items.${index}` && 'outline outline-2 outline-primary -outline-offset-2',
+            editable && 'cursor-pointer transition-all duration-150 select-none',
+            editable && !isLinkActive(link, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+            editable && isLinkActive(link, index) && 'outline outline-2 outline-primary -outline-offset-2',
           ]"
           :style="getItemContainerStyle()"
-          @click="handleItemClick($event, index)"
+          @click="handleItemClick($event, link, index)"
         >
           <img
             v-if="link.image?.src"
             :src="link.image.src"
             :alt="link.image.alt || ''"
-            class="w-full h-auto rounded-[var(--radius-md)] mb-[var(--spacing-sm)] object-cover aspect-video"
+            :class="[
+              'w-full h-auto rounded-[var(--radius-md)] mb-[var(--spacing-sm)] object-cover aspect-video',
+              editable && 'pointer-events-none select-none',
+            ]"
           />
           <span
             class="block text-[length:var(--text-lg)] font-semibold mb-[var(--spacing-xs)]"
-            :style="{ fontFamily: 'var(--font-heading)' }"
+            :class="editable && 'pointer-events-none select-none'"
+            :style="[{ fontFamily: 'var(--font-heading)' }, getItemTypographyStyle()]"
           >{{ link.label }}</span>
           <span
             v-if="link.description"
             class="block text-[length:var(--text-sm)] text-[var(--color-muted)]"
-            :style="{ fontFamily: 'var(--font-body)' }"
+            :class="editable && 'pointer-events-none select-none'"
+            :style="[{ fontFamily: 'var(--font-body)' }, getItemTypographyStyle()]"
           >{{ link.description }}</span>
         </a>
       </div>

@@ -207,8 +207,6 @@ function generateSectionHTML(section: SectionInstance, theme: ThemeTokens): stri
       return generateHeroHTML(section, theme, sectionStyle)
     case 'cards':
       return generateCardsHTML(section, theme, sectionStyle)
-    case 'mediaText':
-      return generateMediaTextHTML(section, theme, sectionStyle)
     case 'cta':
       return generateCTAHTML(section, theme, sectionStyle)
     case 'subscribe':
@@ -224,7 +222,8 @@ function generateSectionHTML(section: SectionInstance, theme: ThemeTokens): stri
     case 'footer':
       return generateFooterHTML(section, theme, sectionStyle)
     default:
-      return `<!-- Unknown section type: ${type} -->`
+      console.warn(`Skipping unknown section type: ${type} (section ${section.id})`)
+      return ''
   }
 }
 
@@ -341,39 +340,6 @@ function generateCardsHTML(section: SectionInstance, theme: ThemeTokens, section
     </div>
     <div class="ld-cards__grid ${gridClass}">
       ${cardsHTML}
-    </div>
-  </section>`
-}
-
-// ============================================
-// MEDIA + TEXT SECTION
-// ============================================
-
-function generateMediaTextHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, variant, data, fieldStyles } = section
-  const headline = data.headline as string || ''
-  const paragraph = data.paragraph as string || ''
-  const mediaSrc = data.mediaSrc as string || ''
-  const mediaType = data.mediaType as string || 'image'
-
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
-  const mediaStyle = buildFieldStyle(fieldStyles, 'mediaSrc')
-
-  const mediaHTML = mediaType === 'video'
-    ? `<video class="ld-media-text__media" src="${escapeHtml(mediaSrc)}" style="${mediaStyle}" controls></video>`
-    : `<img class="ld-media-text__media" src="${escapeHtml(mediaSrc)}" alt="" loading="lazy" style="${mediaStyle}" />`
-
-  const isReversed = variant === 'media-right'
-
-  return `
-  <section class="ld-media-text ${isReversed ? 'ld-media-text--reversed' : ''}" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-media-text__content">
-      ${headline ? `<h2 class="ld-media-text__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${paragraph ? `<p class="ld-media-text__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-    </div>
-    <div class="ld-media-text__media-wrapper" data-field="mediaSrc">
-      ${mediaSrc ? mediaHTML : ''}
     </div>
   </section>`
 }
@@ -735,25 +701,6 @@ h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
 }
 .ld-card__title { margin-bottom: 0.5rem; }
 .ld-card__desc { color: ${theme.colors.mutedForeground}; font-size: 0.875rem; }
-
-/* Media + Text Section */
-.ld-media-text {
-  padding: 4rem 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  align-items: center;
-}
-.ld-media-text--reversed .ld-media-text__media-wrapper { order: -1; }
-@media (max-width: 768px) {
-  .ld-media-text { grid-template-columns: 1fr; }
-  .ld-media-text--reversed .ld-media-text__media-wrapper { order: 0; }
-}
-.ld-media-text__content { display: flex; flex-direction: column; gap: 1rem; }
-.ld-media-text__paragraph { color: ${theme.colors.mutedForeground}; }
-.ld-media-text__media { width: 100%; border-radius: 0.75rem; }
 
 /* CTA Section */
 .ld-cta {

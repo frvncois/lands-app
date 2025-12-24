@@ -18,9 +18,20 @@
  */
 
 import type { ContactData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles, ItemStyleProperties } from '@/types/sections'
+import type {
+  SectionStyleProperties,
+  FieldStyles,
+  ItemStyleProperties,
+  SelectionPayload,
+} from '@/types/sections'
 import EditableText from '../EditableText.vue'
-import { resolveSectionStyles, getTextStyle } from '@/lib/section-styles'
+import {
+  resolveSectionStyles,
+  getTextStyle,
+  resolveItemContainerStyles,
+  resolveItemTypographyStyles,
+} from '@/lib/section-styles'
+import { resolveFormInputStyle, resolveFormButtonStyle } from '@/lib/form-styles'
 
 const props = defineProps<{
   data: ContactData
@@ -35,7 +46,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
@@ -47,49 +58,20 @@ function getFieldStyle(fieldKey: string, defaultFont: string = '--font-body'): R
   return getTextStyle(props.fieldStyles, fieldKey, defaultFont)
 }
 
-/**
- * Get shared styles for social link items
- */
-function getItemContainerStyle(): Record<string, string> {
-  const styles = props.itemStyles
-  if (!styles) return {}
-
-  const result: Record<string, string> = {}
-  if (styles.fontSize) result.fontSize = `${styles.fontSize}px`
-  if (styles.backgroundColor) result.backgroundColor = styles.backgroundColor
-  if (styles.borderRadius !== undefined) result.borderRadius = `${styles.borderRadius}px`
-  return result
+function getSocialItemStyle(): Record<string, string> {
+  return resolveItemContainerStyles(props.itemStyles)
 }
 
-/**
- * Get form input styles
- */
+function getSocialTypographyStyle(): Record<string, string> {
+  return resolveItemTypographyStyles(props.itemStyles)
+}
+
 function getFormInputStyle(): Record<string, string> {
-  const styles = props.sectionStyles?.formInput as Record<string, unknown> | undefined
-  if (!styles) return { fontFamily: 'var(--font-body)' }
-
-  const result: Record<string, string> = { fontFamily: 'var(--font-body)' }
-  if (styles.backgroundColor) result.backgroundColor = String(styles.backgroundColor)
-  if (styles.color) result.color = String(styles.color)
-  if (styles.borderColor) result.borderColor = String(styles.borderColor)
-  if (styles.borderRadius !== undefined) result.borderRadius = `${styles.borderRadius}px`
-  if (styles.fontSize) result.fontSize = `${styles.fontSize}px`
-  if (styles.padding !== undefined) result.padding = `${styles.padding}px`
-  return result
+  return resolveFormInputStyle(props.sectionStyles)
 }
 
-/**
- * Get form button styles
- */
 function getFormButtonStyle(): Record<string, string> {
-  const styles = props.sectionStyles?.formButton as Record<string, unknown> | undefined
-  if (!styles) return { fontFamily: 'var(--font-body)' }
-
-  const result: Record<string, string> = { fontFamily: 'var(--font-body)' }
-  if (styles.backgroundColor) result.backgroundColor = String(styles.backgroundColor)
-  if (styles.color) result.color = String(styles.color)
-  if (styles.borderRadius !== undefined) result.borderRadius = `${styles.borderRadius}px`
-  return result
+  return resolveFormButtonStyle(props.sectionStyles)
 }
 
 function handleSelectField(fieldKey: string) {
@@ -135,30 +117,11 @@ function handleSocialClick(e: MouseEvent, index: number) {
   emit('selectField', `socials.${index}`)
 }
 
-// Form click handler (selects the form as a whole)
-function handleFormClick(e: MouseEvent) {
+function handleFormSelect(e?: Event) {
   if (!props.isEditing) return
-  // Only trigger if clicking on form background, not on fields
-  if ((e.target as HTMLElement).closest('input, textarea, button')) return
-  e.stopPropagation()
-  emit('selectField', 'form.fields')
-}
-
-// Form field click handler
-function handleFieldClick(e: MouseEvent, index: number) {
-  if (!props.isEditing) return
-  e.preventDefault()
-  e.stopPropagation()
-  emit('selectField', `form.fields.${index}`)
-}
-
-// Form button click handler (selects form, not standalone button)
-function handleFormButtonClick(e: MouseEvent) {
-  if (!props.isEditing) return
-  e.preventDefault()
-  e.stopPropagation()
-  // Selecting form.submitLabel opens form inspector
-  emit('selectField', 'form.submitLabel')
+  e?.preventDefault()
+  e?.stopPropagation()
+  emit('selectField', { type: 'form' })
 }
 
 const hasContactInfo = () => {
@@ -178,7 +141,7 @@ function isSocialSelected(index: number): boolean {
 
 // Check if form is selected (any form-related field)
 function isFormSelected(): boolean {
-  return props.activeField === 'form.fields' || props.activeField === 'form.submitLabel'
+  return props.activeField?.startsWith('form') ?? false
 }
 
 // Check if a specific form field is selected
@@ -283,7 +246,7 @@ function isFormFieldSelected(index: number): boolean {
               isEditing && !isSocialSelected(index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
               isEditing && isSocialSelected(index) && 'outline outline-2 outline-primary outline-offset-2',
             ]"
-            :style="getItemContainerStyle()"
+            :style="[getSocialItemStyle(), getSocialTypographyStyle()]"
             @click="handleSocialClick($event, index)"
           >{{ social.label }}</a>
         </div>
@@ -299,10 +262,10 @@ function isFormFieldSelected(index: number): boolean {
           isEditing && isFormSelected() && 'outline outline-2 outline-primary outline-offset-2 rounded-[var(--radius-lg)]',
         ]"
         @submit="handleSubmit"
-        @click="handleFormClick"
+        @click="handleFormSelect"
       >
-        <!-- Form fields - each selectable -->
-        <template v-for="(field, index) in data.form?.fields" :key="index">
+        <!-- Form fields (display-only, highlight when inspector selects specific field) -->
+        <template v-for="(field, index) in data.form?.fields" :key="field.id || index">
           <div
             class="transition-all duration-150"
             :class="[
@@ -310,40 +273,39 @@ function isFormFieldSelected(index: number): boolean {
               isEditing && !isFormFieldSelected(index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-1 rounded-[var(--btn-radius)]',
               isEditing && isFormFieldSelected(index) && 'outline outline-2 outline-primary -outline-offset-1 rounded-[var(--btn-radius)]',
             ]"
-            @click="handleFieldClick($event, index)"
           >
             <input
               v-if="field.type === 'text' || field.type === 'email'"
               :type="field.type"
               :name="field.name"
               :placeholder="field.placeholder || field.name"
-              class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none focus:border-[var(--color-primary)] transition-colors pointer-events-none"
+              class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none transition-colors"
+              :class="isEditing && 'cursor-pointer'"
               :style="getFormInputStyle()"
               readonly
+              @click.stop="handleFormSelect"
             />
             <textarea
               v-else-if="field.type === 'textarea'"
               :name="field.name"
               :placeholder="field.placeholder || field.name"
               rows="4"
-              class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none focus:border-[var(--color-primary)] transition-colors resize-none pointer-events-none"
+              class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none transition-colors resize-none"
+              :class="isEditing && 'cursor-pointer'"
               :style="getFormInputStyle()"
               readonly
+              @click.stop="handleFormSelect"
             />
           </div>
         </template>
 
-        <!-- Submit button - selects form.submitLabel -->
+        <!-- Submit button - selection always routes to form -->
         <button
           type="submit"
-          class="w-full py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-all duration-150"
-          :class="[
-            isEditing && 'cursor-pointer',
-            isEditing && activeField !== 'form.submitLabel' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
-            isEditing && activeField === 'form.submitLabel' && 'outline outline-2 outline-primary outline-offset-2',
-          ]"
+          class="w-full py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] transition-all duration-150"
+          :class="isEditing && 'cursor-pointer'"
           :style="getFormButtonStyle()"
-          @click="handleFormButtonClick"
+          @click.stop="handleFormSelect"
         >{{ data.form?.submitLabel || 'Send Message' }}</button>
       </form>
     </div>

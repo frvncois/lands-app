@@ -5,7 +5,12 @@
  * Provides consistent field and section style resolution.
  */
 
-import type { FieldStyles, FieldStyleProperties, SectionStyleProperties } from '@/types/sections'
+import type {
+  FieldStyles,
+  FieldStyleProperties,
+  SectionStyleProperties,
+  ItemStyleProperties,
+} from '@/types/sections'
 
 /**
  * Resolve field styles for a given field path
@@ -183,4 +188,54 @@ export function getMediaStyle(
 ): Record<string, string> {
   const styles = resolveFieldStyles(fieldStyles, fieldPath)
   return mediaStyleToCss(styles)
+}
+
+// ============================================
+// ITEM STYLE HELPERS
+// ============================================
+
+export function resolveItemTypographyStyles(
+  itemStyles: ItemStyleProperties | undefined,
+  defaultFont: string = '--font-body'
+): Record<string, string> {
+  const result: Record<string, string> = { fontFamily: `var(${defaultFont})` }
+
+  if (!itemStyles) return result
+
+  if (itemStyles.fontSize) result.fontSize = `${itemStyles.fontSize}px`
+  if (itemStyles.lineHeight) result.lineHeight = String(itemStyles.lineHeight)
+  if (itemStyles.color) result.color = itemStyles.color
+  return result
+}
+
+export function resolveItemPaddingStyles(itemStyles: ItemStyleProperties | undefined): Record<string, string> {
+  const result: Record<string, string> = {}
+  if (!itemStyles) return result
+
+  if (itemStyles.spacingX !== undefined) {
+    result.paddingLeft = `${itemStyles.spacingX}px`
+    result.paddingRight = `${itemStyles.spacingX}px`
+  }
+  if (itemStyles.spacingY !== undefined) {
+    result.paddingTop = `${itemStyles.spacingY}px`
+    result.paddingBottom = `${itemStyles.spacingY}px`
+  }
+  return result
+}
+
+export function resolveItemContainerStyles(
+  itemStyles: ItemStyleProperties | undefined,
+  options: { includePadding?: boolean } = {}
+): Record<string, string> {
+  const result: Record<string, string> = {}
+  if (!itemStyles) return result
+
+  if (itemStyles.backgroundColor) result.backgroundColor = itemStyles.backgroundColor
+  if (itemStyles.borderRadius !== undefined) result.borderRadius = `${itemStyles.borderRadius}px`
+
+  if (options.includePadding !== false) {
+    Object.assign(result, resolveItemPaddingStyles(itemStyles))
+  }
+
+  return result
 }

@@ -9,7 +9,7 @@
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { getSectionDefinition } from '@/lib/section-registry'
-import type { SectionInstance } from '@/types/sections'
+import type { SectionInstance, SelectionPayload } from '@/types/sections'
 
 const props = defineProps<{
   section: SectionInstance
@@ -41,15 +41,37 @@ const sectionData = computed(() => {
 })
 
 // Active field for the current section (only when selected)
+const activeNode = computed(() => editor.activeNode)
+
 const activeField = computed(() => {
   if (!props.isSelected) return null
-  return editor.activeField
+  const node = activeNode.value
+  if (!node || node.sectionId !== props.section.id) return null
+  if (node.type === 'field' || node.type === 'item' || node.type === 'form') {
+    return node.fieldKey ?? (node.type === 'form' ? 'form' : null)
+  }
+  return null
 })
 
-// Active item index for repeater fields (only when selected)
 const activeItemIndex = computed(() => {
   if (!props.isSelected) return null
-  return editor.activeItemIndex
+  const node = activeNode.value
+  if (!node || node.sectionId !== props.section.id) return null
+
+  if (node.type === 'item' && node.fieldKey && node.itemId) {
+    const items = getRepeaterItems(node.fieldKey)
+    if (!items) return null
+    const index = items.findIndex(item => typeof item === 'object' && (item as { id?: string }).id === node.itemId)
+    return index === -1 ? null : index
+  }
+
+  if (node.type === 'form' && node.itemId) {
+    const fields = getFormFields()
+    const index = fields.findIndex(field => field.id === node.itemId)
+    return index === -1 ? null : index
+  }
+
+  return null
 })
 
 // Get hidden fields for this section as an array
@@ -70,36 +92,87 @@ function handleFieldUpdate(key: string, value: unknown) {
 }
 
 // Handler for field selection from section components
-function handleFieldSelect(fieldKey: string) {
-  // First select this section if not already selected
+function handleFieldSelect(payload: SelectionPayload | string) {
   if (!props.isSelected) {
     emit('select')
   }
 
+  if (typeof payload === 'string') {
+    handleLegacySelection(payload)
+    return
+  }
+
+  switch (payload.type) {
+    case 'item':
+      if (payload.fieldKey && payload.itemId) {
+        editor.selectItemNode(props.section.id, payload.fieldKey, payload.itemId)
+      }
+      break
+    case 'form':
+      editor.selectFormNode(props.section.id, payload.itemId)
+      break
+    case 'field':
+      if (payload.fieldKey) {
+        editor.selectFieldNode(props.section.id, payload.fieldKey)
+      }
+      break
+    case 'section':
+      editor.selectSection(props.section.id)
+      break
+  }
+}
+
+function handleLegacySelection(fieldKey: string) {
   // Parse dotted paths like "links.0" for repeater item selection
   const dotIndex = fieldKey.lastIndexOf('.')
   if (dotIndex > 0) {
     const maybeIndex = fieldKey.slice(dotIndex + 1)
     const parsedIndex = parseInt(maybeIndex, 10)
     if (!isNaN(parsedIndex)) {
-      // This is a repeater item selection (e.g., "links.0")
       const repeaterKey = fieldKey.slice(0, dotIndex)
-      editor.setActiveField(repeaterKey)
-      editor.setActiveItem(parsedIndex)
+      if (repeaterKey === 'form.fields') {
+        const items = getFormFields()
+        const targetId = items[parsedIndex]?.id
+        editor.selectFormNode(props.section.id, targetId)
+      } else {
+        const items = getRepeaterItems(repeaterKey)
+        const targetId = items?.[parsedIndex]?.id
+        if (targetId) {
+          editor.selectItemNode(props.section.id, repeaterKey, targetId)
+        } else {
+          editor.selectFieldNode(props.section.id, repeaterKey)
+        }
+      }
       return
     }
   }
 
-  // Regular field selection
-  editor.setActiveField(fieldKey)
-  editor.setActiveItem(null)
+  if (fieldKey === 'form' || fieldKey.startsWith('form.')) {
+    editor.selectFormNode(props.section.id)
+    return
+  }
+
+  editor.selectFieldNode(props.section.id, fieldKey)
+}
+
+function getRepeaterItems(fieldKey: string): { id?: string }[] | null {
+  const value = (props.section.data as Record<string, unknown>)[fieldKey]
+  if (!Array.isArray(value)) return null
+  return value as { id?: string }[]
+}
+
+function getFormFields(): { id?: string }[] {
+  const form = props.section.data.form as { fields?: { id?: string }[] } | undefined
+  if (Array.isArray(form?.fields)) {
+    return form!.fields as { id?: string }[]
+  }
+  return []
 }
 
 // Handler for clicking on section background (not a field)
 function handleSectionClick() {
   emit('select')
-  // Clear active field when clicking section background
-  editor.setActiveField(null)
+  editor.selectSection(props.section.id)
 }
 </script>
 

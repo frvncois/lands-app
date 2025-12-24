@@ -1,0 +1,10 @@
+<svg id="input-password-1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <path id="Path_34" data-name="Path 34" d="M24,24H0V0H24Z" fill="none"/>
+  <path id="Path_35" data-name="Path 35" d="M16,20V4" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <path id="Path_36" data-name="Path 36" d="M13,17H5a2,2,0,0,1-2-2V9A2,2,0,0,1,5,7h8" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <path id="Path_37" data-name="Path 37" d="M16,17h3a2,2,0,0,0,2-2V9a2,2,0,0,0-2-2H16" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <path id="Path_38" data-name="Path 38" d="M13.5,20h5" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <path id="Path_39" data-name="Path 39" d="M13.5,4h5" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_15" data-name="Line 15" x2="1" transform="translate(7 12)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_16" data-name="Line 16" x2="1" transform="translate(11 12)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+</svg>

@@ -13,8 +13,16 @@
  * Media only - no captions, no titles.
  */
 
+import { computed } from 'vue'
+import { useEditorStore } from '@/stores/editor'
 import type { GalleryData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles, ItemStyleProperties } from '@/types/sections'
+import type {
+  SectionStyleProperties,
+  FieldStyles,
+  ItemStyleProperties,
+  SelectionPayload,
+  ActiveNodeType,
+} from '@/types/sections'
 import GalleryMasonry from './gallery/GalleryMasonry.vue'
 import GalleryGrid from './gallery/GalleryGrid.vue'
 import GalleryCarousel from './gallery/GalleryCarousel.vue'
@@ -26,17 +34,28 @@ const props = defineProps<{
   fieldStyles?: FieldStyles
   itemStyles?: ItemStyleProperties
   editable?: boolean
-  activeField?: string | null
   hiddenFields?: string[]
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
-function handleSelectField(fieldKey: string) {
-  emit('selectField', fieldKey)
+const editor = useEditorStore()
+
+const currentNode = computed(() => {
+  if (!props.editable) return null
+  return editor.activeNode || null
+})
+
+const activeNodeId = computed(() => currentNode.value?.id ?? null)
+const activeNodeType = computed<ActiveNodeType | null>(() => currentNode.value?.type ?? null)
+const activeFieldKey = computed(() => currentNode.value?.fieldKey ?? null)
+const activeItemId = computed(() => currentNode.value?.itemId ?? null)
+
+function handleSelectField(payload: SelectionPayload | string) {
+  emit('selectField', payload)
 }
 
 function handleUpdate(fieldKey: string, value: unknown) {
@@ -52,7 +71,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :field-styles="fieldStyles"
     :item-styles="itemStyles"
     :editable="editable"
-    :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"
@@ -64,7 +86,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :field-styles="fieldStyles"
     :item-styles="itemStyles"
     :editable="editable"
-    :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"
@@ -76,7 +101,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :field-styles="fieldStyles"
     :item-styles="itemStyles"
     :editable="editable"
-    :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"

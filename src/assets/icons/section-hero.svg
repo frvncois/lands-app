@@ -1,0 +1,10 @@
+<svg id="document-image-picture" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <path id="Path_24" data-name="Path 24" d="M24,24H0V0H24Z" fill="none"/>
+  <path id="Path_25" data-name="Path 25" d="M20,9V6a3,3,0,0,0-3-3H6A3,3,0,0,0,3,6V18a3,3,0,0,0,3,3H9" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_8" data-name="Line 8" x2="9" transform="translate(7 8)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_9" data-name="Line 9" x2="2" transform="translate(7 12)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <path id="Path_26" data-name="Path 26" d="M17.965,14.965h0a.05.05,0,1,1,0,.071.05.05,0,0,1,0-.071" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <path id="Path_27" data-name="Path 27" d="M12,16.076A4.205,4.205,0,0,1,16.924,21" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_10" data-name="Line 10" x2="2" transform="translate(7 16)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <rect id="Rectangle_6" data-name="Rectangle 6" width="9" height="9" rx="2" transform="translate(12 12)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+</svg>

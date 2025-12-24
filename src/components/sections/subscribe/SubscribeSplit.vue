@@ -17,9 +17,10 @@
 
 import { computed } from 'vue'
 import type { SubscribeData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles } from '@/types/sections'
+import type { SectionStyleProperties, FieldStyles, SelectionPayload } from '@/types/sections'
 import EditableText from '../EditableText.vue'
 import { resolveSectionStyles, getTextStyle } from '@/lib/section-styles'
+import { resolveFormInputStyle, resolveFormButtonStyle } from '@/lib/form-styles'
 
 const props = defineProps<{
   data: SubscribeData
@@ -32,7 +33,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
@@ -73,15 +74,24 @@ function handleSubmit(e: Event) {
 }
 
 // Form click handler - selects the form as a single unit
-function handleFormClick(e: MouseEvent) {
+function handleFormSelect(e?: Event) {
   if (!props.isEditing) return
-  e.stopPropagation()
-  emit('selectField', 'form')
+  e?.preventDefault()
+  e?.stopPropagation()
+  emit('selectField', { type: 'form' })
 }
 
 // Check if form is selected
 function isFormSelected(): boolean {
-  return props.activeField === 'form' || props.activeField?.startsWith('form.') || false
+  return props.activeField?.startsWith('form') ?? false
+}
+
+function getFormInputStyle(): Record<string, string> {
+  return resolveFormInputStyle(props.sectionStyles)
+}
+
+function getFormButtonStyle(): Record<string, string> {
+  return resolveFormButtonStyle(props.sectionStyles)
 }
 </script>
 
@@ -138,19 +148,23 @@ function isFormSelected(): boolean {
             isEditing && isFormSelected() && 'outline outline-2 outline-primary outline-offset-2',
           ]"
           @submit="handleSubmit"
-          @click="handleFormClick"
+          @click="handleFormSelect"
         >
           <input
             type="email"
             :placeholder="data.form?.placeholder || 'Enter your email'"
-            class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none transition-colors pointer-events-none"
-            :style="{ fontFamily: 'var(--font-body)' }"
+            class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none transition-colors"
+            :class="isEditing && 'cursor-pointer'"
+            :style="getFormInputStyle()"
             readonly
+            @click.stop="handleFormSelect"
           />
           <button
             type="submit"
-            class="w-full py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] transition-opacity pointer-events-none"
-            :style="{ fontFamily: 'var(--font-body)' }"
+            class="w-full py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] transition-opacity"
+            :class="isEditing && 'cursor-pointer'"
+            :style="getFormButtonStyle()"
+            @click.stop="handleFormSelect"
           >{{ data.form?.submitLabel || 'Subscribe' }}</button>
         </form>
       </div>

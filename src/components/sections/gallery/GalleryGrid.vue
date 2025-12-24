@@ -12,8 +12,14 @@
  */
 
 import type { GalleryData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles, ItemStyleProperties } from '@/types/sections'
-import { resolveSectionStyles } from '@/lib/section-styles'
+import type {
+  SectionStyleProperties,
+  FieldStyles,
+  ItemStyleProperties,
+  SelectionPayload,
+  ActiveNodeType,
+} from '@/types/sections'
+import { resolveSectionStyles, resolveItemContainerStyles } from '@/lib/section-styles'
 
 const props = defineProps<{
   data: GalleryData
@@ -22,11 +28,15 @@ const props = defineProps<{
   itemStyles?: ItemStyleProperties
   editable?: boolean
   activeField?: string | null
+  activeNodeId?: string | null
+  activeNodeType?: ActiveNodeType | null
+  activeFieldKey?: string | null
+  activeItemId?: string | null
   hiddenFields?: string[]
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
@@ -35,19 +45,36 @@ function getSectionStyle(): Record<string, string> {
 }
 
 function getItemContainerStyle(): Record<string, string> {
-  const styles = props.itemStyles
-  if (!styles) return {}
-
-  const result: Record<string, string> = {}
-  if (styles.borderRadius !== undefined) result.borderRadius = `${styles.borderRadius}px`
-  return result
+  return resolveItemContainerStyles(props.itemStyles)
 }
 
-function handleItemClick(e: MouseEvent, index: number) {
+function getItemId(item: GalleryData['items'][number], fallback: number): string | null {
+  if (item?.id) return item.id
+  return fallback.toString()
+}
+
+function isItemActive(item: GalleryData['items'][number], index: number): boolean {
+  if (!props.editable) return false
+  const itemId = getItemId(item, index)
+  if (!itemId) return false
+  return (
+    props.activeNodeType === 'item' &&
+    props.activeFieldKey === 'items' &&
+    props.activeItemId === itemId
+  )
+}
+
+function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], index: number) {
   if (!props.editable) return
   e.stopPropagation()
   e.preventDefault()
-  emit('selectField', `items.${index}`)
+  const itemId = getItemId(item, index)
+  if (!itemId) return
+  emit('selectField', {
+    type: 'item',
+    fieldKey: 'items',
+    itemId,
+  })
 }
 </script>
 
@@ -58,30 +85,36 @@ function handleItemClick(e: MouseEvent, index: number) {
   >
     <div class="max-w-[1200px] mx-auto w-full">
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-md)]">
-        <template v-for="(item, index) in data.items" :key="index">
+        <template v-for="(item, index) in data.items" :key="item.id || index">
           <component
             :is="item.link?.url && !editable ? 'a' : 'div'"
             :href="item.link?.url && !editable ? item.link.url : undefined"
             :target="item.link?.url && !editable ? (item.link.target || '_self') : undefined"
             class="block aspect-square rounded-[var(--radius-md)] overflow-hidden"
             :class="[
-              editable && 'cursor-pointer transition-all duration-150',
-              editable && activeField !== `items.${index}` && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-              editable && activeField === `items.${index}` && 'outline outline-2 outline-primary -outline-offset-2',
+              editable && 'cursor-pointer transition-all duration-150 select-none',
+              editable && !isItemActive(item, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+              editable && isItemActive(item, index) && 'outline outline-2 outline-primary -outline-offset-2',
             ]"
             :style="getItemContainerStyle()"
-            @click="handleItemClick($event, index)"
+            @click="handleItemClick($event, item, index)"
           >
             <img
               v-if="item.media.type === 'image'"
               :src="item.media.src || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 400%22%3E%3Crect fill=%22%23374151%22 width=%22400%22 height=%22400%22/%3E%3Ctext fill=%22%239CA3AF%22 font-family=%22system-ui%22 font-size=%2216%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo image%3C/text%3E%3C/svg%3E'"
               :alt="item.media.alt || ''"
-              class="w-full h-full object-cover"
+              :class="[
+                'w-full h-full object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
             />
             <video
               v-else-if="item.media.type === 'video'"
               :src="item.media.src"
-              class="w-full h-full object-cover"
+              :class="[
+                'w-full h-full object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
               autoplay
               muted
               loop

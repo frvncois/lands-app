@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <g id="folders" transform="translate(24) rotate(90)">
+    <g id="Group_1" data-name="Group 1">
+      <path id="Path_14" data-name="Path 14" d="M10,21H5a2,2,0,0,1-2-2V5A2,2,0,0,1,5,3h5a2,2,0,0,1,2,2V19A2,2,0,0,1,10,21Z" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_15" data-name="Path 15" d="M8.561,15.439a1.5,1.5,0,1,1-2.121,0,1.5,1.5,0,0,1,2.121,0" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_16" data-name="Path 16" d="M7.5,6v6" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_17" data-name="Path 17" d="M19,21H14a2,2,0,0,1-2-2V5a2,2,0,0,1,2-2h5a2,2,0,0,1,2,2V19A2,2,0,0,1,19,21Z" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_18" data-name="Path 18" d="M17.561,15.439a1.5,1.5,0,1,1-2.121,0,1.5,1.5,0,0,1,2.121,0" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+      <path id="Path_19" data-name="Path 19" d="M16.5,6v6" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+    </g>
+    <path id="Path_20" data-name="Path 20" d="M0,0H24V24H0Z" fill="none"/>
+  </g>
+</svg>

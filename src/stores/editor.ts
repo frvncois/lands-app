@@ -8,7 +8,15 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef, watch, nextTick } from 'vue'
-import type { SectionInstance, Theme, ColorTokens, FontTokens } from '@/types/sections'
+import type {
+  SectionInstance,
+  Theme,
+  ColorTokens,
+  FontTokens,
+  ActiveNode,
+  FieldSchema,
+  RepeaterField,
+} from '@/types/sections'
 import type { PageContent, PageMeta, TranslationSettings, TranslationsMap } from '@/types/project'
 import {
   getSectionDefinition,
@@ -88,14 +96,8 @@ export const useEditorStore = defineStore('editor', () => {
     description: '',
   })
 
-  /** Currently selected section ID */
-  const selectedSectionId = ref<string | null>(null)
-
-  /** Currently active field key within selected section */
-  const activeField = ref<string | null>(null)
-
-  /** Currently active item index within a repeater field */
-  const activeItemIndex = ref<number | null>(null)
+  /** Canonical selection node */
+  const activeNode = ref<ActiveNode | null>(null)
 
   /** Hidden fields per section (sectionId -> Set of fieldKeys) */
   const hiddenFields = ref<Record<string, Set<string>>>({})
@@ -119,6 +121,75 @@ export const useEditorStore = defineStore('editor', () => {
 
   /** Current editing language (null = default language) */
   const currentLanguage = ref<string | null>(null)
+
+  // ============================================
+  // SELECTION DERIVATIONS
+  // ============================================
+
+  const selectedSectionId = computed(() => activeNode.value?.sectionId ?? null)
+
+  const activeFieldKey = computed(() => {
+    const node = activeNode.value
+    if (!node) return null
+    if (node.type === 'field' || node.type === 'item') {
+      return node.fieldKey ?? null
+    }
+    if (node.type === 'form') {
+      return node.fieldKey ?? (node.itemId ? 'form.fields' : 'form')
+    }
+    return null
+  })
+
+  const activeItemId = computed(() => {
+    const node = activeNode.value
+    if (!node) return null
+    if (node.type === 'item' || node.type === 'form') {
+      return node.itemId ?? null
+    }
+    return null
+  })
+
+  const activeFieldPath = computed(() => {
+    const node = activeNode.value
+    if (!node || !node.fieldKey) return null
+    if (node.type === 'field') return node.fieldKey
+    const section = sections.value.find(s => s.id === node.sectionId)
+    if (!section) return null
+
+    if (node.type === 'item' && node.itemId) {
+      const index = findItemIndex(section, node.fieldKey, node.itemId)
+      return index === -1 ? node.fieldKey : `${node.fieldKey}.${index}`
+    }
+
+    if (node.type === 'form') {
+      if (!node.itemId) return 'form'
+      const index = findFormFieldIndex(section, node.itemId)
+      return index === -1 ? 'form.fields' : `form.fields.${index}`
+    }
+
+    return null
+  })
+
+  const activeItemIndex = computed(() => {
+    const node = activeNode.value
+    if (!node) return null
+    const section = node.sectionId ? sections.value.find(s => s.id === node.sectionId) : null
+    if (!section) return null
+
+    if (node.type === 'item' && node.itemId && node.fieldKey) {
+      const index = findItemIndex(section, node.fieldKey, node.itemId)
+      return index === -1 ? null : index
+    }
+
+    if (node.type === 'form' && node.itemId) {
+      const index = findFormFieldIndex(section, node.itemId)
+      return index === -1 ? null : index
+    }
+
+    return null
+  })
+
+  const isFormSelection = computed(() => activeNode.value?.type === 'form')
 
   // ============================================
   // GETTERS
@@ -212,6 +283,7 @@ export const useEditorStore = defineStore('editor', () => {
   function initializeEditor(content: PageContent, id: string) {
     projectId.value = id
     sections.value = content.sections
+    sections.value.forEach(section => ensureSectionItemIds(section))
     meta.value = content.meta
 
     // Load theme (watcher will apply CSS variables)
@@ -231,7 +303,7 @@ export const useEditorStore = defineStore('editor', () => {
     history.value = [JSON.parse(JSON.stringify(sections.value))]
     historyIndex.value = 0
     isDirty.value = false
-    selectedSectionId.value = null
+    activeNode.value = null
   }
 
   function resetEditor() {
@@ -241,7 +313,7 @@ export const useEditorStore = defineStore('editor', () => {
     meta.value = { title: '', description: '' }
     baseTheme.value = getDefaultTheme()
     themeOverrides.value = {}
-    selectedSectionId.value = null
+    activeNode.value = null
     history.value = []
     historyIndex.value = -1
     isDirty.value = false
@@ -357,9 +429,10 @@ export const useEditorStore = defineStore('editor', () => {
       insertIndex = hasFooter ? sections.value.length - 1 : sections.value.length
     }
 
+    ensureSectionItemIds(instance)
     sections.value.splice(insertIndex, 0, instance)
 
-    selectedSectionId.value = instance.id
+    selectSection(instance.id)
     return instance
   }
 
@@ -368,26 +441,22 @@ export const useEditorStore = defineStore('editor', () => {
     if (index === -1) return false
 
     pushHistory()
+    const prevSection = sections.value[index - 1]
+    const nextSection = sections.value[index + 1]
     sections.value.splice(index, 1)
 
-    // Auto-select previous or next section if removed section was selected
-    if (selectedSectionId.value === id) {
-      const prevSection = sections.value[index - 1]
-      const nextSection = sections.value[0]
-
+    if (activeNode.value?.sectionId === id) {
       if (sections.value.length === 0) {
-        selectedSectionId.value = null
-      } else if (index > 0 && prevSection) {
-        // Select previous section
-        selectedSectionId.value = prevSection.id
+        activeNode.value = null
+      } else if (prevSection) {
+        selectSection(prevSection.id)
       } else if (nextSection) {
-        // Select next section (now at index 0)
-        selectedSectionId.value = nextSection.id
+        selectSection(nextSection.id)
+      } else if (sections.value[0]) {
+        selectSection(sections.value[0].id)
       } else {
-        selectedSectionId.value = null
+        activeNode.value = null
       }
-      activeField.value = null
-      activeItemIndex.value = null
     }
 
     return true
@@ -404,9 +473,10 @@ export const useEditorStore = defineStore('editor', () => {
       ...JSON.parse(JSON.stringify(original)),
       id: generateId(),
     }
+    ensureSectionItemIds(duplicate)
 
     sections.value.splice(index + 1, 0, duplicate)
-    selectedSectionId.value = duplicate.id
+    selectSection(duplicate.id)
     return duplicate
   }
 
@@ -497,6 +567,76 @@ export const useEditorStore = defineStore('editor', () => {
     current[lastPart] = value
   }
 
+  function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+    const parts = path.split('.')
+    let current: unknown = obj
+    for (const part of parts) {
+      if (!current || typeof current !== 'object') return undefined
+      current = (current as Record<string, unknown>)[part]
+    }
+    return current
+  }
+
+  function getNestedArray(obj: Record<string, unknown>, path: string): Record<string, unknown>[] | null {
+    const value = getNestedValue(obj, path)
+    if (!Array.isArray(value)) return null
+    return value as Record<string, unknown>[]
+  }
+
+  function findItemIndex(section: SectionInstance, fieldKey: string, itemId: string): number {
+    const items = getNestedArray(section.data, fieldKey)
+    if (!items) return -1
+    return items.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === itemId)
+  }
+
+  function findFormFieldIndex(section: SectionInstance, itemId: string): number {
+    const fields = getNestedArray(section.data, 'form.fields')
+    if (!fields) return -1
+    return fields.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === itemId)
+  }
+
+  function ensureSectionItemIds(section: SectionInstance) {
+    const def = getSectionDefinition(section.type)
+    if (!def) return
+
+    for (const schemaField of def.schema) {
+      if (schemaField.type === 'repeater') {
+        ensureIdsForRepeaterField(section.data, schemaField as RepeaterField)
+      }
+    }
+  }
+
+  function ensureIdsForRepeaterField(data: Record<string, unknown>, field: RepeaterField) {
+    const items = getNestedArray(data, field.key)
+    if (!items) return
+
+    for (const item of items) {
+      if (!item || typeof item !== 'object') continue
+      const record = item as Record<string, unknown>
+      if (typeof record.id !== 'string') {
+        record.id = generateId()
+      }
+      ensureNestedRepeaterIds(record, field.itemSchema)
+    }
+  }
+
+  function ensureNestedRepeaterIds(target: Record<string, unknown>, schema: FieldSchema[]) {
+    for (const schemaField of schema) {
+      if (schemaField.type !== 'repeater') continue
+      const nestedItems = getNestedArray(target, schemaField.key)
+      if (!nestedItems) continue
+
+      for (const nestedItem of nestedItems) {
+        if (!nestedItem || typeof nestedItem !== 'object') continue
+        const record = nestedItem as Record<string, unknown>
+        if (typeof record.id !== 'string') {
+          record.id = generateId()
+        }
+        ensureNestedRepeaterIds(record, (schemaField as RepeaterField).itemSchema)
+      }
+    }
+  }
+
   function updateSectionData(id: string, data: Record<string, unknown>) {
     const section = sections.value.find(s => s.id === id)
     if (!section) return false
@@ -513,6 +653,7 @@ export const useEditorStore = defineStore('editor', () => {
       }
     }
     section.data = newData
+    ensureSectionItemIds(section)
     return true
   }
 
@@ -613,11 +754,13 @@ export const useEditorStore = defineStore('editor', () => {
       }
     }
 
+    newItem.id = generateId()
+    ensureNestedRepeaterIds(newItem, repeaterField.itemSchema)
     items.push(newItem)
     return true
   }
 
-  function removeRepeaterItem(sectionId: string, fieldKey: string, index: number) {
+  function removeRepeaterItem(sectionId: string, fieldKey: string, itemId: string) {
     const section = sections.value.find(s => s.id === sectionId)
     if (!section) return false
 
@@ -629,29 +772,32 @@ export const useEditorStore = defineStore('editor', () => {
     if (!repeaterField || repeaterField.type !== 'repeater') return false
 
     // Get current items array
-    const items = section.data[fieldKey] as unknown[]
-    if (!Array.isArray(items)) return false
+    const items = getNestedArray(section.data, fieldKey)
+    if (!items) return false
 
     // Check min items limit
     if (repeaterField.minItems && items.length <= repeaterField.minItems) return false
 
     // Check valid index
-    if (index < 0 || index >= items.length) return false
+    const index = items.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === itemId)
+    if (index === -1) return false
 
     pushHistory()
     items.splice(index, 1)
 
-    // Clear selection if removed item was selected
-    if (activeItemIndex.value === index) {
-      activeItemIndex.value = null
-    } else if (activeItemIndex.value !== null && activeItemIndex.value > index) {
-      activeItemIndex.value--
+    if (
+      activeNode.value?.type === 'item' &&
+      activeNode.value.sectionId === sectionId &&
+      activeNode.value.fieldKey === fieldKey &&
+      activeNode.value.itemId === itemId
+    ) {
+      selectFieldNode(sectionId, fieldKey)
     }
 
     return true
   }
 
-  function duplicateRepeaterItem(sectionId: string, fieldKey: string, index: number) {
+  function duplicateRepeaterItem(sectionId: string, fieldKey: string, itemId: string) {
     const section = sections.value.find(s => s.id === sectionId)
     if (!section) return false
 
@@ -663,67 +809,61 @@ export const useEditorStore = defineStore('editor', () => {
     if (!repeaterField || repeaterField.type !== 'repeater') return false
 
     // Get current items array
-    const items = section.data[fieldKey] as Record<string, unknown>[]
-    if (!Array.isArray(items)) return false
+    const items = getNestedArray(section.data, fieldKey)
+    if (!items) return false
 
     // Check max items limit
     if (repeaterField.maxItems && items.length >= repeaterField.maxItems) return false
 
     // Check valid index
-    if (index < 0 || index >= items.length) return false
+    const index = items.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === itemId)
+    if (index === -1) return false
 
     pushHistory()
 
     // Deep clone the item
-    const duplicate = JSON.parse(JSON.stringify(items[index]))
+    const duplicate = JSON.parse(JSON.stringify(items[index])) as Record<string, unknown>
+    duplicate.id = generateId()
+    ensureNestedRepeaterIds(duplicate, repeaterField.itemSchema)
     items.splice(index + 1, 0, duplicate)
 
-    // Select the duplicated item
-    activeItemIndex.value = index + 1
+    selectItemNode(sectionId, fieldKey, duplicate.id as string)
 
     return true
   }
 
-  function updateRepeaterItem(sectionId: string, fieldKey: string, index: number, data: Record<string, unknown>) {
+  function updateRepeaterItem(sectionId: string, fieldKey: string, itemId: string, data: Record<string, unknown>) {
     const section = sections.value.find(s => s.id === sectionId)
     if (!section) return false
 
-    // Get current items array
-    const items = section.data[fieldKey] as Record<string, unknown>[]
-    if (!Array.isArray(items) || index < 0 || index >= items.length) return false
+    const items = getNestedArray(section.data, fieldKey)
+    if (!items) return false
+
+    const index = items.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === itemId)
+    if (index === -1) return false
 
     pushHistory()
     items[index] = { ...items[index], ...data }
     return true
   }
 
-  function reorderRepeaterItem(sectionId: string, fieldKey: string, fromIndex: number, toIndex: number) {
+  function reorderRepeaterItem(sectionId: string, fieldKey: string, itemId: string, toIndex: number) {
     const section = sections.value.find(s => s.id === sectionId)
     if (!section) return false
 
-    // Get current items array
-    const items = section.data[fieldKey] as unknown[]
-    if (!Array.isArray(items)) return false
+    const items = getNestedArray(section.data, fieldKey)
+    if (!items) return false
 
-    // Validate indices
-    if (fromIndex < 0 || fromIndex >= items.length || toIndex < 0 || toIndex >= items.length) return false
+    const fromIndex = findItemIndex(section, fieldKey, itemId)
+    if (fromIndex === -1) return false
+
+    const clampedToIndex = Math.max(0, Math.min(toIndex, items.length - 1))
+    if (fromIndex === clampedToIndex) return true
 
     pushHistory()
-
     const [item] = items.splice(fromIndex, 1)
     if (item !== undefined) {
-      items.splice(toIndex, 0, item)
-    }
-
-    // Update active item index if needed
-    if (activeItemIndex.value === fromIndex) {
-      activeItemIndex.value = toIndex
-    } else if (activeItemIndex.value !== null) {
-      if (fromIndex < activeItemIndex.value && toIndex >= activeItemIndex.value) {
-        activeItemIndex.value--
-      } else if (fromIndex > activeItemIndex.value && toIndex <= activeItemIndex.value) {
-        activeItemIndex.value++
-      }
+      items.splice(clampedToIndex, 0, item)
     }
 
     return true
@@ -751,20 +891,45 @@ export const useEditorStore = defineStore('editor', () => {
   // ============================================
 
   function selectSection(id: string | null) {
-    selectedSectionId.value = id
-    // Clear active field and item when changing sections
-    activeField.value = null
-    activeItemIndex.value = null
+    if (!id) {
+      activeNode.value = null
+      return
+    }
+
+    activeNode.value = {
+      id,
+      type: 'section',
+      sectionId: id,
+    }
   }
 
-  function setActiveField(fieldKey: string | null) {
-    activeField.value = fieldKey
-    // Clear item when changing field
-    activeItemIndex.value = null
+  function selectFieldNode(sectionId: string, fieldKey: string) {
+    activeNode.value = {
+      id: `${sectionId}:${fieldKey}`,
+      type: 'field',
+      sectionId,
+      fieldKey,
+    }
   }
 
-  function setActiveItem(index: number | null) {
-    activeItemIndex.value = index
+  function selectItemNode(sectionId: string, fieldKey: string, itemId: string) {
+    activeNode.value = {
+      id: `${sectionId}:${fieldKey}:${itemId}`,
+      type: 'item',
+      sectionId,
+      fieldKey,
+      itemId,
+    }
+  }
+
+  function selectFormNode(sectionId: string, itemId?: string) {
+    activeNode.value = {
+      id: itemId ? `${sectionId}:form:${itemId}` : `${sectionId}:form`,
+      type: 'form',
+      sectionId,
+      fieldKey: itemId ? 'form.fields' : 'form',
+      itemId,
+    }
   }
 
   function selectNextSection() {
@@ -777,7 +942,7 @@ export const useEditorStore = defineStore('editor', () => {
     const nextIndex = (currentIndex + 1) % sections.value.length
     const nextSection = sections.value[nextIndex]
     if (nextSection) {
-      selectedSectionId.value = nextSection.id
+      selectSection(nextSection.id)
     }
   }
 
@@ -791,7 +956,7 @@ export const useEditorStore = defineStore('editor', () => {
     const prevIndex = currentIndex <= 0 ? sections.value.length - 1 : currentIndex - 1
     const prevSection = sections.value[prevIndex]
     if (prevSection) {
-      selectedSectionId.value = prevSection.id
+      selectSection(prevSection.id)
     }
   }
 
@@ -986,9 +1151,13 @@ export const useEditorStore = defineStore('editor', () => {
     themeOverrides,
     sections,
     meta,
+    activeNode,
     selectedSectionId,
-    activeField,
+    activeFieldKey,
+    activeFieldPath,
     activeItemIndex,
+    activeItemId,
+    isFormSelection,
     hiddenFields,
     isDirty,
     isLoading,
@@ -1047,8 +1216,9 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Selection
     selectSection,
-    setActiveField,
-    setActiveItem,
+    selectFieldNode,
+    selectItemNode,
+    selectFormNode,
     selectNextSection,
     selectPreviousSection,
 

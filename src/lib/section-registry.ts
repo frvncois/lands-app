@@ -26,12 +26,14 @@ export interface CTAData {
 
 /** Social link item */
 export interface SocialItem {
+  id?: string
   label: string
   url: string
 }
 
 /** Form field definition */
 export interface FormFieldItem {
+  id?: string
   name: string
   type: 'text' | 'email' | 'tel' | 'textarea'
   placeholder: string
@@ -71,6 +73,7 @@ export interface HeroData {
 
 // --- Cards ---
 export interface CardItem {
+  id?: string
   media?: HeroMedia  // Reuses HeroMedia type (image/video)
   headline?: string
   subheadline?: string
@@ -91,6 +94,7 @@ export interface CardsData {
 
 // --- Links ---
 export interface LinkItem {
+  id?: string
   label: string
   url: string
   description?: string
@@ -111,12 +115,14 @@ export type AccordionUseCase = 'faq' | 'menu' | 'event'
 
 /** FAQ item - question/answer format */
 export interface AccordionItemFAQ {
+  id?: string
   headline: string      // Question
   content: string       // Answer (rich text)
 }
 
 /** Menu sub-item (inside accordion content) */
 export interface MenuSubItem {
+  id?: string
   subheadline: string   // Item name
   details?: string      // Description
   price?: string
@@ -128,12 +134,14 @@ export interface MenuSubItem {
 
 /** Menu item - collapsible category with sub-items */
 export interface AccordionItemMenu {
+  id?: string
   headline: string      // Category title
   items: MenuSubItem[]
 }
 
 /** Event item - full event with datetime */
 export interface AccordionItemEvent {
+  id?: string
   headline: string      // Event title
   datetime: string      // ISO date-time
   location?: string
@@ -183,6 +191,7 @@ export interface ContactInfo {
 }
 
 export interface ContactFormField {
+  id?: string
   name: string
   type: 'text' | 'email' | 'textarea'
   placeholder?: string
@@ -203,6 +212,7 @@ export interface ContactData {
 
 // --- Footer (Global) ---
 export interface FooterLinkItem {
+  id?: string
   label: string
   url: string
 }
@@ -223,6 +233,7 @@ export interface GalleryItemLink {
 }
 
 export interface GalleryItem {
+  id?: string
   media: HeroMedia  // Reuses HeroMedia type (image/video)
   link?: GalleryItemLink
 }
@@ -246,6 +257,7 @@ export interface LogoListItemLink {
 }
 
 export interface LogoListItem {
+  id?: string
   image: {
     src: string
     alt?: string
@@ -262,6 +274,7 @@ export interface LogoListData {
 
 // --- Promo ---
 export interface PromoLink {
+  id?: string
   label: string
   url: string
 }
@@ -523,7 +536,7 @@ const promoSchema: FieldSchema[] = [
 const headerSection: SectionDefinition<HeaderData> = {
   type: 'header',
   displayName: 'Header',
-  icon: 'lni-menu',
+  icon: 'section-header',
   defaultVariant: 'default',
   variants: [
     { id: 'default', label: 'Default' },
@@ -545,7 +558,7 @@ const headerSection: SectionDefinition<HeaderData> = {
 const heroSection: SectionDefinition<HeroData> = {
   type: 'hero',
   displayName: 'Hero',
-  icon: 'lni-home',
+  icon: 'section-hero',
   defaultVariant: 'stacked',
   variants: [
     { id: 'stacked', label: 'Stacked' },
@@ -590,7 +603,7 @@ const heroSection: SectionDefinition<HeroData> = {
 const cardsSection: SectionDefinition<CardsData> = {
   type: 'cards',
   displayName: 'Cards',
-  icon: 'lni-grid-alt',
+  icon: 'section-cards',
   defaultVariant: 'grid',
   variants: [
     { id: 'grid', label: 'Grid' },
@@ -618,7 +631,7 @@ const cardsSection: SectionDefinition<CardsData> = {
 const linksSection: SectionDefinition<LinksData> = {
   type: 'links',
   displayName: 'Links',
-  icon: 'lni-link',
+  icon: 'section-links',
   defaultVariant: 'grid',
   variants: [
     { id: 'grid', label: 'Grid' },
@@ -646,7 +659,7 @@ const linksSection: SectionDefinition<LinksData> = {
 const accordionSection: SectionDefinition<AccordionData> = {
   type: 'accordion',
   displayName: 'Accordion',
-  icon: 'lni-list',
+  icon: 'section-accordions',
   defaultVariant: 'list',
   variants: [
     { id: 'list', label: 'List' },
@@ -668,7 +681,7 @@ const accordionSection: SectionDefinition<AccordionData> = {
 const ctaSection: SectionDefinition<CTABlockData> = {
   type: 'cta',
   displayName: 'CTA',
-  icon: 'lni-pointer-right',
+  icon: 'section-cta',
   defaultVariant: 'stacked',
   variants: [
     { id: 'stacked', label: 'Stacked' },
@@ -696,7 +709,7 @@ const ctaSection: SectionDefinition<CTABlockData> = {
 const subscribeSection: SectionDefinition<SubscribeData> = {
   type: 'subscribe',
   displayName: 'Subscribe',
-  icon: 'lni-envelope',
+  icon: 'section-subscribe',
   defaultVariant: 'stacked',
   variants: [
     { id: 'stacked', label: 'Stacked' },
@@ -722,7 +735,7 @@ const subscribeSection: SectionDefinition<SubscribeData> = {
 const contactSection: SectionDefinition<ContactData> = {
   type: 'contact',
   displayName: 'Contact',
-  icon: 'lni-phone',
+  icon: 'section-contact',
   defaultVariant: 'stacked',
   variants: [
     { id: 'stacked', label: 'Stacked' },
@@ -751,7 +764,7 @@ const contactSection: SectionDefinition<ContactData> = {
 const gallerySection: SectionDefinition<GalleryData> = {
   type: 'gallery',
   displayName: 'Gallery',
-  icon: 'lni-gallery',
+  icon: 'section-gallery',
   defaultVariant: 'grid',
   variants: [
     { id: 'masonry', label: 'Masonry' },
@@ -787,7 +800,7 @@ const gallerySection: SectionDefinition<GalleryData> = {
 const footerSection: SectionDefinition<FooterData> = {
   type: 'footer',
   displayName: 'Footer',
-  icon: 'lni-layout',
+  icon: 'section-footer',
   defaultVariant: 'default',
   variants: [
     { id: 'default', label: 'Default' },
@@ -806,7 +819,7 @@ const footerSection: SectionDefinition<FooterData> = {
 const logoListSection: SectionDefinition<LogoListData> = {
   type: 'logoList',
   displayName: 'Logo List',
-  icon: 'lni-star',
+  icon: 'section-logos',
   defaultVariant: 'grid',
   variants: [
     { id: 'grid', label: 'Grid' },
@@ -827,7 +840,7 @@ const logoListSection: SectionDefinition<LogoListData> = {
 const promoSection: SectionDefinition<PromoData> = {
   type: 'promo',
   displayName: 'Promo',
-  icon: 'lni-offer',
+  icon: 'section-promo',
   defaultVariant: 'card',
   variants: [
     { id: 'card', label: 'Card' },
@@ -861,16 +874,16 @@ const promoSection: SectionDefinition<PromoData> = {
 export const sectionRegistry = new Map<string, SectionDefinition>([
   ['header', headerSection as unknown as SectionDefinition],
   ['hero', heroSection as unknown as SectionDefinition],
+  ['promo', promoSection as unknown as SectionDefinition],
   ['cards', cardsSection as unknown as SectionDefinition],
-  ['links', linksSection as unknown as SectionDefinition],
-  ['accordion', accordionSection as unknown as SectionDefinition],
   ['cta', ctaSection as unknown as SectionDefinition],
+  ['accordion', accordionSection as unknown as SectionDefinition],
+  ['gallery', gallerySection as unknown as SectionDefinition],
+  ['links', linksSection as unknown as SectionDefinition],
   ['subscribe', subscribeSection as unknown as SectionDefinition],
   ['contact', contactSection as unknown as SectionDefinition],
-  ['gallery', gallerySection as unknown as SectionDefinition],
-  ['footer', footerSection as unknown as SectionDefinition],
   ['logoList', logoListSection as unknown as SectionDefinition],
-  ['promo', promoSection as unknown as SectionDefinition],
+  ['footer', footerSection as unknown as SectionDefinition],
 ])
 
 /**

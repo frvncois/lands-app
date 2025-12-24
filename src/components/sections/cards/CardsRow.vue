@@ -11,8 +11,18 @@
  */
 
 import type { CardsData } from '@/lib/section-registry'
-import type { SectionStyleProperties, ItemStyleProperties, FieldStyles } from '@/types/sections'
-import { resolveSectionStyles } from '@/lib/section-styles'
+import type {
+  SectionStyleProperties,
+  ItemStyleProperties,
+  FieldStyles,
+  SelectionPayload,
+  ActiveNodeType,
+} from '@/types/sections'
+import {
+  resolveSectionStyles,
+  resolveItemContainerStyles,
+  resolveItemTypographyStyles,
+} from '@/lib/section-styles'
 
 const props = defineProps<{
   data: CardsData
@@ -20,12 +30,15 @@ const props = defineProps<{
   itemStyles?: ItemStyleProperties
   fieldStyles?: FieldStyles
   editable?: boolean
-  activeField?: string | null
+  activeNodeId?: string | null
+  activeNodeType?: ActiveNodeType | null
+  activeFieldKey?: string | null
+  activeItemId?: string | null
   hiddenFields?: string[]
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload]
   'update': [fieldKey: string, value: unknown]
 }>()
 
@@ -33,16 +46,12 @@ function getSectionStyle(): Record<string, string> {
   return resolveSectionStyles(props.sectionStyles)
 }
 
-function getItemTextStyle(): Record<string, string> {
-  const styles = props.itemStyles
-  const result: Record<string, string> = { fontFamily: 'var(--font-body)' }
+function getItemContainerStyle(): Record<string, string> {
+  return resolveItemContainerStyles(props.itemStyles)
+}
 
-  if (!styles) return result
-
-  if (styles.fontSize) result.fontSize = `${styles.fontSize}px`
-  if (styles.lineHeight) result.lineHeight = String(styles.lineHeight)
-  if (styles.color) result.color = styles.color
-  return result
+function getItemTypographyStyle(): Record<string, string> {
+  return resolveItemTypographyStyles(props.itemStyles)
 }
 
 /**
@@ -52,7 +61,10 @@ function getItemTextStyle(): Record<string, string> {
 function getFieldStyle(index: number, fieldKey: string, defaultFont: string = '--font-body'): Record<string, string> {
   const fieldPath = `items.${index}.${fieldKey}`
   const styles = props.fieldStyles?.[fieldPath]
-  const result: Record<string, string> = { fontFamily: `var(${defaultFont})` }
+  const result: Record<string, string> = {
+    fontFamily: `var(${defaultFont})`,
+    ...getItemTypographyStyle(),
+  }
 
   if (!styles) return result
 
@@ -64,10 +76,32 @@ function getFieldStyle(index: number, fieldKey: string, defaultFont: string = '-
   return result
 }
 
-function handleItemClick(e: MouseEvent, index: number) {
+function getCardId(card: CardsData['items'][number], fallback: number): string | null {
+  if (card?.id) return card.id
+  return fallback.toString()
+}
+
+function isCardActive(card: CardsData['items'][number], index: number): boolean {
+  if (!props.editable) return false
+  const cardId = getCardId(card, index)
+  if (!cardId) return false
+  return (
+    props.activeNodeType === 'item' &&
+    props.activeFieldKey === 'items' &&
+    props.activeItemId === cardId
+  )
+}
+
+function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index: number) {
   if (!props.editable) return
   e.stopPropagation()
-  emit('selectField', `items.${index}`)
+  const cardId = getCardId(card, index)
+  if (!cardId) return
+  emit('selectField', {
+    type: 'item',
+    fieldKey: 'items',
+    itemId: cardId,
+  })
 }
 
 // Check if media should be on left (odd index = 0, 2, 4... media on left)
@@ -84,28 +118,35 @@ function isMediaLeft(index: number): boolean {
     <div class="max-w-[1200px] mx-auto w-full flex flex-col gap-[var(--spacing-2xl)]">
       <div
         v-for="(card, index) in data.items"
-        :key="index"
+        :key="card.id || index"
         class="grid grid-cols-1 md:grid-cols-2 gap-[var(--spacing-xl)] items-center"
         :class="[
-          editable && 'cursor-pointer transition-all duration-150 rounded-[var(--radius-lg)]',
-          editable && activeField !== `items.${index}` && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-          editable && activeField === `items.${index}` && 'outline outline-2 outline-primary -outline-offset-2',
+          editable && 'cursor-pointer transition-all duration-150 rounded-[var(--radius-lg)] select-none',
+          editable && !isCardActive(card, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+          editable && isCardActive(card, index) && 'outline outline-2 outline-primary -outline-offset-2',
         ]"
-        @click="handleItemClick($event, index)"
+        :style="getItemContainerStyle()"
+        @click="handleItemClick($event, card, index)"
       >
         <!-- Media Column -->
-        <div :class="{ 'md:order-2': !isMediaLeft(index) }">
+        <div :class="[{ 'md:order-2': !isMediaLeft(index) }, editable && 'pointer-events-none select-none']">
           <template v-if="card.media?.src">
             <img
               v-if="card.media.type === 'image'"
               :src="card.media.src"
               :alt="card.media.alt || ''"
-              class="w-full h-auto rounded-[var(--radius-lg)] object-cover aspect-[4/3]"
+              :class="[
+                'w-full h-auto rounded-[var(--radius-lg)] object-cover aspect-[4/3]',
+                editable && 'pointer-events-none select-none',
+              ]"
             />
             <video
               v-else-if="card.media.type === 'video'"
               :src="card.media.src"
-              class="w-full h-auto rounded-[var(--radius-lg)] object-cover aspect-[4/3]"
+              :class="[
+                'w-full h-auto rounded-[var(--radius-lg)] object-cover aspect-[4/3]',
+                editable && 'pointer-events-none select-none',
+              ]"
               autoplay
               muted
               loop
@@ -125,8 +166,7 @@ function isMediaLeft(index: number): boolean {
         <!-- Content Column (non-editable inline - edit via inspector) -->
         <div
           class="flex flex-col gap-[var(--spacing-md)]"
-          :class="{ 'md:order-1': !isMediaLeft(index) }"
-          :style="getItemTextStyle()"
+          :class="[{ 'md:order-1': !isMediaLeft(index) }, editable && 'pointer-events-none select-none']"
         >
           <h3
             v-if="card.headline"

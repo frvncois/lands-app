@@ -58,15 +58,17 @@ function selectSection(sectionId: string) {
 }
 
 function selectField(sectionId: string, fieldKey: string) {
-  // Select section and set active field
   editor.selectSection(sectionId)
-  editor.setActiveField(fieldKey)
+  editor.selectFieldNode(sectionId, fieldKey)
 }
 
-function selectItem(sectionId: string, fieldKey: string, index: number) {
+function selectItem(sectionId: string, fieldKey: string, itemId: string) {
   editor.selectSection(sectionId)
-  editor.setActiveField(fieldKey)
-  editor.setActiveItem(index)
+  if (fieldKey === 'form.fields') {
+    editor.selectFormNode(sectionId, itemId)
+  } else {
+    editor.selectItemNode(sectionId, fieldKey, itemId)
+  }
 }
 
 // Get icon for a field type
@@ -111,6 +113,11 @@ function getContentFields(schema: FieldSchema[], fieldOrder?: string[]): FieldSc
 // Get repeater fields from schema
 function getRepeaterFields(schema: FieldSchema[]): RepeaterField[] {
   return schema.filter(field => field.type === 'repeater') as RepeaterField[]
+}
+
+function getItemId(item: Record<string, unknown>, index: number): string {
+  const id = item.id
+  return typeof id === 'string' ? id : `${index}`
 }
 
 // Get the item schema for a repeater (variant-specific or useCase-specific if available)
@@ -194,8 +201,7 @@ function onDragEnd() {
 // Check if an item is selected
 function isItemSelected(sectionId: string, fieldKey: string, index: number): boolean {
   return editor.selectedSectionId === sectionId &&
-    editor.activeField === fieldKey &&
-    editor.activeItemIndex === index
+    editor.activeFieldPath === `${fieldKey}.${index}`
 }
 
 // Section actions
@@ -210,14 +216,14 @@ function duplicateSection(e: MouseEvent, sectionId: string) {
 }
 
 // Repeater item actions
-function deleteItem(e: MouseEvent, sectionId: string, fieldKey: string, index: number) {
+function deleteItem(e: MouseEvent, sectionId: string, fieldKey: string, itemId: string) {
   e.stopPropagation()
-  editor.removeRepeaterItem(sectionId, fieldKey, index)
+  editor.removeRepeaterItem(sectionId, fieldKey, itemId)
 }
 
-function duplicateItem(e: MouseEvent, sectionId: string, fieldKey: string, index: number) {
+function duplicateItem(e: MouseEvent, sectionId: string, fieldKey: string, itemId: string) {
   e.stopPropagation()
-  editor.duplicateRepeaterItem(sectionId, fieldKey, index)
+  editor.duplicateRepeaterItem(sectionId, fieldKey, itemId)
 }
 
 // Field visibility (uses store)
@@ -261,7 +267,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
         <div
           class="group flex items-center gap-1.5 w-full px-2 py-2 rounded-lg transition-colors"
           :class="[
-            editor.selectedSectionId === section.id && !editor.activeField
+            editor.selectedSectionId === section.id && !editor.activeFieldPath
               ? 'bg-accent'
               : editor.selectedSectionId === section.id
                 ? 'bg-accent/80'
@@ -314,7 +320,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
             :key="field.key"
             class="group/field flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors cursor-pointer"
             :class="[
-              editor.selectedSectionId === section.id && editor.activeField === field.key && editor.activeItemIndex === null
+              editor.selectedSectionId === section.id && editor.activeFieldPath === field.key
                 ? 'bg-primary text-primary-foreground'
                 : 'hover:bg-accent',
               editor.isFieldHidden(section.id, field.key) && 'opacity-50'
@@ -324,14 +330,14 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
             <Icon
               :name="getFieldIcon(field)"
               :size="12"
-              :class="editor.selectedSectionId === section.id && editor.activeField === field.key && editor.activeItemIndex === null
+              :class="editor.selectedSectionId === section.id && editor.activeFieldPath === field.key
                 ? 'text-primary-foreground'
                 : 'text-muted-foreground'"
             />
             <span
               class="flex-1 text-xs truncate"
               :class="[
-                editor.selectedSectionId === section.id && editor.activeField === field.key && editor.activeItemIndex === null
+                editor.selectedSectionId === section.id && editor.activeFieldPath === field.key
                   ? 'text-primary-foreground'
                   : 'text-foreground'
               ]"
@@ -345,7 +351,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
                 editor.isFieldHidden(section.id, field.key)
                   ? 'flex'
                   : 'hidden group-hover/field:flex',
-                editor.selectedSectionId === section.id && editor.activeField === field.key && editor.activeItemIndex === null
+                editor.selectedSectionId === section.id && editor.activeFieldPath === field.key
                   ? 'text-primary-foreground/70 hover:text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               ]"
@@ -360,14 +366,14 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
           <template v-for="repeater in getRepeaterFields(section.definition.schema)" :key="repeater.key">
             <div
               v-for="(item, itemIndex) in (section.data[repeater.key] as Record<string, unknown>[])"
-              :key="`${repeater.key}-${itemIndex}`"
+              :key="`${repeater.key}-${getItemId(item, itemIndex)}`"
               class="group/item flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors cursor-pointer"
               :class="[
                 isItemSelected(section.id, repeater.key, itemIndex)
                   ? 'bg-primary text-primary-foreground'
                   : 'hover:bg-accent'
               ]"
-              @click="selectItem(section.id, repeater.key, itemIndex)"
+              @click="selectItem(section.id, repeater.key, getItemId(item, itemIndex))"
             >
               <Icon
                 :name="getFieldIcon(repeater)"
@@ -403,7 +409,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
                       : 'text-muted-foreground hover:text-foreground'
                   ]"
                   title="Duplicate item"
-                  @click="duplicateItem($event, section.id, repeater.key, itemIndex)"
+                  @click="duplicateItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
                 >
                   <Icon name="app-duplicate" :size="10" />
                 </button>
@@ -415,7 +421,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
                       : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
                   ]"
                   title="Delete item"
-                  @click="deleteItem($event, section.id, repeater.key, itemIndex)"
+                  @click="deleteItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
                 >
                   <Icon name="app-delete" :size="10" />
                 </button>

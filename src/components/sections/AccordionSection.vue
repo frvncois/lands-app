@@ -13,7 +13,15 @@
  */
 
 import type { AccordionData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles, ItemStyleProperties } from '@/types/sections'
+import type {
+  SectionStyleProperties,
+  FieldStyles,
+  ItemStyleProperties,
+  SelectionPayload,
+  ActiveNodeType,
+} from '@/types/sections'
+import { computed } from 'vue'
+import { useEditorStore } from '@/stores/editor'
 import AccordionList from './accordion/AccordionList.vue'
 import AccordionSplit from './accordion/AccordionSplit.vue'
 
@@ -29,12 +37,24 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
-function handleSelectField(fieldKey: string) {
-  emit('selectField', fieldKey)
+const editor = useEditorStore()
+
+const currentNode = computed(() => {
+  if (!props.editable) return null
+  return editor.activeNode || null
+})
+
+const activeNodeId = computed(() => currentNode.value?.id ?? null)
+const activeNodeType = computed<ActiveNodeType | null>(() => currentNode.value?.type ?? null)
+const activeFieldKey = computed(() => currentNode.value?.fieldKey ?? null)
+const activeItemId = computed(() => currentNode.value?.itemId ?? null)
+
+function handleSelectField(payload: SelectionPayload | string) {
+  emit('selectField', payload)
 }
 
 function handleUpdate(fieldKey: string, value: unknown) {
@@ -51,6 +71,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :item-styles="itemStyles"
     :editable="editable"
     :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"
@@ -63,6 +87,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :item-styles="itemStyles"
     :editable="editable"
     :active-field="activeField"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"

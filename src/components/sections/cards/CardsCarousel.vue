@@ -12,9 +12,20 @@
  */
 
 import type { CardsData } from '@/lib/section-registry'
-import type { SectionStyleProperties, ItemStyleProperties, FieldStyles } from '@/types/sections'
+import type {
+  SectionStyleProperties,
+  ItemStyleProperties,
+  FieldStyles,
+  SelectionPayload,
+  ActiveNodeType,
+} from '@/types/sections'
 import { ref, onMounted, onUnmounted } from 'vue'
-import { resolveSectionStyles } from '@/lib/section-styles'
+import {
+  resolveSectionStyles,
+  resolveItemContainerStyles,
+  resolveItemPaddingStyles,
+  resolveItemTypographyStyles,
+} from '@/lib/section-styles'
 
 const props = defineProps<{
   data: CardsData
@@ -22,12 +33,15 @@ const props = defineProps<{
   itemStyles?: ItemStyleProperties
   fieldStyles?: FieldStyles
   editable?: boolean
-  activeField?: string | null
+  activeNodeId?: string | null
+  activeNodeType?: ActiveNodeType | null
+  activeFieldKey?: string | null
+  activeItemId?: string | null
   hiddenFields?: string[]
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload]
   'update': [fieldKey: string, value: unknown]
 }>()
 
@@ -98,28 +112,15 @@ function getSectionStyle(): Record<string, string> {
 }
 
 function getItemStyle(): Record<string, string> {
-  const styles = props.itemStyles
-  const result: Record<string, string> = {}
-
-  if (!styles) return result
-
-  if (styles.backgroundColor) result.backgroundColor = styles.backgroundColor
-  if (styles.borderRadius !== undefined) result.borderRadius = `${styles.borderRadius}px`
-  return result
+  return resolveItemContainerStyles(props.itemStyles, { includePadding: false })
 }
 
-function getItemTextStyle(): Record<string, string> {
-  const styles = props.itemStyles
-  const result: Record<string, string> = { fontFamily: 'var(--font-body)' }
+function getItemContentStyle(): Record<string, string> {
+  return resolveItemPaddingStyles(props.itemStyles)
+}
 
-  if (!styles) return result
-
-  if (styles.fontSize) result.fontSize = `${styles.fontSize}px`
-  if (styles.lineHeight) result.lineHeight = String(styles.lineHeight)
-  if (styles.color) result.color = styles.color
-  if (styles.spacingX) result.paddingLeft = result.paddingRight = `${styles.spacingX}px`
-  if (styles.spacingY) result.paddingTop = result.paddingBottom = `${styles.spacingY}px`
-  return result
+function getItemTypographyStyle(): Record<string, string> {
+  return resolveItemTypographyStyles(props.itemStyles)
 }
 
 /**
@@ -129,7 +130,10 @@ function getItemTextStyle(): Record<string, string> {
 function getFieldStyle(index: number, fieldKey: string, defaultFont: string = '--font-body'): Record<string, string> {
   const fieldPath = `items.${index}.${fieldKey}`
   const styles = props.fieldStyles?.[fieldPath]
-  const result: Record<string, string> = { fontFamily: `var(${defaultFont})` }
+  const result: Record<string, string> = {
+    fontFamily: `var(${defaultFont})`,
+    ...getItemTypographyStyle(),
+  }
 
   if (!styles) return result
 
@@ -141,10 +145,32 @@ function getFieldStyle(index: number, fieldKey: string, defaultFont: string = '-
   return result
 }
 
-function handleItemClick(e: MouseEvent, index: number) {
+function getCardId(card: CardsData['items'][number], fallback: number): string | null {
+  if (card?.id) return card.id
+  return fallback.toString()
+}
+
+function isCardActive(card: CardsData['items'][number], index: number): boolean {
+  if (!props.editable) return false
+  const cardId = getCardId(card, index)
+  if (!cardId) return false
+  return (
+    props.activeNodeType === 'item' &&
+    props.activeFieldKey === 'items' &&
+    props.activeItemId === cardId
+  )
+}
+
+function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index: number) {
   if (!props.editable) return
   e.stopPropagation()
-  emit('selectField', `items.${index}`)
+  const cardId = getCardId(card, index)
+  if (!cardId) return
+  emit('selectField', {
+    type: 'item',
+    fieldKey: 'items',
+    itemId: cardId,
+  })
 }
 </script>
 
@@ -179,16 +205,16 @@ function handleItemClick(e: MouseEvent, index: number) {
       >
         <div
           v-for="(card, index) in data.items"
-          :key="index"
+          :key="card.id || index"
           class="flex-shrink-0 flex flex-col gap-[var(--spacing-sm)] bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden snap-start"
           :class="[
             getCardWidthClass(),
-            editable && 'cursor-pointer transition-all duration-150',
-            editable && activeField !== `items.${index}` && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-            editable && activeField === `items.${index}` && 'outline outline-2 outline-primary -outline-offset-2',
+            editable && 'cursor-pointer transition-all duration-150 select-none',
+            editable && !isCardActive(card, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+            editable && isCardActive(card, index) && 'outline outline-2 outline-primary -outline-offset-2',
           ]"
           :style="getItemStyle()"
-          @click="handleItemClick($event, index)"
+          @click="handleItemClick($event, card, index)"
         >
           <!-- Media (Image or Video) -->
           <template v-if="card.media?.src">
@@ -196,12 +222,18 @@ function handleItemClick(e: MouseEvent, index: number) {
               v-if="card.media.type === 'image'"
               :src="card.media.src"
               :alt="card.media.alt || ''"
-              class="w-full aspect-video object-cover"
+              :class="[
+                'w-full aspect-video object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
             />
             <video
               v-else-if="card.media.type === 'video'"
               :src="card.media.src"
-              class="w-full aspect-video object-cover"
+              :class="[
+                'w-full aspect-video object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
               autoplay
               muted
               loop
@@ -210,7 +242,11 @@ function handleItemClick(e: MouseEvent, index: number) {
           </template>
 
           <!-- Content (non-editable inline - edit via inspector) -->
-          <div class="p-[var(--spacing-md)] flex flex-col gap-[var(--spacing-xs)]" :style="getItemTextStyle()">
+          <div
+            class="p-[var(--spacing-md)] flex flex-col gap-[var(--spacing-xs)]"
+            :class="editable && 'pointer-events-none select-none'"
+            :style="getItemContentStyle()"
+          >
             <h3
               v-if="card.headline"
               class="text-[length:var(--text-xl)] font-semibold m-0"

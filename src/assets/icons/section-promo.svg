@@ -1,0 +1,8 @@
+<svg id="notes-favorite-star" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <path id="Path_21" data-name="Path 21" d="M24,24H0V0H24Z" fill="none"/>
+  <path id="Path_22" data-name="Path 22" d="M20,10V5a2,2,0,0,0-2-2H5A2,2,0,0,0,3,5V19a2,2,0,0,0,2,2h5" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_5" data-name="Line 5" x2="9" transform="translate(7 8)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_6" data-name="Line 6" x2="5" transform="translate(7 12)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <line id="Line_7" data-name="Line 7" x2="3" transform="translate(7 16)" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+  <path id="Path_23" data-name="Path 23" d="M16.949,13.558a1,1,0,0,1,1.794,0l.509,1.031a1,1,0,0,0,.753.547l1.138.165a1,1,0,0,1,.554,1.705l-.824.8a1,1,0,0,0-.287.885l.194,1.133a1,1,0,0,1-1.451,1.054l-1.018-.535a1,1,0,0,0-.93,0l-1.018.535a1,1,0,0,1-1.451-1.054l.194-1.133a1,1,0,0,0-.287-.885l-.824-.8A1,1,0,0,1,14.55,15.3l1.138-.165a1,1,0,0,0,.753-.547Z" fill="none" stroke="#323232" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+</svg>

@@ -523,3 +523,32 @@ export interface Template {
   /** Initial sections with starter content */
   sections: TemplateSectionData[]
 }
+
+// ============================================
+// EDITOR SELECTION
+// ============================================
+
+export type ActiveNodeType = 'section' | 'field' | 'item' | 'form'
+
+export interface ActiveNode {
+  id: string
+  type: ActiveNodeType
+  sectionId: string
+  fieldKey?: string
+  itemId?: string
+}
+
+export type SelectionPayloadType = ActiveNodeType | 'section'
+
+export interface SelectionPayload {
+  type: SelectionPayloadType
+  fieldKey?: string
+  itemId?: string
+}
+
+export interface SelectionContextProps {
+  activeNodeId?: string | null
+  activeNodeType?: ActiveNodeType | null
+  activeFieldKey?: string | null
+  activeItemId?: string | null
+}

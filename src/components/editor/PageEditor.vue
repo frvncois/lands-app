@@ -153,7 +153,6 @@ onUnmounted(() => {
 
 function handleCanvasClick() {
   editor.selectSection(null)
-  editor.setActiveField(null)
 }
 </script>
 

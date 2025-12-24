@@ -13,7 +13,7 @@
  */
 
 import type { SubscribeData } from '@/lib/section-registry'
-import type { SectionStyleProperties, FieldStyles } from '@/types/sections'
+import type { SectionStyleProperties, FieldStyles, SelectionPayload } from '@/types/sections'
 import SubscribeStacked from './subscribe/SubscribeStacked.vue'
 import SubscribeSplit from './subscribe/SubscribeSplit.vue'
 
@@ -29,12 +29,12 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectField: [fieldKey: string]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
-function handleSelectField(fieldKey: string) {
-  emit('selectField', fieldKey)
+function handleSelectField(payload: SelectionPayload | string) {
+  emit('selectField', payload)
 }
 
 function handleUpdate(fieldKey: string, value: unknown) {
