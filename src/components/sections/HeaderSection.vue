@@ -7,10 +7,9 @@
  * - centered: Everything centered
  *
  * Style options:
- * - sticky: boolean (default true) - makes header sticky with layout compensation
+ * - sticky: boolean (default true) - makes header sticky
  */
 
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import type { HeaderData } from '@/lib/section-registry'
 import type { SectionStyleProperties, FieldStyles } from '@/types/sections'
 import EditableText from './EditableText.vue'
@@ -32,44 +31,9 @@ const emit = defineEmits<{
   'update': [fieldKey: string, value: unknown]
 }>()
 
-// Header element ref for height measurement
-const headerRef = ref<HTMLElement | null>(null)
-
-// Sticky is enabled by default unless explicitly set to false
-const isSticky = computed(() => {
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return styles?.sticky !== false
-})
-
-// Measure and update header height CSS variable
-function updateHeaderHeight() {
-  if (!headerRef.value) return
-  const height = headerRef.value.getBoundingClientRect().height
-  document.documentElement.style.setProperty('--lands-header-height', `${height}px`)
-}
-
-// Combined header styles: section styles + negative margin compensation
 function getHeaderStyle(): Record<string, string> {
-  const baseStyles = resolveSectionStyles(props.sectionStyles)
-
-  if (isSticky.value) {
-    baseStyles.marginBottom = 'calc(var(--lands-header-height, 0px) * -1)'
-  }
-
-  return baseStyles
+  return resolveSectionStyles(props.sectionStyles)
 }
-
-// Lifecycle: measure height on mount and resize
-onMounted(() => {
-  updateHeaderHeight()
-  window.addEventListener('resize', updateHeaderHeight)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateHeaderHeight)
-  // Clean up CSS variable
-  document.documentElement.style.removeProperty('--lands-header-height')
-})
 
 function getLogoStyle(): Record<string, string> {
   return getImageStyle(props.fieldStyles, 'logo.src')
@@ -108,7 +72,6 @@ function handleLinkClick(e: MouseEvent) {
 
 <template>
   <header
-    ref="headerRef"
     class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-md)] px-[var(--spacing-container)]"
     :style="getHeaderStyle()"
   >

@@ -290,6 +290,40 @@ export interface PromoData {
   links: PromoLink[]
 }
 
+// --- Products ---
+export interface ProductVariant {
+  id?: string
+  label: string
+  price: number
+  compareAtPrice?: number
+}
+
+export interface ProductItem {
+  id?: string
+  image?: {
+    src: string
+    alt?: string
+  }
+  heading: string
+  subheading?: string
+  description?: string
+  variants?: ProductVariant[]
+  ctaLabel: string
+  ctaUrl: string
+}
+
+export interface ProductsLayoutOptions {
+  // carousel variant only
+  slidesPerView?: '1' | '2' | '3'
+  autoplay?: boolean
+  showArrows?: boolean
+}
+
+export interface ProductsData {
+  items: ProductItem[]
+  layout?: ProductsLayoutOptions
+}
+
 
 // ============================================
 // FIELD SCHEMAS
@@ -524,6 +558,37 @@ const promoSchema: FieldSchema[] = [
     itemSchema: [
       { type: 'text', key: 'label', label: 'Label', required: true },
       { type: 'url', key: 'url', label: 'URL', required: true },
+    ],
+  },
+]
+
+const productsSchema: FieldSchema[] = [
+  {
+    type: 'repeater',
+    key: 'items',
+    label: 'Products',
+    minItems: 1,
+    maxItems: 12,
+    itemSchema: [
+      { type: 'image', key: 'image.src', label: 'Image' },
+      { type: 'text', key: 'heading', label: 'Product Name', required: true },
+      { type: 'text', key: 'subheading', label: 'Subheading' },
+      { type: 'richText', key: 'description', label: 'Description' },
+      {
+        type: 'repeater',
+        key: 'variants',
+        label: 'Variants',
+        minItems: 1,
+        maxItems: 10,
+        itemSchema: [
+          { type: 'text', key: 'label', label: 'Variant Label', required: true, placeholder: 'e.g. Small, Medium, Large' },
+          { type: 'text', key: 'price', label: 'Price', required: true, placeholder: '29.99' },
+          { type: 'text', key: 'compareAtPrice', label: 'Compare At Price', placeholder: '39.99' },
+        ],
+        itemDefault: { label: 'Default', price: 0 },
+      },
+      { type: 'text', key: 'ctaLabel', label: 'Button Label', required: true, placeholder: 'Buy Now' },
+      { type: 'url', key: 'ctaUrl', label: 'Button URL', required: true, placeholder: 'https://' },
     ],
   },
 ]
@@ -863,6 +928,55 @@ const promoSection: SectionDefinition<PromoData> = {
   }),
 }
 
+const productsSection: SectionDefinition<ProductsData> = {
+  type: 'products',
+  displayName: 'Products',
+  icon: 'section-cards',
+  defaultVariant: 'grid',
+  variants: [
+    { id: 'grid', label: 'Grid' },
+    { id: 'carousel', label: 'Carousel' },
+    { id: 'row', label: 'Row' },
+  ],
+  layoutOptions: {
+    carousel: [
+      { key: 'slidesPerView', label: 'Slides Per View', type: 'select', options: [{ value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' }], default: '1' },
+      { key: 'autoplay', label: 'Autoplay', type: 'toggle', default: false },
+      { key: 'showArrows', label: 'Show Arrows', type: 'toggle', default: true },
+    ],
+  },
+  schema: productsSchema,
+  component: defineAsyncComponent(() => import('@/components/sections/ProductsSection.vue')),
+  createDefaultData: () => ({
+    items: [
+      {
+        heading: 'Product One',
+        subheading: 'Best seller',
+        description: 'A great product that you will love.',
+        variants: [{ label: 'Default', price: 29.99 }],
+        ctaLabel: 'Buy Now',
+        ctaUrl: '#',
+      },
+      {
+        heading: 'Product Two',
+        subheading: 'New arrival',
+        description: 'Another amazing product.',
+        variants: [{ label: 'Default', price: 39.99 }],
+        ctaLabel: 'Buy Now',
+        ctaUrl: '#',
+      },
+      {
+        heading: 'Product Three',
+        subheading: 'Limited edition',
+        description: 'Get it while it lasts.',
+        variants: [{ label: 'Default', price: 49.99 }],
+        ctaLabel: 'Buy Now',
+        ctaUrl: '#',
+      },
+    ],
+  }),
+}
+
 
 // ============================================
 // REGISTRY
@@ -876,6 +990,7 @@ export const sectionRegistry = new Map<string, SectionDefinition>([
   ['hero', heroSection as unknown as SectionDefinition],
   ['promo', promoSection as unknown as SectionDefinition],
   ['cards', cardsSection as unknown as SectionDefinition],
+  ['products', productsSection as unknown as SectionDefinition],
   ['cta', ctaSection as unknown as SectionDefinition],
   ['accordion', accordionSection as unknown as SectionDefinition],
   ['gallery', gallerySection as unknown as SectionDefinition],
