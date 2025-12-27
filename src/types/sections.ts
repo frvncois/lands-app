@@ -6,6 +6,34 @@
 import type { Component } from 'vue'
 
 // ============================================
+// SECTION TYPES
+// ============================================
+
+/**
+ * All available section types
+ */
+export type SectionType =
+  | 'header'
+  | 'hero'
+  | 'cards'
+  | 'links'
+  | 'accordion'
+  | 'cta'
+  | 'contact'
+  | 'subscribe'
+  | 'gallery'
+  | 'footer'
+  | 'products'
+  | 'faq'
+  | 'menu'
+  | 'events'
+  | 'services'
+  | 'media-text'
+  | 'text'
+  | 'logoList'
+  | 'promo'
+
+// ============================================
 // FIELD SCHEMA TYPES
 // ============================================
 
@@ -249,6 +277,8 @@ export interface FieldStyleProperties {
   borderColor?: string      // border color (hex) - for buttons
   borderWidth?: number      // border width in px (0-8) - for buttons
   width?: number            // width in px (for image fields)
+  aspectRatio?: string      // aspect ratio for media fields (e.g., '16/9', '4/3', '1/1')
+  [key: string]: string | number | undefined // Index signature for dynamic access
 }
 
 /**
@@ -280,6 +310,7 @@ export interface SectionStyleProperties extends Partial<Record<RepeaterStyleKey,
   overlayHeight?: 'full' | 'half'
   overlayPositionX?: 'left' | 'center' | 'right'
   overlayPositionY?: 'top' | 'middle' | 'bottom'
+  overlayColor?: string     // hex color
   overlayOpacity?: number   // 0-100
   overlayBlur?: number      // px
 
@@ -329,6 +360,11 @@ export interface SectionStyleProperties extends Partial<Record<RepeaterStyleKey,
 
   // Gallery spacing
   gallerySpaceBetween?: number
+
+  // Carousel/Slider options (Cards, Products, Gallery)
+  slidesPerView?: number | string  // Can be number (Cards: 1-6 with 0.5 step) or string (Products: '1', '2', '3')
+  autoplay?: boolean
+  showArrows?: boolean
 
   // Dynamic style options (from section definition styleOptions)
   [key: string]: string | number | boolean | undefined

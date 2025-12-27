@@ -1,23 +1,21 @@
 <script setup lang="ts">
-import ColorPicker from '@/components/ui/ColorPicker.vue'
+import Toggle from '@/components/ui/Toggle.vue'
 
 defineProps<{
   label: string
-  modelValue: string
+  modelValue: boolean
 }>()
 
 defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: boolean]
 }>()
 </script>
 
 <template>
   <div class="flex items-center justify-between gap-3">
     <label class="text-xs text-muted-foreground whitespace-nowrap">{{ label }}</label>
-    <ColorPicker
+    <Toggle
       :model-value="modelValue"
-      swatch-only
-      below-parent
       @update:model-value="$emit('update:modelValue', $event)"
     />
   </div>

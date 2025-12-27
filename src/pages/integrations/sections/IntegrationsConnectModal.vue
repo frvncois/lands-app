@@ -14,7 +14,7 @@ const {
   isConnected,
   closeConnect,
   connectIntegration,
-} = useIntegrationsState()
+} = useIntegrationsState(projectId.value)
 </script>
 
 <template>

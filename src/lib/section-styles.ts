@@ -157,6 +157,7 @@ export function mediaStyleToCss(styles: FieldStyleProperties): Record<string, st
   const result: Record<string, string> = {}
 
   if (styles.borderRadius !== undefined) result.borderRadius = `${styles.borderRadius}px`
+  if (styles.aspectRatio) result.aspectRatio = styles.aspectRatio
   if (styles.spacingY !== undefined) {
     result.marginTop = `${styles.spacingY}px`
     result.marginBottom = `${styles.spacingY}px`
@@ -164,6 +165,14 @@ export function mediaStyleToCss(styles: FieldStyleProperties): Record<string, st
   if (styles.spacingX !== undefined) {
     result.marginLeft = `${styles.spacingX}px`
     result.marginRight = `${styles.spacingX}px`
+  }
+  // Media border styles
+  if (styles.borderWidth !== undefined && styles.borderWidth > 0) {
+    result.borderStyle = 'solid'
+    result.borderWidth = `${styles.borderWidth}px`
+    if (styles.borderColor) {
+      result.borderColor = styles.borderColor
+    }
   }
 
   return result

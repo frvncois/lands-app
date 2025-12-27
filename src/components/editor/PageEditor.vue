@@ -110,8 +110,10 @@ function handleKeydown(e: KeyboardEvent) {
 
   // Delete: Backspace or Delete
   if ((e.key === 'Backspace' || e.key === 'Delete') && selectedId.value) {
-    if (document.activeElement?.tagName !== 'INPUT' &&
-        document.activeElement?.tagName !== 'TEXTAREA') {
+    const activeEl = document.activeElement as HTMLElement
+    if (activeEl?.tagName !== 'INPUT' &&
+        activeEl?.tagName !== 'TEXTAREA' &&
+        !activeEl?.isContentEditable) {
       e.preventDefault()
       editor.removeSection(selectedId.value)
     }
@@ -119,16 +121,20 @@ function handleKeydown(e: KeyboardEvent) {
 
   // Navigate: Arrow keys
   if (e.key === 'ArrowUp' && !e.metaKey && !e.ctrlKey) {
-    if (document.activeElement?.tagName !== 'INPUT' &&
-        document.activeElement?.tagName !== 'TEXTAREA') {
+    const activeEl = document.activeElement as HTMLElement
+    if (activeEl?.tagName !== 'INPUT' &&
+        activeEl?.tagName !== 'TEXTAREA' &&
+        !activeEl?.isContentEditable) {
       e.preventDefault()
       editor.selectPreviousSection()
     }
   }
 
   if (e.key === 'ArrowDown' && !e.metaKey && !e.ctrlKey) {
-    if (document.activeElement?.tagName !== 'INPUT' &&
-        document.activeElement?.tagName !== 'TEXTAREA') {
+    const activeEl = document.activeElement as HTMLElement
+    if (activeEl?.tagName !== 'INPUT' &&
+        activeEl?.tagName !== 'TEXTAREA' &&
+        !activeEl?.isContentEditable) {
       e.preventDefault()
       editor.selectNextSection()
     }

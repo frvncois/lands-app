@@ -136,7 +136,7 @@ function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index:
       <!-- Cards Row Container -->
       <div
         :class="[
-          'flex flex-col md:flex-row flex-1',
+          'flex flex-col flex-1',
           hasHeaderContent ? 'md:w-2/3' : 'w-full',
         ]"
         :style="{ gap: `${cardsListSpaceBetween}px` }"

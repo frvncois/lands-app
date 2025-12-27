@@ -6,6 +6,7 @@
  * - overlayHeight: 'full' | 'half'
  * - overlayPositionX: 'left' | 'center' | 'right'
  * - overlayPositionY: 'top' | 'middle' | 'bottom'
+ * - overlayColor: hex color (default: #000000)
  * - overlayOpacity: 0-100 (percentage)
  * - overlayBlur: 0-32 (px)
  * - spaceBetween: gap between content blocks
@@ -42,6 +43,7 @@ const emit = defineEmits<{
 const overlayHeight = computed(() => props.sectionStyles?.overlayHeight ?? 'full')
 const positionX = computed(() => props.sectionStyles?.overlayPositionX ?? 'center')
 const positionY = computed(() => props.sectionStyles?.overlayPositionY ?? 'middle')
+const overlayColor = computed(() => props.sectionStyles?.overlayColor ?? '#000000')
 const overlayOpacity = computed(() => props.sectionStyles?.overlayOpacity ?? 50)
 const overlayBlur = computed(() => props.sectionStyles?.overlayBlur ?? 0)
 const spaceBetween = computed(() => props.sectionStyles?.spaceBetween ?? 32)
@@ -100,13 +102,20 @@ const contentGapStyle = computed(() => ({
   gap: `${spaceBetween.value}px`
 }))
 
-// Overlay style with configurable opacity and blur
+// Overlay style with configurable color, opacity and blur
 function getOverlayStyle(): Record<string, string> {
   const opacity = overlayOpacity.value / 100
   const blur = overlayBlur.value
+  const color = overlayColor.value
+
+  // Convert hex to RGB
+  const hex = color.replace('#', '')
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
 
   const result: Record<string, string> = {
-    backgroundColor: `rgba(0, 0, 0, ${opacity})`
+    backgroundColor: `rgba(${r}, ${g}, ${b}, ${opacity})`
   }
 
   if (blur > 0) {

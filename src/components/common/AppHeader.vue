@@ -9,20 +9,17 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useEditorStore } from '@/stores/editor'
 import { useUserStore } from '@/stores/user'
-import { useAssistantStore } from '@/stores/assistant'
 import { Button, Command, Dropdown, Icon, Badge } from '@/components/ui'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
 import ProjectTranslation from '@/components/modal/ProjectTranslation.vue'
-import { AssistantModal } from '@/components/assistant'
 
 const route = useRoute()
 const router = useRouter()
 const projectsStore = useProjectsStore()
 const editor = useEditorStore()
 const userStore = useUserStore()
-const assistantStore = useAssistantStore()
 
 // Fetch projects on mount if not already loaded
 onMounted(() => {
@@ -431,14 +428,19 @@ function onProjectCreated(newProjectId: string) {
       <!-- Project Route: Save + Publish -->
       <template v-if="isProjectRoute && currentProject">
         <!-- Save indicator -->
-        <div class="flex items-center gap-2 px-3 py-1.5 text-xxs font-medium font-mono uppercase bg-green-500/10 rounded-md">
+        <div
+          :class="[
+            'flex items-center gap-2 px-3 py-1.5 text-xxs font-medium font-mono uppercase rounded-md',
+            editor.isDirty ? 'bg-orange-500/10' : 'bg-green-500/10'
+          ]"
+        >
           <span
             :class="[
               'w-1.5 h-1.5 rounded-full',
-              editor.isDirty ? 'bg-amber-500' : 'bg-green-500'
+              editor.isDirty ? 'bg-orange-500' : 'bg-green-500'
             ]"
           ></span>
-          <span class="text-green-500">
+          <span :class="editor.isDirty ? 'text-orange-500' : 'text-green-500'">
             {{ editor.isDirty ? 'Unsaved' : 'Saved' }}
           </span>
         </div>
@@ -448,12 +450,6 @@ function onProjectCreated(newProjectId: string) {
           {{ isPublishing ? 'Publishing...' : (currentProject?.isPublished ? 'Update' : 'Publish') }}
         </Button>
       </template>
-
-      <!-- Assistant Button -->
-      <Button variant="ghost" size="sm" @click="assistantStore.toggleOpen()">
-        <Icon name="sparkles" :size="16" />
-        <span class="hidden sm:inline">Assistant</span>
-      </Button>
 
       <!-- User Avatar Dropdown -->
       <Dropdown ref="userDropdownRef" align="right" width="min-w-48">
@@ -521,7 +517,4 @@ function onProjectCreated(newProjectId: string) {
   <ProjectTranslation
     v-model:open="showTranslationModal"
   />
-
-  <!-- Assistant Modal -->
-  <AssistantModal />
 </template>

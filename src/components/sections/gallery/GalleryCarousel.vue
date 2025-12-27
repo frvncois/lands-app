@@ -3,8 +3,8 @@
  * GALLERY CAROUSEL VARIANT
  *
  * Horizontal scrolling gallery.
- * Layout options (carousel-only):
- * - slidesPerView: '1' | '2' | '3'
+ * Slider options (from sectionStyles):
+ * - slidesPerView: '1' | '1.5' | '2' | '2.5' | '3' | '3.5' | '4' | '5' | '6'
  * - autoplay: boolean
  * - showArrows: boolean
  *
@@ -49,10 +49,13 @@ const emit = defineEmits<{
   'update': [fieldKey: string, value: unknown]
 }>()
 
-// Layout options
-const slidesPerView = () => props.data.layout?.slidesPerView ?? 3
-const autoplay = () => props.data.layout?.autoplay ?? false
-const showArrows = () => props.data.layout?.showArrows ?? true
+// Slider options from sectionStyles
+const slidesPerView = () => {
+  const value = props.sectionStyles?.slidesPerView
+  return typeof value === 'string' ? parseFloat(value) : (value ?? 3)
+}
+const autoplay = () => (props.sectionStyles?.autoplay as boolean) ?? false
+const showArrows = () => (props.sectionStyles?.showArrows as boolean) ?? true
 const contentSpacing = computed(() => props.sectionStyles?.gallerySpaceBetween ?? 32)
 
 // Carousel state

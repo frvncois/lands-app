@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Card } from '@/components/ui'
 import { useIntegrationsState } from '../composables/useIntegrationsState'
 
@@ -7,7 +8,9 @@ const props = defineProps<{
   category: string
 }>()
 
-const { categories, openConnect, isConnected } = useIntegrationsState()
+const route = useRoute()
+const projectId = computed(() => route.params.projectId as string)
+const { categories, openConnect, isConnected } = useIntegrationsState(projectId.value)
 
 const categoryData = computed(() =>
   categories?.value?.find(c => c.category === props.category)

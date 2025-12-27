@@ -14,6 +14,261 @@ const productMediaAspectOptions = [
 ]
 
 // ===========================================
+// SECTION GENERAL STYLE CONFIG
+// ===========================================
+
+export const sectionStyleConfig = {
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'spaceBetween', label: 'Space Between', min: 0, max: 96, unit: 'px' },
+      { type: 'slider', key: 'spacingY', label: 'Spacing Y', min: 0, max: 128, unit: 'px' },
+      { type: 'slider', key: 'spacingX', label: 'Spacing X', min: 0, max: 128, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { spaceBetween: 32, spacingY: 64, spacingX: 32 },
+  },
+  background: {
+    icon: 'content-background',
+    title: 'Background',
+    controls: [
+      { type: 'color', key: 'backgroundColor', label: 'Background Color' },
+    ] as StyleControl[],
+    defaults: { backgroundColor: '' },
+  },
+}
+
+// Carousel/Slider config for Cards, Products, Gallery
+export const carouselStyleConfig = {
+  slider: {
+    icon: 'style-column',
+    title: 'Slider',
+    controls: [
+      { type: 'slider', key: 'slidesPerView', label: 'Slides In View', min: 1, max: 6, step: 0.5 },
+      { type: 'toggle', key: 'autoplay', label: 'Autoplay' },
+      { type: 'toggle', key: 'showArrows', label: 'Show Arrows' },
+    ] as StyleControl[],
+    defaults: { slidesPerView: 3, autoplay: false, showArrows: true },
+  },
+}
+
+// Products Carousel config (uses select instead of slider for slidesPerView)
+export const productsCarouselStyleConfig = {
+  slider: {
+    icon: 'style-column',
+    title: 'Slider',
+    controls: [
+      { type: 'select', key: 'slidesPerView', label: 'Slides In View', options: [
+        { value: '1', label: '1' },
+        { value: '2', label: '2' },
+        { value: '3', label: '3' }
+      ] },
+      { type: 'toggle', key: 'autoplay', label: 'Autoplay' },
+      { type: 'toggle', key: 'showArrows', label: 'Show Arrows' },
+    ] as StyleControl[],
+    defaults: { slidesPerView: '1', autoplay: false, showArrows: true },
+  },
+}
+
+// Gallery Carousel config (supports decimal slidesPerView values)
+export const galleryCarouselStyleConfig = {
+  slider: {
+    icon: 'style-column',
+    title: 'Slider',
+    controls: [
+      { type: 'select', key: 'slidesPerView', label: 'Slides In View', options: [
+        { value: '1', label: '1' },
+        { value: '1.5', label: '1.5' },
+        { value: '2', label: '2' },
+        { value: '2.5', label: '2.5' },
+        { value: '3', label: '3' },
+        { value: '3.5', label: '3.5' },
+        { value: '4', label: '4' },
+        { value: '5', label: '5' },
+        { value: '6', label: '6' }
+      ] },
+      { type: 'toggle', key: 'autoplay', label: 'Autoplay' },
+      { type: 'toggle', key: 'showArrows', label: 'Show Arrows' },
+    ] as StyleControl[],
+    defaults: { slidesPerView: '3', autoplay: false, showArrows: true },
+  },
+}
+
+// Hero Overlay specific configs (section level)
+export const heroOverlayStyleConfig = {
+  height: {
+    icon: 'style-size',
+    title: 'Size',
+    controls: [
+      { type: 'select', key: 'overlayHeight', label: 'Height', options: [{ value: 'full', label: 'Full Screen' }, { value: 'half', label: 'Half Screen' }] },
+    ] as StyleControl[],
+    defaults: { overlayHeight: 'full' },
+  },
+  position: {
+    icon: 'style-column',
+    title: 'Position',
+    controls: [
+      { type: 'select', key: 'overlayPositionX', label: 'Position X', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }] },
+      { type: 'select', key: 'overlayPositionY', label: 'Position Y', options: [{ value: 'top', label: 'Top' }, { value: 'middle', label: 'Middle' }, { value: 'bottom', label: 'Bottom' }] },
+    ] as StyleControl[],
+    defaults: { overlayPositionX: 'center', overlayPositionY: 'middle' },
+  },
+}
+
+// Hero Overlay specific configs (media level)
+export const heroOverlayMediaStyleConfig = {
+  overlay: {
+    icon: 'content-background',
+    title: 'Overlay',
+    controls: [
+      { type: 'color', key: 'overlayColor', label: 'Overlay Color' },
+      { type: 'slider', key: 'overlayOpacity', label: 'Overlay Opacity', min: 0, max: 100, step: 5 },
+      { type: 'slider', key: 'overlayBlur', label: 'Overlay Blur', min: 0, max: 32, step: 2, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { overlayColor: '#000000', overlayOpacity: 50, overlayBlur: 0 },
+  },
+}
+
+// ===========================================
+// TEXT FIELD STYLE CONFIG
+// ===========================================
+
+export const textFieldStyleConfig = {
+  font: {
+    icon: 'content-heading',
+    title: 'Font',
+    controls: [
+      { type: 'slider', key: 'fontSize', label: 'Font Size', min: 8, max: 120, unit: 'px' },
+      { type: 'slider', key: 'lineHeight', label: 'Line Height', min: 0.8, max: 3, step: 0.1 },
+      { type: 'color', key: 'color', label: 'Color' },
+    ] as StyleControl[],
+    defaults: { fontSize: 16, lineHeight: 1.5, color: '' },
+  },
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'spacingY', label: 'Spacing Y', min: 0, max: 64, unit: 'px' },
+      { type: 'slider', key: 'spacingX', label: 'Spacing X', min: 0, max: 64, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { spacingY: 0, spacingX: 0 },
+  },
+}
+
+// Button-specific field style config
+export const buttonFieldStyleConfig = {
+  background: {
+    icon: 'content-background',
+    title: 'Background',
+    controls: [
+      { type: 'color', key: 'backgroundColor', label: 'Background Color' },
+    ] as StyleControl[],
+    defaults: { backgroundColor: '' },
+  },
+  borders: {
+    icon: 'content-borders',
+    title: 'Borders',
+    controls: [
+      { type: 'slider', key: 'borderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
+      { type: 'color', key: 'borderColor', label: 'Border Color' },
+      { type: 'slider', key: 'borderRadius', label: 'Rounded', min: 0, max: 48, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { borderWidth: 0, borderColor: '', borderRadius: 8 },
+  },
+}
+
+// ===========================================
+// MEDIA FIELD STYLE CONFIG
+// ===========================================
+
+// Hero Stacked media field
+export const heroStackedMediaStyleConfig = {
+  size: {
+    icon: 'style-size',
+    title: 'Size',
+    controls: [
+      { type: 'select', key: 'aspectRatio', label: 'Aspect Ratio', options: [
+        { value: '16 / 9', label: '16:9' },
+        { value: '4 / 3', label: '4:3' },
+        { value: '3 / 4', label: '3:4' },
+        { value: '1 / 1', label: '1:1' },
+        { value: '21 / 9', label: '21:9' }
+      ] },
+    ] as StyleControl[],
+    defaults: { aspectRatio: '16 / 9' },
+  },
+  borders: {
+    icon: 'content-borders',
+    title: 'Borders',
+    controls: [
+      { type: 'slider', key: 'borderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
+      { type: 'color', key: 'borderColor', label: 'Border Color' },
+      { type: 'slider', key: 'borderRadius', label: 'Rounded', min: 0, max: 32, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { borderWidth: 0, borderColor: '', borderRadius: 8 },
+  },
+}
+
+// General media field (with spacing)
+export const mediaFieldStyleConfig = {
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'spacingY', label: 'Spacing Y', min: 0, max: 64, unit: 'px' },
+      { type: 'slider', key: 'spacingX', label: 'Spacing X', min: 0, max: 64, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { spacingY: 0, spacingX: 0 },
+  },
+  borders: {
+    icon: 'content-borders',
+    title: 'Borders',
+    controls: [
+      { type: 'slider', key: 'borderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
+      { type: 'color', key: 'borderColor', label: 'Border Color' },
+      { type: 'slider', key: 'borderRadius', label: 'Rounded', min: 0, max: 32, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { borderWidth: 0, borderColor: '', borderRadius: 8 },
+  },
+}
+
+// Image field (for header logo, etc.)
+export const imageFieldStyleConfig = {
+  size: {
+    icon: 'style-size',
+    title: 'Size',
+    controls: [
+      { type: 'slider', key: 'width', label: 'Width', min: 24, max: 300, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { width: 120 },
+  },
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'spacingY', label: 'Spacing Y', min: 0, max: 64, unit: 'px' },
+      { type: 'slider', key: 'spacingX', label: 'Spacing X', min: 0, max: 64, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { spacingY: 0, spacingX: 0 },
+  },
+}
+
+// ===========================================
+// HEADER SECTION CONFIG
+// ===========================================
+
+export const headerStyleConfig = {
+  position: {
+    icon: 'style-column',
+    title: 'Position',
+    controls: [
+      { type: 'toggle', key: 'sticky', label: 'Sticky Header' },
+    ] as StyleControl[],
+    defaults: { sticky: true },
+  },
+}
+
+// ===========================================
 // CARDS SECTION CONFIG
 // ===========================================
 

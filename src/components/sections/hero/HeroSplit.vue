@@ -63,13 +63,27 @@ const contentOrder = computed(() => {
   return contentPosition.value === 'left' ? 'md:order-1' : 'md:order-2'
 })
 
-// Content gap style using spaceBetween
-const contentGapStyle = computed(() => ({
-  gap: `${spaceBetween.value}px`
-}))
+// Content gap style using spaceBetween + apply section spacingX to content only
+const contentGapStyle = computed(() => {
+  const styles: Record<string, string> = {
+    gap: `${spaceBetween.value}px`
+  }
+
+  // Apply section-level spacingX to content column only
+  if (props.sectionStyles?.spacingX !== undefined) {
+    styles.paddingLeft = `${props.sectionStyles.spacingX}px`
+    styles.paddingRight = `${props.sectionStyles.spacingX}px`
+  }
+
+  return styles
+})
 
 function getSectionStyle(): Record<string, string> {
-  return resolveSectionStyles(props.sectionStyles)
+  const styles = resolveSectionStyles(props.sectionStyles)
+  // Remove spacingX as it's applied to content column only
+  delete styles.paddingLeft
+  delete styles.paddingRight
+  return styles
 }
 
 function getFieldStyle(fieldKey: string, defaultFont: string = '--font-body'): Record<string, string> {
@@ -102,12 +116,12 @@ function isFieldHidden(fieldKey: string): boolean {
 
 <template>
   <section
-    class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)] px-[var(--spacing-container)]"
+    class="flex bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)]"
     :class="heightClass"
     :style="getSectionStyle()"
   >
     <div
-      class="max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-[var(--spacing-2xl)] items-center"
+      class="max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 items-center"
     >
       <!-- Media Column (first on mobile) - always stretches to height -->
       <div
@@ -152,7 +166,6 @@ function isFieldHidden(fieldKey: string): boolean {
         :class="contentOrder"
         :style="contentGapStyle"
       >
-        <!-- BLOCK A: Headline + Buttons (Action-first) -->
         <div class="flex flex-col gap-[var(--spacing-md)]">
           <EditableText
             v-if="data.headline"
@@ -167,8 +180,36 @@ function isFieldHidden(fieldKey: string): boolean {
             @selectField="handleSelectField"
             @update="handleUpdate"
           />
+          <EditableText
+            v-if="data.subheadline"
+            tag="p"
+            :value="data.subheadline"
+            field-key="subheadline"
+            :editable="editable"
+            :active-field="activeField"
+            :hidden-fields="hiddenFields"
+            class="text-[length:var(--text-xl)] text-[var(--color-muted)] m-0"
+            :style="getFieldStyle('subheadline', '--font-body')"
+            @selectField="handleSelectField"
+            @update="handleUpdate"
+          />
+        </div>
 
-          <!-- Buttons inline with headline -->
+        <div class="flex flex-col gap-[var(--spacing-md)]">
+        <EditableText
+          v-if="data.paragraph"
+          tag="div"
+          :value="data.paragraph"
+          field-key="paragraph"
+          :editable="editable"
+          :active-field="activeField"
+          :hidden-fields="hiddenFields"
+          :html="true"
+          class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
+          :style="getFieldStyle('paragraph', '--font-body')"
+          @selectField="handleSelectField"
+          @update="handleUpdate"
+        />
           <div class="flex gap-[var(--spacing-md)]">
             <a
               v-if="data.primaryCTA?.label && !isFieldHidden('primaryCTA')"
@@ -195,39 +236,8 @@ function isFieldHidden(fieldKey: string): boolean {
               :style="getButtonStyle('secondaryCTA')"
               @click="handleButtonClick($event, 'secondaryCTA')"
             >{{ data.secondaryCTA.label }}</a>
+            </div>
           </div>
-        </div>
-
-        <!-- BLOCK B: Subheadline (Context - isolated) -->
-        <EditableText
-          v-if="data.subheadline"
-          tag="p"
-          :value="data.subheadline"
-          field-key="subheadline"
-          :editable="editable"
-          :active-field="activeField"
-          :hidden-fields="hiddenFields"
-          class="text-[length:var(--text-xl)] text-[var(--color-muted)] m-0"
-          :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
-          @update="handleUpdate"
-        />
-
-        <!-- BLOCK C: Paragraph (Detail - always last) -->
-        <EditableText
-          v-if="data.paragraph"
-          tag="div"
-          :value="data.paragraph"
-          field-key="paragraph"
-          :editable="editable"
-          :active-field="activeField"
-          :hidden-fields="hiddenFields"
-          :html="true"
-          class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
-          :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
-          @update="handleUpdate"
-        />
       </div>
     </div>
   </section>

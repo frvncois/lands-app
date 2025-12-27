@@ -197,17 +197,10 @@ export interface CTABlockData {
 }
 
 // --- Footer (Global) ---
-export interface FooterLinkItem {
-  id?: string
-  label: string
-  url: string
-}
-
 export interface FooterData {
   logo?: string
   title?: string
   paragraph?: string
-  links?: FooterLinkItem[]
   secondaryText?: string
 }
 
@@ -451,17 +444,6 @@ const footerSchema: FieldSchema[] = [
   { type: 'image', key: 'logo', label: 'Logo' },
   { type: 'text', key: 'title', label: 'Title' },
   { type: 'richText', key: 'paragraph', label: 'Paragraph' },
-  {
-    type: 'repeater',
-    key: 'links',
-    label: 'Links',
-    minItems: 0,
-    maxItems: 10,
-    itemSchema: [
-      { type: 'text', key: 'label', label: 'Label', required: true },
-      { type: 'url', key: 'url', label: 'URL', required: true },
-    ],
-  },
   { type: 'text', key: 'secondaryText', label: 'Secondary Text', placeholder: '© 2024 Company' },
 ]
 
@@ -661,7 +643,7 @@ const linksSection: SectionDefinition<LinksData> = {
 const contactSection: SectionDefinition<ContactData> = {
   type: 'contact',
   displayName: 'Contact',
-  icon: 'envelope',
+  icon: 'section-contact',
   description: 'Contact form with email, phone, address and social links',
   useCase: 'Contact pages, get in touch sections, inquiry forms',
   previewImage: '/previews/contact.png',
@@ -733,7 +715,7 @@ const accordionSection: SectionDefinition<AccordionData> = {
 const faqSection: SectionDefinition<AccordionData> = {
   type: 'faq',
   displayName: 'FAQ',
-  icon: 'help-circle',
+  icon: 'section-faq',
   description: 'Answer common customer questions with collapsible entries',
   useCase: 'Support, onboarding, product knowledge',
   previewImage: '/previews/accordion.png',
@@ -755,7 +737,7 @@ const faqSection: SectionDefinition<AccordionData> = {
 const menuSection: SectionDefinition<AccordionData> = {
   type: 'menu',
   displayName: 'Menu',
-  icon: 'utensils',
+  icon: 'section-menu',
   description: 'Showcase menu items with pricing inside collapsible groups',
   useCase: 'Restaurants, cafés, service menus',
   previewImage: '/previews/accordion.png',
@@ -782,7 +764,7 @@ const menuSection: SectionDefinition<AccordionData> = {
 const eventsSection: SectionDefinition<AccordionData> = {
   type: 'events',
   displayName: 'Events',
-  icon: 'calendar',
+  icon: 'section-event',
   description: 'Promote upcoming events with dates, locations, and details',
   useCase: 'Workshops, launches, community meetups',
   previewImage: '/previews/accordion.png',
@@ -808,7 +790,7 @@ const eventsSection: SectionDefinition<AccordionData> = {
 const servicesSection: SectionDefinition<AccordionData> = {
   type: 'services',
   displayName: 'Services',
-  icon: 'briefcase',
+  icon: 'section-accordions',
   description: 'Outline service offerings with expandable descriptions',
   useCase: 'Agencies, consultants, professional services',
   previewImage: '/previews/accordion.png',
@@ -865,7 +847,7 @@ const gallerySection: SectionDefinition<GalleryData> = {
     { id: 'grid', label: 'Grid' },
     { id: 'slider', label: 'Slider' },
   ],
-  layoutOptions: {
+  styleOptions: {
     slider: [
       { key: 'slidesPerView', label: 'Slides Per View', type: 'select', options: [{ value: '1', label: '1' }, { value: '1.5', label: '1.5' }, { value: '2', label: '2' }, { value: '2.5', label: '2.5' }, { value: '3', label: '3' }, { value: '3.5', label: '3.5' }, { value: '4', label: '4' }, { value: '5', label: '5' }, { value: '6', label: '6' }], default: '3' },
       { key: 'autoplay', label: 'Autoplay', type: 'toggle', default: false },
@@ -890,8 +872,8 @@ const footerSection: SectionDefinition<FooterData> = {
   type: 'footer',
   displayName: 'Footer',
   icon: 'section-footer',
-  description: 'Page footer with branding, links, and copyright',
-  useCase: 'Site footer, legal links, secondary navigation',
+  description: 'Page footer with branding and copyright',
+  useCase: 'Site footer with branding information',
   previewImage: '/previews/footer.png',
   defaultVariant: 'default',
   variants: [
@@ -911,7 +893,7 @@ const footerSection: SectionDefinition<FooterData> = {
 const productsSection: SectionDefinition<ProductsData> = {
   type: 'products',
   displayName: 'Products',
-  icon: 'section-cards',
+  icon: 'section-products',
   description: 'Product cards with pricing, variants, and buy buttons',
   useCase: 'E-commerce, merchandise, service packages',
   previewImage: '/previews/products.png',
@@ -922,14 +904,12 @@ const productsSection: SectionDefinition<ProductsData> = {
     { id: 'row', label: 'Row' },
     { id: 'split', label: 'Split' },
   ],
-  layoutOptions: {
+  styleOptions: {
     carousel: [
       { key: 'slidesPerView', label: 'Slides Per View', type: 'select', options: [{ value: '1', label: '1' }, { value: '2', label: '2' }, { value: '3', label: '3' }], default: '1' },
       { key: 'autoplay', label: 'Autoplay', type: 'toggle', default: false },
       { key: 'showArrows', label: 'Show Arrows', type: 'toggle', default: true },
     ],
-  },
-  styleOptions: {
     split: [
       {
         key: 'splitLayout',

@@ -51,7 +51,7 @@ const variantClasses: Record<InputVariant, string> = {
 
 const inputClasses = computed(() => [
   'rounded-lg text-foreground placeholder:text-muted-foreground transition-colors',
-  'focus:outline-none focus:ring-1 focus:ring-ring/25 focus:ring-offset-background',
+  'focus:outline-none focus:ring-2 focus:ring-ring/15 focus:ring-offset-background',
   'disabled:opacity-50 disabled:cursor-not-allowed',
   sizeClasses[props.size],
   variantClasses[props.variant],

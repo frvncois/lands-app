@@ -3,7 +3,7 @@
  * PRODUCTS CAROUSEL VARIANT
  *
  * Horizontal scrolling products.
- * Layout options (carousel-only):
+ * Carousel options (from sectionStyles):
  * - slidesPerView: '1' | '2' | '3'
  * - autoplay: boolean
  * - showArrows: boolean
@@ -57,10 +57,10 @@ const emit = defineEmits<{
   'update': [fieldKey: string, value: unknown]
 }>()
 
-// Layout options
-const slidesPerView = () => props.data.layout?.slidesPerView ?? '3'
-const autoplay = () => props.data.layout?.autoplay ?? false
-const showArrows = () => props.data.layout?.showArrows ?? true
+// Carousel options from sectionStyles
+const slidesPerView = () => (props.sectionStyles?.slidesPerView as string) ?? '1'
+const autoplay = () => (props.sectionStyles?.autoplay as boolean) ?? false
+const showArrows = () => (props.sectionStyles?.showArrows as boolean) ?? true
 
 // Carousel state
 const carouselRef = ref<HTMLDivElement | null>(null)

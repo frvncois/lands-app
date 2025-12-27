@@ -26,10 +26,7 @@ const props = defineProps<{
   <div
     v-show="show"
     class="flex items-center justify-center bg-[var(--color-secondary)]"
-    :class="props.class || 'w-full aspect-video'"
-    :style="{
-      borderRadius: borderRadius !== undefined ? `${borderRadius}px` : 'var(--radius-md)'
-    }"
+    :class="props.class || 'w-full h-full'"
   >
     <!-- Icon only, no text -->
     <svg

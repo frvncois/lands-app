@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import Popover from '@/components/ui/Popover.vue'
 import Icon from '@/components/ui/Icon.vue'
 import SliderRow from './SliderRow.vue'
 import ColorRow from './ColorRow.vue'
 import SelectRow from './SelectRow.vue'
+import ToggleRow from './ToggleRow.vue'
 import type { StyleControl } from './types'
 
 const props = defineProps<{
@@ -18,6 +20,8 @@ const emit = defineEmits<{
   update: [key: string, value: unknown]
 }>()
 
+const popoverRef = ref<InstanceType<typeof Popover> | null>(null)
+
 function getValue<T>(key: string, defaultValue: T): T {
   const val = props.styles[key]
   if (val !== undefined && val !== null) {
@@ -29,49 +33,95 @@ function getValue<T>(key: string, defaultValue: T): T {
   }
   return defaultValue
 }
+
+function handleReset() {
+  // Reset all controls to their default values
+  props.controls.forEach(control => {
+    const defaultValue = props.defaults[control.key]
+    if (defaultValue !== undefined) {
+      emit('update', control.key, defaultValue)
+    }
+  })
+}
+
+function handleApply() {
+  // Close the popover
+  popoverRef.value?.close()
+}
 </script>
 
 <template>
   <div class="px-4 py-3 border-t border-border/50">
-    <Popover side="left" width="w-80">
+    <Popover ref="popoverRef" side="left" width="w-80">
       <template #trigger="{ toggle }">
         <button
           @click="toggle"
           class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
         >
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3">
             <Icon :name="icon" :size="14" class="text-muted-foreground" />
             <span class="text-xs font-medium text-foreground">{{ title }}</span>
           </div>
           <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
         </button>
       </template>
-      <div class="p-4 flex flex-col gap-3">
-        <template v-for="control in controls" :key="control.key">
-          <SliderRow
-            v-if="control.type === 'slider'"
-            :label="control.label"
-            :model-value="getValue<number>(control.key, 0)"
-            :min="control.min"
-            :max="control.max"
-            :step="control.step"
-            :unit="control.unit"
-            @update:model-value="emit('update', control.key, $event)"
-          />
-          <ColorRow
-            v-else-if="control.type === 'color'"
-            :label="control.label"
-            :model-value="getValue<string>(control.key, '')"
-            @update:model-value="emit('update', control.key, $event)"
-          />
-          <SelectRow
-            v-else-if="control.type === 'select'"
-            :label="control.label"
-            :model-value="getValue<string>(control.key, '')"
-            :options="control.options"
-            @update:model-value="emit('update', control.key, $event)"
-          />
-        </template>
+      <div class="flex flex-col">
+        <!-- Header with icon, title, and action buttons -->
+        <div class="px-4 py-3 flex items-center justify-between border-b border-border">
+          <div class="flex items-center gap-3">
+            <Icon :name="icon" :size="14" class="text-muted-foreground" />
+            <span class="text-xs font-medium text-foreground">{{ title }}</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button
+              @click="handleReset"
+              class="text-[10px] px-2 py-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Reset
+            </button>
+            <button
+              @click="handleApply"
+              class="text-[10px] px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="p-4 flex flex-col gap-3">
+          <template v-for="control in controls" :key="control.key">
+            <SliderRow
+              v-if="control.type === 'slider'"
+              :label="control.label"
+              :model-value="getValue<number>(control.key, 0)"
+              :min="control.min"
+              :max="control.max"
+              :step="control.step"
+              :unit="control.unit"
+              @update:model-value="emit('update', control.key, $event)"
+            />
+            <ColorRow
+              v-else-if="control.type === 'color'"
+              :label="control.label"
+              :model-value="getValue<string>(control.key, '')"
+              @update:model-value="emit('update', control.key, $event)"
+            />
+            <SelectRow
+              v-else-if="control.type === 'select'"
+              :label="control.label"
+              :model-value="getValue<string>(control.key, '')"
+              :options="control.options"
+              @update:model-value="emit('update', control.key, $event)"
+            />
+            <ToggleRow
+              v-else-if="control.type === 'toggle'"
+              :label="control.label"
+              :model-value="getValue<boolean>(control.key, false)"
+              @update:model-value="emit('update', control.key, $event)"
+            />
+          </template>
+        </div>
       </div>
     </Popover>
   </div>

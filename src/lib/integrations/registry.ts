@@ -6,6 +6,7 @@
  */
 
 import type { IntegrationDefinition, IntegrationCategory } from './types'
+import type { SectionType } from '@/types/sections'
 
 // All available integrations
 export const INTEGRATIONS: IntegrationDefinition[] = [
@@ -20,6 +21,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'oauth',
     icon: 'mailchimp',
     docsUrl: 'https://mailchimp.com/developer/',
+    boundTo: ['subscribe', 'contact'],
+    status: 'available',
     oauth: {
       authUrl: 'https://login.mailchimp.com/oauth2/authorize',
       scopes: [],
@@ -41,6 +44,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'api_key',
     icon: 'convertkit',
     docsUrl: 'https://developers.convertkit.com/',
+    boundTo: ['subscribe', 'contact'],
+    status: 'available',
     configFields: [
       {
         key: 'apiSecret',
@@ -68,6 +73,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'api_key',
     icon: 'buttondown',
     docsUrl: 'https://api.buttondown.email/',
+    boundTo: ['subscribe', 'contact'],
+    status: 'available',
     configFields: [
       {
         key: 'apiKey',
@@ -87,6 +94,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'api_key',
     icon: 'beehiiv',
     docsUrl: 'https://developers.beehiiv.com/',
+    boundTo: ['subscribe', 'contact'],
+    status: 'available',
     configFields: [
       {
         key: 'apiKey',
@@ -117,6 +126,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'oauth',
     icon: 'stripe',
     docsUrl: 'https://stripe.com/docs',
+    boundTo: ['products'],
+    status: 'available',
     oauth: {
       authUrl: 'https://connect.stripe.com/oauth/authorize',
       scopes: ['read_write'],
@@ -130,6 +141,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'api_key',
     icon: 'lemonsqueezy',
     docsUrl: 'https://docs.lemonsqueezy.com/',
+    boundTo: ['products'],
+    status: 'available',
     configFields: [
       {
         key: 'apiKey',
@@ -157,6 +170,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'oauth',
     icon: 'gumroad',
     docsUrl: 'https://app.gumroad.com/api',
+    boundTo: ['products'],
+    status: 'available',
     oauth: {
       authUrl: 'https://gumroad.com/oauth/authorize',
       scopes: ['view_sales', 'mark_sales_as_shipped'],
@@ -174,6 +189,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'webhook',
     icon: 'zapier',
     docsUrl: 'https://zapier.com/developer',
+    boundTo: 'global',
+    status: 'available',
     configFields: [
       {
         key: 'webhookUrl',
@@ -193,6 +210,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'webhook',
     icon: 'make',
     docsUrl: 'https://www.make.com/en/help',
+    boundTo: 'global',
+    status: 'available',
     configFields: [
       {
         key: 'webhookUrl',
@@ -211,6 +230,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     category: 'automation',
     authMethod: 'webhook',
     icon: 'webhook',
+    boundTo: 'global',
+    status: 'available',
     configFields: [
       {
         key: 'url',
@@ -241,6 +262,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'api_key',
     icon: 'google',
     docsUrl: 'https://developers.google.com/analytics',
+    boundTo: 'global',
+    status: 'available',
     configFields: [
       {
         key: 'measurementId',
@@ -260,6 +283,8 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
     authMethod: 'api_key',
     icon: 'plausible',
     docsUrl: 'https://plausible.io/docs',
+    boundTo: 'global',
+    status: 'available',
     configFields: [
       {
         key: 'domain',
@@ -271,6 +296,195 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
       },
     ],
   },
+
+  // ============================================
+  // CALENDAR
+  // ============================================
+  {
+    id: 'google_calendar',
+    name: 'Google Calendar',
+    description: 'Display events and enable booking from your calendar.',
+    category: 'calendar',
+    authMethod: 'oauth',
+    icon: 'google-calendar',
+    boundTo: ['accordion'],
+    status: 'coming-soon',
+    oauth: {
+      authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+      scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+    },
+  },
+
+  // ============================================
+  // MUSIC & AUDIO
+  // ============================================
+  {
+    id: 'spotify',
+    name: 'Spotify',
+    description: 'Embed tracks, albums, and playlists.',
+    category: 'music',
+    authMethod: 'api_key',
+    icon: 'spotify',
+    boundTo: ['cards', 'links', 'media-text'],
+    status: 'available',
+    configFields: [
+      {
+        key: 'embedUrl',
+        label: 'Spotify URL',
+        type: 'url',
+        placeholder: 'https://open.spotify.com/...',
+        required: true,
+        helpText: 'Paste any Spotify track, album, or playlist URL',
+      },
+    ],
+  },
+  {
+    id: 'apple_music',
+    name: 'Apple Music',
+    description: 'Embed songs and albums from Apple Music.',
+    category: 'music',
+    authMethod: 'api_key',
+    icon: 'apple-music',
+    boundTo: ['cards', 'links', 'media-text'],
+    status: 'coming-soon',
+    configFields: [
+      {
+        key: 'embedUrl',
+        label: 'Apple Music URL',
+        type: 'url',
+        placeholder: 'https://music.apple.com/...',
+        required: true,
+      },
+    ],
+  },
+  {
+    id: 'soundcloud',
+    name: 'SoundCloud',
+    description: 'Embed tracks and sets from SoundCloud.',
+    category: 'music',
+    authMethod: 'api_key',
+    icon: 'soundcloud',
+    boundTo: ['cards', 'links', 'media-text'],
+    status: 'available',
+    configFields: [
+      {
+        key: 'embedUrl',
+        label: 'SoundCloud URL',
+        type: 'url',
+        placeholder: 'https://soundcloud.com/...',
+        required: true,
+      },
+    ],
+  },
+  {
+    id: 'bandcamp',
+    name: 'Bandcamp',
+    description: 'Embed albums and tracks from Bandcamp.',
+    category: 'music',
+    authMethod: 'api_key',
+    icon: 'bandcamp',
+    boundTo: ['cards', 'links', 'media-text'],
+    status: 'available',
+    configFields: [
+      {
+        key: 'embedUrl',
+        label: 'Bandcamp URL',
+        type: 'url',
+        placeholder: 'https://artist.bandcamp.com/...',
+        required: true,
+      },
+    ],
+  },
+
+  // Additional EMAIL integrations
+  {
+    id: 'brevo',
+    name: 'Brevo',
+    description: 'Add contacts to your email lists (formerly Sendinblue).',
+    category: 'email',
+    authMethod: 'api_key',
+    icon: 'brevo',
+    boundTo: ['subscribe', 'contact'],
+    status: 'available',
+    configFields: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        placeholder: 'xkeysib-...',
+        required: true,
+        helpText: 'Find this in Brevo > SMTP & API > API Keys',
+      },
+    ],
+    settingsFields: [
+      {
+        key: 'listId',
+        label: 'List',
+        type: 'select',
+        helpText: 'Select which list to add contacts to',
+      },
+    ],
+  },
+  {
+    id: 'flodesk',
+    name: 'Flodesk',
+    description: 'Grow your subscriber list with beautiful emails.',
+    category: 'email',
+    authMethod: 'api_key',
+    icon: 'flodesk',
+    boundTo: ['subscribe', 'contact'],
+    status: 'available',
+    configFields: [
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        placeholder: 'Enter your API key',
+        required: true,
+        helpText: 'Find this in Flodesk > Settings > Integrations',
+      },
+    ],
+  },
+
+  // Additional PAYMENT integrations
+  {
+    id: 'stripe_express',
+    name: 'Stripe Express',
+    description: 'Accept payments with the fastest checkout experience.',
+    category: 'payment',
+    authMethod: 'oauth',
+    icon: 'stripe',
+    boundTo: ['products'],
+    status: 'available',
+    oauth: {
+      authUrl: 'https://connect.stripe.com/express/oauth/authorize',
+      scopes: ['read_write'],
+    },
+  },
+  {
+    id: 'shopify',
+    name: 'Shopify',
+    description: 'Sync products and inventory from your store.',
+    category: 'payment',
+    authMethod: 'oauth',
+    icon: 'shopify',
+    boundTo: ['products'],
+    status: 'coming-soon',
+    oauth: {
+      authUrl: '',
+      scopes: [],
+    },
+  },
+]
+
+// Category metadata for UI
+export const INTEGRATION_CATEGORIES: { id: IntegrationCategory; title: string; icon: string }[] = [
+  { id: 'analytics', title: 'Analytics', icon: 'lni-stats-up' },
+  { id: 'calendar', title: 'Calendar', icon: 'lni-calendar' },
+  { id: 'payment', title: 'Payments & E-commerce', icon: 'lni-credit-cards' },
+  { id: 'music', title: 'Music & Audio', icon: 'lni-music' },
+  { id: 'email', title: 'Email Marketing', icon: 'lni-envelope' },
+  { id: 'automation', title: 'Automation', icon: 'lni-bolt' },
 ]
 
 // Get integration by ID
@@ -283,18 +497,19 @@ export function getIntegrationsByCategory(category: IntegrationCategory): Integr
   return INTEGRATIONS.filter(i => i.category === category)
 }
 
+// Get integrations by section type
+export function getIntegrationsForSection(sectionType: SectionType): IntegrationDefinition[] {
+  return INTEGRATIONS.filter(i =>
+    i.boundTo === 'global' || (Array.isArray(i.boundTo) && i.boundTo.includes(sectionType))
+  )
+}
+
 // Get all categories with their integrations
 export function getIntegrationCategories(): { category: IntegrationCategory; label: string; integrations: IntegrationDefinition[] }[] {
-  const categories: { category: IntegrationCategory; label: string }[] = [
-    { category: 'email', label: 'Email Marketing' },
-    { category: 'payment', label: 'Payments' },
-    { category: 'automation', label: 'Automation' },
-    { category: 'analytics', label: 'Analytics' },
-  ]
-
-  return categories.map(c => ({
-    ...c,
-    integrations: getIntegrationsByCategory(c.category),
+  return INTEGRATION_CATEGORIES.map(c => ({
+    category: c.id,
+    label: c.title,
+    integrations: getIntegrationsByCategory(c.id),
   }))
 }
 

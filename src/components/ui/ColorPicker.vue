@@ -8,6 +8,7 @@ const props = defineProps<{
   swatchOnly?: boolean
   inline?: boolean // Show picker UI directly without popover
   side?: 'left' | 'right' | null // Opens to the side instead of above/below
+  belowParent?: boolean // Position below parent popover with matching width
 }>()
 
 const emit = defineEmits<{
@@ -22,7 +23,7 @@ const popoverRef = ref<HTMLElement | null>(null)
 const gradientRef = ref<HTMLElement | null>(null)
 const hueRef = ref<HTMLElement | null>(null)
 const localValue = ref(props.modelValue ?? '')
-const popoverPosition = ref({ top: 0, left: 0, placement: 'bottom' as 'top' | 'bottom' })
+const popoverPosition = ref({ top: 0, left: 0, placement: 'bottom' as 'top' | 'bottom', width: 256 })
 
 // HSV state for gradient picker
 const hue = ref(0)
@@ -199,10 +200,44 @@ function calculatePosition() {
 
   const triggerRect = triggerRef.value.getBoundingClientRect()
   const popoverHeight = 380
-  const popoverWidth = 256
+  let popoverWidth = 256
   const gap = 8
   const viewportHeight = window.innerHeight
   const viewportWidth = window.innerWidth
+
+  // Below parent popover positioning - position below parent with matching width
+  if (props.belowParent) {
+    // Find the parent popover element
+    const parentPopover = triggerRef.value?.closest('.bg-popover') as HTMLElement | null
+    const parentRect = parentPopover?.getBoundingClientRect()
+
+    if (parentRect) {
+      // Match parent width
+      popoverWidth = parentRect.width
+
+      let left = parentRect.left
+      let top = parentRect.bottom + gap
+
+      // Ensure it doesn't go off screen horizontally
+      if (left + popoverWidth > viewportWidth - 8) {
+        left = viewportWidth - popoverWidth - 8
+      }
+      if (left < 8) left = 8
+
+      // Ensure it doesn't go off screen vertically
+      if (top + popoverHeight > viewportHeight - 8) {
+        // If no space below, position above parent
+        top = parentRect.top - popoverHeight - gap
+        if (top < 8) {
+          // If still no space, position at top of viewport
+          top = 8
+        }
+      }
+
+      popoverPosition.value = { top, left, placement: 'bottom', width: popoverWidth }
+      return
+    }
+  }
 
   // Side positioning (left/right of trigger) - align to parent popover
   if (props.side) {
@@ -234,7 +269,7 @@ function calculatePosition() {
     }
     if (top < 8) top = 8
 
-    popoverPosition.value = { top, left, placement: 'bottom' }
+    popoverPosition.value = { top, left, placement: 'bottom', width: popoverWidth }
     return
   }
 
@@ -261,7 +296,7 @@ function calculatePosition() {
     left = 8
   }
 
-  popoverPosition.value = { top, left, placement }
+  popoverPosition.value = { top, left, placement, width: popoverWidth }
 }
 
 function togglePopover() {
@@ -550,10 +585,11 @@ function clearColor() {
       <div
         v-if="isOpen"
         ref="popoverRef"
-        class="fixed z-[200] w-64 bg-card border border-border rounded-xl shadow-xl p-3 space-y-3 color-picker-popover"
+        class="fixed z-[200] bg-card border border-border rounded-xl shadow-xl p-3 space-y-3 color-picker-popover"
         :style="{
           top: `${popoverPosition.top}px`,
           left: `${popoverPosition.left}px`,
+          width: `${popoverPosition.width}px`,
         }"
         @click.stop
         @mousedown.stop

@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useIntegrationsState } from '../composables/useIntegrationsState'
+
+const route = useRoute()
+const projectId = computed(() => route.params.projectId as string)
 
 const {
   selected,
@@ -7,7 +12,7 @@ const {
   isSaving,
   closeDisconnect,
   disconnectIntegration,
-} = useIntegrationsState()
+} = useIntegrationsState(projectId.value)
 </script>
 
 <template>

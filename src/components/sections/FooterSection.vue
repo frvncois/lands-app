@@ -3,7 +3,7 @@
  * FOOTER SECTION (Global)
  *
  * Variants:
- * - default: Logo/title left, links right
+ * - default: Logo/title with paragraph
  * - centered: Everything centered
  * - minimal: Just secondary text
  */
@@ -129,21 +129,6 @@ function handleLogoClick(e: MouseEvent) {
           @selectField="handleSelectField"
           @update="handleUpdate"
         />
-      </div>
-
-      <!-- Links -->
-      <div
-        v-if="variant !== 'minimal' && data.links?.length"
-        class="flex flex-wrap gap-[var(--spacing-md)]"
-        :class="{ 'justify-center': variant === 'centered' }"
-      >
-        <a
-          v-for="(link, index) in data.links"
-          :key="index"
-          :href="link.url || '#'"
-          class="text-[length:var(--text-sm)] text-[var(--color-muted)] hover:text-[var(--color-fg)] transition-colors"
-          :style="{ fontFamily: 'var(--font-body)' }"
-        >{{ link.label }}</a>
       </div>
 
       <!-- Secondary Text -->

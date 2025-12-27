@@ -10,13 +10,28 @@ export const INTEGRATIONS_SECTIONS: SettingsSection[] = [
     component: IntegrationsConnected,
   },
   {
-    id: 'email',
-    title: 'Email Marketing',
+    id: 'analytics',
+    title: 'Analytics',
+    component: IntegrationsCategory,
+  },
+  {
+    id: 'calendar',
+    title: 'Calendar',
     component: IntegrationsCategory,
   },
   {
     id: 'payment',
-    title: 'Payments',
+    title: 'Payments & E-commerce',
+    component: IntegrationsCategory,
+  },
+  {
+    id: 'music',
+    title: 'Music & Audio',
+    component: IntegrationsCategory,
+  },
+  {
+    id: 'email',
+    title: 'Email Marketing',
     component: IntegrationsCategory,
   },
   {

@@ -5,11 +5,13 @@
  * both OAuth and API key-based authentication methods.
  */
 
+import type { SectionType } from '@/types/sections'
+
 // Authentication methods supported by integrations
 export type IntegrationAuthMethod = 'oauth' | 'api_key' | 'webhook'
 
 // Integration categories
-export type IntegrationCategory = 'email' | 'payment' | 'automation' | 'analytics'
+export type IntegrationCategory = 'email' | 'payment' | 'automation' | 'analytics' | 'calendar' | 'music'
 
 // OAuth token data (stored encrypted in database)
 export interface OAuthTokenData {
@@ -48,6 +50,10 @@ export interface IntegrationDefinition {
   authMethod: IntegrationAuthMethod
   icon?: string
   docsUrl?: string
+  /** Which sections can use this integration, or 'global' for all */
+  boundTo: SectionType[] | 'global'
+  /** Status for UI display */
+  status?: 'available' | 'coming-soon' | 'beta'
   // For OAuth integrations
   oauth?: {
     authUrl: string

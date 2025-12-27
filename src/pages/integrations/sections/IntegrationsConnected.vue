@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Card } from '@/components/ui'
 import { useIntegrationsState } from '../composables/useIntegrationsState'
 
-const { connectedIntegrations, openDisconnect } = useIntegrationsState()
+const route = useRoute()
+const projectId = computed(() => route.params.projectId as string)
+const { connectedIntegrations, openDisconnect } = useIntegrationsState(projectId.value)
 </script>
 
 <template>

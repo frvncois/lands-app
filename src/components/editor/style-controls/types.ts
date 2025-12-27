@@ -21,7 +21,13 @@ export interface SelectControl {
   options: { value: string; label: string }[]
 }
 
-export type StyleControl = SliderControl | ColorControl | SelectControl
+export interface ToggleControl {
+  type: 'toggle'
+  key: string
+  label: string
+}
+
+export type StyleControl = SliderControl | ColorControl | SelectControl | ToggleControl
 
 export interface StyleGroupConfig {
   icon: string

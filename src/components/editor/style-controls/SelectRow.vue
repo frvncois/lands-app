@@ -3,12 +3,12 @@ import Select from '@/components/ui/Select.vue'
 
 defineProps<{
   label: string
-  modelValue: string
+  modelValue: string | number
   options: { value: string; label: string }[]
 }>()
 
 defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: string | number]
 }>()
 </script>
 

@@ -32,7 +32,7 @@ import { fontComboboxItems } from '@/lib/font-options'
 import { colorOptions, fontOptions } from '@/lib/style-options'
 import { styleDefaults } from '@/lib/style-defaults'
 import { StylePopoverGroup } from '@/components/editor/style-controls'
-import { cardsStyleConfig, productsStyleConfig, accordionStyleConfig, linksStyleConfig, contactFormFieldsStyleConfig, contactSocialLinksStyleConfig } from '@/lib/section-style-configs'
+import { sectionStyleConfig, carouselStyleConfig, productsCarouselStyleConfig, galleryCarouselStyleConfig, heroOverlayStyleConfig, heroOverlayMediaStyleConfig, textFieldStyleConfig, buttonFieldStyleConfig, heroStackedMediaStyleConfig, mediaFieldStyleConfig, imageFieldStyleConfig, headerStyleConfig, cardsStyleConfig, productsStyleConfig, accordionStyleConfig, linksStyleConfig, contactFormFieldsStyleConfig, contactSocialLinksStyleConfig } from '@/lib/section-style-configs'
 
 const editor = useEditorStore()
 const themes = getAllThemes()
@@ -58,6 +58,10 @@ const sectionData = computed(() => {
 const showUploadModal = ref(false)
 const showUnsplashModal = ref(false)
 const editingImageField = ref<string | null>(null) // For repeater item image fields
+
+// Drag state for repeater items
+const draggedItemIndex = ref<number | null>(null)
+const dropTargetItemIndex = ref<number | null>(null)
 
 function handleImageUploaded(url: string) {
   if (!selectedSection.value) return
@@ -222,18 +226,68 @@ function selectRepeaterItem(index: number) {
   editor.selectItemNode(selectedSection.value.id, activeFieldDef.value.key, id)
 }
 
+// Repeater item drag and drop handlers
+function onItemDragStart(e: DragEvent, index: number) {
+  draggedItemIndex.value = index
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', String(index))
+  }
+}
+
+function onItemDragOver(e: DragEvent, index: number) {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+  dropTargetItemIndex.value = index
+}
+
+function onItemDragLeave() {
+  dropTargetItemIndex.value = null
+}
+
+function onItemDrop(e: DragEvent, toIndex: number) {
+  e.preventDefault()
+  const fromIndex = draggedItemIndex.value
+  if (fromIndex !== null && fromIndex !== toIndex && selectedSection.value && activeRepeaterField.value) {
+    const itemId = getRepeaterItemId(fromIndex)
+    if (itemId) {
+      editor.reorderRepeaterItem(selectedSection.value.id, activeRepeaterField.value.key, itemId, toIndex)
+    }
+  }
+  draggedItemIndex.value = null
+  dropTargetItemIndex.value = null
+}
+
+function onItemDragEnd() {
+  draggedItemIndex.value = null
+  dropTargetItemIndex.value = null
+}
+
 // Get item label for repeater list
 function getRepeaterItemLabel(item: unknown, index: number): string {
-  if (!item || typeof item !== 'object') return `Item ${index + 1}`
+  if (!item || typeof item !== 'object') return `${singularItemLabel.value} ${index + 1}`
   const obj = item as Record<string, unknown>
-  const labelFields = ['label', 'title', 'name', 'platform']
+  const labelFields = ['headline', 'label', 'title', 'name', 'heading', 'platform']
   for (const key of labelFields) {
     const value = obj[key]
     if (typeof value === 'string' && value.trim()) {
       return value
     }
   }
-  return `Item ${index + 1}`
+  // Fallback to first text field with value
+  if (activeItemSchema.value) {
+    for (const field of activeItemSchema.value) {
+      if (field.type === 'text' || field.type === 'richText') {
+        const value = obj[field.key]
+        if (typeof value === 'string' && value.trim()) {
+          return value
+        }
+      }
+    }
+  }
+  return `${singularItemLabel.value} ${index + 1}`
 }
 
 function getRepeaterItemId(index: number): string | undefined {
@@ -317,6 +371,16 @@ const activeRepeaterLabel = computed(() => {
   return currentRepeater.label
 })
 
+// Get singular item label (removes trailing 's' from plural label)
+const singularItemLabel = computed(() => {
+  const label = activeRepeaterLabel.value
+  if (!label) return 'Item'
+  // Handle common plural patterns
+  if (label.endsWith('ies')) return label.slice(0, -3) + 'y'
+  if (label.endsWith('s')) return label.slice(0, -1)
+  return label
+})
+
 const activeItemSchemaWithLabels = computed(() => {
   if (!activeItemSchema.value || activeItemSchema.value.length === 0) return activeItemSchema.value
   if (!activeRepeaterDef.value || activeRepeaterDef.value.key !== 'items' || !isAccordionSectionSelected.value) {
@@ -378,6 +442,26 @@ const styleOptions = computed<StyleOption[]>(() => {
   // Filter out splitLayout for Cards/Products Split variant (split always uses row layout)
   if (isCardsSplitVariant.value || isProductsSplitVariant.value) {
     return result.filter(opt => opt.key !== 'splitLayout')
+  }
+
+  // Filter out carousel options for Cards carousel variant (shown in grouped Style section instead)
+  if (selectedSection.value.type === 'cards' && selectedSection.value.variant === 'carousel') {
+    return result.filter(opt => !['autoplay', 'showArrows', 'slidesPerView'].includes(opt.key))
+  }
+
+  // Filter out carousel options for Products carousel variant (shown in grouped Style section instead)
+  if (selectedSection.value.type === 'products' && selectedSection.value.variant === 'carousel') {
+    return result.filter(opt => !['autoplay', 'showArrows', 'slidesPerView'].includes(opt.key))
+  }
+
+  // Filter out slider options for Gallery slider variant (shown in grouped Style section instead)
+  if (selectedSection.value.type === 'gallery' && selectedSection.value.variant === 'slider') {
+    return result.filter(opt => !['autoplay', 'showArrows', 'slidesPerView'].includes(opt.key))
+  }
+
+  // Filter out sticky option for Header (shown in grouped Style section instead)
+  if (selectedSection.value.type === 'header') {
+    return result.filter(opt => opt.key !== 'sticky')
   }
 
   return result
@@ -651,7 +735,7 @@ const showItemFontSizeControl = computed(() => {
   return type !== 'gallery'
 })
 
-function updateActiveFieldStyle(styleKey: keyof FieldStyleProperties, value: unknown) {
+function updateActiveFieldStyle(styleKey: string, value: unknown) {
   if (!selectedSection.value || !activeFieldPath.value) return
   editor.updateFieldStyle(selectedSection.value.id, activeFieldPath.value, styleKey, value)
 }
@@ -733,37 +817,32 @@ function deleteItem() {
         Style
       </button>
       <template v-if="selectedSection && selectedDefinition">
-        <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
         <button
-          class="flex items-center gap-1.5 text-sm font-semibold transition-colors"
+          class="flex items-center gap-1.5 text-xs transition-colors border py-1 px-2 rounded-md hover:bg-accent/50"
           :class="activeFieldPath ? 'text-muted-foreground hover:text-foreground' : 'text-foreground'"
           @click="goToSection"
         >
-          <Icon :name="selectedDefinition.icon" :size="12" :class="activeFieldPath ? 'text-muted-foreground' : 'text-primary'" />
           {{ selectedDefinition.displayName }}
         </button>
         <!-- Repeater breadcrumb (with or without item selected) -->
         <template v-if="activeRepeaterField">
-          <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
           <button
-            class="text-sm font-semibold transition-colors"
+          class="flex items-center gap-1.5 text-xs transition-colors border py-1 px-2 rounded-md hover:bg-accent/50"
             :class="isEditingItem ? 'text-muted-foreground hover:text-foreground' : 'text-foreground'"
             @click="goToRepeater"
           >
-            {{ activeRepeaterField.label }}
+            {{ activeRepeaterField.label }} list
           </button>
           <!-- Item breadcrumb (when editing specific item) -->
           <template v-if="isEditingItem">
-            <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
-            <span class="text-sm font-semibold text-foreground truncate max-w-[120px]">
+            <span class="flex items-center gap-1.5 text-xs transition-colors border py-1 px-2 rounded-md hover:bg-accent/50">
               {{ activeItemLabel }}
             </span>
           </template>
         </template>
         <!-- Regular field breadcrumb -->
         <template v-else-if="activeFieldDef">
-          <Icon name="chevron-right" :size="10" class="text-muted-foreground" />
-          <span class="text-sm font-semibold text-foreground">
+          <span class="flex items-center gap-1.5 text-xs transition-colors border py-1 px-2 rounded-md hover:bg-accent/50">
             {{ activeFieldDef.label }}
           </span>
         </template>
@@ -827,10 +906,10 @@ function deleteItem() {
                   <!-- Upload buttons (when no image) -->
                   <div v-else class="space-y-2">
                     <button
-                      class="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-border rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                      class="flex flex-col items-center justify-center w-full p-4 border-1 border-dotted border-border bg-red-100 rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
                       @click="openUploadForItemField(field.key)"
                     >
-                      <Icon name="cloud-upload" :size="18" class="text-muted-foreground mb-1" />
+                      <Icon name="app-upload" :size="18" class="text-muted-foreground mb-1" />
                       <span class="text-xs font-medium text-foreground">Upload</span>
                     </button>
                     <Button
@@ -893,10 +972,10 @@ function deleteItem() {
                   <!-- Upload buttons (when no media) -->
                   <div v-else class="space-y-2">
                     <button
-                      class="flex flex-col items-center justify-center w-full p-4 border-2 border-dashed border-border rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                      class="flex flex-col items-center justify-center w-full p-4 border-1 border-dotted border-border bg-red-100 rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
                       @click="openUploadForItemMediaField(field.key)"
                     >
-                      <Icon name="cloud-upload" :size="18" class="text-muted-foreground mb-1" />
+                      <Icon name="app-upload" :size="18" class="text-muted-foreground mb-1" />
                       <span class="text-xs font-medium text-foreground">Upload</span>
                     </button>
                     <Button
@@ -1014,27 +1093,59 @@ function deleteItem() {
           v-else-if="activeRepeaterField && !isEditingItem"
           class="border-b border-border"
         >
-          <div class="px-4 py-4">
-            <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {{ activeRepeaterLabel || 'Group Styles' }} style
-            </span>
-          </div>
-          <!-- Split variant: Section Space Between only (no Content Layout - split always uses row) -->
-          <div
-            v-if="isCardsRepeaterGroupSelected"
-            class="flex flex-col gap-4 mb-4"
-          >
-            <div class="flex items-center justify-between gap-3">
-              <label class="text-xs text-muted-foreground whitespace-nowrap">Section Space Between</label>
-              <Slider
-                :model-value="sectionSpaceBetweenValue"
-                :min="0"
-                :max="96"
-                unit="px"
-                @update:model-value="value => updateSectionStyle('spaceBetween', value)"
-              />
+          <!-- FIRST: Items List with drag-and-drop -->
+          <div class="px-4 py-4 border-b border-border">
+            <div class="mb-3">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Content
+              </span>
             </div>
+
+            <!-- Draggable Items list -->
+            <div class="flex flex-col gap-1">
+              <div
+                v-for="(item, index) in repeaterItems"
+                :key="getRepeaterItemId(index) || index"
+                :draggable="true"
+                :class="[
+                  'flex items-center gap-3 px-3 py-2 rounded-xl border border-border bg-muted/30 cursor-grab transition-colors',
+                  draggedItemIndex === index && 'opacity-50',
+                  dropTargetItemIndex === index && draggedItemIndex !== index && 'ring-2 ring-primary ring-offset-1',
+                  draggedItemIndex !== null && 'cursor-grabbing'
+                ]"
+                @click="selectRepeaterItem(index)"
+                @dragstart="onItemDragStart($event, index)"
+                @dragover="onItemDragOver($event, index)"
+                @dragleave="onItemDragLeave"
+                @drop="onItemDrop($event, index)"
+                @dragend="onItemDragEnd"
+              >
+                <Icon name="grip-dots-vertical" :size="12" class="text-muted-foreground shrink-0" />
+                <span class="flex-1 text-sm truncate">{{ getRepeaterItemLabel(item, index) }}</span>
+                <Icon name="chevron-right" :size="12" class="text-muted-foreground shrink-0" />
+              </div>
+            </div>
+
+            <!-- Add Item Button (at bottom of list) -->
+            <Button
+              variant="ghost"
+              size="sm"
+              class="w-full mt-2 justify-start text-muted-foreground hover:text-foreground"
+              @click="addRepeaterItem"
+            >
+              <Icon name="plus" :size="14" />
+              Add {{ singularItemLabel }}
+            </Button>
           </div>
+
+          <!-- SECOND: Group Styles -->
+          <div class="border-b border-border">
+            <div class="px-4 py-4">
+              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {{ activeRepeaterLabel || 'Group Styles' }} style
+              </span>
+            </div>
+
 
           <!-- Cards Shared Style Controls (applies to ALL cards) -->
           <template v-if="isCardsSection && activeRepeaterField?.key === 'items' && !isEditingItem">
@@ -1373,112 +1484,9 @@ function deleteItem() {
           </template>
 
           <!-- Non-shared-style repeater group styles (not Cards/Products/Accordion/Links) -->
-          <div v-if="!isSharedStyleSection || !(activeRepeaterField?.key === 'items')" class="flex flex-col gap-4">
-            <div class="flex items-center justify-between gap-3">
-              <label class="text-xs text-muted-foreground whitespace-nowrap">Space Between</label>
-              <Slider
-                :model-value="activeRepeaterGroupStyles.spaceBetween ?? 24"
-                :min="0"
-                :max="80"
-                unit="px"
-                @update:model-value="value => updateRepeaterGroupStyle('spaceBetween', value)"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <label class="text-xs text-muted-foreground whitespace-nowrap">Background</label>
-              <ColorPicker
-                :model-value="activeRepeaterGroupStyles.backgroundColor || ''"
-                swatch-only
-                @update:model-value="value => updateRepeaterGroupStyle('backgroundColor', value)"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <label class="text-xs text-muted-foreground whitespace-nowrap">Border Color</label>
-              <ColorPicker
-                :model-value="activeRepeaterGroupStyles.borderColor || ''"
-                swatch-only
-                @update:model-value="value => updateRepeaterGroupStyle('borderColor', value)"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <label class="text-xs text-muted-foreground whitespace-nowrap">Border Width</label>
-              <Slider
-                :model-value="activeRepeaterGroupStyles.borderWidth ?? 0"
-                :min="0"
-                :max="8"
-                unit="px"
-                @update:model-value="value => updateRepeaterGroupStyle('borderWidth', value)"
-              />
-            </div>
+
           </div>
         </div>
-
-                <!-- Repeater List View (when repeater is selected but no item is active) -->
-        <template v-else-if="activeRepeaterField && !isEditingItem && activeItemIndex === null">
-          <div class="px-4 py-4 border-b border-border">
-            <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {{ activeRepeaterField.label }}
-              </span>
-            </div>
-            <div class="flex flex-col gap-2">
-              <!-- Items list -->
-              <div
-                v-for="(item, index) in repeaterItems"
-                :key="index"
-                class="flex items-center gap-2 p-2 rounded-md border border-border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
-                @click="selectRepeaterItem(index)"
-              >
-                <Icon name="grip-dots-vertical" :size="12" class="text-muted-foreground" />
-                <span class="flex-1 text-sm truncate">{{ getRepeaterItemLabel(item, index) }}</span>
-                <Icon name="chevron-right" :size="12" class="text-muted-foreground" />
-              </div>
-            </div>
-          </div>
-
-          <!-- Item Styles (shared) -->
-          <div class="px-4 py-4">
-            <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Style
-              </span>
-              <span class="text-xs text-muted-foreground ml-1">(shared)</span>
-            </div>
-            <div class="flex flex-col gap-4">
-              <!-- Font Size -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
-                <Slider
-                  :model-value="itemStyles.fontSize ?? 14"
-                  :min="12"
-                  :max="24"
-                  unit="px"
-                  @update:model-value="updateItemStyle('fontSize', $event)"
-                />
-              </div>
-              <!-- Background Color -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Background</label>
-                <ColorPicker
-                  :model-value="itemStyles.backgroundColor ?? currentTheme.tokens.colors.secondary"
-                  swatch-only
-                  @update:model-value="updateItemStyle('backgroundColor', $event)"
-                />
-              </div>
-              <!-- Rounded -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
-                <Slider
-                  :model-value="itemStyles.borderRadius ?? 8"
-                  :min="0"
-                  :max="24"
-                  unit="px"
-                  @update:model-value="updateItemStyle('borderRadius', $event)"
-                />
-              </div>
-            </div>
-          </div>
-        </template>
 
         <!-- Image Field Editor -->
         <template v-else-if="activeFieldDef && activeFieldDef.type === 'image'">
@@ -1512,17 +1520,8 @@ function deleteItem() {
                   class="flex-1"
                   @click="showUploadModal = true"
                 >
-                  <Icon name="cloud-upload" :size="14" />
+                  <Icon name="app-upload" :size="14" />
                   Replace
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  class="flex-1"
-                  @click="showUnsplashModal = true"
-                >
-                  <Icon name="photos" :size="14" />
-                  Unsplash
                 </Button>
               </div>
             </div>
@@ -1530,38 +1529,29 @@ function deleteItem() {
             <!-- Upload buttons (when no image) -->
             <div v-else class="space-y-2">
               <button
-                class="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-border rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                class="flex flex-col items-center justify-center w-full p-6 border-1 border-dotted border-border bg-muted rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
                 @click="showUploadModal = true"
               >
-                <div class="w-10 h-10 mb-2 rounded-full bg-muted flex items-center justify-center">
-                  <Icon name="cloud-upload" :size="20" class="text-muted-foreground" />
+                <div class="w-10 h-10 mb-2 rounded-full bg-input flex items-center justify-center">
+                  <Icon name="app-upload" :size="20" class="text-muted-foreground" />
                 </div>
                 <span class="text-sm font-medium text-foreground">Upload Image</span>
                 <span class="text-xs text-muted-foreground mt-0.5">JPEG, PNG, WebP - Max 4MB</span>
               </button>
-              <Button
-                variant="secondary"
-                size="sm"
-                full-width
-                @click="showUnsplashModal = true"
-              >
-                <Icon name="photos" :size="14" />
-                Browse Unsplash
-              </Button>
             </div>
           </div>
 
           <!-- Image Styles -->
-          <div class="px-4 py-4">
-            <div class="mb-4">
+          <div class="border-b border-border">
+            <div class="px-4 py-4">
               <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Style
               </span>
             </div>
-            <div class="flex flex-col gap-4">
-              <!-- Promo section: ONLY show rounded corners -->
-              <template v-if="selectedSection?.type === 'promo'">
-                <!-- Border Radius -->
+
+            <!-- Promo section: ONLY show rounded corners -->
+            <template v-if="selectedSection?.type === 'promo'">
+              <div class="px-4 pb-4">
                 <div class="flex items-center justify-between gap-3">
                   <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
                   <Slider
@@ -1572,10 +1562,32 @@ function deleteItem() {
                     @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
                   />
                 </div>
-              </template>
+              </div>
+            </template>
 
-              <!-- Other sections: show full image styles -->
-              <template v-else>
+            <!-- Header section: grouped Size and Spacing -->
+            <template v-else-if="selectedSection?.type === 'header'">
+              <StylePopoverGroup
+                :icon="imageFieldStyleConfig.size.icon"
+                :title="imageFieldStyleConfig.size.title"
+                :controls="imageFieldStyleConfig.size.controls"
+                :styles="activeFieldStyles"
+                :defaults="imageFieldStyleConfig.size.defaults"
+                @update="updateActiveFieldStyle"
+              />
+              <StylePopoverGroup
+                :icon="imageFieldStyleConfig.spacing.icon"
+                :title="imageFieldStyleConfig.spacing.title"
+                :controls="imageFieldStyleConfig.spacing.controls"
+                :styles="activeFieldStyles"
+                :defaults="imageFieldStyleConfig.spacing.defaults"
+                @update="updateActiveFieldStyle"
+              />
+            </template>
+
+            <!-- Other sections: show full image styles inline -->
+            <template v-else>
+              <div class="px-4 pb-4 flex flex-col gap-4">
                 <!-- Width -->
                 <div class="flex items-center justify-between gap-3">
                   <label class="text-xs text-muted-foreground whitespace-nowrap">Width</label>
@@ -1611,8 +1623,8 @@ function deleteItem() {
                     @update:model-value="updateActiveFieldStyle('spacingX', $event)"
                   />
                 </div>
-              </template>
-            </div>
+              </div>
+            </template>
           </div>
         </template>
 
@@ -1690,7 +1702,7 @@ function deleteItem() {
                   class="flex-1"
                   @click="showUploadModal = true"
                 >
-                  <Icon name="cloud-upload" :size="14" />
+                  <Icon name="app-upload" :size="14" />
                   Replace
                 </Button>
                 <Button
@@ -1709,11 +1721,11 @@ function deleteItem() {
             <!-- Upload buttons (when no media) -->
             <div v-else class="space-y-2">
               <button
-                class="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed border-border rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                class="flex flex-col items-center justify-center w-full p-6 border-1 border-dotted border-border rounded-lg bg-red-100 hover:border-primary/50 hover:bg-muted/50 transition-colors"
                 @click="showUploadModal = true"
               >
                 <div class="w-10 h-10 mb-2 rounded-full bg-muted flex items-center justify-center">
-                  <Icon name="cloud-upload" :size="20" class="text-muted-foreground" />
+                  <Icon name="app-upload" :size="20" class="text-muted-foreground" />
                 </div>
                 <span class="text-sm font-medium text-foreground">
                   Upload {{ getMediaType() === 'video' ? 'Video' : 'Image' }}
@@ -1736,16 +1748,16 @@ function deleteItem() {
           </div>
 
           <!-- Media Styles -->
-          <div class="px-4 py-4">
-            <div class="mb-4">
+          <div class="border-b border-border">
+            <div class="px-4 py-4">
               <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Style
               </span>
             </div>
-            <div class="flex flex-col gap-4">
-              <!-- Promo section: ONLY show rounded corners -->
-              <template v-if="selectedSection?.type === 'promo'">
-                <!-- Border Radius -->
+
+            <!-- Promo section: ONLY show rounded corners -->
+            <template v-if="selectedSection?.type === 'promo'">
+              <div class="px-4 py-3 border-t border-border/50">
                 <div class="flex items-center justify-between gap-3">
                   <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
                   <Slider
@@ -1756,47 +1768,79 @@ function deleteItem() {
                     @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
                   />
                 </div>
-              </template>
+              </div>
+            </template>
 
-              <!-- Other sections: show full media styles -->
-              <template v-else>
-                <!-- Spacing Y -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing Y</label>
-                  <Slider
-                    :model-value="activeFieldStyles.spacingY ?? styleDefaults.spacingY.default"
-                    :min="styleDefaults.spacingY.min"
-                    :max="styleDefaults.spacingY.max"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('spacingY', $event)"
-                  />
-                </div>
+            <!-- Hero Split: ONLY show spacing (no rounded) -->
+            <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'split'">
+              <!-- Spacing Group -->
+              <StylePopoverGroup
+                :icon="mediaFieldStyleConfig.spacing.icon"
+                :title="mediaFieldStyleConfig.spacing.title"
+                :controls="mediaFieldStyleConfig.spacing.controls"
+                :styles="activeFieldStyles"
+                :defaults="mediaFieldStyleConfig.spacing.defaults"
+                @update="(key, value) => updateActiveFieldStyle(key, value)"
+              />
+            </template>
 
-                <!-- Spacing X -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing X</label>
-                  <Slider
-                    :model-value="activeFieldStyles.spacingX ?? styleDefaults.spacingX.default"
-                    :min="styleDefaults.spacingX.min"
-                    :max="styleDefaults.spacingX.max"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('spacingX', $event)"
-                  />
-                </div>
+            <!-- Hero Stacked: Grouped media controls (Size + Borders) -->
+            <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'stacked'">
+              <!-- Size Group -->
+              <StylePopoverGroup
+                :icon="heroStackedMediaStyleConfig.size.icon"
+                :title="heroStackedMediaStyleConfig.size.title"
+                :controls="heroStackedMediaStyleConfig.size.controls"
+                :styles="activeFieldStyles"
+                :defaults="heroStackedMediaStyleConfig.size.defaults"
+                @update="(key, value) => updateActiveFieldStyle(key, value)"
+              />
 
-                <!-- Border Radius -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
-                  <Slider
-                    :model-value="activeFieldStyles.borderRadius ?? 8"
-                    :min="0"
-                    :max="32"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
-                  />
-                </div>
-              </template>
-            </div>
+              <!-- Borders Group -->
+              <StylePopoverGroup
+                :icon="heroStackedMediaStyleConfig.borders.icon"
+                :title="heroStackedMediaStyleConfig.borders.title"
+                :controls="heroStackedMediaStyleConfig.borders.controls"
+                :styles="activeFieldStyles"
+                :defaults="heroStackedMediaStyleConfig.borders.defaults"
+                @update="(key, value) => updateActiveFieldStyle(key, value)"
+              />
+            </template>
+
+            <!-- Hero Overlay: Show overlay controls in grouped popover -->
+            <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'">
+              <StylePopoverGroup
+                :icon="heroOverlayMediaStyleConfig.overlay.icon"
+                :title="heroOverlayMediaStyleConfig.overlay.title"
+                :controls="heroOverlayMediaStyleConfig.overlay.controls"
+                :styles="sectionStyles"
+                :defaults="heroOverlayMediaStyleConfig.overlay.defaults"
+                @update="(key, value) => updateSectionStyle(key, value)"
+              />
+            </template>
+
+            <!-- Other sections: show full media styles (grouped) -->
+            <template v-else>
+              <!-- Spacing Group -->
+              <StylePopoverGroup
+                :icon="mediaFieldStyleConfig.spacing.icon"
+                :title="mediaFieldStyleConfig.spacing.title"
+                :controls="mediaFieldStyleConfig.spacing.controls"
+                :styles="activeFieldStyles"
+                :defaults="mediaFieldStyleConfig.spacing.defaults"
+                @update="(key, value) => updateActiveFieldStyle(key, value)"
+              />
+
+              <!-- Borders Group -->
+              <StylePopoverGroup
+                :icon="mediaFieldStyleConfig.borders.icon"
+                :title="mediaFieldStyleConfig.borders.title"
+                :controls="mediaFieldStyleConfig.borders.controls"
+                :styles="activeFieldStyles"
+                :defaults="mediaFieldStyleConfig.borders.defaults"
+                @update="(key, value) => updateActiveFieldStyle(key, value)"
+              />
+            </template>
           </div>
         </template>
 
@@ -1836,103 +1880,52 @@ function deleteItem() {
           </div>
 
           <!-- Link Styles -->
-          <div class="px-4 py-4">
-            <div class="mb-4">
+          <div class="border-b border-border">
+            <div class="px-4 py-4">
               <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Style
               </span>
             </div>
-            <div class="flex flex-col gap-4">
-              <!-- Font Size -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
-                <Slider
-                  :model-value="activeFieldStyles.fontSize ?? styleDefaults.fontSize.default"
-                  :min="styleDefaults.fontSize.min"
-                  :max="styleDefaults.fontSize.max"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('fontSize', $event)"
-                />
-              </div>
 
-              <!-- Spacing Y -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing Y</label>
-                <Slider
-                  :model-value="activeFieldStyles.spacingY ?? styleDefaults.spacingY.default"
-                  :min="styleDefaults.spacingY.min"
-                  :max="styleDefaults.spacingY.max"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('spacingY', $event)"
-                />
-              </div>
+            <!-- Font Group -->
+            <StylePopoverGroup
+              :icon="textFieldStyleConfig.font.icon"
+              :title="textFieldStyleConfig.font.title"
+              :controls="textFieldStyleConfig.font.controls"
+              :styles="activeFieldStyles"
+              :defaults="textFieldStyleConfig.font.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
 
-              <!-- Spacing X -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing X</label>
-                <Slider
-                  :model-value="activeFieldStyles.spacingX ?? styleDefaults.spacingX.default"
-                  :min="styleDefaults.spacingX.min"
-                  :max="styleDefaults.spacingX.max"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('spacingX', $event)"
-                />
-              </div>
+            <!-- Spacing Group -->
+            <StylePopoverGroup
+              :icon="textFieldStyleConfig.spacing.icon"
+              :title="textFieldStyleConfig.spacing.title"
+              :controls="textFieldStyleConfig.spacing.controls"
+              :styles="activeFieldStyles"
+              :defaults="textFieldStyleConfig.spacing.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
 
-              <!-- Background Color -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Background</label>
-                <ColorPicker
-                  :model-value="activeFieldStyles.backgroundColor ?? currentTheme.tokens.colors.primary"
-                  swatch-only
-                  @update:model-value="updateActiveFieldStyle('backgroundColor', $event)"
-                />
-              </div>
+            <!-- Background Group -->
+            <StylePopoverGroup
+              :icon="buttonFieldStyleConfig.background.icon"
+              :title="buttonFieldStyleConfig.background.title"
+              :controls="buttonFieldStyleConfig.background.controls"
+              :styles="activeFieldStyles"
+              :defaults="buttonFieldStyleConfig.background.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
 
-              <!-- Color -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Color</label>
-                <ColorPicker
-                  :model-value="activeFieldStyles.color ?? currentTheme.tokens.colors.primaryForeground"
-                  swatch-only
-                  @update:model-value="updateActiveFieldStyle('color', $event)"
-                />
-              </div>
-
-              <!-- Rounded -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
-                <Slider
-                  :model-value="activeFieldStyles.borderRadius ?? 8"
-                  :min="0"
-                  :max="32"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
-                />
-              </div>
-
-              <!-- Border Width -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Border</label>
-                <Slider
-                  :model-value="activeFieldStyles.borderWidth ?? 0"
-                  :min="0"
-                  :max="8"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('borderWidth', $event)"
-                />
-              </div>
-
-              <!-- Border Color (only show when borderWidth > 0) -->
-              <div v-if="(activeFieldStyles.borderWidth ?? 0) > 0" class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Border Color</label>
-                <ColorPicker
-                  :model-value="activeFieldStyles.borderColor ?? currentTheme.tokens.colors.border"
-                  swatch-only
-                  @update:model-value="updateActiveFieldStyle('borderColor', $event)"
-                />
-              </div>
-            </div>
+            <!-- Borders Group -->
+            <StylePopoverGroup
+              :icon="buttonFieldStyleConfig.borders.icon"
+              :title="buttonFieldStyleConfig.borders.title"
+              :controls="buttonFieldStyleConfig.borders.controls"
+              :styles="activeFieldStyles"
+              :defaults="buttonFieldStyleConfig.borders.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
           </div>
         </template>
 
@@ -1981,118 +1974,55 @@ function deleteItem() {
           </div>
 
           <!-- Field Styles -->
-          <div class="px-4 py-4">
-            <div class="mb-4">
+          <div class="border-b border-border">
+            <div class="px-4 py-4">
               <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Style
               </span>
             </div>
-            <div class="flex flex-col gap-4">
-              <!-- Font Size -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
-                <Slider
-                  :model-value="activeFieldStyles.fontSize ?? styleDefaults.fontSize.default"
-                  :min="styleDefaults.fontSize.min"
-                  :max="styleDefaults.fontSize.max"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('fontSize', $event)"
-                />
-              </div>
 
-              <!-- Line Height -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Line Height</label>
-                <Slider
-                  :model-value="activeFieldStyles.lineHeight ?? styleDefaults.lineHeight.default"
-                  :min="styleDefaults.lineHeight.min"
-                  :max="styleDefaults.lineHeight.max"
-                  :step="styleDefaults.lineHeight.step"
-                  @update:model-value="updateActiveFieldStyle('lineHeight', $event)"
-                />
-              </div>
+            <!-- Font Group -->
+            <StylePopoverGroup
+              :icon="textFieldStyleConfig.font.icon"
+              :title="textFieldStyleConfig.font.title"
+              :controls="textFieldStyleConfig.font.controls"
+              :styles="activeFieldStyles"
+              :defaults="textFieldStyleConfig.font.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
 
-              <!-- Spacing Y -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing Y</label>
-                <Slider
-                  :model-value="activeFieldStyles.spacingY ?? styleDefaults.spacingY.default"
-                  :min="styleDefaults.spacingY.min"
-                  :max="styleDefaults.spacingY.max"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('spacingY', $event)"
-                />
-              </div>
+            <!-- Spacing Group -->
+            <StylePopoverGroup
+              :icon="textFieldStyleConfig.spacing.icon"
+              :title="textFieldStyleConfig.spacing.title"
+              :controls="textFieldStyleConfig.spacing.controls"
+              :styles="activeFieldStyles"
+              :defaults="textFieldStyleConfig.spacing.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
 
-              <!-- Spacing X -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing X</label>
-                <Slider
-                  :model-value="activeFieldStyles.spacingX ?? styleDefaults.spacingX.default"
-                  :min="styleDefaults.spacingX.min"
-                  :max="styleDefaults.spacingX.max"
-                  unit="px"
-                  @update:model-value="updateActiveFieldStyle('spacingX', $event)"
-                />
-              </div>
+            <!-- Button-only styles -->
+            <template v-if="activeFieldPath === 'buttonText'">
+              <!-- Background Group -->
+              <StylePopoverGroup
+                :icon="buttonFieldStyleConfig.background.icon"
+                :title="buttonFieldStyleConfig.background.title"
+                :controls="buttonFieldStyleConfig.background.controls"
+                :styles="activeFieldStyles"
+                :defaults="buttonFieldStyleConfig.background.defaults"
+                @update="(key, value) => updateActiveFieldStyle(key, value)"
+              />
 
-              <!-- Color -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Color</label>
-                <ColorPicker
-                  :model-value="activeFieldStyles.color ?? currentTheme.tokens.colors.foreground"
-                  swatch-only
-                  @update:model-value="updateActiveFieldStyle('color', $event)"
-                />
-              </div>
-
-              <!-- Button-only styles -->
-              <template v-if="activeFieldPath === 'buttonText'">
-                <!-- Background Color -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Background</label>
-                  <ColorPicker
-                    :model-value="activeFieldStyles.backgroundColor ?? currentTheme.tokens.colors.primary"
-                    swatch-only
-                    @update:model-value="updateActiveFieldStyle('backgroundColor', $event)"
-                  />
-                </div>
-
-                <!-- Rounded (border radius) -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
-                  <Slider
-                    :model-value="activeFieldStyles.borderRadius ?? 8"
-                    :min="0"
-                    :max="32"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
-                  />
-                </div>
-
-                <!-- Border Width -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Border</label>
-                  <Slider
-                    :model-value="activeFieldStyles.borderWidth ?? 0"
-                    :min="0"
-                    :max="8"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('borderWidth', $event)"
-                  />
-                </div>
-
-                <!-- Border Color (only show when borderWidth > 0) -->
-                <div v-if="(activeFieldStyles.borderWidth ?? 0) > 0" class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Border Color</label>
-                  <ColorPicker
-                    :model-value="activeFieldStyles.borderColor ?? currentTheme.tokens.colors.border"
-                    swatch-only
-                    @update:model-value="updateActiveFieldStyle('borderColor', $event)"
-                  />
-                </div>
-              </template>
-            </div>
+              <!-- Borders Group -->
+              <StylePopoverGroup
+                :icon="buttonFieldStyleConfig.borders.icon"
+                :title="buttonFieldStyleConfig.borders.title"
+                :controls="buttonFieldStyleConfig.borders.controls"
+                :styles="activeFieldStyles"
+                :defaults="buttonFieldStyleConfig.borders.defaults"
+                @update="(key, value) => updateActiveFieldStyle(key, value)"
+              />
+            </template>
           </div>
         </template>
 
@@ -2166,101 +2096,111 @@ function deleteItem() {
           </div>
 
           <!-- Section Style -->
-          <div class="px-4 py-4 border-b border-border">
-            <div class="mb-4">
+          <div class="border-b border-border">
+            <div class="px-4 py-4">
               <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Style
               </span>
             </div>
-            <div class="flex flex-col gap-4">
-              <!-- Background Color -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Background</label>
-                <ColorPicker
-                  :model-value="sectionStyles.backgroundColor ?? currentTheme.tokens.colors.background"
-                  swatch-only
-                  @update:model-value="updateSectionStyle('backgroundColor', $event)"
-                />
-              </div>
 
-              <!-- Space Between (Hero, Promo, Cards) -->
-              <div
-                v-if="selectedSection?.type === 'hero' || selectedSection?.type === 'promo' || selectedSection?.type === 'cards'"
-                class="flex items-center justify-between gap-3"
-              >
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Space Between</label>
-                <Slider
-                  :model-value="sectionSpaceBetweenValue"
-                  :min="0"
-                  :max="96"
-                  unit="px"
-                  @update:model-value="value => updateSectionStyle('spaceBetween', value)"
-                />
-              </div>
+            <!-- General Section Spacing (if space between applies) -->
+            <StylePopoverGroup
+              v-if="selectedSection?.type === 'hero' || selectedSection?.type === 'promo' || selectedSection?.type === 'cards'"
+              :icon="sectionStyleConfig.spacing.icon"
+              :title="sectionStyleConfig.spacing.title"
+              :controls="sectionStyleConfig.spacing.controls"
+              :styles="sectionStyles"
+              :defaults="sectionStyleConfig.spacing.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
 
-              <!-- Spacing Y -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing Y</label>
-                <Slider
-                  :model-value="sectionStyles.spacingY ?? styleDefaults.sectionSpacingY.default"
-                  :min="styleDefaults.sectionSpacingY.min"
-                  :max="styleDefaults.sectionSpacingY.max"
-                  unit="px"
-                  @update:model-value="updateSectionStyle('spacingY', $event)"
-                />
-              </div>
+            <!-- General Section Spacing (without space between) -->
+            <StylePopoverGroup
+              v-else-if="!(selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay')"
+              :icon="sectionStyleConfig.spacing.icon"
+              :title="sectionStyleConfig.spacing.title"
+              :controls="sectionStyleConfig.spacing.controls.filter(c => c.key !== 'spaceBetween')"
+              :styles="sectionStyles"
+              :defaults="sectionStyleConfig.spacing.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
 
-              <!-- Spacing X -->
-              <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing X</label>
-                <Slider
-                  :model-value="sectionStyles.spacingX ?? styleDefaults.sectionSpacingX.default"
-                  :min="styleDefaults.sectionSpacingX.min"
-                  :max="styleDefaults.sectionSpacingX.max"
-                  unit="px"
-                  @update:model-value="updateSectionStyle('spacingX', $event)"
-                />
-              </div>
+            <!-- Background (hide for Hero Overlay) -->
+            <StylePopoverGroup
+              v-if="!(selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay')"
+              :icon="sectionStyleConfig.background.icon"
+              :title="sectionStyleConfig.background.title"
+              :controls="sectionStyleConfig.background.controls"
+              :styles="sectionStyles"
+              :defaults="sectionStyleConfig.background.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
 
-              <!-- CTA Section Style Controls -->
-              <template v-if="isCTASection">
-                <!-- Height: 1=auto, 2=50vh, 3=100vh -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Height</label>
-                  <Slider
-                    :model-value="getCTAStyle('ctaHeight', 1)"
-                    :min="1"
-                    :max="3"
-                    :step="1"
-                    @update:model-value="updateCTAStyle('ctaHeight', $event)"
-                  />
-                </div>
+            <!-- Hero Overlay Height -->
+            <StylePopoverGroup
+              v-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'"
+              :icon="heroOverlayStyleConfig.height.icon"
+              :title="heroOverlayStyleConfig.height.title"
+              :controls="heroOverlayStyleConfig.height.controls"
+              :styles="sectionStyles"
+              :defaults="heroOverlayStyleConfig.height.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
 
-                <!-- Wrap Gap (px) -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Wrap Gap</label>
-                  <Slider
-                    :model-value="getCTAStyle('ctaWrapGap', 32)"
-                    :min="0"
-                    :max="96"
-                    unit="px"
-                    @update:model-value="updateCTAStyle('ctaWrapGap', $event)"
-                  />
-                </div>
+            <!-- Hero Overlay Position -->
+            <StylePopoverGroup
+              v-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'"
+              :icon="heroOverlayStyleConfig.position.icon"
+              :title="heroOverlayStyleConfig.position.title"
+              :controls="heroOverlayStyleConfig.position.controls"
+              :styles="sectionStyles"
+              :defaults="heroOverlayStyleConfig.position.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
 
-                <!-- Layout (stacked variant only) -->
-                <div v-if="isCTAStackedVariant">
-                  <label class="block text-xs text-muted-foreground mb-1.5">Layout</label>
-                  <Select
-                    :model-value="getCTAStyle('ctaLayout', 'option1')"
-                    :options="ctaLayoutOptions"
-                    size="sm"
-                    variant="filled"
-                    @update:model-value="updateCTAStyle('ctaLayout', $event)"
-                  />
-                </div>
-              </template>
-            </div>
+            <!-- Cards Carousel Slider -->
+            <StylePopoverGroup
+              v-if="selectedSection?.type === 'cards' && selectedSection?.variant === 'carousel'"
+              :icon="carouselStyleConfig.slider.icon"
+              :title="carouselStyleConfig.slider.title"
+              :controls="carouselStyleConfig.slider.controls"
+              :styles="sectionStyles"
+              :defaults="carouselStyleConfig.slider.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
+
+            <!-- Products Carousel Slider -->
+            <StylePopoverGroup
+              v-if="selectedSection?.type === 'products' && selectedSection?.variant === 'carousel'"
+              :icon="productsCarouselStyleConfig.slider.icon"
+              :title="productsCarouselStyleConfig.slider.title"
+              :controls="productsCarouselStyleConfig.slider.controls"
+              :styles="sectionStyles"
+              :defaults="productsCarouselStyleConfig.slider.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
+
+            <!-- Gallery Slider -->
+            <StylePopoverGroup
+              v-if="selectedSection?.type === 'gallery' && selectedSection?.variant === 'slider'"
+              :icon="galleryCarouselStyleConfig.slider.icon"
+              :title="galleryCarouselStyleConfig.slider.title"
+              :controls="galleryCarouselStyleConfig.slider.controls"
+              :styles="sectionStyles"
+              :defaults="galleryCarouselStyleConfig.slider.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
+
+            <!-- Header Position -->
+            <StylePopoverGroup
+              v-if="selectedSection?.type === 'header'"
+              :icon="headerStyleConfig.position.icon"
+              :title="headerStyleConfig.position.title"
+              :controls="headerStyleConfig.position.controls"
+              :styles="sectionStyles"
+              :defaults="headerStyleConfig.position.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
           </div>
 
           <!-- Design Options -->

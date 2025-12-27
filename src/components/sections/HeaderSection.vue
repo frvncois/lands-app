@@ -187,18 +187,6 @@ function handleLinkClick(e: MouseEvent) {
           @selectField="handleSelectField"
           @update="handleUpdate"
         />
-          <a
-          v-if="data.link?.label && !hiddenFields?.includes('link')"
-          :href="editable ? '#' : (data.link.url || '#')"
-          class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-sm)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
-          :class="[
-            editable && 'cursor-pointer',
-            editable && activeField !== 'link' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
-            editable && activeField === 'link' && 'outline outline-2 outline-primary outline-offset-2',
-          ]"
-          :style="getLinkStyle()"
-          @click="handleLinkClick"
-        >{{ data.link.label }}</a>
       </div>
     </div>
   </header>

@@ -14,7 +14,7 @@
 import { computed } from 'vue'
 import type { HeroData } from '@/lib/section-registry'
 import type { SectionStyleProperties, FieldStyles } from '@/types/sections'
-import { resolveSectionStyles, getTextStyle, getButtonStyle as getButtonStyleUtil } from '@/lib/section-styles'
+import { resolveSectionStyles, getTextStyle, getButtonStyle as getButtonStyleUtil, getMediaStyle } from '@/lib/section-styles'
 import EditableText from '../EditableText.vue'
 import MediaPlaceholder from '../MediaPlaceholder.vue'
 
@@ -47,6 +47,33 @@ function getFieldStyle(fieldKey: string, defaultFont: string = '--font-body'): R
 
 function getButtonStyle(fieldKey: string): Record<string, string> {
   return getButtonStyleUtil(props.fieldStyles, fieldKey)
+}
+
+function getMediaContainerStyle(fieldKey: string): Record<string, string> {
+  const styles = getMediaStyle(props.fieldStyles, fieldKey)
+  const result: Record<string, string> = {}
+
+  // Apply aspect ratio to container (default to 16:9)
+  const aspectRatio = styles.aspectRatio ?? '16 / 9'
+  result.aspectRatio = aspectRatio
+  result.flexGrow = '0'
+  result.flexShrink = '0'
+
+  // Apply border radius to container
+  if (styles.borderRadius) {
+    result.borderRadius = styles.borderRadius
+  }
+
+  // Apply border width and color to container
+  if (styles.borderWidth) {
+    result.borderWidth = styles.borderWidth
+    result.borderStyle = styles.borderStyle || 'solid'
+  }
+  if (styles.borderColor) {
+    result.borderColor = styles.borderColor
+  }
+
+  return result
 }
 
 function handleSelectField(fieldKey: string) {
@@ -118,12 +145,13 @@ const heroViewportStyle = computed(() => ({
 
       <!-- BLOCK B: Media (flex-grow) -->
       <div
-        class="w-full flex-1 min-h-0 relative"
+        class="w-full min-h-0 relative overflow-hidden"
         :class="[
           isEditing && 'cursor-pointer',
-          isEditing && activeField !== 'media' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2 rounded-[var(--radius-lg)]',
-          isEditing && activeField === 'media' && 'outline outline-2 outline-primary outline-offset-2 rounded-[var(--radius-lg)]',
+          isEditing && activeField !== 'media' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
+          isEditing && activeField === 'media' && 'outline outline-2 outline-primary outline-offset-2',
         ]"
+        :style="getMediaContainerStyle('media')"
         @click.stop="isEditing && handleSelectField('media')"
       >
         <template v-if="data.media?.src">
@@ -131,19 +159,19 @@ const heroViewportStyle = computed(() => ({
             v-if="data.media.type === 'image'"
             :src="data.media.src"
             :alt="data.media.alt || ''"
-            class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)] object-cover"
+            class="w-full h-full object-cover"
           />
           <video
             v-else-if="data.media.type === 'video'"
             :src="data.media.src"
-            class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)] object-cover"
+            class="w-full h-full object-cover"
             autoplay
             muted
             loop
             playsinline
           />
         </template>
-        <MediaPlaceholder v-else :show="true" class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)]" />
+        <MediaPlaceholder v-else :show="true" />
       </div>
 
       <!-- BLOCK C: Paragraph + Buttons -->
@@ -273,12 +301,13 @@ const heroViewportStyle = computed(() => ({
 
       <!-- BLOCK B: Media (flex-grow) -->
       <div
-        class="w-full flex-1 min-h-0 relative"
+        class="w-full min-h-0 relative overflow-hidden"
         :class="[
           isEditing && 'cursor-pointer',
-          isEditing && activeField !== 'media' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2 rounded-[var(--radius-lg)]',
-          isEditing && activeField === 'media' && 'outline outline-2 outline-primary outline-offset-2 rounded-[var(--radius-lg)]',
+          isEditing && activeField !== 'media' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
+          isEditing && activeField === 'media' && 'outline outline-2 outline-primary outline-offset-2',
         ]"
+        :style="getMediaContainerStyle('media')"
         @click.stop="isEditing && handleSelectField('media')"
       >
         <template v-if="data.media?.src">
@@ -286,19 +315,19 @@ const heroViewportStyle = computed(() => ({
             v-if="data.media.type === 'image'"
             :src="data.media.src"
             :alt="data.media.alt || ''"
-            class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)] object-cover"
+            class="w-full h-full object-cover"
           />
           <video
             v-else-if="data.media.type === 'video'"
             :src="data.media.src"
-            class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)] object-cover"
+            class="w-full h-full object-cover"
             autoplay
             muted
             loop
             playsinline
           />
         </template>
-        <MediaPlaceholder v-else :show="true" class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)]" />
+        <MediaPlaceholder v-else :show="true" class="w-full h-full" />
       </div>
     </div>
 
@@ -310,12 +339,13 @@ const heroViewportStyle = computed(() => ({
     >
       <!-- BLOCK B: Media (flex-grow) -->
       <div
-        class="w-full flex-1 min-h-0 relative"
+        class="w-full min-h-0 relative overflow-hidden"
         :class="[
           isEditing && 'cursor-pointer',
-          isEditing && activeField !== 'media' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2 rounded-[var(--radius-lg)]',
-          isEditing && activeField === 'media' && 'outline outline-2 outline-primary outline-offset-2 rounded-[var(--radius-lg)]',
+          isEditing && activeField !== 'media' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
+          isEditing && activeField === 'media' && 'outline outline-2 outline-primary outline-offset-2',
         ]"
+        :style="getMediaContainerStyle('media')"
         @click.stop="isEditing && handleSelectField('media')"
       >
         <template v-if="data.media?.src">
@@ -323,19 +353,19 @@ const heroViewportStyle = computed(() => ({
             v-if="data.media.type === 'image'"
             :src="data.media.src"
             :alt="data.media.alt || ''"
-            class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)] object-cover"
+            class="w-full h-full object-cover"
           />
           <video
             v-else-if="data.media.type === 'video'"
             :src="data.media.src"
-            class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)] object-cover"
+            class="w-full h-full object-cover"
             autoplay
             muted
             loop
             playsinline
           />
         </template>
-        <MediaPlaceholder v-else :show="true" class="absolute inset-0 w-full h-full rounded-[var(--radius-lg)]" />
+        <MediaPlaceholder v-else :show="true" class="w-full h-full" />
       </div>
 
       <!-- BLOCK A: Headline + Subheadline -->
