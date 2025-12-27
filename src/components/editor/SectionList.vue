@@ -470,34 +470,37 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
             v-for="repeater in getRepeaterFields(section.definition.schema)"
             :key="repeater.key"
           >
-            <div class="flex items-center gap-1 px-2 py-1.5 rounded transition-colors">
+            <div
+              class="flex items-center gap-2 w-full px-1.5 py-1 rounded text-left transition-colors cursor-pointer"
+              :class="[
+                isRepeaterGroupSelected(section, repeater.key)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-accent'
+              ]"
+              @click="selectRepeaterGroup(section, repeater)"
+            >
               <button
-                class="flex items-center justify-center w-4 h-4 rounded text-muted-foreground hover:bg-border hover:text-foreground transition-colors"
+                class="flex items-center justify-center w-5 h-5 rounded text-muted-foreground  transition-colors"
+                :class="[
+                  isRepeaterGroupSelected(section, repeater.key) && 'text-primary-foreground hover:text-primary-foreground'
+                ]"
                 @click.stop="toggleRepeater(section.id, repeater.key)"
               >
-                <Icon :name="isRepeaterExpanded(section.id, repeater.key) ? 'chevron-down' : 'chevron-right'" :size="12" />
+                <Icon :name="isRepeaterExpanded(section.id, repeater.key) ? 'chevron-down' : 'chevron-right'" :size="16" />
               </button>
-              <button
-                class="flex items-center gap-2 flex-1 text-xs font-medium rounded px-1 py-0.5 text-left transition-colors"
+              <span
+                class="flex-1 text-xs truncate"
                 :class="[
                   isRepeaterGroupSelected(section, repeater.key)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-accent text-foreground'
+                    ? 'text-primary-foreground'
+                    : 'text-foreground'
                 ]"
-                @click="selectRepeaterGroup(section, repeater)"
               >
-                <Icon
-                  :name="getFieldIcon(repeater)"
-                  :size="12"
-                  :class="isRepeaterGroupSelected(section, repeater.key) ? 'text-primary-foreground' : 'text-muted-foreground'"
-                />
-                <span class="truncate">
-                  {{ getRepeaterGroupLabel(section, repeater) }} list
-                </span>
-              </button>
+                {{ getRepeaterGroupLabel(section, repeater) }} list
+              </span>
             </div>
 
-            <div v-if="isRepeaterExpanded(section.id, repeater.key)" class="ml-6 mt-1 space-y-0.5">
+            <div v-if="isRepeaterExpanded(section.id, repeater.key)" class="ml-6 space-y-0.5">
               <div
                 v-for="(item, itemIndex) in getRepeaterItems(section, repeater.key)"
                 :key="`${repeater.key}-${getItemId(item, itemIndex)}`"
@@ -564,11 +567,11 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
               <!-- Add item button (hidden for socials) -->
               <button
                 v-if="repeater.key !== 'socials'"
-                class="flex items-center gap-1.5 w-full mt-1 px-2 py-1.5 border rounded text-left transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
+                class="flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors hover:bg-accent cursor-pointer"
                 @click="addItem(section.id, repeater.key)"
               >
-                <Icon name="plus" :size="12" />
-                <span class="text-xs">Add {{ repeater.label.replace(/s$/, '') }}</span>
+                <Icon name="plus" :size="12" class="text-muted-foreground" />
+                <span class="text-xs text-foreground">Add {{ repeater.label.replace(/s$/, '') }}</span>
               </button>
 
               <!-- Submit Button (for contact section formFields only) -->

@@ -32,7 +32,7 @@ function getValue<T>(key: string, defaultValue: T): T {
 </script>
 
 <template>
-  <div class="px-4 py-3 border-b border-border/50">
+  <div class="px-4 py-3 border-t border-border/50">
     <Popover side="left" width="w-80">
       <template #trigger="{ toggle }">
         <button

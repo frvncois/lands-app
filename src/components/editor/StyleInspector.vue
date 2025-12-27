@@ -32,7 +32,7 @@ import { fontComboboxItems } from '@/lib/font-options'
 import { colorOptions, fontOptions } from '@/lib/style-options'
 import { styleDefaults } from '@/lib/style-defaults'
 import { StylePopoverGroup } from '@/components/editor/style-controls'
-import { cardsStyleConfig, productsStyleConfig, accordionStyleConfig, linksStyleConfig } from '@/lib/section-style-configs'
+import { cardsStyleConfig, productsStyleConfig, accordionStyleConfig, linksStyleConfig, contactFormFieldsStyleConfig, contactSocialLinksStyleConfig } from '@/lib/section-style-configs'
 
 const editor = useEditorStore()
 const themes = getAllThemes()
@@ -599,6 +599,36 @@ function updateLinksGroupStyle(key: string, value: unknown) {
   }
 }
 
+// Merged styles for Contact Form Fields StylePopoverGroup
+const contactFormFieldsGroupStyles = computed(() => ({
+  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
+  ...sectionStyles.value,
+}))
+
+// Update handler for Contact Form Fields StylePopoverGroup
+function updateContactFormFieldsGroupStyle(key: string, value: unknown) {
+  if (key === 'spaceBetween') {
+    updateRepeaterGroupStyle(key, value)
+  } else {
+    updateSharedFormInputStyle(key, value)
+  }
+}
+
+// Merged styles for Contact Social Links StylePopoverGroup
+const contactSocialLinksGroupStyles = computed(() => ({
+  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
+  ...sectionStyles.value,
+}))
+
+// Update handler for Contact Social Links StylePopoverGroup
+function updateContactSocialLinksGroupStyle(key: string, value: unknown) {
+  if (key === 'spaceBetween') {
+    updateRepeaterGroupStyle(key, value)
+  } else {
+    updateSharedLinkStyle(key, value)
+  }
+}
+
 // Helper to get shared product style values from sectionStyles (mirrors Cards)
 function getSharedProductStyle<T>(key: string, defaultValue: T): T {
   const styles = sectionStyles.value as Record<string, unknown>
@@ -894,7 +924,7 @@ function deleteItem() {
 
           <!-- Item Style (shared) - NOT shown for shared-style sections (Cards, Products, Accordion, Links) -->
           <!-- These sections use shared section-level styles instead of per-item styles -->
-          <div v-if="!isEditingSharedStyleItem" class="px-4 py-4 border-b border-border">
+          <div v-if="!isEditingSharedStyleItem" class="border-b border-border">
             <div class="mb-4">
               <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Style
@@ -982,11 +1012,11 @@ function deleteItem() {
         <!-- Repeater Group Styles -->
         <div
           v-else-if="activeRepeaterField && !isEditingItem"
-          class="px-4 py-4 border-b border-border"
+          class="border-b border-border"
         >
-          <div class="mb-4">
+          <div class="px-4 py-4">
             <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {{ activeRepeaterLabel || 'Group Styles' }}
+              {{ activeRepeaterLabel || 'Group Styles' }} style
             </span>
           </div>
           <!-- Split variant: Section Space Between only (no Content Layout - split always uses row) -->
@@ -1264,374 +1294,82 @@ function deleteItem() {
 
           <!-- Contact Form Fields Shared Style Controls (applies to ALL form inputs) -->
           <template v-if="isContactSection && activeRepeaterField?.key === 'formFields' && !isEditingItem">
-            <!-- Spacing Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="spacing-horizontal" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Spacing</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Space between</label>
-                    <Slider
-                      :model-value="activeRepeaterGroupStyles.spaceBetween ?? 12"
-                      :min="0"
-                      :max="48"
-                      unit="px"
-                      @update:model-value="value => updateRepeaterGroupStyle('spaceBetween', value)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Padding X</label>
-                    <Slider
-                      :model-value="getSharedFormInputStyle('formInputPaddingX', 16)"
-                      :min="0"
-                      :max="48"
-                      unit="px"
-                      @update:model-value="updateSharedFormInputStyle('formInputPaddingX', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Padding Y</label>
-                    <Slider
-                      :model-value="getSharedFormInputStyle('formInputPaddingY', 12)"
-                      :min="0"
-                      :max="48"
-                      unit="px"
-                      @update:model-value="updateSharedFormInputStyle('formInputPaddingY', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
-
-            <!-- Borders Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="border-all" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Borders</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Border Width</label>
-                    <Slider
-                      :model-value="getSharedFormInputStyle('formInputBorderWidth', 1)"
-                      :min="0"
-                      :max="8"
-                      unit="px"
-                      @update:model-value="updateSharedFormInputStyle('formInputBorderWidth', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Border Color</label>
-                    <ColorPicker
-                      :model-value="getSharedFormInputStyle('formInputBorderColor', '')"
-                      swatch-only
-                      @update:model-value="updateSharedFormInputStyle('formInputBorderColor', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
-                    <Slider
-                      :model-value="getSharedFormInputStyle('formInputRadius', 8)"
-                      :min="0"
-                      :max="32"
-                      unit="px"
-                      @update:model-value="updateSharedFormInputStyle('formInputRadius', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
-
-            <!-- Background Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="palette" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Background</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Background Color</label>
-                    <ColorPicker
-                      :model-value="getSharedFormInputStyle('formInputBackgroundColor', '')"
-                      swatch-only
-                      @update:model-value="updateSharedFormInputStyle('formInputBackgroundColor', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
-
-            <!-- Typography Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="type" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Typography</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
-                    <Slider
-                      :model-value="getSharedFormInputStyle('formInputFontSize', 16)"
-                      :min="12"
-                      :max="24"
-                      unit="px"
-                      @update:model-value="updateSharedFormInputStyle('formInputFontSize', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Text Color</label>
-                    <ColorPicker
-                      :model-value="getSharedFormInputStyle('formInputTextColor', '')"
-                      swatch-only
-                      @update:model-value="updateSharedFormInputStyle('formInputTextColor', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
+            <StylePopoverGroup
+              :icon="contactFormFieldsStyleConfig.spacing.icon"
+              :title="contactFormFieldsStyleConfig.spacing.title"
+              :controls="contactFormFieldsStyleConfig.spacing.controls"
+              :styles="contactFormFieldsGroupStyles"
+              :defaults="contactFormFieldsStyleConfig.spacing.defaults"
+              @update="updateContactFormFieldsGroupStyle"
+            />
+            <StylePopoverGroup
+              :icon="contactFormFieldsStyleConfig.borders.icon"
+              :title="contactFormFieldsStyleConfig.borders.title"
+              :controls="contactFormFieldsStyleConfig.borders.controls"
+              :styles="contactFormFieldsGroupStyles"
+              :defaults="contactFormFieldsStyleConfig.borders.defaults"
+              @update="updateContactFormFieldsGroupStyle"
+            />
+            <StylePopoverGroup
+              :icon="contactFormFieldsStyleConfig.background.icon"
+              :title="contactFormFieldsStyleConfig.background.title"
+              :controls="contactFormFieldsStyleConfig.background.controls"
+              :styles="contactFormFieldsGroupStyles"
+              :defaults="contactFormFieldsStyleConfig.background.defaults"
+              @update="updateContactFormFieldsGroupStyle"
+            />
+            <StylePopoverGroup
+              :icon="contactFormFieldsStyleConfig.typography.icon"
+              :title="contactFormFieldsStyleConfig.typography.title"
+              :controls="contactFormFieldsStyleConfig.typography.controls"
+              :styles="contactFormFieldsGroupStyles"
+              :defaults="contactFormFieldsStyleConfig.typography.defaults"
+              @update="updateContactFormFieldsGroupStyle"
+            />
           </template>
 
           <!-- Contact Social Links Shared Style Controls (applies to ALL social link items) -->
           <template v-if="isContactSection && activeRepeaterField?.key === 'socialLinks' && !isEditingItem">
-            <!-- Spacing Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="spacing-horizontal" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Spacing</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Space between</label>
-                    <Slider
-                      :model-value="activeRepeaterGroupStyles.spaceBetween ?? 12"
-                      :min="0"
-                      :max="48"
-                      unit="px"
-                      @update:model-value="value => updateRepeaterGroupStyle('spaceBetween', value)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Padding X</label>
-                    <Slider
-                      :model-value="getSharedLinkStyle('linkPaddingX', 16)"
-                      :min="0"
-                      :max="48"
-                      unit="px"
-                      @update:model-value="updateSharedLinkStyle('linkPaddingX', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Padding Y</label>
-                    <Slider
-                      :model-value="getSharedLinkStyle('linkPaddingY', 16)"
-                      :min="0"
-                      :max="48"
-                      unit="px"
-                      @update:model-value="updateSharedLinkStyle('linkPaddingY', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
-
-            <!-- Borders Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="border-all" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Borders</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Border Width</label>
-                    <Slider
-                      :model-value="getSharedLinkStyle('linkBorderWidth', 1)"
-                      :min="0"
-                      :max="8"
-                      unit="px"
-                      @update:model-value="updateSharedLinkStyle('linkBorderWidth', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Border Color</label>
-                    <ColorPicker
-                      :model-value="getSharedLinkStyle('linkBorderColor', '')"
-                      swatch-only
-                      @update:model-value="updateSharedLinkStyle('linkBorderColor', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
-                    <Slider
-                      :model-value="getSharedLinkStyle('linkRadius', 8)"
-                      :min="0"
-                      :max="32"
-                      unit="px"
-                      @update:model-value="updateSharedLinkStyle('linkRadius', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
-
-            <!-- Background Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="palette" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Background</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Background Color</label>
-                    <ColorPicker
-                      :model-value="getSharedLinkStyle('linkBackgroundColor', '')"
-                      swatch-only
-                      @update:model-value="updateSharedLinkStyle('linkBackgroundColor', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
-
-            <!-- Label Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="type" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Label</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
-                    <Slider
-                      :model-value="getSharedLinkStyle('linkLabelFontSize', 16)"
-                      :min="12"
-                      :max="24"
-                      unit="px"
-                      @update:model-value="updateSharedLinkStyle('linkLabelFontSize', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Text Color</label>
-                    <ColorPicker
-                      :model-value="getSharedLinkStyle('linkLabelTextColor', '')"
-                      swatch-only
-                      @update:model-value="updateSharedLinkStyle('linkLabelTextColor', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
-
-            <!-- Description Group -->
-            <div class="px-4 py-3 border-b border-border/50">
-              <Popover side="left" width="w-80">
-                <template #trigger="{ toggle }">
-                  <button
-                    @click="toggle"
-                    class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
-                  >
-                    <div class="flex items-center gap-2">
-                      <Icon name="align-left" :size="14" class="text-muted-foreground" />
-                      <span class="text-xs font-medium text-foreground">Description</span>
-                    </div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
-                  </button>
-                </template>
-                <div class="p-4 flex flex-col gap-3">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
-                    <Slider
-                      :model-value="getSharedLinkStyle('linkDescriptionFontSize', 14)"
-                      :min="10"
-                      :max="20"
-                      unit="px"
-                      @update:model-value="updateSharedLinkStyle('linkDescriptionFontSize', $event)"
-                    />
-                  </div>
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-xs text-muted-foreground whitespace-nowrap">Text Color</label>
-                    <ColorPicker
-                      :model-value="getSharedLinkStyle('linkDescriptionTextColor', '')"
-                      swatch-only
-                      @update:model-value="updateSharedLinkStyle('linkDescriptionTextColor', $event)"
-                    />
-                  </div>
-                </div>
-              </Popover>
-            </div>
+            <StylePopoverGroup
+              :icon="contactSocialLinksStyleConfig.spacing.icon"
+              :title="contactSocialLinksStyleConfig.spacing.title"
+              :controls="contactSocialLinksStyleConfig.spacing.controls"
+              :styles="contactSocialLinksGroupStyles"
+              :defaults="contactSocialLinksStyleConfig.spacing.defaults"
+              @update="updateContactSocialLinksGroupStyle"
+            />
+            <StylePopoverGroup
+              :icon="contactSocialLinksStyleConfig.borders.icon"
+              :title="contactSocialLinksStyleConfig.borders.title"
+              :controls="contactSocialLinksStyleConfig.borders.controls"
+              :styles="contactSocialLinksGroupStyles"
+              :defaults="contactSocialLinksStyleConfig.borders.defaults"
+              @update="updateContactSocialLinksGroupStyle"
+            />
+            <StylePopoverGroup
+              :icon="contactSocialLinksStyleConfig.background.icon"
+              :title="contactSocialLinksStyleConfig.background.title"
+              :controls="contactSocialLinksStyleConfig.background.controls"
+              :styles="contactSocialLinksGroupStyles"
+              :defaults="contactSocialLinksStyleConfig.background.defaults"
+              @update="updateContactSocialLinksGroupStyle"
+            />
+            <StylePopoverGroup
+              :icon="contactSocialLinksStyleConfig.label.icon"
+              :title="contactSocialLinksStyleConfig.label.title"
+              :controls="contactSocialLinksStyleConfig.label.controls"
+              :styles="contactSocialLinksGroupStyles"
+              :defaults="contactSocialLinksStyleConfig.label.defaults"
+              @update="updateContactSocialLinksGroupStyle"
+            />
+            <StylePopoverGroup
+              :icon="contactSocialLinksStyleConfig.description.icon"
+              :title="contactSocialLinksStyleConfig.description.title"
+              :controls="contactSocialLinksStyleConfig.description.controls"
+              :styles="contactSocialLinksGroupStyles"
+              :defaults="contactSocialLinksStyleConfig.description.defaults"
+              @update="updateContactSocialLinksGroupStyle"
+            />
           </template>
 
           <!-- Non-shared-style repeater group styles (not Cards/Products/Accordion/Links) -->

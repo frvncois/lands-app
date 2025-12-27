@@ -19,7 +19,7 @@ const productMediaAspectOptions = [
 
 export const cardsStyleConfig = {
   spacing: {
-    icon: 'spacing-horizontal',
+    icon: 'content-spacing',
     title: 'Spacing',
     controls: [
       { type: 'slider', key: 'spaceBetween', label: 'Space between', min: 0, max: 64, unit: 'px' },
@@ -30,7 +30,7 @@ export const cardsStyleConfig = {
     defaults: { spaceBetween: 16, cardPaddingX: 16, cardPaddingY: 16, cardInnerSpaceBetween: 8 },
   },
   borders: {
-    icon: 'border-all',
+    icon: 'content-borders',
     title: 'Borders',
     controls: [
       { type: 'slider', key: 'cardBorderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
@@ -40,7 +40,7 @@ export const cardsStyleConfig = {
     defaults: { cardBorderWidth: 0, cardBorderColor: '', cardRadius: 8 },
   },
   background: {
-    icon: 'palette',
+    icon: 'content-background',
     title: 'Background',
     controls: [
       { type: 'color', key: 'cardBackgroundColor', label: 'Background Color' },
@@ -48,7 +48,7 @@ export const cardsStyleConfig = {
     defaults: { cardBackgroundColor: '' },
   },
   media: {
-    icon: 'image',
+    icon: 'content-image',
     title: 'Media',
     controls: [
       { type: 'select', key: 'cardMediaAspect', label: 'Aspect Ratio', options: cardMediaAspectOptions },
@@ -57,7 +57,7 @@ export const cardsStyleConfig = {
     defaults: { cardMediaAspect: 'paysage', cardMediaRadius: 0 },
   },
   headline: {
-    icon: 'type-h1',
+    icon: 'content-heading',
     title: 'Headline',
     controls: [
       { type: 'slider', key: 'cardHeadlineFontSize', label: 'Font Size', min: 12, max: 48, unit: 'px' },
@@ -66,7 +66,7 @@ export const cardsStyleConfig = {
     defaults: { cardHeadlineFontSize: 20, cardHeadlineTextColor: '' },
   },
   subheadline: {
-    icon: 'type-h2',
+    icon: 'content-heading',
     title: 'Subheadline',
     controls: [
       { type: 'slider', key: 'cardSubheadlineFontSize', label: 'Font Size', min: 10, max: 32, unit: 'px' },
@@ -75,7 +75,7 @@ export const cardsStyleConfig = {
     defaults: { cardSubheadlineFontSize: 14, cardSubheadlineTextColor: '' },
   },
   paragraph: {
-    icon: 'text-paragraph',
+    icon: 'content-text',
     title: 'Paragraph',
     controls: [
       { type: 'slider', key: 'cardParagraphFontSize', label: 'Font Size', min: 10, max: 24, unit: 'px' },
@@ -84,7 +84,7 @@ export const cardsStyleConfig = {
     defaults: { cardParagraphFontSize: 16, cardParagraphTextColor: '' },
   },
   button: {
-    icon: 'mouse-pointer-click',
+    icon: 'content-link',
     title: 'Button',
     controls: [
       { type: 'slider', key: 'cardButtonFontSize', label: 'Font Size', min: 10, max: 24, unit: 'px' },
@@ -104,7 +104,7 @@ export const cardsStyleConfig = {
 
 export const productsStyleConfig = {
   spacing: {
-    icon: 'spacing-horizontal',
+    icon: 'content-spacing',
     title: 'Spacing',
     controls: [
       { type: 'slider', key: 'spaceBetween', label: 'Space between', min: 0, max: 64, unit: 'px' },
@@ -115,7 +115,7 @@ export const productsStyleConfig = {
     defaults: { spaceBetween: 16, productPaddingX: 16, productPaddingY: 16, productInnerSpaceBetween: 8 },
   },
   borders: {
-    icon: 'border-all',
+    icon: 'content-borders',
     title: 'Borders',
     controls: [
       { type: 'slider', key: 'productBorderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
@@ -125,7 +125,7 @@ export const productsStyleConfig = {
     defaults: { productBorderWidth: 0, productBorderColor: '', productRadius: 8 },
   },
   background: {
-    icon: 'palette',
+    icon: 'content-background',
     title: 'Background',
     controls: [
       { type: 'color', key: 'productBackgroundColor', label: 'Background Color' },
@@ -133,7 +133,7 @@ export const productsStyleConfig = {
     defaults: { productBackgroundColor: '' },
   },
   media: {
-    icon: 'image',
+    icon: 'content-image',
     title: 'Media',
     controls: [
       { type: 'select', key: 'productMediaAspect', label: 'Aspect Ratio', options: productMediaAspectOptions },
@@ -142,7 +142,7 @@ export const productsStyleConfig = {
     defaults: { productMediaAspect: 'square', productMediaRadius: 0 },
   },
   headline: {
-    icon: 'type-h1',
+    icon: 'content-heading',
     title: 'Headline',
     controls: [
       { type: 'slider', key: 'productHeadlineFontSize', label: 'Font Size', min: 12, max: 48, unit: 'px' },
@@ -151,7 +151,7 @@ export const productsStyleConfig = {
     defaults: { productHeadlineFontSize: 20, productHeadlineTextColor: '' },
   },
   subheadline: {
-    icon: 'type-h2',
+    icon: 'content-heading',
     title: 'Subheadline',
     controls: [
       { type: 'slider', key: 'productSubheadlineFontSize', label: 'Font Size', min: 10, max: 32, unit: 'px' },
@@ -160,7 +160,7 @@ export const productsStyleConfig = {
     defaults: { productSubheadlineFontSize: 14, productSubheadlineTextColor: '' },
   },
   paragraph: {
-    icon: 'text-paragraph',
+    icon: 'content-text',
     title: 'Paragraph',
     controls: [
       { type: 'slider', key: 'productParagraphFontSize', label: 'Font Size', min: 10, max: 24, unit: 'px' },
@@ -169,7 +169,7 @@ export const productsStyleConfig = {
     defaults: { productParagraphFontSize: 16, productParagraphTextColor: '' },
   },
   button: {
-    icon: 'mouse-pointer-click',
+    icon: 'content-link',
     title: 'Button',
     controls: [
       { type: 'slider', key: 'productButtonFontSize', label: 'Font Size', min: 10, max: 24, unit: 'px' },
@@ -189,7 +189,7 @@ export const productsStyleConfig = {
 
 export const accordionStyleConfig = {
   spacing: {
-    icon: 'spacing-horizontal',
+    icon: 'content-spacing',
     title: 'Spacing',
     controls: [
       { type: 'slider', key: 'spaceBetween', label: 'Space between', min: 0, max: 48, unit: 'px' },
@@ -199,7 +199,7 @@ export const accordionStyleConfig = {
     defaults: { spaceBetween: 12, accordionPaddingX: 16, accordionPaddingY: 16 },
   },
   borders: {
-    icon: 'border-all',
+    icon: 'content-borders',
     title: 'Borders',
     controls: [
       { type: 'slider', key: 'accordionBorderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
@@ -209,7 +209,7 @@ export const accordionStyleConfig = {
     defaults: { accordionBorderWidth: 1, accordionBorderColor: '', accordionRadius: 8 },
   },
   background: {
-    icon: 'palette',
+    icon: 'content-background',
     title: 'Background',
     controls: [
       { type: 'color', key: 'accordionBackgroundColor', label: 'Background Color' },
@@ -217,7 +217,7 @@ export const accordionStyleConfig = {
     defaults: { accordionBackgroundColor: '' },
   },
   headline: {
-    icon: 'type-h1',
+    icon: 'content-heading',
     title: 'Headline',
     controls: [
       { type: 'slider', key: 'accordionHeadlineFontSize', label: 'Font Size', min: 12, max: 36, unit: 'px' },
@@ -226,7 +226,7 @@ export const accordionStyleConfig = {
     defaults: { accordionHeadlineFontSize: 18, accordionHeadlineTextColor: '' },
   },
   paragraph: {
-    icon: 'text-paragraph',
+    icon: 'content-text',
     title: 'Paragraph',
     controls: [
       { type: 'slider', key: 'accordionContentFontSize', label: 'Font Size', min: 12, max: 24, unit: 'px' },
@@ -242,7 +242,7 @@ export const accordionStyleConfig = {
 
 export const linksStyleConfig = {
   spacing: {
-    icon: 'spacing-horizontal',
+    icon: 'content-spacing',
     title: 'Spacing',
     controls: [
       { type: 'slider', key: 'spaceBetween', label: 'Space between', min: 0, max: 48, unit: 'px' },
@@ -252,7 +252,7 @@ export const linksStyleConfig = {
     defaults: { spaceBetween: 12, linkPaddingX: 16, linkPaddingY: 16 },
   },
   borders: {
-    icon: 'border-all',
+    icon: 'content-borders',
     title: 'Borders',
     controls: [
       { type: 'slider', key: 'linkBorderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
@@ -262,7 +262,7 @@ export const linksStyleConfig = {
     defaults: { linkBorderWidth: 1, linkBorderColor: '', linkRadius: 8 },
   },
   background: {
-    icon: 'palette',
+    icon: 'content-background',
     title: 'Background',
     controls: [
       { type: 'color', key: 'linkBackgroundColor', label: 'Background Color' },
@@ -270,7 +270,7 @@ export const linksStyleConfig = {
     defaults: { linkBackgroundColor: '' },
   },
   headline: {
-    icon: 'type-h1',
+    icon: 'content-heading',
     title: 'Headline',
     controls: [
       { type: 'slider', key: 'linkLabelFontSize', label: 'Font Size', min: 12, max: 36, unit: 'px' },
@@ -279,8 +279,105 @@ export const linksStyleConfig = {
     defaults: { linkLabelFontSize: 18, linkLabelTextColor: '' },
   },
   paragraph: {
-    icon: 'text-paragraph',
+    icon: 'content-text',
     title: 'Paragraph',
+    controls: [
+      { type: 'slider', key: 'linkDescriptionFontSize', label: 'Font Size', min: 10, max: 20, unit: 'px' },
+      { type: 'color', key: 'linkDescriptionTextColor', label: 'Text Color' },
+    ] as StyleControl[],
+    defaults: { linkDescriptionFontSize: 14, linkDescriptionTextColor: '' },
+  },
+}
+
+// ===========================================
+// CONTACT FORM FIELDS CONFIG
+// ===========================================
+
+export const contactFormFieldsStyleConfig = {
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'spaceBetween', label: 'Space between', min: 0, max: 48, unit: 'px' },
+      { type: 'slider', key: 'formInputPaddingX', label: 'Padding X', min: 0, max: 48, unit: 'px' },
+      { type: 'slider', key: 'formInputPaddingY', label: 'Padding Y', min: 0, max: 48, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { spaceBetween: 12, formInputPaddingX: 16, formInputPaddingY: 12 },
+  },
+  borders: {
+    icon: 'content-borders',
+    title: 'Borders',
+    controls: [
+      { type: 'slider', key: 'formInputBorderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
+      { type: 'color', key: 'formInputBorderColor', label: 'Border Color' },
+      { type: 'slider', key: 'formInputRadius', label: 'Rounded', min: 0, max: 32, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { formInputBorderWidth: 1, formInputBorderColor: '', formInputRadius: 8 },
+  },
+  background: {
+    icon: 'content-background',
+    title: 'Background',
+    controls: [
+      { type: 'color', key: 'formInputBackgroundColor', label: 'Background Color' },
+    ] as StyleControl[],
+    defaults: { formInputBackgroundColor: '' },
+  },
+  typography: {
+    icon: 'content-text',
+    title: 'Typography',
+    controls: [
+      { type: 'slider', key: 'formInputFontSize', label: 'Font Size', min: 12, max: 24, unit: 'px' },
+      { type: 'color', key: 'formInputTextColor', label: 'Text Color' },
+    ] as StyleControl[],
+    defaults: { formInputFontSize: 16, formInputTextColor: '' },
+  },
+}
+
+// ===========================================
+// CONTACT SOCIAL LINKS CONFIG
+// ===========================================
+
+export const contactSocialLinksStyleConfig = {
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'spaceBetween', label: 'Space between', min: 0, max: 48, unit: 'px' },
+      { type: 'slider', key: 'linkPaddingX', label: 'Padding X', min: 0, max: 48, unit: 'px' },
+      { type: 'slider', key: 'linkPaddingY', label: 'Padding Y', min: 0, max: 48, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { spaceBetween: 12, linkPaddingX: 16, linkPaddingY: 16 },
+  },
+  borders: {
+    icon: 'content-borders',
+    title: 'Borders',
+    controls: [
+      { type: 'slider', key: 'linkBorderWidth', label: 'Border Width', min: 0, max: 8, unit: 'px' },
+      { type: 'color', key: 'linkBorderColor', label: 'Border Color' },
+      { type: 'slider', key: 'linkRadius', label: 'Rounded', min: 0, max: 32, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { linkBorderWidth: 1, linkBorderColor: '', linkRadius: 8 },
+  },
+  background: {
+    icon: 'content-background',
+    title: 'Background',
+    controls: [
+      { type: 'color', key: 'linkBackgroundColor', label: 'Background Color' },
+    ] as StyleControl[],
+    defaults: { linkBackgroundColor: '' },
+  },
+  label: {
+    icon: 'content-text',
+    title: 'Label',
+    controls: [
+      { type: 'slider', key: 'linkLabelFontSize', label: 'Font Size', min: 12, max: 24, unit: 'px' },
+      { type: 'color', key: 'linkLabelTextColor', label: 'Text Color' },
+    ] as StyleControl[],
+    defaults: { linkLabelFontSize: 16, linkLabelTextColor: '' },
+  },
+  description: {
+    icon: 'content-text',
+    title: 'Description',
     controls: [
       { type: 'slider', key: 'linkDescriptionFontSize', label: 'Font Size', min: 10, max: 20, unit: 'px' },
       { type: 'color', key: 'linkDescriptionTextColor', label: 'Text Color' },

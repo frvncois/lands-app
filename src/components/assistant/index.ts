@@ -1,0 +1,6 @@
+export { default as AssistantModal } from './AssistantModal.vue'
+export { default as AssistantMessage } from './AssistantMessage.vue'
+export { default as AssistantOptions } from './AssistantOptions.vue'
+export { default as AssistantInput } from './AssistantInput.vue'
+export { default as AssistantThemePicker } from './AssistantThemePicker.vue'
+export { default as AssistantProjectList } from './AssistantProjectList.vue'

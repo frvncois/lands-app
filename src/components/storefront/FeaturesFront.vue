@@ -11,7 +11,7 @@
         <div class="container">
             <div>
                 <ul>
-                    <li>
+                    <li class="blue">
                         <div>
                             <h3>Design</h3>
                             <p>Customize every aspect of your site with our intuitive design tools.</p>
@@ -20,23 +20,23 @@
                             123
                         </div>
                     </li>
-                    <li>
+                    <li class="green">
                         <h3>Content</h3>
                         <p>Add images, videos, text, and more to showcase your brand effectively.</p>
                     </li>
-                    <li>
+                    <li class="red">
                         <h3>Audience</h3>
                         <p>Track your site's performance with built-in analytics and insights.</p>
                     </li>
-                    <li>
+                    <li class="yellow">
                         <h3>Translate</h3>
                         <p>Track your site's performance with built-in analytics and insights.</p>
                     </li>
-                    <li>
+                    <li class="purple">
                         <h3>Collaborate</h3>
                         <p>Optimize your site for search engines to increase visibility and reach.</p>
                     </li>
-                    <li>
+                    <li class="dark">
                         <h3>Publish</h3>
                         <p>Optimize your site for search engines to increase visibility and reach.</p>
                     </li>
@@ -66,17 +66,18 @@
     }
     .container {
         display: flex;
-        max-width: 1800px;
         margin: auto;
-        padding: 10em;
+        max-width: none;
             > div {
                 flex: 1;
                 > ul li {
                     height: 100vh;
                     overflow: hidden;
                     display: flex;
+                    align-items: center;
                     flex-direction: row;
                     gap: 3em;
+                    padding: 10em;
                     > div {
                         display: flex;
                         flex: 1;
@@ -92,6 +93,24 @@
                         line-height: 1;
                         text-transform: uppercase;
                     }
+                }
+                .blue {
+                    background: #155dfc;
+                }
+                .green {
+                    background: #00d492;
+                }
+                .red {
+                    background: #ff6467;
+                }
+                .yellow {
+                    background: #fff085;
+                }
+                .purple {
+                    background: #ad46ff;
+                }
+                .dark {
+                    background: #171717;
                 }
             }
         

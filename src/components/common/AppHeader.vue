@@ -9,17 +9,20 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useEditorStore } from '@/stores/editor'
 import { useUserStore } from '@/stores/user'
+import { useAssistantStore } from '@/stores/assistant'
 import { Button, Command, Dropdown, Icon, Badge } from '@/components/ui'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
 import ProjectCreate from '@/components/modal/ProjectCreate.vue'
 import ProjectTranslation from '@/components/modal/ProjectTranslation.vue'
+import { AssistantModal } from '@/components/assistant'
 
 const route = useRoute()
 const router = useRouter()
 const projectsStore = useProjectsStore()
 const editor = useEditorStore()
 const userStore = useUserStore()
+const assistantStore = useAssistantStore()
 
 // Fetch projects on mount if not already loaded
 onMounted(() => {
@@ -446,6 +449,12 @@ function onProjectCreated(newProjectId: string) {
         </Button>
       </template>
 
+      <!-- Assistant Button -->
+      <Button variant="ghost" size="sm" @click="assistantStore.toggleOpen()">
+        <Icon name="sparkles" :size="16" />
+        <span class="hidden sm:inline">Assistant</span>
+      </Button>
+
       <!-- User Avatar Dropdown -->
       <Dropdown ref="userDropdownRef" align="right" width="min-w-48">
         <template #trigger="{ toggle }">
@@ -512,4 +521,7 @@ function onProjectCreated(newProjectId: string) {
   <ProjectTranslation
     v-model:open="showTranslationModal"
   />
+
+  <!-- Assistant Modal -->
+  <AssistantModal />
 </template>
