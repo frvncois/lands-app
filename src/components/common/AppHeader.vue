@@ -428,14 +428,14 @@ function onProjectCreated(newProjectId: string) {
       <!-- Project Route: Save + Publish -->
       <template v-if="isProjectRoute && currentProject">
         <!-- Save indicator -->
-        <div class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md">
+        <div class="flex items-center gap-2 px-3 py-1.5 text-xxs font-medium font-mono uppercase bg-green-500/10 rounded-md">
           <span
             :class="[
               'w-1.5 h-1.5 rounded-full',
               editor.isDirty ? 'bg-amber-500' : 'bg-green-500'
             ]"
           ></span>
-          <span class="text-muted-foreground">
+          <span class="text-green-500">
             {{ editor.isDirty ? 'Unsaved' : 'Saved' }}
           </span>
         </div>

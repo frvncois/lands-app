@@ -156,6 +156,12 @@ type SectionListEntry = SectionInstance & { definition?: SectionDefinition }
 function getVisibleContentFields(section: SectionListEntry): FieldSchema[] {
   if (!section.definition) return []
   const fields = getContentFields(section.definition.schema, section.definition.fieldOrder?.[section.variant])
+
+  // For contact sections, exclude submitButton field (will be rendered inside formFields group)
+  if (section.type === 'contact') {
+    return fields.filter(field => field.key !== 'submitButton')
+  }
+
   return fields
 }
 
@@ -564,6 +570,53 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
                 <Icon name="plus" :size="12" />
                 <span class="text-xs">Add {{ repeater.label.replace(/s$/, '') }}</span>
               </button>
+
+              <!-- Submit Button (for contact section formFields only) -->
+              <div
+                v-if="section.type === 'contact' && repeater.key === 'formFields'"
+                class="group/field flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors cursor-pointer"
+                :class="[
+                  editor.selectedSectionId === section.id && editor.activeFieldPath === 'submitButton'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent',
+                  editor.isFieldHidden(section.id, 'submitButton') && 'opacity-50'
+                ]"
+                @click="selectField(section.id, 'submitButton')"
+              >
+                <Icon
+                  name="content-link"
+                  :size="12"
+                  :class="editor.selectedSectionId === section.id && editor.activeFieldPath === 'submitButton'
+                    ? 'text-primary-foreground'
+                    : 'text-muted-foreground'"
+                />
+                <span
+                  class="flex-1 text-xs truncate"
+                  :class="[
+                    editor.selectedSectionId === section.id && editor.activeFieldPath === 'submitButton'
+                      ? 'text-primary-foreground'
+                      : 'text-foreground'
+                  ]"
+                >
+                  Submit Button
+                </span>
+                <!-- Hide toggle (always visible when hidden, otherwise on hover) -->
+                <button
+                  class="items-center justify-center w-4 h-4 rounded transition-colors"
+                  :class="[
+                    editor.isFieldHidden(section.id, 'submitButton')
+                      ? 'flex'
+                      : 'hidden group-hover/field:flex',
+                    editor.selectedSectionId === section.id && editor.activeFieldPath === 'submitButton'
+                      ? 'text-primary-foreground/70 hover:text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  ]"
+                  :title="editor.isFieldHidden(section.id, 'submitButton') ? 'Show field' : 'Hide field'"
+                  @click="toggleFieldVisibility($event, section.id, 'submitButton')"
+                >
+                  <Icon :name="editor.isFieldHidden(section.id, 'submitButton') ? 'app-hide' : 'eye'" :size="12" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

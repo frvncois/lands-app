@@ -309,7 +309,7 @@ const cardsSchema: FieldSchema[] = [
   {
     type: 'repeater',
     key: 'items',
-    label: 'Cards qwe',
+    label: 'Cards',
     minItems: 1,
     maxItems: 12,
     itemSchema: [
@@ -374,8 +374,7 @@ const contactSchema: FieldSchema[] = [
       { type: 'text', key: 'options', label: 'Options (comma-separated, for select/checkbox/radio)' },
     ],
   },
-  { type: 'text', key: 'submitButton.label', label: 'Submit Button Label', placeholder: 'Send Message' },
-  { type: 'url', key: 'submitButton.url', label: 'Submit Button URL', placeholder: '#' },
+  { type: 'link', key: 'submitButton', label: 'Submit Button' },
   {
     type: 'repeater',
     key: 'socialLinks',
