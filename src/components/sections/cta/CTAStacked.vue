@@ -41,22 +41,38 @@ const emit = defineEmits<{
   'update': [fieldKey: string, value: unknown]
 }>()
 
-// Style options from sectionStyles
-const height = computed(() => {
+// Style options from sectionStyles (normalized CTA style keys)
+const ctaHeight = computed(() => {
   const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return (styles?.height as string) || 'auto'
+  // ctaHeight: 1=auto, 2=50vh, 3=100vh (numeric)
+  // Fallback to legacy 'height' if ctaHeight not set
+  if (styles?.ctaHeight !== undefined) {
+    return styles.ctaHeight as number
+  }
+  // Legacy support: map old string values to numeric
+  const legacyHeight = styles?.height as string | undefined
+  if (legacyHeight === 'full') return 3
+  if (legacyHeight === 'half') return 2
+  return 1
 })
 
-const stackedLayout = computed(() => {
+const ctaLayout = computed(() => {
   const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return (styles?.stackedLayout as string) || 'option1'
+  // Prefer new ctaLayout, fallback to legacy stackedLayout
+  return (styles?.ctaLayout as string) ?? (styles?.stackedLayout as string) ?? 'option1'
 })
 
-// Height classes
+const wrapGap = computed(() => {
+  const styles = props.sectionStyles as Record<string, unknown> | undefined
+  // Prefer new ctaWrapGap, fallback to legacy wrapGap
+  return (styles?.ctaWrapGap as number) ?? (Number(styles?.wrapGap) || 32)
+})
+
+// Height classes (1=auto, 2=50vh, 3=100vh)
 const heightClass = computed(() => {
-  switch (height.value) {
-    case 'full': return 'min-h-screen'
-    case 'half': return 'min-h-[50vh]'
+  switch (ctaHeight.value) {
+    case 3: return 'min-h-screen'
+    case 2: return 'min-h-[50vh]'
     default: return ''
   }
 })
@@ -97,9 +113,9 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
   >
     <!-- Option 1: Centered -->
     <div
-      v-if="stackedLayout === 'option1'"
+      v-if="ctaLayout === 'option1'"
       class="max-w-[800px] mx-auto w-full text-center flex flex-col items-center gap-[var(--spacing-md)]"
-      :class="height !== 'auto' && 'justify-center h-full'"
+      :class="ctaHeight !== 1 && 'justify-center h-full'"
     >
       <EditableText
         tag="h2"
@@ -129,7 +145,10 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
         @update="handleUpdate"
       />
 
-      <div class="flex flex-wrap items-center justify-center gap-[var(--spacing-sm)] mt-[var(--spacing-sm)]">
+      <div
+        class="flex flex-wrap items-center justify-center mt-[var(--spacing-sm)]"
+        :style="{ gap: `${wrapGap}px` }"
+      >
         <a
           :href="editable ? '#' : (data.primaryCTA.url || '#')"
           class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
@@ -159,9 +178,9 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
 
     <!-- Option 2: Left-aligned -->
     <div
-      v-else-if="stackedLayout === 'option2'"
+      v-else-if="ctaLayout === 'option2'"
       class="max-w-[800px] mx-auto w-full flex flex-col gap-[var(--spacing-md)]"
-      :class="height !== 'auto' && 'justify-center h-full'"
+      :class="ctaHeight !== 1 && 'justify-center h-full'"
     >
       <EditableText
         tag="h2"
@@ -191,7 +210,10 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
         @update="handleUpdate"
       />
 
-      <div class="flex flex-wrap items-center gap-[var(--spacing-sm)] mt-[var(--spacing-sm)]">
+      <div
+        class="flex flex-wrap items-center mt-[var(--spacing-sm)]"
+        :style="{ gap: `${wrapGap}px` }"
+      >
         <a
           :href="editable ? '#' : (data.primaryCTA.url || '#')"
           class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
@@ -223,9 +245,9 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
     <div
       v-else
       class="max-w-[1200px] mx-auto w-full flex flex-col gap-[var(--spacing-md)]"
-      :class="height !== 'auto' && 'justify-center h-full'"
+      :class="ctaHeight !== 1 && 'justify-center h-full'"
     >
-      <div class="flex flex-wrap items-center gap-[var(--spacing-md)]">
+      <div class="flex flex-wrap items-center" :style="{ gap: `${wrapGap}px` }">
         <EditableText
           tag="h2"
           :value="data.headline"
@@ -239,7 +261,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
           @update="handleUpdate"
         />
 
-        <div class="flex flex-wrap items-center gap-[var(--spacing-sm)]">
+        <div class="flex flex-wrap items-center" :style="{ gap: `${wrapGap}px` }">
           <a
             :href="editable ? '#' : (data.primaryCTA.url || '#')"
             class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"

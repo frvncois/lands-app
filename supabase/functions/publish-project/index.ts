@@ -209,10 +209,6 @@ function generateSectionHTML(section: SectionInstance, theme: ThemeTokens): stri
       return generateCardsHTML(section, theme, sectionStyle)
     case 'cta':
       return generateCTAHTML(section, theme, sectionStyle)
-    case 'subscribe':
-      return generateSubscribeHTML(section, theme, sectionStyle)
-    case 'contact':
-      return generateContactHTML(section, theme, sectionStyle)
     case 'links':
       return generateLinksHTML(section, theme, sectionStyle)
     case 'accordion':
@@ -364,61 +360,6 @@ function generateCTAHTML(section: SectionInstance, theme: ThemeTokens, sectionSt
       ${headline ? `<h2 class="ld-cta__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
       ${paragraph ? `<p class="ld-cta__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
       ${button?.label ? `<a class="ld-btn ld-cta__btn" href="${escapeHtml(button.url || '#')}" data-field="button" style="${buttonStyle}">${escapeHtml(button.label)}</a>` : ''}
-    </div>
-  </section>`
-}
-
-// ============================================
-// SUBSCRIBE SECTION
-// ============================================
-
-function generateSubscribeHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles } = section
-  const headline = data.headline as string || ''
-  const paragraph = data.paragraph as string || ''
-  const buttonText = data.buttonText as string || 'Subscribe'
-  const placeholder = data.placeholder as string || 'Enter your email'
-
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
-
-  return `
-  <section class="ld-subscribe" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-subscribe__content">
-      ${headline ? `<h2 class="ld-subscribe__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${paragraph ? `<p class="ld-subscribe__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-      <form class="ld-subscribe__form" action="#" method="POST">
-        <input type="email" name="email" placeholder="${escapeHtml(placeholder)}" required class="ld-subscribe__input" />
-        <button type="submit" class="ld-btn ld-subscribe__btn">${escapeHtml(buttonText)}</button>
-      </form>
-    </div>
-  </section>`
-}
-
-// ============================================
-// CONTACT SECTION
-// ============================================
-
-function generateContactHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles } = section
-  const headline = data.headline as string || ''
-  const paragraph = data.paragraph as string || ''
-  const buttonText = data.buttonText as string || 'Send Message'
-
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
-
-  return `
-  <section class="ld-contact" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-contact__content">
-      ${headline ? `<h2 class="ld-contact__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${paragraph ? `<p class="ld-contact__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-      <form class="ld-contact__form" action="#" method="POST">
-        <input type="text" name="name" placeholder="Name" required class="ld-contact__input" />
-        <input type="email" name="email" placeholder="Email" required class="ld-contact__input" />
-        <textarea name="message" placeholder="Message" required class="ld-contact__textarea"></textarea>
-        <button type="submit" class="ld-btn ld-contact__btn">${escapeHtml(buttonText)}</button>
-      </form>
     </div>
   </section>`
 }
@@ -716,61 +657,6 @@ h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
   gap: 1.5rem;
 }
 .ld-cta__paragraph { color: ${theme.colors.mutedForeground}; }
-
-/* Subscribe Section */
-.ld-subscribe {
-  padding: 4rem 1.5rem;
-  text-align: center;
-  background: ${theme.colors.secondary};
-}
-.ld-subscribe__content {
-  max-width: 500px;
-  margin: 0 auto;
-}
-.ld-subscribe__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin: 1rem 0 1.5rem;
-}
-.ld-subscribe__form {
-  display: flex;
-  gap: 0.75rem;
-}
-@media (max-width: 500px) {
-  .ld-subscribe__form { flex-direction: column; }
-}
-.ld-subscribe__input {
-  flex: 1;
-  padding: 0.875rem 1rem;
-  border: 1px solid ${theme.colors.border};
-  border-radius: 0.5rem;
-  background: ${theme.colors.background};
-}
-
-/* Contact Section */
-.ld-contact {
-  padding: 4rem 1.5rem;
-}
-.ld-contact__content {
-  max-width: 500px;
-  margin: 0 auto;
-}
-.ld-contact__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin: 1rem 0 1.5rem;
-}
-.ld-contact__form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.ld-contact__input,
-.ld-contact__textarea {
-  padding: 0.875rem 1rem;
-  border: 1px solid ${theme.colors.border};
-  border-radius: 0.5rem;
-  background: ${theme.colors.background};
-}
-.ld-contact__textarea { min-height: 150px; resize: vertical; }
 
 /* Links Section */
 .ld-links {

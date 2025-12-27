@@ -7,6 +7,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import DesignerView from '@/views/DesignerView.vue'
 import ProjectSettingsView from '@/views/ProjectSettingsView.vue'
 import AccountView from '@/views/AccountView.vue'
+import SupportView from '@/views/SupportView.vue'
 import InviteView from '@/views/InviteView.vue'
 import OAuthCallbackView from '@/views/OAuthCallbackView.vue'
 
@@ -71,6 +72,11 @@ const router = createRouter({
           path: 'account',
           name: 'account',
           component: AccountView,
+        },
+        {
+          path: 'support',
+          name: 'support',
+          component: SupportView,
         },
       ],
     },

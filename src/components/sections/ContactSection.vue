@@ -5,19 +5,21 @@
  * Router component that delegates to variant-specific subcomponents.
  *
  * Variants (EXACTLY 2):
- * - stacked: Single-column, everything vertically
- * - split: Two-column with content left, form right
+ * - stacked: Simple vertical layout
+ * - split: Two-column layout with content left/right
  *
  * NO layout logic here - only routing.
- * NO submission logic - forms do nothing.
  */
 
+import { computed } from 'vue'
+import { useEditorStore } from '@/stores/editor'
 import type { ContactData } from '@/lib/section-registry'
 import type {
   SectionStyleProperties,
   FieldStyles,
   ItemStyleProperties,
   SelectionPayload,
+  ActiveNodeType,
 } from '@/types/sections'
 import ContactStacked from './contact/ContactStacked.vue'
 import ContactSplit from './contact/ContactSplit.vue'
@@ -28,10 +30,8 @@ const props = defineProps<{
   sectionStyles?: SectionStyleProperties
   fieldStyles?: FieldStyles
   itemStyles?: ItemStyleProperties
-  isEditing?: boolean
   editable?: boolean
   activeField?: string | null
-  activeItemIndex?: number | null
   hiddenFields?: string[]
 }>()
 
@@ -39,6 +39,18 @@ const emit = defineEmits<{
   selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
+
+const editor = useEditorStore()
+
+const currentNode = computed(() => {
+  if (!props.editable) return null
+  return editor.activeNode || null
+})
+
+const activeNodeId = computed(() => currentNode.value?.id ?? null)
+const activeNodeType = computed<ActiveNodeType | null>(() => currentNode.value?.type ?? null)
+const activeFieldKey = computed(() => currentNode.value?.fieldKey ?? null)
+const activeItemId = computed(() => currentNode.value?.itemId ?? null)
 
 function handleSelectField(payload: SelectionPayload | string) {
   emit('selectField', payload)
@@ -50,30 +62,34 @@ function handleUpdate(fieldKey: string, value: unknown) {
 </script>
 
 <template>
-  <ContactStacked
-    v-if="variant === 'stacked'"
+  <ContactSplit
+    v-if="variant === 'split'"
     :data="data"
     :section-styles="sectionStyles"
     :field-styles="fieldStyles"
     :item-styles="itemStyles"
-    :is-editing="isEditing"
     :editable="editable"
     :active-field="activeField"
-    :active-item-index="activeItemIndex"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"
   />
-  <ContactSplit
+  <ContactStacked
     v-else
     :data="data"
     :section-styles="sectionStyles"
     :field-styles="fieldStyles"
     :item-styles="itemStyles"
-    :is-editing="isEditing"
     :editable="editable"
     :active-field="activeField"
-    :active-item-index="activeItemIndex"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
     @selectField="handleSelectField"
     @update="handleUpdate"

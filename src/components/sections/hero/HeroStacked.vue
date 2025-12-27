@@ -3,7 +3,8 @@
  * HERO STACKED VARIANT
  *
  * Style options (from sectionStyles):
- * - stackedLayout: 'option1' | 'option2' | 'option3'
+ * - heroStackedLayout: 'option1' | 'option2' | 'option3'
+ * - spaceBetween: gap between content blocks
  *
  * Option 1: Headline (left), Subheadline (left), Image (full), Paragraph + Buttons (shifted right 50%)
  * Option 2: Headline (center), Subheadline (center), Paragraph (center), Buttons (center inline), Image (full)
@@ -25,7 +26,6 @@ const props = defineProps<{
   editable?: boolean
   activeField?: string | null
   hiddenFields?: string[]
-  spaceBetween: number
 }>()
 
 const emit = defineEmits<{
@@ -34,10 +34,8 @@ const emit = defineEmits<{
 }>()
 
 // Style options from sectionStyles
-const stackedLayout = computed(() => {
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return (styles?.stackedLayout as string) || 'option1'
-})
+const stackedLayout = computed(() => props.sectionStyles?.heroStackedLayout ?? 'option1')
+const spaceBetween = computed(() => props.sectionStyles?.spaceBetween ?? 32)
 
 function getSectionStyle(): Record<string, string> {
   return resolveSectionStyles(props.sectionStyles)
@@ -73,7 +71,7 @@ function isFieldHidden(fieldKey: string): boolean {
 // Hero viewport height style with dynamic spacing
 const heroViewportStyle = computed(() => ({
   minHeight: 'var(--canvas-vh)',
-  gap: `${props.spaceBetween}px`,
+  gap: `${spaceBetween.value}px`,
 }))
 </script>
 

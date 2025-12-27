@@ -1,17 +1,16 @@
 <script setup lang="ts">
 /**
- * CARDS CAROUSEL VARIANT
+ * CARDS SPLIT VARIANT
  *
- * Horizontal scrolling cards.
- * Layout options (carousel-only):
- * - slidesPerView: '1' | '2' | '3'
- * - autoplay: boolean
- * - showArrows: boolean
+ * Split layout with header on one side and cards on the other.
+ * Cards are ALWAYS displayed as a horizontal row on desktop.
+ * Stacks vertically on mobile.
  *
  * SHARED STYLES: All cards use the same visual system from sectionStyles.
  * Card items only contain CONTENT (text, media, button data).
  */
 
+import { computed } from 'vue'
 import type { CardsData } from '@/lib/section-registry'
 import type {
   SectionStyleProperties,
@@ -20,7 +19,6 @@ import type {
   SelectionPayload,
   ActiveNodeType,
 } from '@/types/sections'
-import { ref, computed, onMounted, onUnmounted, withDefaults } from 'vue'
 import {
   resolveSectionStyles,
   resolveRepeaterGroupStyles,
@@ -32,23 +30,18 @@ import {
 } from '@/lib/section-styles'
 import SectionHeaderBlock from '@/components/sections/shared/SectionHeaderBlock.vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   data: CardsData
   sectionStyles?: SectionStyleProperties
   itemStyles?: ItemStyleProperties
   fieldStyles?: FieldStyles
   editable?: boolean
+  hiddenFields?: string[]
   activeNodeId?: string | null
   activeNodeType?: ActiveNodeType | null
   activeFieldKey?: string | null
   activeItemId?: string | null
-  hiddenFields?: string[]
-  showHeaderBlock?: boolean
-  standalone?: boolean
-}>(), {
-  showHeaderBlock: true,
-  standalone: true,
-})
+}>()
 
 const emit = defineEmits<{
   selectField: [payload: SelectionPayload | string]
@@ -61,88 +54,21 @@ const emit = defineEmits<{
 const repeaterGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'items'))
 const sectionSpaceBetween = computed(() => props.sectionStyles?.spaceBetween ?? 32)
 const cardsListSpaceBetween = computed(() => repeaterGroupStyles.value.spaceBetween ?? 16)
-const showHeaderBlock = computed(() => props.showHeaderBlock !== false)
-const isStandalone = computed(() => props.standalone !== false)
 
-// Layout options from sectionStyles (behavior options)
-const slidesPerView = computed(() => {
-  // Check sectionStyles first, then fall back to data.layout
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  if (styles?.slidesPerView !== undefined) return styles.slidesPerView as number
-  if (props.data.layout?.slidesPerView !== undefined) return props.data.layout.slidesPerView
-  return 3
-})
-const autoplay = computed(() => {
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  if (styles?.autoplay !== undefined) return styles.autoplay as boolean
-  return props.data.layout?.autoplay ?? false
-})
-const showArrows = computed(() => {
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  if (styles?.showArrows !== undefined) return styles.showArrows as boolean
-  return props.data.layout?.showArrows ?? true
-})
-
-// Carousel state
-const carouselRef = ref<HTMLDivElement | null>(null)
-const currentIndex = ref(0)
-let autoplayInterval: ReturnType<typeof setInterval> | null = null
-
-// Calculate card width style based on slidesPerView (supports decimals)
-const cardWidthStyle = computed(() => {
-  const slides = slidesPerView.value
-  const gap = cardsListSpaceBetween.value
-  // Width = (100% - (gaps)) / slidesPerView
-  // gaps = (slidesPerView - 1) * gap / slidesPerView (approximate for each card)
-  const gapOffset = ((slides - 1) * gap) / slides
-  return { width: `calc(${100 / slides}% - ${gapOffset}px)` }
-})
-
-function scrollToIndex(index: number) {
-  if (!carouselRef.value) return
-  const cards = carouselRef.value.children
-  if (cards[index]) {
-    cards[index].scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
-    currentIndex.value = index
-  }
-}
-
-function scrollPrev() {
-  const maxIndex = props.data.items.length - 1
-  const newIndex = currentIndex.value > 0 ? currentIndex.value - 1 : maxIndex
-  scrollToIndex(newIndex)
-}
-
-function scrollNext() {
-  const maxIndex = props.data.items.length - 1
-  const newIndex = currentIndex.value < maxIndex ? currentIndex.value + 1 : 0
-  scrollToIndex(newIndex)
-}
-
-function startAutoplay() {
-  if (autoplayInterval) clearInterval(autoplayInterval)
-  if (autoplay.value && props.data.items.length > 1) {
-    autoplayInterval = setInterval(scrollNext, 4000)
-  }
-}
-
-function stopAutoplay() {
-  if (autoplayInterval) {
-    clearInterval(autoplayInterval)
-    autoplayInterval = null
-  }
-}
-
-onMounted(() => {
-  if (autoplay.value) startAutoplay()
-})
-
-onUnmounted(() => {
-  stopAutoplay()
+const hasHeaderContent = computed(() => {
+  return Boolean(props.data.headline || props.data.subheadline || props.data.paragraph)
 })
 
 function getSectionStyle(): Record<string, string> {
-  return isStandalone.value ? resolveSectionStyles(props.sectionStyles) : {}
+  return resolveSectionStyles(props.sectionStyles)
+}
+
+function handleHeaderSelect(fieldKey: string) {
+  emit('selectField', fieldKey)
+}
+
+function handleUpdate(fieldKey: string, value: unknown) {
+  emit('update', fieldKey, value)
 }
 
 // SHARED STYLES - All cards use the same visual styling from sectionStyles
@@ -181,77 +107,50 @@ function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index:
     itemId: cardId,
   })
 }
-
-function handleHeaderSelect(fieldKey: string) {
-  emit('selectField', fieldKey)
-}
-
-function handleUpdate(fieldKey: string, value: unknown) {
-  emit('update', fieldKey, value)
-}
 </script>
 
 <template>
-  <component
-    :is="isStandalone ? 'section' : 'div'"
-    class="bg-[var(--color-bg)] text-[var(--color-fg)]"
-    :class="isStandalone ? 'py-[var(--spacing-section)] px-[var(--spacing-container)]' : ''"
+  <section
+    class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)] px-[var(--spacing-container)]"
     :style="getSectionStyle()"
-    @mouseenter="stopAutoplay"
-    @mouseleave="autoplay && startAutoplay()"
   >
     <div
-      :class="[
-        'flex flex-col w-full',
-        isStandalone ? 'max-w-[1200px] mx-auto' : '',
-      ]"
+      class="max-w-[1200px] mx-auto w-full flex flex-col md:flex-row md:items-start"
       :style="{ gap: `${sectionSpaceBetween}px` }"
     >
-      <SectionHeaderBlock
-        v-if="showHeaderBlock"
-        :headline="data.headline"
-        :subheadline="data.subheadline"
-        :paragraph="data.paragraph"
-        :field-styles="fieldStyles"
-        :editable="editable"
-        :active-field="activeFieldKey"
-        :hidden-fields="hiddenFields"
-        @selectField="handleHeaderSelect"
-        @update="handleUpdate"
-      />
-      <div class="relative w-full">
-        <!-- Navigation Arrows -->
-        <template v-if="showArrows && data.items.length > 1">
-          <button
-            class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
-            @click="scrollPrev"
-          >
-            <i class="lni lni-chevron-left text-lg" />
-          </button>
-          <button
-            class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
-            @click="scrollNext"
-          >
-            <i class="lni lni-chevron-right text-lg" />
-          </button>
-        </template>
+      <!-- Header Column -->
+      <div v-if="hasHeaderContent" class="md:w-1/3 md:flex-shrink-0">
+        <SectionHeaderBlock
+          :headline="data.headline"
+          :subheadline="data.subheadline"
+          :paragraph="data.paragraph"
+          :field-styles="fieldStyles"
+          :editable="editable"
+          :active-field="activeFieldKey"
+          :hidden-fields="hiddenFields"
+          @selectField="handleHeaderSelect"
+          @update="handleUpdate"
+        />
+      </div>
 
-        <!-- Carousel Container -->
-        <div
-          ref="carouselRef"
-          class="flex overflow-x-auto pb-[var(--spacing-md)] snap-x snap-mandatory scrollbar-hide"
-          :style="{ gap: `${cardsListSpaceBetween}px` }"
-        >
+      <!-- Cards Row Container -->
+      <div
+        :class="[
+          'flex flex-col md:flex-row flex-1',
+          hasHeaderContent ? 'md:w-2/3' : 'w-full',
+        ]"
+        :style="{ gap: `${cardsListSpaceBetween}px` }"
+      >
         <div
           v-for="(card, index) in data.items"
           :key="card.id || index"
-          class="flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden snap-start"
+          class="flex-1 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden"
           :class="[
             editable && 'cursor-pointer transition-all duration-150 select-none',
             editable && !isCardActive(card, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
             editable && isCardActive(card, index) && 'outline outline-2 outline-primary -outline-offset-2',
           ]"
-          :style="{ ...sharedContainerStyle, ...cardWidthStyle }"
+          :style="sharedContainerStyle"
           @click="handleItemClick($event, card, index)"
         >
           <!-- Media (Image or Video) -->
@@ -322,16 +221,5 @@ function handleUpdate(fieldKey: string, value: unknown) {
         </div>
       </div>
     </div>
-    </div>
-  </component>
+  </section>
 </template>
-
-<style scoped>
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-</style>

@@ -7,7 +7,6 @@ import SettingsRenderer from '@/components/settings/SettingsRenderer.vue'
 import {
   SETTINGS_TABS,
   SETTINGS_GENERAL,
-  SETTINGS_PUBLISHING,
   SETTINGS_COLLABORATORS,
   SETTINGS_PLAN,
   PROJECT_NAV,
@@ -42,8 +41,6 @@ const currentSections = computed(() => {
   switch (activeTab.value) {
     case 'general':
       return SETTINGS_GENERAL
-    case 'publishing':
-      return SETTINGS_PUBLISHING
     case 'collaborators':
       return SETTINGS_COLLABORATORS
     case 'plan':
@@ -55,7 +52,7 @@ const currentSections = computed(() => {
 
 // Show save button only for tabs with saveable content
 const showSaveButton = computed(() => {
-  return ['general', 'publishing'].includes(activeTab.value)
+  return activeTab.value === 'general'
 })
 
 watch(

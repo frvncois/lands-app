@@ -10,15 +10,11 @@
  * - split: Media and content side-by-side (2 layout options)
  * - presentation: Profile-style hero with small rounded image
  *
- * Style options (via section.styles):
- * - height: 'auto' | 'full' | 'half' (all variants)
- * - stackedLayout: 'option1' | 'option2' | 'option3' (stacked only)
- * - overlayPosition: 9 positions (overlay only)
- * - mediaPosition: 'media-content' | 'content-media' (split only)
- * - presentationLayout: 'option1' | 'option3' (presentation only)
+ * All style options are now in SectionStyleProperties:
+ * - spaceBetween, heroStackedLayout, overlayHeight, overlayPositionX, overlayPositionY,
+ *   overlayOpacity, overlayBlur, heroSplitHeight, heroSplitContentPosition, heroPresentationLayout
  */
 
-import { computed } from 'vue'
 import type { HeroData } from '@/lib/section-registry'
 import type { SectionStyleProperties, FieldStyles } from '@/types/sections'
 import HeroStacked from './hero/HeroStacked.vue'
@@ -26,7 +22,7 @@ import HeroOverlay from './hero/HeroOverlay.vue'
 import HeroSplit from './hero/HeroSplit.vue'
 import HeroPresentation from './hero/HeroPresentation.vue'
 
-const props = defineProps<{
+defineProps<{
   data: HeroData
   variant: string
   sectionStyles?: SectionStyleProperties
@@ -49,12 +45,6 @@ function handleSelectField(fieldKey: string) {
 function handleUpdate(fieldKey: string, value: unknown) {
   emit('update', fieldKey, value)
 }
-
-// Centralized spacing control for all hero variants
-const spaceBetween = computed(() => {
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return (styles?.spaceBetween as number) ?? 32
-})
 </script>
 
 <template>
@@ -67,7 +57,6 @@ const spaceBetween = computed(() => {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    :space-between="spaceBetween"
     @selectField="handleSelectField"
     @update="handleUpdate"
   />
@@ -80,7 +69,6 @@ const spaceBetween = computed(() => {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    :space-between="spaceBetween"
     @selectField="handleSelectField"
     @update="handleUpdate"
   />
@@ -93,7 +81,6 @@ const spaceBetween = computed(() => {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    :space-between="spaceBetween"
     @selectField="handleSelectField"
     @update="handleUpdate"
   />
@@ -106,7 +93,6 @@ const spaceBetween = computed(() => {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    :space-between="spaceBetween"
     @selectField="handleSelectField"
     @update="handleUpdate"
   />

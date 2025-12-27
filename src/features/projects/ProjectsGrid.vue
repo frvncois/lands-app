@@ -7,7 +7,6 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  create: []
   delete: [project: Project]
 }>()
 </script>
@@ -20,7 +19,5 @@ const emit = defineEmits<{
       :project="project"
       @delete="emit('delete', $event)"
     />
-
-    <ProjectCard variant="new" @create="emit('create')" />
   </div>
 </template>

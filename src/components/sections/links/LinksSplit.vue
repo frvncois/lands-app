@@ -26,8 +26,9 @@ import EditableText from '../EditableText.vue'
 import {
   resolveSectionStyles,
   getTextStyle,
-  resolveItemContainerStyles,
-  resolveItemTypographyStyles,
+  resolveRepeaterGroupStyles,
+  resolveSharedLinkContainerStyles,
+  resolveSharedLinkTextStyles,
 } from '@/lib/section-styles'
 
 // EditableText kept only for section header fields (headline, paragraph)
@@ -45,6 +46,13 @@ const props = defineProps<{
   activeItemId?: string | null
   hiddenFields?: string[]
 }>()
+
+const repeaterGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'items'))
+const repeaterGapStyle = computed(() => (
+  repeaterGroupStyles.value.spaceBetween !== undefined
+    ? { gap: `${repeaterGroupStyles.value.spaceBetween}px` }
+    : {}
+))
 
 // Style options from sectionStyles
 const splitLayout = computed(() => {
@@ -76,14 +84,18 @@ function getHeaderFieldStyle(fieldKey: string, defaultFont: string = '--font-bod
 
 /**
  * Get shared styles for repeater item containers
- * Applied to each item wrapper - shared across all items
+ * Applied to each item wrapper - shared across all items from sectionStyles
  */
 function getItemContainerStyle(): Record<string, string> {
-  return resolveItemContainerStyles(props.itemStyles)
+  return resolveSharedLinkContainerStyles(props.sectionStyles)
 }
 
-function getItemTypographyStyle(): Record<string, string> {
-  return resolveItemTypographyStyles(props.itemStyles)
+function getItemLabelStyle(): Record<string, string> {
+  return resolveSharedLinkTextStyles(props.sectionStyles, 'Label', '--font-body')
+}
+
+function getItemDescriptionStyle(): Record<string, string> {
+  return resolveSharedLinkTextStyles(props.sectionStyles, 'Description', '--font-body')
 }
 
 function getLinkId(link: LinksData['items'][number], fallback: number): string | null {
@@ -133,6 +145,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
       <!-- Links Column -->
       <div
         class="flex flex-col gap-[var(--spacing-sm)] order-2"
+        :style="repeaterGapStyle"
         :class="contentOrder"
       >
         <a
@@ -165,13 +178,13 @@ function handleUpdate(fieldKey: string, value: unknown) {
           <span
             class="text-[length:var(--text-base)] font-medium"
             :class="editable && 'pointer-events-none select-none'"
-            :style="[{ fontFamily: 'var(--font-body)' }, getItemTypographyStyle()]"
+            :style="getItemLabelStyle()"
           >{{ link.label }}</span>
           <span
             v-if="link.description"
             class="text-[length:var(--text-sm)] text-[var(--color-muted)]"
             :class="editable && 'pointer-events-none select-none'"
-            :style="[{ fontFamily: 'var(--font-body)' }, getItemTypographyStyle()]"
+            :style="getItemDescriptionStyle()"
           >{{ link.description }}</span>
         </div>
           <i

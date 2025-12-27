@@ -2,46 +2,45 @@
 /**
  * CONTACT STACKED VARIANT
  *
- * Single-column layout:
- * - Headline + paragraph at top (centered)
- * - Contact info + socials below (centered)
- * - Form at the bottom (if present)
+ * Displays headline + subheadline + paragraphs at the top.
+ * Form fields + submit button in the middle.
+ * Social links at the bottom.
  *
- * Same on all breakpoints.
- * NO submission logic - form does nothing.
- *
- * Selectable elements:
- * - Email, Phone, Address (individual text fields)
- * - Social links (repeater items)
- * - Form (as a node - selects form.fields)
- * - Form fields (repeater items)
+ * Simple vertical layout.
+ * Mobile and desktop behave the same.
  */
 
+import { computed } from 'vue'
 import type { ContactData } from '@/lib/section-registry'
 import type {
   SectionStyleProperties,
   FieldStyles,
   ItemStyleProperties,
   SelectionPayload,
+  ActiveNodeType,
 } from '@/types/sections'
 import EditableText from '../EditableText.vue'
 import {
   resolveSectionStyles,
   getTextStyle,
-  resolveItemContainerStyles,
-  resolveItemTypographyStyles,
+  getButtonStyle,
+  resolveRepeaterGroupStyles,
+  resolveSharedLinkContainerStyles,
+  resolveSharedLinkTextStyles,
+  resolveSharedFormInputStyles,
 } from '@/lib/section-styles'
-import { resolveFormInputStyle, resolveFormButtonStyle } from '@/lib/form-styles'
 
 const props = defineProps<{
   data: ContactData
   sectionStyles?: SectionStyleProperties
   fieldStyles?: FieldStyles
   itemStyles?: ItemStyleProperties
-  isEditing?: boolean
   editable?: boolean
   activeField?: string | null
-  activeItemIndex?: number | null
+  activeNodeId?: string | null
+  activeNodeType?: ActiveNodeType | null
+  activeFieldKey?: string | null
+  activeItemId?: string | null
   hiddenFields?: string[]
 }>()
 
@@ -50,28 +49,75 @@ const emit = defineEmits<{
   'update': [fieldKey: string, value: unknown]
 }>()
 
+const formFieldsGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'formFields'))
+const formFieldsGapStyle = computed(() => (
+  formFieldsGroupStyles.value.spaceBetween !== undefined
+    ? { gap: `${formFieldsGroupStyles.value.spaceBetween}px` }
+    : {}
+))
+
+const socialLinksGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'socialLinks'))
+const socialLinksGapStyle = computed(() => (
+  socialLinksGroupStyles.value.spaceBetween !== undefined
+    ? { gap: `${socialLinksGroupStyles.value.spaceBetween}px` }
+    : {}
+))
+
 function getSectionStyle(): Record<string, string> {
   return resolveSectionStyles(props.sectionStyles)
 }
 
-function getFieldStyle(fieldKey: string, defaultFont: string = '--font-body'): Record<string, string> {
+function getFormInputStyle(): Record<string, string> {
+  return resolveSharedFormInputStyles(props.sectionStyles)
+}
+
+function getHeaderFieldStyle(fieldKey: string, defaultFont: string = '--font-body'): Record<string, string> {
   return getTextStyle(props.fieldStyles, fieldKey, defaultFont)
 }
 
-function getSocialItemStyle(): Record<string, string> {
-  return resolveItemContainerStyles(props.itemStyles)
+function getSubmitButtonStyle(): Record<string, string> {
+  return getButtonStyle(props.fieldStyles, 'submitButton')
 }
 
-function getSocialTypographyStyle(): Record<string, string> {
-  return resolveItemTypographyStyles(props.itemStyles)
+function getSocialLinkContainerStyle(): Record<string, string> {
+  return resolveSharedLinkContainerStyles(props.sectionStyles)
 }
 
-function getFormInputStyle(): Record<string, string> {
-  return resolveFormInputStyle(props.sectionStyles)
+function getSocialLinkLabelStyle(): Record<string, string> {
+  return resolveSharedLinkTextStyles(props.sectionStyles, 'Label', '--font-body')
 }
 
-function getFormButtonStyle(): Record<string, string> {
-  return resolveFormButtonStyle(props.sectionStyles)
+function getSocialLinkDescriptionStyle(): Record<string, string> {
+  return resolveSharedLinkTextStyles(props.sectionStyles, 'Description', '--font-body')
+}
+
+function getLinkId(link: ContactData['socialLinks'][number], fallback: number): string | null {
+  if (link?.id) return link.id
+  return fallback.toString()
+}
+
+function isLinkActive(link: ContactData['socialLinks'][number], index: number): boolean {
+  if (!props.editable) return false
+  const linkId = getLinkId(link, index)
+  if (!linkId) return false
+  return (
+    props.activeNodeType === 'item' &&
+    props.activeFieldKey === 'socialLinks' &&
+    props.activeItemId === linkId
+  )
+}
+
+function handleSocialLinkClick(e: MouseEvent, link: ContactData['socialLinks'][number], index: number) {
+  if (!props.editable) return
+  e.preventDefault()
+  e.stopPropagation()
+  const linkId = getLinkId(link, index)
+  if (!linkId) return
+  emit('selectField', {
+    type: 'item',
+    fieldKey: 'socialLinks',
+    itemId: linkId,
+  })
 }
 
 function handleSelectField(fieldKey: string) {
@@ -82,71 +128,15 @@ function handleUpdate(fieldKey: string, value: unknown) {
   emit('update', fieldKey, value)
 }
 
-function handleSubmit(e: Event) {
-  e.preventDefault()
-  // No-op: backend integration to be added later
-}
-
-// Contact info click handlers
-function handlePhoneClick(e: MouseEvent) {
-  if (!props.isEditing) return
+function handleButtonClick(e: MouseEvent, fieldKey: string) {
+  if (!props.editable) return
   e.preventDefault()
   e.stopPropagation()
-  emit('selectField', 'contactInfo.phone')
+  emit('selectField', fieldKey)
 }
 
-function handleEmailClick(e: MouseEvent) {
-  if (!props.isEditing) return
-  e.preventDefault()
-  e.stopPropagation()
-  emit('selectField', 'contactInfo.email')
-}
-
-function handleAddressClick(e: MouseEvent) {
-  if (!props.isEditing) return
-  e.preventDefault()
-  e.stopPropagation()
-  emit('selectField', 'contactInfo.address')
-}
-
-// Social link click handler
-function handleSocialClick(e: MouseEvent, index: number) {
-  if (!props.isEditing) return
-  e.preventDefault()
-  e.stopPropagation()
-  emit('selectField', `socials.${index}`)
-}
-
-function handleFormSelect(e?: Event) {
-  if (!props.isEditing) return
-  e?.preventDefault()
-  e?.stopPropagation()
-  emit('selectField', { type: 'form' })
-}
-
-const hasContactInfo = () => {
-  const info = props.data.contactInfo
-  return info?.phone || info?.email || info?.address
-}
-
-// Check if a specific contact field is selected
-function isContactFieldSelected(fieldKey: string): boolean {
-  return props.activeField === fieldKey
-}
-
-// Check if a specific social is selected
-function isSocialSelected(index: number): boolean {
-  return props.activeField === 'socials' && props.activeItemIndex === index
-}
-
-// Check if form is selected (any form-related field)
-function isFormSelected(): boolean {
-  return props.activeField?.startsWith('form') ?? false
-}
-
-// Check if a specific form field is selected
-function isFormFieldSelected(index: number): boolean {
-  return props.activeField === 'form.fields' && props.activeItemIndex === index
+function isFieldHidden(fieldKey: string): boolean {
+  return props.hiddenFields?.includes(fieldKey) ?? false
 }
 </script>
 
@@ -155,159 +145,221 @@ function isFormFieldSelected(index: number): boolean {
     class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)] px-[var(--spacing-container)]"
     :style="getSectionStyle()"
   >
-    <div class="max-w-[800px] mx-auto w-full flex flex-col gap-[var(--spacing-xl)]">
-      <!-- Header -->
-      <div class="text-center">
+    <div class="max-w-[600px] mx-auto w-full">
+      <!-- Section Header -->
+      <div
+        v-if="data.headline || data.subheadline"
+        class="text-center mb-[var(--spacing-xl)]"
+      >
         <EditableText
+          v-if="data.headline"
           tag="h2"
           :value="data.headline"
           field-key="headline"
           :editable="editable"
           :active-field="activeField"
           :hidden-fields="hiddenFields"
-          class="text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-md)]"
-          :style="getFieldStyle('headline', '--font-heading')"
+          class="text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-sm)]"
+          :style="getHeaderFieldStyle('headline', '--font-heading')"
           @selectField="handleSelectField"
           @update="handleUpdate"
         />
-
         <EditableText
-          v-if="data.paragraph"
-          tag="div"
-          :value="data.paragraph"
-          field-key="paragraph"
+          v-if="data.subheadline"
+          tag="p"
+          :value="data.subheadline"
+          field-key="subheadline"
           :editable="editable"
           :active-field="activeField"
           :hidden-fields="hiddenFields"
-          :html="true"
-          class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px] mx-auto"
-          :style="getFieldStyle('paragraph', '--font-body')"
+          class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
+          :style="getHeaderFieldStyle('subheadline', '--font-body')"
           @selectField="handleSelectField"
           @update="handleUpdate"
         />
       </div>
 
-      <!-- Contact Info + Socials -->
-      <div v-if="hasContactInfo() || data.socials?.length" class="flex flex-col items-center gap-[var(--spacing-md)]">
-        <!-- Contact Info - each item selectable -->
-        <div v-if="hasContactInfo()" class="flex flex-wrap justify-center gap-[var(--spacing-lg)] text-[length:var(--text-base)]">
-          <div
-            v-if="data.contactInfo?.phone"
-            class="flex items-center gap-[var(--spacing-xs)] transition-all duration-150"
-            :class="[
-              isEditing && 'cursor-pointer',
-              isEditing && !isContactFieldSelected('contactInfo.phone') && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2 rounded',
-              isEditing && isContactFieldSelected('contactInfo.phone') && 'outline outline-2 outline-primary outline-offset-2 rounded',
-            ]"
-            @click="handlePhoneClick"
-          >
-            <i class="lni lni-phone text-[var(--color-muted)]" />
-            <span>{{ data.contactInfo.phone }}</span>
-          </div>
-          <div
-            v-if="data.contactInfo?.email"
-            class="flex items-center gap-[var(--spacing-xs)] transition-all duration-150"
-            :class="[
-              isEditing && 'cursor-pointer',
-              isEditing && !isContactFieldSelected('contactInfo.email') && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2 rounded',
-              isEditing && isContactFieldSelected('contactInfo.email') && 'outline outline-2 outline-primary outline-offset-2 rounded',
-            ]"
-            @click="handleEmailClick"
-          >
-            <i class="lni lni-envelope text-[var(--color-muted)]" />
-            <span>{{ data.contactInfo.email }}</span>
-          </div>
-          <div
-            v-if="data.contactInfo?.address"
-            class="flex items-center gap-[var(--spacing-xs)] transition-all duration-150"
-            :class="[
-              isEditing && 'cursor-pointer',
-              isEditing && !isContactFieldSelected('contactInfo.address') && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2 rounded',
-              isEditing && isContactFieldSelected('contactInfo.address') && 'outline outline-2 outline-primary outline-offset-2 rounded',
-            ]"
-            @click="handleAddressClick"
-          >
-            <i class="lni lni-map-marker text-[var(--color-muted)]" />
-            <span>{{ data.contactInfo.address }}</span>
-          </div>
-        </div>
-
-        <!-- Socials - each item selectable, always open in new tab -->
-        <div v-if="data.socials?.length" class="flex flex-wrap justify-center gap-[var(--spacing-sm)]">
-          <a
-            v-for="(social, index) in data.socials"
-            :key="index"
-            :href="editable ? '#' : (social.url || '#')"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="px-[var(--spacing-md)] py-[var(--spacing-xs)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-sm)] rounded-[var(--radius-md)] hover:bg-[var(--color-secondary)] transition-all duration-150"
-            :class="[
-              isEditing && 'cursor-pointer',
-              isEditing && !isSocialSelected(index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
-              isEditing && isSocialSelected(index) && 'outline outline-2 outline-primary outline-offset-2',
-            ]"
-            :style="[getSocialItemStyle(), getSocialTypographyStyle()]"
-            @click="handleSocialClick($event, index)"
-          >{{ social.label }}</a>
-        </div>
+      <!-- Paragraph Block (Email, Phone, Address) -->
+      <div
+        v-if="data.paragraphs && data.paragraphs.length === 3"
+        class="flex flex-col gap-[var(--spacing-sm)] mb-[var(--spacing-xl)] text-center"
+      >
+        <EditableText
+          v-for="(paragraph, index) in data.paragraphs"
+          :key="`paragraph-${index}`"
+          tag="p"
+          :value="paragraph"
+          :field-key="`paragraphs.${index}`"
+          :editable="editable"
+          :active-field="activeField"
+          :hidden-fields="hiddenFields"
+          class="text-[length:var(--text-base)] m-0"
+          :style="getHeaderFieldStyle(`paragraphs.${index}`, '--font-body')"
+          @selectField="handleSelectField"
+          @update="handleUpdate"
+        />
       </div>
 
-      <!-- Form - form is selectable as a node -->
-      <form
-        v-if="data.form?.fields?.length || isEditing"
-        class="flex flex-col gap-[var(--spacing-md)] max-w-[500px] mx-auto w-full transition-all duration-150"
-        :class="[
-          isEditing && 'cursor-pointer',
-          isEditing && !isFormSelected() && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2 rounded-[var(--radius-lg)]',
-          isEditing && isFormSelected() && 'outline outline-2 outline-primary outline-offset-2 rounded-[var(--radius-lg)]',
-        ]"
-        @submit="handleSubmit"
-        @click="handleFormSelect"
-      >
-        <!-- Form fields (display-only, highlight when inspector selects specific field) -->
-        <template v-for="(field, index) in data.form?.fields" :key="field.id || index">
-          <div
-            class="transition-all duration-150"
-            :class="[
-              isEditing && 'cursor-pointer',
-              isEditing && !isFormFieldSelected(index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-1 rounded-[var(--btn-radius)]',
-              isEditing && isFormFieldSelected(index) && 'outline outline-2 outline-primary -outline-offset-1 rounded-[var(--btn-radius)]',
-            ]"
+      <!-- Form -->
+      <form class="flex flex-col mb-[var(--spacing-xl)]" :style="formFieldsGapStyle" @submit.prevent>
+        <template v-for="(field, index) in data.formFields" :key="field.id || index">
+          <!-- Text Input -->
+          <input
+            v-if="field.type === 'text'"
+            type="text"
+            :placeholder="field.label"
+            class="w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            :style="getFormInputStyle()"
+          />
+
+          <!-- Email Input -->
+          <input
+            v-else-if="field.type === 'email'"
+            type="email"
+            :placeholder="field.label"
+            class="w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            :style="getFormInputStyle()"
+          />
+
+          <!-- Phone Input -->
+          <input
+            v-else-if="field.type === 'phone'"
+            type="tel"
+            :placeholder="field.label"
+            class="w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            :style="getFormInputStyle()"
+          />
+
+          <!-- DateTime Picker -->
+          <input
+            v-else-if="field.type === 'datetime'"
+            type="datetime-local"
+            :placeholder="field.label"
+            class="w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            :style="getFormInputStyle()"
+          />
+
+          <!-- Select Dropdown -->
+          <select
+            v-else-if="field.type === 'select'"
+            class="w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            :style="getFormInputStyle()"
           >
-            <input
-              v-if="field.type === 'text' || field.type === 'email'"
-              :type="field.type"
-              :name="field.name"
-              :placeholder="field.placeholder || field.name"
-              class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none transition-colors"
-              :class="isEditing && 'cursor-pointer'"
-              :style="getFormInputStyle()"
-              readonly
-              @click.stop="handleFormSelect"
-            />
-            <textarea
-              v-else-if="field.type === 'textarea'"
-              :name="field.name"
-              :placeholder="field.placeholder || field.name"
-              rows="4"
-              class="w-full py-[var(--btn-py)] px-[var(--spacing-md)] bg-[var(--color-surface)] text-[var(--color-fg)] text-[length:var(--text-base)] rounded-[var(--btn-radius)] border border-[var(--color-border)] outline-none transition-colors resize-none"
-              :class="isEditing && 'cursor-pointer'"
-              :style="getFormInputStyle()"
-              readonly
-              @click.stop="handleFormSelect"
-            />
+            <option value="" disabled selected>{{ field.label }}</option>
+            <option
+              v-for="(option, optIndex) in field.options"
+              :key="optIndex"
+              :value="option"
+            >{{ option }}</option>
+          </select>
+
+          <!-- Checkbox Select -->
+          <div v-else-if="field.type === 'checkbox'" class="flex flex-col gap-[var(--spacing-xs)]">
+            <label
+              v-for="(option, optIndex) in field.options"
+              :key="optIndex"
+              class="flex items-center gap-[var(--spacing-sm)] text-[length:var(--text-base)]"
+            >
+              <input
+                type="checkbox"
+                :value="option"
+                class="w-4 h-4 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+              />
+              <span>{{ option }}</span>
+            </label>
           </div>
+
+          <!-- Radio Input -->
+          <div v-else-if="field.type === 'radio'" class="flex flex-col gap-[var(--spacing-xs)]">
+            <label
+              v-for="(option, optIndex) in field.options"
+              :key="optIndex"
+              class="flex items-center gap-[var(--spacing-sm)] text-[length:var(--text-base)]"
+            >
+              <input
+                type="radio"
+                :name="`radio-${index}`"
+                :value="option"
+                class="w-4 h-4 border-[var(--color-border)] text-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]"
+              />
+              <span>{{ option }}</span>
+            </label>
+          </div>
+
+          <!-- Textarea -->
+          <textarea
+            v-else-if="field.type === 'textarea'"
+            :placeholder="field.label"
+            rows="4"
+            class="w-full resize-y focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            :style="getFormInputStyle()"
+          />
         </template>
 
-        <!-- Submit button - selection always routes to form -->
-        <button
-          type="submit"
-          class="w-full py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] transition-all duration-150"
-          :class="isEditing && 'cursor-pointer'"
-          :style="getFormButtonStyle()"
-          @click.stop="handleFormSelect"
-        >{{ data.form?.submitLabel || 'Send Message' }}</button>
+        <!-- Submit Button (Fixed, Cannot be deleted) -->
+        <a
+          v-if="data.submitButton?.label && !isFieldHidden('submitButton')"
+          :href="editable ? '#' : (data.submitButton.url || '#')"
+          class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
+          :class="[
+            editable && 'cursor-pointer transition-all duration-150',
+            editable && activeField === 'submitButton' && 'outline outline-2 outline-primary -outline-offset-2',
+          ]"
+          :style="getSubmitButtonStyle()"
+          @click="handleButtonClick($event, 'submitButton')"
+        >{{ data.submitButton.label }}</a>
       </form>
+
+      <!-- Social Links -->
+      <div
+        v-if="data.socialLinks && data.socialLinks.length > 0"
+        class="flex flex-col gap-[var(--spacing-sm)]"
+        :style="socialLinksGapStyle"
+      >
+        <a
+          v-for="(link, index) in data.socialLinks"
+          :key="link.id || index"
+          :href="editable ? '#' : (link.url || '#')"
+          class="flex items-center gap-[var(--spacing-md)] p-[var(--spacing-md)] bg-[var(--color-surface)] rounded-[var(--radius-md)] hover:bg-[var(--color-secondary)] transition-colors group"
+          :class="[
+            editable && 'cursor-pointer transition-all duration-150 select-none',
+            editable && !isLinkActive(link, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+            editable && isLinkActive(link, index) && 'outline outline-2 outline-primary -outline-offset-2',
+          ]"
+          :style="getSocialLinkContainerStyle()"
+          @click="handleSocialLinkClick($event, link, index)"
+        >
+          <img
+            v-if="link.image?.src"
+            :src="link.image.src"
+            :alt="link.image.alt || ''"
+            :class="[
+              'w-10 h-10 rounded-[var(--radius-sm)] object-cover flex-shrink-0',
+              editable && 'pointer-events-none select-none',
+            ]"
+          />
+          <div
+            class="flex flex-col gap-[var(--spacing-xs)] min-w-0 flex-1"
+            :class="editable && 'pointer-events-none select-none'"
+          >
+            <span
+              class="text-[length:var(--text-base)] font-medium"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="getSocialLinkLabelStyle()"
+            >{{ link.label }}</span>
+            <span
+              v-if="link.description"
+              class="text-[length:var(--text-sm)] text-[var(--color-muted)]"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="getSocialLinkDescriptionStyle()"
+            >{{ link.description }}</span>
+          </div>
+          <i
+            class="lni lni-arrow-right text-[var(--color-muted)] group-hover:text-[var(--color-fg)] transition-colors flex-shrink-0 ml-[var(--spacing-md)]"
+            :class="editable && 'pointer-events-none select-none'"
+          />
+        </a>
+      </div>
     </div>
   </section>
 </template>

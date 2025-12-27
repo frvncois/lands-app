@@ -47,8 +47,8 @@ const activeField = computed(() => {
   if (!props.isSelected) return null
   const node = activeNode.value
   if (!node || node.sectionId !== props.section.id) return null
-  if (node.type === 'field' || node.type === 'item' || node.type === 'form') {
-    return node.fieldKey ?? (node.type === 'form' ? 'form' : null)
+  if (node.type === 'field' || node.type === 'item') {
+    return node.fieldKey ?? null
   }
   return null
 })
@@ -62,12 +62,6 @@ const activeItemIndex = computed(() => {
     const items = getRepeaterItems(node.fieldKey)
     if (!items) return null
     const index = items.findIndex(item => typeof item === 'object' && (item as { id?: string }).id === node.itemId)
-    return index === -1 ? null : index
-  }
-
-  if (node.type === 'form' && node.itemId) {
-    const fields = getFormFields()
-    const index = fields.findIndex(field => field.id === node.itemId)
     return index === -1 ? null : index
   }
 
@@ -108,9 +102,6 @@ function handleFieldSelect(payload: SelectionPayload | string) {
         editor.selectItemNode(props.section.id, payload.fieldKey, payload.itemId)
       }
       break
-    case 'form':
-      editor.selectFormNode(props.section.id, payload.itemId)
-      break
     case 'field':
       if (payload.fieldKey) {
         editor.selectFieldNode(props.section.id, payload.fieldKey)
@@ -130,26 +121,15 @@ function handleLegacySelection(fieldKey: string) {
     const parsedIndex = parseInt(maybeIndex, 10)
     if (!isNaN(parsedIndex)) {
       const repeaterKey = fieldKey.slice(0, dotIndex)
-      if (repeaterKey === 'form.fields') {
-        const items = getFormFields()
-        const targetId = items[parsedIndex]?.id
-        editor.selectFormNode(props.section.id, targetId)
+      const items = getRepeaterItems(repeaterKey)
+      const targetId = items?.[parsedIndex]?.id
+      if (targetId) {
+        editor.selectItemNode(props.section.id, repeaterKey, targetId)
       } else {
-        const items = getRepeaterItems(repeaterKey)
-        const targetId = items?.[parsedIndex]?.id
-        if (targetId) {
-          editor.selectItemNode(props.section.id, repeaterKey, targetId)
-        } else {
-          editor.selectFieldNode(props.section.id, repeaterKey)
-        }
+        editor.selectFieldNode(props.section.id, repeaterKey)
       }
       return
     }
-  }
-
-  if (fieldKey === 'form' || fieldKey.startsWith('form.')) {
-    editor.selectFormNode(props.section.id)
-    return
   }
 
   editor.selectFieldNode(props.section.id, fieldKey)
@@ -159,14 +139,6 @@ function getRepeaterItems(fieldKey: string): { id?: string }[] | null {
   const value = (props.section.data as Record<string, unknown>)[fieldKey]
   if (!Array.isArray(value)) return null
   return value as { id?: string }[]
-}
-
-function getFormFields(): { id?: string }[] {
-  const form = props.section.data.form as { fields?: { id?: string }[] } | undefined
-  if (Array.isArray(form?.fields)) {
-    return form!.fields as { id?: string }[]
-  }
-  return []
 }
 
 // Handler for clicking on section background (not a field)

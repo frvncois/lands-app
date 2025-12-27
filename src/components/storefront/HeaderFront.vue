@@ -27,9 +27,10 @@ import LandsLogo from '@/assets/LandsLogo.vue';
         max-width: 50em;
         border: 1px solid rgba(128, 128, 128, 0.12);
         display: grid;
+        height: 3.5em;
         grid-template-columns: 0.5fr 1fr 0.5fr;
         justify-content: space-between;
-        padding: 1em 1.5em;
+        padding: 0.5em 0.5em 0.5em 1.5em;
         border-radius: 3em;
         backdrop-filter: blur(8px);
         background: #ffffffd5;
@@ -51,12 +52,15 @@ import LandsLogo from '@/assets/LandsLogo.vue';
             justify-self: center;
         }
         > a {
+            display: flex;
+            align-items: center;
             align-self: center;
             justify-self: end;
             background: black;
             color: white;
-            padding: 0 1em;
-            border-radius: 1em;
+            padding: 0 1.5em;
+            border-radius: 3.5em;
+            height: 100%;
         }
     }
 </style>

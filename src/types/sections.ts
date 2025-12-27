@@ -162,9 +162,12 @@ export type LayoutOptionsMap = Record<string, LayoutOption[]>
 export interface StyleOption {
   key: string
   label: string
-  type: 'select' | 'toggle'
+  type: 'select' | 'toggle' | 'range'
   options?: { value: string; label: string }[]
-  default: string | boolean
+  min?: number
+  max?: number
+  step?: number
+  default: string | boolean | number
 }
 
 /**
@@ -191,6 +194,15 @@ export interface SectionDefinition<TData = Record<string, unknown>> {
   /** Icon for the section (lineicons name) */
   icon: string
 
+  /** Short description of what this section is for */
+  description?: string
+
+  /** Use case examples for this section */
+  useCase?: string
+
+  /** Preview image path for the section */
+  previewImage?: string
+
   /** Default variant when adding section */
   defaultVariant: string
 
@@ -214,6 +226,9 @@ export interface SectionDefinition<TData = Record<string, unknown>> {
 
   /** Factory function to create default data */
   createDefaultData: () => TData
+
+  /** If true, section is hidden from the Add Section menu (internal use only) */
+  hidden?: boolean
 }
 
 // ============================================
@@ -252,10 +267,69 @@ export type FieldStyles = Record<string, FieldStyleProperties>
 /**
  * Section-level style properties
  */
-export interface SectionStyleProperties {
+type RepeaterStyleSuffix = 'SpaceBetween' | 'BackgroundColor' | 'BorderColor' | 'BorderWidth'
+export type RepeaterStyleKey = `${string}${RepeaterStyleSuffix}`
+
+export interface SectionStyleProperties extends Partial<Record<RepeaterStyleKey, string | number | undefined>> {
   backgroundColor?: string  // background color (hex)
   spacingY?: number         // vertical padding in px
   spacingX?: number         // horizontal padding in px
+  spaceBetween?: number     // gap between sibling elements in px
+
+  // Hero overlay styles
+  overlayHeight?: 'full' | 'half'
+  overlayPositionX?: 'left' | 'center' | 'right'
+  overlayPositionY?: 'top' | 'middle' | 'bottom'
+  overlayOpacity?: number   // 0-100
+  overlayBlur?: number      // px
+
+  // Hero stacked styles
+  heroStackedLayout?: 'option1' | 'option2' | 'option3'
+
+  // Hero split styles
+  heroSplitHeight?: 'full' | 'half'
+  heroSplitContentPosition?: 'left' | 'right'
+
+  // Hero presentation styles
+  heroPresentationLayout?: 'inline' | 'stacked'
+
+  // Cards button styles
+  cardsButtonWidth?: 'auto' | 'full'
+  cardsButtonFontSize?: number
+  cardsButtonPaddingX?: number
+  cardsButtonPaddingY?: number
+  cardsButtonRadius?: number
+  cardsButtonBackgroundColor?: string
+  cardsButtonTextColor?: string
+
+  // Products button styles
+  productsButtonWidth?: 'auto' | 'full'
+  productsButtonFontSize?: number
+  productsButtonPaddingX?: number
+  productsButtonPaddingY?: number
+  productsButtonRadius?: number
+  productsButtonBackgroundColor?: string
+  productsButtonTextColor?: string
+
+  // Accordion styles
+  accordionSpaceBetween?: number
+  accordionFontColor?: string
+
+  // Split layout ordering used by split variants across sections
+  splitLayout?:
+    | 'content-buttons'
+    | 'buttons-content'
+    | 'content-form'
+    | 'form-content'
+    | 'title-content'
+    | 'content-title'
+    | 'grid'
+    | 'row'
+    | 'carousel'
+
+  // Gallery spacing
+  gallerySpaceBetween?: number
+
   // Dynamic style options (from section definition styleOptions)
   [key: string]: string | number | boolean | undefined
 }
@@ -271,6 +345,11 @@ export interface ItemStyleProperties {
   color?: string            // text color
   backgroundColor?: string  // background color
   borderRadius?: number     // border radius in px
+  // Border styles (for card items)
+  borderWidth?: number      // border width in px
+  borderColor?: string      // border color (hex)
+  // Shadow styles (for card items)
+  boxShadow?: string        // CSS box-shadow value
   // Logo-specific styles
   width?: number            // logo width in px
   blackAndWhite?: boolean   // grayscale filter
@@ -528,7 +607,7 @@ export interface Template {
 // EDITOR SELECTION
 // ============================================
 
-export type ActiveNodeType = 'section' | 'field' | 'item' | 'form'
+export type ActiveNodeType = 'section' | 'field' | 'item'
 
 export interface ActiveNode {
   id: string

@@ -11,6 +11,7 @@
  * NO layout options exposed.
  */
 
+import { computed } from 'vue'
 import type { LinksData } from '@/lib/section-registry'
 import type {
   SectionStyleProperties,
@@ -23,8 +24,9 @@ import EditableText from '../EditableText.vue'
 import {
   resolveSectionStyles,
   getTextStyle,
-  resolveItemContainerStyles,
-  resolveItemTypographyStyles,
+  resolveRepeaterGroupStyles,
+  resolveSharedLinkContainerStyles,
+  resolveSharedLinkTextStyles,
 } from '@/lib/section-styles'
 
 // EditableText kept only for section header fields (headline, paragraph)
@@ -48,6 +50,13 @@ const emit = defineEmits<{
   'update': [fieldKey: string, value: unknown]
 }>()
 
+const repeaterGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'items'))
+const repeaterGapStyle = computed(() => (
+  repeaterGroupStyles.value.spaceBetween !== undefined
+    ? { gap: `${repeaterGroupStyles.value.spaceBetween}px` }
+    : {}
+))
+
 function getSectionStyle(): Record<string, string> {
   return resolveSectionStyles(props.sectionStyles)
 }
@@ -58,14 +67,18 @@ function getHeaderFieldStyle(fieldKey: string, defaultFont: string = '--font-bod
 
 /**
  * Get shared styles for repeater item containers
- * Applied to each item wrapper - shared across all items
+ * Applied to each item wrapper - shared across all items from sectionStyles
  */
 function getItemContainerStyle(): Record<string, string> {
-  return resolveItemContainerStyles(props.itemStyles)
+  return resolveSharedLinkContainerStyles(props.sectionStyles)
 }
 
-function getItemTypographyStyle(): Record<string, string> {
-  return resolveItemTypographyStyles(props.itemStyles)
+function getItemLabelStyle(): Record<string, string> {
+  return resolveSharedLinkTextStyles(props.sectionStyles, 'Label', '--font-body')
+}
+
+function getItemDescriptionStyle(): Record<string, string> {
+  return resolveSharedLinkTextStyles(props.sectionStyles, 'Description', '--font-body')
 }
 
 function getLinkId(link: LinksData['items'][number], fallback: number): string | null {
@@ -147,7 +160,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
       </div>
 
       <!-- Links List -->
-      <div class="flex flex-col gap-[var(--spacing-sm)]">
+      <div class="flex flex-col gap-[var(--spacing-sm)]" :style="repeaterGapStyle">
         <a
           v-for="(link, index) in data.items"
           :key="link.id || index"
@@ -178,13 +191,13 @@ function handleUpdate(fieldKey: string, value: unknown) {
             <span
               class="text-[length:var(--text-base)] font-medium"
               :class="editable && 'pointer-events-none select-none'"
-              :style="[{ fontFamily: 'var(--font-body)' }, getItemTypographyStyle()]"
+              :style="getItemLabelStyle()"
             >{{ link.label }}</span>
             <span
               v-if="link.description"
               class="text-[length:var(--text-sm)] text-[var(--color-muted)]"
               :class="editable && 'pointer-events-none select-none'"
-              :style="[{ fontFamily: 'var(--font-body)' }, getItemTypographyStyle()]"
+              :style="getItemDescriptionStyle()"
             >{{ link.description }}</span>
           </div>
           <i

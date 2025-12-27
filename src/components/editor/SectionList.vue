@@ -11,14 +11,17 @@
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { getSectionDefinition } from '@/lib/section-registry'
-import type { FieldSchema, RepeaterField } from '@/types/sections'
+import type { FieldSchema, RepeaterField, SectionInstance, SectionDefinition } from '@/types/sections'
 import Icon from '@/components/ui/Icon.vue'
 import AddSectionMenu from './AddSectionMenu.vue'
+import { getAccordionLabels, isAccordionSectionType } from '@/lib/accordion-labels'
 
 const editor = useEditorStore()
 
+
 // Track expanded sections
 const expandedSections = ref<Set<string>>(new Set())
+const expandedRepeaterGroups = ref<Set<string>>(new Set())
 
 // Auto-expand section when selected (e.g., from canvas click)
 watch(() => editor.selectedSectionId, (sectionId) => {
@@ -26,6 +29,17 @@ watch(() => editor.selectedSectionId, (sectionId) => {
     expandedSections.value.add(sectionId)
   }
 })
+
+watch(
+  () => ({ sectionId: editor.selectedSectionId, path: editor.activeFieldPath }),
+  ({ sectionId, path }) => {
+    if (!sectionId || !path) return
+    const repeaterKey = getRepeaterKeyFromPath(path)
+    if (repeaterKey) {
+      expandRepeaterGroup(sectionId, repeaterKey)
+    }
+  },
+)
 
 // Drag state
 const draggedIndex = ref<number | null>(null)
@@ -51,6 +65,29 @@ function isExpanded(sectionId: string): boolean {
   return expandedSections.value.has(sectionId)
 }
 
+function getRepeaterGroupKey(sectionId: string, repeaterKey: string): string {
+  return `${sectionId}:${repeaterKey}`
+}
+
+function isRepeaterExpanded(sectionId: string, repeaterKey: string): boolean {
+  const key = getRepeaterGroupKey(sectionId, repeaterKey)
+  return expandedRepeaterGroups.value.has(key)
+}
+
+function toggleRepeater(sectionId: string, repeaterKey: string) {
+  const key = getRepeaterGroupKey(sectionId, repeaterKey)
+  if (expandedRepeaterGroups.value.has(key)) {
+    expandedRepeaterGroups.value.delete(key)
+  } else {
+    expandedRepeaterGroups.value.add(key)
+  }
+}
+
+function expandRepeaterGroup(sectionId: string, repeaterKey: string) {
+  const key = getRepeaterGroupKey(sectionId, repeaterKey)
+  expandedRepeaterGroups.value.add(key)
+}
+
 function selectSection(sectionId: string) {
   editor.selectSection(sectionId)
   // Auto-expand when selecting
@@ -64,11 +101,14 @@ function selectField(sectionId: string, fieldKey: string) {
 
 function selectItem(sectionId: string, fieldKey: string, itemId: string) {
   editor.selectSection(sectionId)
-  if (fieldKey === 'form.fields') {
-    editor.selectFormNode(sectionId, itemId)
-  } else {
-    editor.selectItemNode(sectionId, fieldKey, itemId)
-  }
+  expandRepeaterGroup(sectionId, fieldKey)
+  editor.selectItemNode(sectionId, fieldKey, itemId)
+}
+
+function selectRepeaterGroup(section: SectionListEntry, repeater: RepeaterField) {
+  editor.selectSection(section.id)
+  selectField(section.id, repeater.key)
+  expandRepeaterGroup(section.id, repeater.key)
 }
 
 // Get icon for a field type
@@ -91,7 +131,8 @@ function getFieldIcon(field: FieldSchema): string {
 function getContentFields(schema: FieldSchema[], fieldOrder?: string[]): FieldSchema[] {
   const contentFields = schema.filter(field =>
     field.type !== 'repeater' &&
-    !field.category
+    field.category !== 'design' &&
+    field.category !== 'button'
   )
 
   // If no fieldOrder, return as-is
@@ -108,6 +149,14 @@ function getContentFields(schema: FieldSchema[], fieldOrder?: string[]): FieldSc
     const orderB = indexB === -1 ? 999 : indexB
     return orderA - orderB
   })
+}
+
+type SectionListEntry = SectionInstance & { definition?: SectionDefinition }
+
+function getVisibleContentFields(section: SectionListEntry): FieldSchema[] {
+  if (!section.definition) return []
+  const fields = getContentFields(section.definition.schema, section.definition.fieldOrder?.[section.variant])
+  return fields
 }
 
 // Get repeater fields from schema
@@ -156,6 +205,54 @@ function getItemDisplayLabel(item: Record<string, unknown>, itemSchema: FieldSch
     }
   }
   return 'Untitled'
+}
+
+function getRepeaterKeyFromPath(path: string): string | null {
+  if (!path) return null
+  const segments = path.split('.')
+  if (segments.length <= 1) return path
+  const last = segments[segments.length - 1] ?? ''
+  if (/^\d+$/.test(last)) {
+    return segments.slice(0, -1).join('.')
+  }
+  return path
+}
+
+function isRepeaterGroupSelected(section: SectionListEntry, repeaterKey: string): boolean {
+  if (editor.selectedSectionId !== section.id) return false
+  const path = editor.activeFieldPath
+  if (!path) return false
+  if (path === repeaterKey) return true
+  return path.startsWith(`${repeaterKey}.`)
+}
+
+function getRepeaterItems(section: SectionListEntry, repeaterKey: string): Record<string, unknown>[] {
+  const parts = repeaterKey.split('.')
+  let current: unknown = section.data
+  for (const part of parts) {
+    if (!current || typeof current !== 'object') {
+      current = undefined
+      break
+    }
+    current = (current as Record<string, unknown>)[part]
+  }
+  return Array.isArray(current) ? current as Record<string, unknown>[] : []
+}
+
+function getRepeaterGroupLabel(section: SectionListEntry, repeater: RepeaterField): string {
+  if (repeater.key === 'items' && isAccordionSectionType(section.type)) {
+    return getAccordionLabels(section.type).itemsLabel
+  }
+  return repeater.label
+}
+
+function getRepeaterItemLabel(
+  section: SectionListEntry,
+  repeater: RepeaterField,
+  item: Record<string, unknown>,
+  index: number,
+): string {
+  return getItemDisplayLabel(item, getRepeaterItemSchema(repeater, section.variant, section.data as Record<string, unknown>))
 }
 
 function addItem(sectionId: string, fieldKey: string) {
@@ -316,7 +413,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
         >
           <!-- Regular content fields -->
           <div
-            v-for="field in getContentFields(section.definition.schema, section.definition.fieldOrder?.[section.variant])"
+            v-for="field in getVisibleContentFields(section)"
             :key="field.key"
             class="group/field flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors cursor-pointer"
             :class="[
@@ -362,82 +459,113 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
             </button>
           </div>
 
-          <!-- Repeater items -->
-          <template v-for="repeater in getRepeaterFields(section.definition.schema)" :key="repeater.key">
-            <div
-              v-for="(item, itemIndex) in (section.data[repeater.key] as Record<string, unknown>[])"
-              :key="`${repeater.key}-${getItemId(item, itemIndex)}`"
-              class="group/item flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors cursor-pointer"
-              :class="[
-                isItemSelected(section.id, repeater.key, itemIndex)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent'
-              ]"
-              @click="selectItem(section.id, repeater.key, getItemId(item, itemIndex))"
-            >
-              <Icon
-                :name="getFieldIcon(repeater)"
-                :size="12"
-                :class="isItemSelected(section.id, repeater.key, itemIndex)
-                  ? 'text-primary-foreground'
-                  : 'text-muted-foreground'"
-              />
-              <span
-                class="flex-1 text-xs truncate"
-                :class="[
-                  isItemSelected(section.id, repeater.key, itemIndex)
-                    ? 'text-primary-foreground'
-                    : 'text-foreground'
-                ]"
+          <!-- Repeater groups -->
+          <div
+            v-for="repeater in getRepeaterFields(section.definition.schema)"
+            :key="repeater.key"
+          >
+            <div class="flex items-center gap-1 px-2 py-1.5 rounded transition-colors">
+              <button
+                class="flex items-center justify-center w-4 h-4 rounded text-muted-foreground hover:bg-border hover:text-foreground transition-colors"
+                @click.stop="toggleRepeater(section.id, repeater.key)"
               >
-                {{ getItemDisplayLabel(item, getRepeaterItemSchema(repeater, section.variant, section.data as Record<string, unknown>)) }}
-              </span>
-              <!-- Item Actions (visible on hover) -->
-              <div
-                class="hidden group-hover/item:flex items-center gap-0.5"
+                <Icon :name="isRepeaterExpanded(section.id, repeater.key) ? 'chevron-down' : 'chevron-right'" :size="12" />
+              </button>
+              <button
+                class="flex items-center gap-2 flex-1 text-xs font-medium rounded px-1 py-0.5 text-left transition-colors"
                 :class="[
-                  isItemSelected(section.id, repeater.key, itemIndex)
-                    ? 'text-primary-foreground/70'
-                    : ''
+                  isRepeaterGroupSelected(section, repeater.key)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent text-foreground'
                 ]"
+                @click="selectRepeaterGroup(section, repeater)"
               >
-                <button
-                  class="flex items-center justify-center w-4 h-4 rounded transition-colors"
-                  :class="[
-                    isItemSelected(section.id, repeater.key, itemIndex)
-                      ? 'hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  ]"
-                  title="Duplicate item"
-                  @click="duplicateItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
-                >
-                  <Icon name="app-duplicate" :size="10" />
-                </button>
-                <button
-                  class="flex items-center justify-center w-4 h-4 rounded transition-colors"
-                  :class="[
-                    isItemSelected(section.id, repeater.key, itemIndex)
-                      ? 'hover:text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
-                  ]"
-                  title="Delete item"
-                  @click="deleteItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
-                >
-                  <Icon name="app-delete" :size="10" />
-                </button>
-              </div>
+                <Icon
+                  :name="getFieldIcon(repeater)"
+                  :size="12"
+                  :class="isRepeaterGroupSelected(section, repeater.key) ? 'text-primary-foreground' : 'text-muted-foreground'"
+                />
+                <span class="truncate">
+                  {{ getRepeaterGroupLabel(section, repeater) }} list
+                </span>
+              </button>
             </div>
 
-            <!-- Add item button (hidden for socials and form.fields) -->
-            <button
-              v-if="repeater.key !== 'socials' && repeater.key !== 'form.fields'"
-              class="flex items-center gap-3 w-full mt-0.5 px-2.5 py-1.5 border rounded text-left transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
-              @click="addItem(section.id, repeater.key)"
-            >
-              <Icon name="plus" :size="12" />
-              <span class="text-xs">Add {{ repeater.label.replace(/s$/, '') }}</span>
-            </button>
-          </template>
+            <div v-if="isRepeaterExpanded(section.id, repeater.key)" class="ml-6 mt-1 space-y-0.5">
+              <div
+                v-for="(item, itemIndex) in getRepeaterItems(section, repeater.key)"
+                :key="`${repeater.key}-${getItemId(item, itemIndex)}`"
+                class="group/item flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors cursor-pointer"
+                :class="[
+                  isItemSelected(section.id, repeater.key, itemIndex)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent'
+                ]"
+                @click="selectItem(section.id, repeater.key, getItemId(item, itemIndex))"
+              >
+                <Icon
+                  :name="getFieldIcon(repeater)"
+                  :size="12"
+                  :class="isItemSelected(section.id, repeater.key, itemIndex)
+                    ? 'text-primary-foreground'
+                    : 'text-muted-foreground'"
+                />
+                <span
+                  class="flex-1 text-xs truncate"
+                  :class="[
+                    isItemSelected(section.id, repeater.key, itemIndex)
+                      ? 'text-primary-foreground'
+                      : 'text-foreground'
+                  ]"
+                >
+                  {{ getRepeaterItemLabel(section, repeater, item, itemIndex) }}
+                </span>
+                <div
+                  class="hidden group-hover/item:flex items-center gap-0.5"
+                  :class="[
+                    isItemSelected(section.id, repeater.key, itemIndex)
+                      ? 'text-primary-foreground/70'
+                      : ''
+                  ]"
+                >
+                  <button
+                    class="flex items-center justify-center w-4 h-4 rounded transition-colors"
+                    :class="[
+                      isItemSelected(section.id, repeater.key, itemIndex)
+                        ? 'hover:text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    ]"
+                    title="Duplicate item"
+                    @click="duplicateItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
+                  >
+                    <Icon name="app-duplicate" :size="10" />
+                  </button>
+                  <button
+                    class="flex items-center justify-center w-4 h-4 rounded transition-colors"
+                    :class="[
+                      isItemSelected(section.id, repeater.key, itemIndex)
+                        ? 'hover:text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+                    ]"
+                    title="Delete item"
+                    @click="deleteItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
+                  >
+                    <Icon name="app-delete" :size="10" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Add item button (hidden for socials) -->
+              <button
+                v-if="repeater.key !== 'socials'"
+                class="flex items-center gap-1.5 w-full mt-1 px-2 py-1.5 border rounded text-left transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
+                @click="addItem(section.id, repeater.key)"
+              >
+                <Icon name="plus" :size="12" />
+                <span class="text-xs">Add {{ repeater.label.replace(/s$/, '') }}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

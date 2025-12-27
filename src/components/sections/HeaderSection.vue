@@ -8,6 +8,7 @@
  *
  * Style options:
  * - sticky: boolean (default true) - makes header sticky
+ * - spaceBetween: gap between logo and title (pixels)
  */
 
 import type { HeaderData } from '@/lib/section-registry'
@@ -32,7 +33,11 @@ const emit = defineEmits<{
 }>()
 
 function getHeaderStyle(): Record<string, string> {
-  return resolveSectionStyles(props.sectionStyles)
+  const space = props.sectionStyles?.spaceBetween ?? 8
+  return {
+    ...resolveSectionStyles(props.sectionStyles),
+    '--header-gap': `${space}px`,
+  }
 }
 
 function getLogoStyle(): Record<string, string> {
@@ -75,13 +80,13 @@ function handleLinkClick(e: MouseEvent) {
     class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-md)] px-[var(--spacing-container)]"
     :style="getHeaderStyle()"
   >
-    <!-- Default variant: Logo + title left, link right -->
+    <!-- Default variant: Logo + title left, subtitle center, link right -->
     <div
       v-if="variant === 'default'"
       class="max-w-[1200px] mx-auto w-full flex items-center justify-between gap-[var(--spacing-md)]"
     >
       <!-- Logo + Title -->
-      <div class="flex items-center gap-[var(--spacing-sm)]">
+      <div class="flex items-center gap-[var(--header-gap)]">
         <!-- Logo (with placeholder in edit mode - persists even when unselected) -->
         <div
           v-if="(data.logo?.src || isEditing) && !hiddenFields?.includes('logo.src')"
@@ -123,7 +128,7 @@ function handleLinkClick(e: MouseEvent) {
 
       <!-- Link -->
       <a
-        v-if="data.link?.label"
+        v-if="data.link?.label && !hiddenFields?.includes('link')"
         :href="editable ? '#' : (data.link.url || '#')"
         class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-sm)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
         :class="[
@@ -141,59 +146,60 @@ function handleLinkClick(e: MouseEvent) {
       v-else
       class="max-w-[1200px] mx-auto w-full flex flex-col items-center gap-[var(--spacing-sm)]"
     >
-      <!-- Logo (with placeholder in edit mode - persists even when unselected) -->
-      <div
-        v-if="(data.logo?.src || isEditing) && !hiddenFields?.includes('logo.src')"
-        :class="[
-          editable && 'cursor-pointer transition-all duration-150',
-          editable && activeField !== 'logo.src' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
-          editable && activeField === 'logo.src' && 'outline outline-2 outline-primary outline-offset-2',
-        ]"
-        @click="handleLogoClick"
-      >
-        <img
-          v-if="data.logo?.src"
-          :src="data.logo.src"
-          :alt="data.logo.alt || ''"
-          class="max-h-10 w-auto object-contain"
-          :style="getLogoStyle()"
-        />
+      <!-- Logo + Title -->
+      <div class="flex flex-row items-center gap-[var(--header-gap)]">
+        <!-- Logo (with placeholder in edit mode - persists even when unselected) -->
         <div
-          v-else
-          class="h-10 w-24 bg-[var(--color-secondary)] rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--color-muted)] text-[length:var(--text-xs)]"
+          v-if="(data.logo?.src || isEditing) && !hiddenFields?.includes('logo.src')"
+          :class="[
+            editable && 'cursor-pointer transition-all duration-150',
+            editable && activeField !== 'logo.src' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
+            editable && activeField === 'logo.src' && 'outline outline-2 outline-primary outline-offset-2',
+          ]"
+          @click="handleLogoClick"
         >
-          Logo
+          <img
+            v-if="data.logo?.src"
+            :src="data.logo.src"
+            :alt="data.logo.alt || ''"
+            class="max-h-10 w-auto object-contain"
+            :style="getLogoStyle()"
+          />
+          <div
+            v-else
+            class="h-10 w-24 bg-[var(--color-secondary)] rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--color-muted)] text-[length:var(--text-xs)]"
+          >
+            Logo
+          </div>
         </div>
+
+        <!-- Title -->
+        <EditableText
+          v-if="data.title"
+          tag="span"
+          :value="data.title"
+          field-key="title"
+          :editable="editable"
+          :active-field="activeField"
+          :hidden-fields="hiddenFields"
+          class="font-semibold text-[length:var(--text-lg)] text-center"
+          :style="getTitleStyle()"
+          @selectField="handleSelectField"
+          @update="handleUpdate"
+        />
+          <a
+          v-if="data.link?.label && !hiddenFields?.includes('link')"
+          :href="editable ? '#' : (data.link.url || '#')"
+          class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-sm)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
+          :class="[
+            editable && 'cursor-pointer',
+            editable && activeField !== 'link' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
+            editable && activeField === 'link' && 'outline outline-2 outline-primary outline-offset-2',
+          ]"
+          :style="getLinkStyle()"
+          @click="handleLinkClick"
+        >{{ data.link.label }}</a>
       </div>
-
-      <!-- Title -->
-      <EditableText
-        v-if="data.title"
-        tag="span"
-        :value="data.title"
-        field-key="title"
-        :editable="editable"
-        :active-field="activeField"
-        :hidden-fields="hiddenFields"
-        class="font-semibold text-[length:var(--text-lg)] text-center"
-        :style="getTitleStyle()"
-        @selectField="handleSelectField"
-        @update="handleUpdate"
-      />
-
-      <!-- Link -->
-      <a
-        v-if="data.link?.label"
-        :href="editable ? '#' : (data.link.url || '#')"
-        class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-sm)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
-        :class="[
-          editable && 'cursor-pointer',
-          editable && activeField !== 'link' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
-          editable && activeField === 'link' && 'outline outline-2 outline-primary outline-offset-2',
-        ]"
-        :style="getLinkStyle()"
-        @click="handleLinkClick"
-      >{{ data.link.label }}</a>
     </div>
   </header>
 </template>

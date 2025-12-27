@@ -18,7 +18,7 @@
  * NO layout options exposed.
  */
 
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type {
   AccordionData,
   AccordionItemFAQ,
@@ -36,9 +36,9 @@ import EditableText from '../EditableText.vue'
 import {
   resolveSectionStyles,
   getTextStyle,
-  resolveItemContainerStyles,
-  resolveItemPaddingStyles,
-  resolveItemTypographyStyles,
+  resolveRepeaterGroupStyles,
+  resolveSharedAccordionContainerStyles,
+  resolveSharedAccordionTextStyles,
 } from '@/lib/section-styles'
 
 const props = defineProps<{
@@ -62,6 +62,14 @@ const emit = defineEmits<{
 
 const openIndex = ref<number | null>(0)
 
+const contentSpacing = computed(() => props.sectionStyles?.accordionSpaceBetween ?? 32)
+const repeaterGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'items'))
+const repeaterGapStyle = computed(() => {
+  if (repeaterGroupStyles.value.spaceBetween === undefined) return {}
+  return { gap: `${repeaterGroupStyles.value.spaceBetween}px` }
+})
+const fontColor = computed(() => props.sectionStyles?.accordionFontColor ?? 'var(--color-fg)')
+
 // Type guards for use cases
 function isFAQ(item: unknown): item is AccordionItemFAQ {
   return props.data.useCase === 'faq'
@@ -81,7 +89,9 @@ function toggle(index: number) {
 }
 
 function getSectionStyle(): Record<string, string> {
-  return resolveSectionStyles(props.sectionStyles)
+  const style = resolveSectionStyles(props.sectionStyles)
+  if (fontColor.value) style.color = fontColor.value
+  return style
 }
 
 function getHeaderFieldStyle(fieldKey: string, defaultFont: string = '--font-body'): Record<string, string> {
@@ -90,18 +100,23 @@ function getHeaderFieldStyle(fieldKey: string, defaultFont: string = '--font-bod
 
 /**
  * Get shared styles for repeater item containers
- * Applied to each item wrapper - shared across all items
+ * Applied to each item wrapper - shared across all items from sectionStyles
  */
 function getItemContainerStyle(): Record<string, string> {
-  return resolveItemContainerStyles(props.itemStyles, { includePadding: false })
+  return resolveSharedAccordionContainerStyles(props.sectionStyles)
 }
 
-function getItemPaddingStyle(): Record<string, string> {
-  return resolveItemPaddingStyles(props.itemStyles)
+function getItemHeadlineStyle(): Record<string, string> {
+  return resolveSharedAccordionTextStyles(props.sectionStyles, 'Headline', '--font-heading')
 }
 
-function getItemTypographyStyle(defaultFont: string = '--font-body'): Record<string, string> {
-  return resolveItemTypographyStyles(props.itemStyles, defaultFont)
+function getItemContentStyle(): Record<string, string> {
+  return resolveSharedAccordionTextStyles(props.sectionStyles, 'Content', '--font-body')
+}
+
+function applyFontColor(style: Record<string, string>): Record<string, string> {
+  if (style.color) return style
+  return { ...style, color: fontColor.value }
 }
 
 function getItemId(item: AccordionItemFAQ | AccordionItemMenu | AccordionItemEvent, fallback: number): string | null {
@@ -167,7 +182,8 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
       <!-- Section Header -->
       <div
         v-if="data.headline || data.paragraph"
-        class="text-center mb-[var(--spacing-xl)]"
+        class="text-center"
+        :style="{ marginBottom: `${contentSpacing}px` }"
       >
         <EditableText
           v-if="data.headline"
@@ -178,7 +194,7 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
           :active-field="activeField"
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-md)]"
-          :style="getHeaderFieldStyle('headline', '--font-heading')"
+          :style="applyFontColor(getHeaderFieldStyle('headline', '--font-heading'))"
           @selectField="handleSelectField"
           @update="handleUpdate"
         />
@@ -192,14 +208,14 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
           :hidden-fields="hiddenFields"
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
-          :style="getHeaderFieldStyle('paragraph', '--font-body')"
+          :style="applyFontColor(getHeaderFieldStyle('paragraph', '--font-body'))"
           @selectField="handleSelectField"
           @update="handleUpdate"
         />
       </div>
 
       <!-- Accordion Items -->
-      <div class="flex flex-col gap-[var(--spacing-sm)]">
+      <div class="flex flex-col gap-[var(--spacing-sm)]" :style="repeaterGapStyle">
         <div
           v-for="(item, index) in data.items"
           :key="item.id || index"
@@ -216,7 +232,6 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
           <button
             class="w-full flex items-center justify-between gap-[var(--spacing-md)] text-left p-[var(--spacing-md)]"
             :class="editable && 'pointer-events-none select-none'"
-            :style="getItemPaddingStyle()"
             @click="toggle(index)"
           >
             <div
@@ -226,14 +241,14 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
               <span
                 class="text-[length:var(--text-base)] font-medium block"
                 :class="editable && 'pointer-events-none select-none'"
-                :style="getItemTypographyStyle('--font-heading')"
+                :style="applyFontColor(getItemHeadlineStyle())"
               >{{ getItemHeadline(item) }}</span>
               <!-- Event metadata in header -->
               <span
                 v-if="isEvent(item) && getHeaderMeta(item as AccordionItemEvent)"
                 class="text-[length:var(--text-sm)] text-[var(--color-muted)] mt-1 block"
                 :class="editable && 'pointer-events-none select-none'"
-                :style="getItemTypographyStyle()"
+                :style="applyFontColor(getItemContentStyle())"
               >
                 {{ getHeaderMeta(item as AccordionItemEvent) }}
               </span>
@@ -241,6 +256,7 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
             <i
               class="lni text-[var(--color-muted)] transition-transform duration-200 flex-shrink-0"
               :class="openIndex === index ? 'lni-chevron-up' : 'lni-chevron-down'"
+              :style="{ color: fontColor }"
             />
           </button>
 
@@ -249,14 +265,13 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
             v-show="openIndex === index || editable"
             class="px-[var(--spacing-md)] pb-[var(--spacing-md)]"
             :class="editable && 'pointer-events-none select-none'"
-            :style="getItemPaddingStyle()"
           >
             <!-- FAQ Content -->
             <template v-if="isFAQ(item)">
               <div
                 class="text-[length:var(--text-base)] text-[var(--color-muted)] prose prose-sm max-w-none"
                 :class="editable && 'pointer-events-none select-none'"
-                :style="getItemTypographyStyle()"
+                :style="applyFontColor(getItemContentStyle())"
                 v-html="(item as AccordionItemFAQ).content || ''"
               />
             </template>
@@ -286,20 +301,20 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
                     <span
                       class="font-medium text-[length:var(--text-base)]"
                       :class="editable && 'pointer-events-none select-none'"
-                      :style="getItemTypographyStyle()"
+                      :style="applyFontColor(getItemContentStyle())"
                     >{{ menuItem.subheadline }}</span>
                     <span
                       v-if="menuItem.price"
                       class="text-[length:var(--text-base)] text-[var(--color-muted)] flex-shrink-0"
                       :class="editable && 'pointer-events-none select-none'"
-                      :style="getItemTypographyStyle()"
+                      :style="applyFontColor(getItemContentStyle())"
                     >{{ menuItem.price }}</span>
                   </div>
                   <p
                     v-if="menuItem.details"
                     class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0 mt-1"
                     :class="editable && 'pointer-events-none select-none'"
-                    :style="getItemTypographyStyle()"
+                    :style="applyFontColor(getItemContentStyle())"
                   >{{ menuItem.details }}</p>
                 </div>
                 </div>
@@ -311,7 +326,7 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
               <div
                 class="flex flex-col gap-[var(--spacing-md)]"
                 :class="editable && 'pointer-events-none select-none'"
-                :style="getItemTypographyStyle()"
+                :style="applyFontColor(getItemContentStyle())"
               >
                 <img
                   v-if="(item as AccordionItemEvent).image?.src"
@@ -326,14 +341,14 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
                   v-if="(item as AccordionItemEvent).details"
                   class="text-[length:var(--text-base)] text-[var(--color-muted)] prose prose-sm max-w-none"
                   :class="editable && 'pointer-events-none select-none'"
-                  :style="getItemTypographyStyle()"
+                  :style="applyFontColor(getItemContentStyle())"
                   v-html="(item as AccordionItemEvent).details"
                 />
                 <div
                   v-if="(item as AccordionItemEvent).price"
                   class="text-[length:var(--text-lg)] font-medium"
                   :class="editable && 'pointer-events-none select-none'"
-                  :style="getItemTypographyStyle('--font-heading')"
+                  :style="applyFontColor(getItemHeadlineStyle())"
                 >{{ (item as AccordionItemEvent).price }}</div>
                 <a
                   v-if="(item as AccordionItemEvent).button?.label"

@@ -27,6 +27,7 @@ import type {
 import ProductsGrid from './products/ProductsGrid.vue'
 import ProductsCarousel from './products/ProductsCarousel.vue'
 import ProductsRow from './products/ProductsRow.vue'
+import ProductsSplit from './products/ProductsSplit.vue'
 
 const props = defineProps<{
   data: ProductsData
@@ -39,7 +40,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectField: [payload: SelectionPayload]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
@@ -55,7 +56,7 @@ const activeNodeType = computed<ActiveNodeType | null>(() => currentNode.value?.
 const activeFieldKey = computed(() => currentNode.value?.fieldKey ?? null)
 const activeItemId = computed(() => currentNode.value?.itemId ?? null)
 
-function handleSelectField(payload: SelectionPayload) {
+function handleSelectField(payload: SelectionPayload | string) {
   emit('selectField', payload)
 }
 
@@ -96,6 +97,21 @@ function handleUpdate(fieldKey: string, value: unknown) {
     @update="handleUpdate"
   />
   <ProductsRow
+    v-else-if="variant === 'row'"
+    :data="data"
+    :section-styles="sectionStyles"
+    :item-styles="itemStyles"
+    :field-styles="fieldStyles"
+    :editable="editable"
+    :active-node-id="activeNodeId"
+    :active-node-type="activeNodeType"
+    :active-field-key="activeFieldKey"
+    :active-item-id="activeItemId"
+    :hidden-fields="hiddenFields"
+    @selectField="handleSelectField"
+    @update="handleUpdate"
+  />
+  <ProductsSplit
     v-else
     :data="data"
     :section-styles="sectionStyles"

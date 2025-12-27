@@ -7,19 +7,12 @@
  * - Tablet: 2 columns
  * - Mobile: 1 column
  *
- * Each product displays:
- * - Image
- * - Heading
- * - Subheading
- * - Description
- * - Variant selector (if multiple variants)
- * - Price (with compare-at price if available)
- * - Buy button (opens in new tab)
- *
+ * SHARED STYLES: All products use the same visual system from sectionStyles.
+ * Product items only contain CONTENT (text, media, variants, pricing).
  * Item-only selection - no inline editing.
  */
 
-import { ref } from 'vue'
+import { ref, computed, withDefaults } from 'vue'
 import type { ProductsData, ProductItem } from '@/lib/section-registry'
 import type {
   SectionStyleProperties,
@@ -30,14 +23,17 @@ import type {
 } from '@/types/sections'
 import {
   resolveSectionStyles,
-  resolveItemContainerStyles,
-  resolveItemPaddingStyles,
-  resolveItemTypographyStyles,
-  buttonStyleToCss,
-  resolveFieldStyles,
+  resolveRepeaterGroupStyles,
+  resolveSharedProductContainerStyles,
+  resolveSharedProductInnerGap,
+  resolveSharedProductMediaStyles,
+  resolveSharedProductTextStyles,
+  resolveSharedProductButtonStyles,
+  getProductMediaAspectRatio,
 } from '@/lib/section-styles'
+import SectionHeaderBlock from '@/components/sections/shared/SectionHeaderBlock.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   data: ProductsData
   sectionStyles?: SectionStyleProperties
   itemStyles?: ItemStyleProperties
@@ -48,15 +44,40 @@ const props = defineProps<{
   activeFieldKey?: string | null
   activeItemId?: string | null
   hiddenFields?: string[]
-}>()
+  showHeaderBlock?: boolean
+  standalone?: boolean
+}>(), {
+  showHeaderBlock: true,
+  standalone: true,
+})
 
 const emit = defineEmits<{
-  selectField: [payload: SelectionPayload]
+  selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
 // Track selected variant index per product
 const selectedVariants = ref<Record<string, number>>({})
+
+const repeaterGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'items'))
+const spaceBetween = computed(() => repeaterGroupStyles.value.spaceBetween ?? props.sectionStyles?.spaceBetween ?? 16)
+const showHeaderBlock = computed(() => props.showHeaderBlock !== false)
+const isStandalone = computed(() => props.standalone !== false)
+
+// SHARED STYLES - All products use the same visual styling from sectionStyles
+const sharedContainerStyle = computed(() => resolveSharedProductContainerStyles(props.sectionStyles))
+const sharedInnerGap = computed(() => resolveSharedProductInnerGap(props.sectionStyles))
+const sharedMediaStyle = computed(() => resolveSharedProductMediaStyles(props.sectionStyles))
+const sharedHeadlineStyle = computed(() => resolveSharedProductTextStyles(props.sectionStyles, 'Headline', '--font-heading'))
+const sharedSubheadlineStyle = computed(() => resolveSharedProductTextStyles(props.sectionStyles, 'Subheadline', '--font-body'))
+const sharedParagraphStyle = computed(() => resolveSharedProductTextStyles(props.sectionStyles, 'Paragraph', '--font-body'))
+const sharedButtonStyle = computed(() => resolveSharedProductButtonStyles(props.sectionStyles))
+
+// Media aspect ratio for images
+const mediaAspectRatio = computed(() => {
+  const styles = props.sectionStyles as Record<string, unknown> | undefined
+  return getProductMediaAspectRatio(styles?.productMediaAspect as 'square' | 'portrait' | 'paysage' | undefined)
+})
 
 function getSelectedVariantIndex(product: ProductItem, index: number): number {
   const productId = getProductId(product, index)
@@ -83,43 +104,7 @@ function formatPrice(price: number): string {
 }
 
 function getSectionStyle(): Record<string, string> {
-  return resolveSectionStyles(props.sectionStyles)
-}
-
-function getItemStyle(): Record<string, string> {
-  return resolveItemContainerStyles(props.itemStyles, { includePadding: false })
-}
-
-function getItemContentStyle(): Record<string, string> {
-  return resolveItemPaddingStyles(props.itemStyles)
-}
-
-function getItemTypographyStyle(): Record<string, string> {
-  return resolveItemTypographyStyles(props.itemStyles)
-}
-
-function getFieldStyle(index: number, fieldKey: string, defaultFont: string = '--font-body'): Record<string, string> {
-  const fieldPath = `items.${index}.${fieldKey}`
-  const styles = props.fieldStyles?.[fieldPath]
-  const result: Record<string, string> = {
-    fontFamily: `var(${defaultFont})`,
-    ...getItemTypographyStyle(),
-  }
-
-  if (!styles) return result
-
-  if (styles.fontSize) result.fontSize = `${styles.fontSize}px`
-  if (styles.lineHeight) result.lineHeight = String(styles.lineHeight)
-  if (styles.color) result.color = styles.color
-  if (styles.spacingY !== undefined) result.marginTop = result.marginBottom = `${styles.spacingY}px`
-  if (styles.spacingX !== undefined) result.marginLeft = result.marginRight = `${styles.spacingX}px`
-  return result
-}
-
-function getButtonStyle(index: number): Record<string, string> {
-  const fieldPath = `items.${index}.ctaLabel`
-  const styles = resolveFieldStyles(props.fieldStyles, fieldPath)
-  return buttonStyleToCss(styles, '--font-body')
+  return isStandalone.value ? resolveSectionStyles(props.sectionStyles) : {}
 }
 
 function getProductId(product: ProductItem, fallback: number): string | null {
@@ -149,15 +134,43 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
     itemId: productId,
   })
 }
+
+function handleHeaderSelect(fieldKey: string) {
+  emit('selectField', fieldKey)
+}
+
+function handleUpdate(fieldKey: string, value: unknown) {
+  emit('update', fieldKey, value)
+}
 </script>
 
 <template>
-  <section
-    class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)] px-[var(--spacing-container)]"
+  <component
+    :is="isStandalone ? 'section' : 'div'"
+    class="bg-[var(--color-bg)] text-[var(--color-fg)]"
+    :class="isStandalone ? 'py-[var(--spacing-section)] px-[var(--spacing-container)]' : ''"
     :style="getSectionStyle()"
   >
-    <div class="max-w-[1200px] mx-auto w-full">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-lg)]">
+    <div
+      :class="[
+        'flex flex-col w-full',
+        isStandalone ? 'max-w-[1200px] mx-auto' : '',
+      ]"
+      :style="{ gap: `${spaceBetween}px` }"
+    >
+      <SectionHeaderBlock
+        v-if="showHeaderBlock"
+        :headline="data.headline"
+        :subheadline="data.subheadline"
+        :paragraph="data.paragraph"
+        :field-styles="fieldStyles"
+        :editable="editable"
+        :active-field="activeFieldKey"
+        :hidden-fields="hiddenFields"
+        @selectField="handleHeaderSelect"
+        @update="handleUpdate"
+      />
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" :style="{ gap: `${spaceBetween}px` }">
         <div
           v-for="(product, index) in data.items"
           :key="product.id || index"
@@ -167,48 +180,53 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
             editable && !isProductActive(product, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
             editable && isProductActive(product, index) && 'outline outline-2 outline-primary -outline-offset-2',
           ]"
-          :style="getItemStyle()"
+          :style="sharedContainerStyle"
           @click="handleItemClick($event, product, index)"
         >
           <!-- Product Image -->
-          <div
-            v-if="product.image?.src"
-            :class="editable && 'pointer-events-none select-none'"
-          >
-            <img
-              :src="product.image.src"
-              :alt="product.image.alt || product.heading"
-              class="w-full aspect-square object-cover"
-            />
-          </div>
+          <template v-if="product.image?.src">
+            <div
+              class="w-full overflow-hidden"
+              :style="sharedMediaStyle"
+              :class="editable && 'pointer-events-none select-none'"
+            >
+              <img
+                :src="product.image.src"
+                :alt="product.image.alt || product.heading"
+                class="w-full h-full object-cover"
+                :style="{ aspectRatio: mediaAspectRatio }"
+              />
+            </div>
+          </template>
           <div
             v-else
-            class="w-full aspect-square bg-[var(--color-secondary)] flex items-center justify-center"
+            class="w-full bg-[var(--color-secondary)] flex items-center justify-center"
             :class="editable && 'pointer-events-none select-none'"
+            :style="{ aspectRatio: mediaAspectRatio }"
           >
             <span class="text-[var(--color-muted)]">Add image</span>
           </div>
 
           <!-- Content -->
           <div
-            class="p-[var(--spacing-md)] flex flex-col gap-[var(--spacing-xs)] flex-1"
+            class="p-[var(--spacing-md)] flex flex-col flex-1"
             :class="editable && 'pointer-events-none select-none'"
-            :style="getItemContentStyle()"
+            :style="{ gap: sharedInnerGap }"
           >
             <h3
               v-if="product.heading"
               class="text-[length:var(--text-xl)] font-semibold m-0"
-              :style="getFieldStyle(index, 'heading', '--font-heading')"
+              :style="sharedHeadlineStyle"
             >{{ product.heading }}</h3>
             <p
               v-if="product.subheading"
               class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
-              :style="getFieldStyle(index, 'subheading', '--font-body')"
+              :style="sharedSubheadlineStyle"
             >{{ product.subheading }}</p>
             <div
               v-if="product.description"
               class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
-              :style="getFieldStyle(index, 'description', '--font-body')"
+              :style="sharedParagraphStyle"
               v-html="product.description"
             />
 
@@ -253,8 +271,8 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
               :href="product.ctaUrl"
               target="_blank"
               rel="noopener noreferrer"
-              class="mt-[var(--spacing-sm)] inline-flex items-center justify-center px-[var(--btn-px)] py-[var(--btn-py)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] rounded-[var(--btn-radius)] font-[var(--btn-weight)] text-[length:var(--text-base)] hover:opacity-90 transition-opacity no-underline"
-              :style="getButtonStyle(index)"
+              class="mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium hover:opacity-90 transition-opacity no-underline"
+              :style="sharedButtonStyle"
               @click.stop
             >
               {{ product.ctaLabel }}
@@ -263,5 +281,5 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
         </div>
       </div>
     </div>
-  </section>
+  </component>
 </template>

@@ -47,6 +47,8 @@ export interface ThemeOverrides {
 // ============================================
 
 export const useEditorStore = defineStore('editor', () => {
+  const REMOVED_SECTION_TYPES = new Set(['contact', ['sub', 'scribe'].join('')])
+
   // ============================================
   // STATE
   // ============================================
@@ -134,16 +136,13 @@ export const useEditorStore = defineStore('editor', () => {
     if (node.type === 'field' || node.type === 'item') {
       return node.fieldKey ?? null
     }
-    if (node.type === 'form') {
-      return node.fieldKey ?? (node.itemId ? 'form.fields' : 'form')
-    }
     return null
   })
 
   const activeItemId = computed(() => {
     const node = activeNode.value
     if (!node) return null
-    if (node.type === 'item' || node.type === 'form') {
+    if (node.type === 'item') {
       return node.itemId ?? null
     }
     return null
@@ -161,12 +160,6 @@ export const useEditorStore = defineStore('editor', () => {
       return index === -1 ? node.fieldKey : `${node.fieldKey}.${index}`
     }
 
-    if (node.type === 'form') {
-      if (!node.itemId) return 'form'
-      const index = findFormFieldIndex(section, node.itemId)
-      return index === -1 ? 'form.fields' : `form.fields.${index}`
-    }
-
     return null
   })
 
@@ -181,15 +174,8 @@ export const useEditorStore = defineStore('editor', () => {
       return index === -1 ? null : index
     }
 
-    if (node.type === 'form' && node.itemId) {
-      const index = findFormFieldIndex(section, node.itemId)
-      return index === -1 ? null : index
-    }
-
     return null
   })
-
-  const isFormSelection = computed(() => activeNode.value?.type === 'form')
 
   // ============================================
   // GETTERS
@@ -282,7 +268,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   function initializeEditor(content: PageContent, id: string) {
     projectId.value = id
-    sections.value = content.sections
+    sections.value = content.sections.filter(section => !REMOVED_SECTION_TYPES.has(section.type))
     sections.value.forEach(section => ensureSectionItemIds(section))
     meta.value = content.meta
 
@@ -589,12 +575,6 @@ export const useEditorStore = defineStore('editor', () => {
     return items.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === itemId)
   }
 
-  function findFormFieldIndex(section: SectionInstance, itemId: string): number {
-    const fields = getNestedArray(section.data, 'form.fields')
-    if (!fields) return -1
-    return fields.findIndex(item => item && typeof item === 'object' && (item as Record<string, unknown>).id === itemId)
-  }
-
   function ensureSectionItemIds(section: SectionInstance) {
     const def = getSectionDefinition(section.type)
     if (!def) return
@@ -699,8 +679,12 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function updateSectionStyle(id: string, styleKey: string, value: unknown) {
+    console.log('[STORE updateSectionStyle]', { id, styleKey, value })
     const section = sections.value.find(s => s.id === id)
-    if (!section) return false
+    if (!section) {
+      console.log('[STORE] Section not found:', id)
+      return false
+    }
 
     pushHistory()
 
@@ -711,6 +695,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Update the specific style property
     ;(section.styles as Record<string, unknown>)[styleKey] = value
+    console.log('[STORE] Updated section.styles:', section.styles)
 
     return true
   }
@@ -918,16 +903,6 @@ export const useEditorStore = defineStore('editor', () => {
       type: 'item',
       sectionId,
       fieldKey,
-      itemId,
-    }
-  }
-
-  function selectFormNode(sectionId: string, itemId?: string) {
-    activeNode.value = {
-      id: itemId ? `${sectionId}:form:${itemId}` : `${sectionId}:form`,
-      type: 'form',
-      sectionId,
-      fieldKey: itemId ? 'form.fields' : 'form',
       itemId,
     }
   }
@@ -1157,7 +1132,6 @@ export const useEditorStore = defineStore('editor', () => {
     activeFieldPath,
     activeItemIndex,
     activeItemId,
-    isFormSelection,
     hiddenFields,
     isDirty,
     isLoading,
@@ -1218,7 +1192,6 @@ export const useEditorStore = defineStore('editor', () => {
     selectSection,
     selectFieldNode,
     selectItemNode,
-    selectFormNode,
     selectNextSection,
     selectPreviousSection,
 

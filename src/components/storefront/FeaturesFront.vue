@@ -10,12 +10,15 @@
         </div>
         <div class="container">
             <div>
-                <h2>Powerful features</h2>
-                <p>Everything you need to create a stunning online presence.</p>
                 <ul>
                     <li>
-                        <h3>Design</h3>
-                        <p>Customize every aspect of your site with our intuitive design tools.</p>
+                        <div>
+                            <h3>Design</h3>
+                            <p>Customize every aspect of your site with our intuitive design tools.</p>
+                        </div>
+                        <div>
+                            123
+                        </div>
                     </li>
                     <li>
                         <h3>Content</h3>
@@ -68,16 +71,28 @@
         padding: 10em;
             > div {
                 flex: 1;
-            }
-            & h2 {
-                font-size: 5em;
-                line-height: 1;
-                text-transform: uppercase;
-            }
-            > ul {
-                height: 10em;
-                overflow: hidden;
-                margin-bottom: 10em;
+                > ul li {
+                    height: 100vh;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: row;
+                    gap: 3em;
+                    > div {
+                        display: flex;
+                        flex: 1;
+                        flex-direction: column;
+                        gap: 5em;
+                    }
+                    & p {
+                        font-size: 5em;
+                        line-height: 0.9;
+                    }
+                    & h3 {
+                        font-size: 1.5em;
+                        line-height: 1;
+                        text-transform: uppercase;
+                    }
+                }
             }
         
     }

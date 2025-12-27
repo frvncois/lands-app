@@ -138,6 +138,7 @@ const commandItems = computed(() => {
   const items: CommandItem[] = [
     { id: 'dashboard', label: 'Go to Dashboard', icon: 'app-dashboard', group: 'Navigation', action: () => router.push({ name: 'dashboard' }) },
     { id: 'account', label: 'Account Settings', icon: 'app-user', group: 'Navigation', action: () => router.push({ name: 'account' }) },
+    { id: 'support', label: 'Support', icon: 'lni-comment-1-text', group: 'Navigation', action: () => router.push({ name: 'support' }) },
   ]
 
   // Add all projects to navigation
@@ -289,8 +290,23 @@ function onProjectCreated(newProjectId: string) {
       </template>
     </div>
 
-    <!-- Center: Editor Controls -->
-    <div v-if="isProjectRoute && isDesignerRoute" class="flex items-center gap-4">
+    <!-- Center: Search (non-project) or Editor Controls (project) -->
+    <div v-if="!isProjectRoute" class="flex items-center justify-center">
+      <button
+        class="flex items-center justify-between gap-4 min-w-72 h-9 px-4 bg-background border border-border rounded-lg text-sm text-muted-foreground hover:bg-accent/50 hover:border-border/80 transition-colors"
+        @click="showCommand = true"
+      >
+        <div class="flex items-center gap-2">
+          <Icon name="search-1" class="text-sm" />
+          <span>Search...</span>
+        </div>
+        <kbd class="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
+          <span>⌘</span><span>K</span>
+        </kbd>
+      </button>
+    </div>
+
+    <div v-else-if="isDesignerRoute" class="flex items-center gap-4">
       <!-- Undo/Redo Buttons -->
       <div class="flex items-center gap-1">
         <button
@@ -409,17 +425,6 @@ function onProjectCreated(newProjectId: string) {
 
     <!-- Right: Actions + User Menu -->
     <div class="flex items-center gap-3 flex-1 justify-end">
-      <!-- Non-Project Route: Search -->
-      <template v-if="!isProjectRoute">
-        <Button variant="outline" size="sm" @click="showCommand = true">
-          <Icon name="search-1" class="text-xs" />
-          <span class="hidden sm:inline">Search...</span>
-          <kbd class="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-            <span>⌘</span><span>K</span>
-          </kbd>
-        </Button>
-      </template>
-
       <!-- Project Route: Save + Publish -->
       <template v-if="isProjectRoute && currentProject">
         <!-- Save indicator -->
@@ -465,6 +470,9 @@ function onProjectCreated(newProjectId: string) {
         </Dropdown.Item>
         <Dropdown.Item icon="app-user" @click="userDropdownRef?.close(); router.push({ name: 'account' })">
           Account Settings
+        </Dropdown.Item>
+        <Dropdown.Item icon="lni-comment-1-text" @click="userDropdownRef?.close(); router.push({ name: 'support' })">
+          Support
         </Dropdown.Item>
 
         <Dropdown.Divider />

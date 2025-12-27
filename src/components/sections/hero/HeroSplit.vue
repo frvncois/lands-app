@@ -3,11 +3,17 @@
  * HERO SPLIT VARIANT
  *
  * Style options (from sectionStyles):
- * - height: 'full' | 'half'
- * - contentPosition: 'left' | 'right'
+ * - heroSplitHeight: 'full' | 'half'
+ * - heroSplitContentPosition: 'left' | 'right'
+ * - spaceBetween: gap between content blocks
  *
  * Image ALWAYS stretches to container height.
  * Mobile stacks vertically (media first).
+ *
+ * CONTENT STRUCTURE (Action-first → Context → Detail):
+ * - BLOCK A: Headline + Buttons (action-first, grouped)
+ * - BLOCK B: Subheadline (context, isolated)
+ * - BLOCK C: Paragraph (detail, always last)
  */
 
 import { computed } from 'vue'
@@ -25,7 +31,6 @@ const props = defineProps<{
   editable?: boolean
   activeField?: string | null
   hiddenFields?: string[]
-  spaceBetween: number
 }>()
 
 const emit = defineEmits<{
@@ -34,15 +39,9 @@ const emit = defineEmits<{
 }>()
 
 // Style options from sectionStyles
-const height = computed(() => {
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return (styles?.height as string) || 'full'
-})
-
-const contentPosition = computed(() => {
-  const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return (styles?.contentPosition as string) || 'right'
-})
+const height = computed(() => props.sectionStyles?.heroSplitHeight ?? 'full')
+const contentPosition = computed(() => props.sectionStyles?.heroSplitContentPosition ?? 'right')
+const spaceBetween = computed(() => props.sectionStyles?.spaceBetween ?? 32)
 
 // Height classes
 const heightClass = computed(() => {
@@ -66,7 +65,7 @@ const contentOrder = computed(() => {
 
 // Content gap style using spaceBetween
 const contentGapStyle = computed(() => ({
-  gap: `${props.spaceBetween}px`
+  gap: `${spaceBetween.value}px`
 }))
 
 function getSectionStyle(): Record<string, string> {
@@ -153,20 +152,53 @@ function isFieldHidden(fieldKey: string): boolean {
         :class="contentOrder"
         :style="contentGapStyle"
       >
-        <EditableText
-          v-if="data.headline"
-          tag="h1"
-          :value="data.headline"
-          field-key="headline"
-          :editable="editable"
-          :active-field="activeField"
-          :hidden-fields="hiddenFields"
-          class="text-[length:var(--text-5xl)] font-bold leading-tight m-0"
-          :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
-          @update="handleUpdate"
-        />
+        <!-- BLOCK A: Headline + Buttons (Action-first) -->
+        <div class="flex flex-col gap-[var(--spacing-md)]">
+          <EditableText
+            v-if="data.headline"
+            tag="h1"
+            :value="data.headline"
+            field-key="headline"
+            :editable="editable"
+            :active-field="activeField"
+            :hidden-fields="hiddenFields"
+            class="text-[length:var(--text-5xl)] font-bold leading-tight m-0"
+            :style="getFieldStyle('headline', '--font-heading')"
+            @selectField="handleSelectField"
+            @update="handleUpdate"
+          />
 
+          <!-- Buttons inline with headline -->
+          <div class="flex gap-[var(--spacing-md)]">
+            <a
+              v-if="data.primaryCTA?.label && !isFieldHidden('primaryCTA')"
+              :href="editable ? '#' : (data.primaryCTA.url || '#')"
+              class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
+              :class="[
+                editable && 'cursor-pointer',
+                editable && activeField !== 'primaryCTA' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
+                editable && activeField === 'primaryCTA' && 'outline outline-2 outline-primary outline-offset-2',
+              ]"
+              :style="getButtonStyle('primaryCTA')"
+              @click="handleButtonClick($event, 'primaryCTA')"
+            >{{ data.primaryCTA.label }}</a>
+
+            <a
+              v-if="data.secondaryCTA?.label && !isFieldHidden('secondaryCTA')"
+              :href="editable ? '#' : (data.secondaryCTA.url || '#')"
+              class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-secondary)] text-[var(--color-secondary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
+              :class="[
+                editable && 'cursor-pointer',
+                editable && activeField !== 'secondaryCTA' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
+                editable && activeField === 'secondaryCTA' && 'outline outline-2 outline-primary outline-offset-2',
+              ]"
+              :style="getButtonStyle('secondaryCTA')"
+              @click="handleButtonClick($event, 'secondaryCTA')"
+            >{{ data.secondaryCTA.label }}</a>
+          </div>
+        </div>
+
+        <!-- BLOCK B: Subheadline (Context - isolated) -->
         <EditableText
           v-if="data.subheadline"
           tag="p"
@@ -181,6 +213,7 @@ function isFieldHidden(fieldKey: string): boolean {
           @update="handleUpdate"
         />
 
+        <!-- BLOCK C: Paragraph (Detail - always last) -->
         <EditableText
           v-if="data.paragraph"
           tag="div"
@@ -195,35 +228,6 @@ function isFieldHidden(fieldKey: string): boolean {
           @selectField="handleSelectField"
           @update="handleUpdate"
         />
-
-        <!-- Buttons -->
-        <div class="flex gap-[var(--spacing-md)]">
-          <a
-            v-if="data.primaryCTA?.label && !isFieldHidden('primaryCTA')"
-            :href="editable ? '#' : (data.primaryCTA.url || '#')"
-            class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
-            :class="[
-              editable && 'cursor-pointer',
-              editable && activeField !== 'primaryCTA' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
-              editable && activeField === 'primaryCTA' && 'outline outline-2 outline-primary outline-offset-2',
-            ]"
-            :style="getButtonStyle('primaryCTA')"
-            @click="handleButtonClick($event, 'primaryCTA')"
-          >{{ data.primaryCTA.label }}</a>
-
-          <a
-            v-if="data.secondaryCTA?.label && !isFieldHidden('secondaryCTA')"
-            :href="editable ? '#' : (data.secondaryCTA.url || '#')"
-            class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-secondary)] text-[var(--color-secondary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
-            :class="[
-              editable && 'cursor-pointer',
-              editable && activeField !== 'secondaryCTA' && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:outline-offset-2',
-              editable && activeField === 'secondaryCTA' && 'outline outline-2 outline-primary outline-offset-2',
-            ]"
-            :style="getButtonStyle('secondaryCTA')"
-            @click="handleButtonClick($event, 'secondaryCTA')"
-          >{{ data.secondaryCTA.label }}</a>
-        </div>
       </div>
     </div>
   </section>

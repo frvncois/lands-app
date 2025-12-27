@@ -3,7 +3,8 @@
  * CTA SPLIT VARIANT
  *
  * Style options (from sectionStyles):
- * - height: 'auto' | 'full' | 'half'
+ * - ctaHeight: 1=auto, 2=50vh, 3=100vh (numeric)
+ * - ctaWrapGap: gap in px between buttons
  * - splitLayout: 'content-buttons' | 'buttons-content'
  *
  * content-buttons: Content | Buttons
@@ -16,7 +17,7 @@ import { computed } from 'vue'
 import type { CTABlockData } from '@/lib/section-registry'
 import type { SectionStyleProperties, FieldStyles } from '@/types/sections'
 import EditableText from '../EditableText.vue'
-import { resolveSectionStyles, getTextStyle, getButtonStyle as getButtonStyleUtil, getImageStyle, getMediaStyle } from '@/lib/section-styles'
+import { resolveSectionStyles, getTextStyle, getButtonStyle as getButtonStyleUtil } from '@/lib/section-styles'
 
 const props = defineProps<{
   data: CTABlockData
@@ -32,10 +33,25 @@ const emit = defineEmits<{
   'update': [fieldKey: string, value: unknown]
 }>()
 
-// Style options from sectionStyles
-const height = computed(() => {
+// Style options from sectionStyles (normalized CTA style keys)
+const ctaHeight = computed(() => {
   const styles = props.sectionStyles as Record<string, unknown> | undefined
-  return (styles?.height as string) || 'auto'
+  // ctaHeight: 1=auto, 2=50vh, 3=100vh (numeric)
+  // Fallback to legacy 'height' if ctaHeight not set
+  if (styles?.ctaHeight !== undefined) {
+    return styles.ctaHeight as number
+  }
+  // Legacy support: map old string values to numeric
+  const legacyHeight = styles?.height as string | undefined
+  if (legacyHeight === 'full') return 3
+  if (legacyHeight === 'half') return 2
+  return 1
+})
+
+const wrapGap = computed(() => {
+  const styles = props.sectionStyles as Record<string, unknown> | undefined
+  // Prefer new ctaWrapGap, fallback to legacy wrapGap
+  return (styles?.ctaWrapGap as number) ?? (Number(styles?.wrapGap) || 32)
 })
 
 const splitLayout = computed(() => {
@@ -43,11 +59,11 @@ const splitLayout = computed(() => {
   return (styles?.splitLayout as string) || 'content-buttons'
 })
 
-// Height classes
+// Height classes (1=auto, 2=50vh, 3=100vh)
 const heightClass = computed(() => {
-  switch (height.value) {
-    case 'full': return 'min-h-screen'
-    case 'half': return 'min-h-[50vh]'
+  switch (ctaHeight.value) {
+    case 3: return 'min-h-screen'
+    case 2: return 'min-h-[50vh]'
     default: return ''
   }
 })
@@ -102,7 +118,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
   >
     <div
       class="max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-[var(--spacing-xl)] items-center"
-      :class="height !== 'auto' && 'h-full'"
+      :class="ctaHeight !== 1 && 'h-full'"
     >
       <!-- Content Column -->
       <div
@@ -140,8 +156,9 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
 
       <!-- CTA Buttons Column -->
       <div
-        class="flex flex-wrap items-center gap-[var(--spacing-sm)] order-2"
+        class="flex flex-wrap items-center order-2"
         :class="[buttonsOrder, buttonsAlign]"
+        :style="{ gap: `${wrapGap}px` }"
       >
         <a
           :href="editable ? '#' : (data.primaryCTA.url || '#')"

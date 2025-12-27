@@ -1,19 +1,16 @@
 <script setup lang="ts">
 /**
- * PRODUCTS CAROUSEL VARIANT
+ * PRODUCTS SPLIT VARIANT
  *
- * Horizontal scrolling products.
- * Layout options (carousel-only):
- * - slidesPerView: '1' | '2' | '3'
- * - autoplay: boolean
- * - showArrows: boolean
+ * Split layout with header on one side and products on the other.
+ * Products are ALWAYS displayed as a horizontal row on desktop.
+ * Stacks vertically on mobile.
  *
  * SHARED STYLES: All products use the same visual system from sectionStyles.
  * Product items only contain CONTENT (text, media, variants, pricing).
- * Item-only selection - no inline editing.
  */
 
-import { ref, onMounted, onUnmounted, computed, withDefaults } from 'vue'
+import { ref, computed } from 'vue'
 import type { ProductsData, ProductItem } from '@/lib/section-registry'
 import type {
   SectionStyleProperties,
@@ -34,46 +31,49 @@ import {
 } from '@/lib/section-styles'
 import SectionHeaderBlock from '@/components/sections/shared/SectionHeaderBlock.vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   data: ProductsData
   sectionStyles?: SectionStyleProperties
   itemStyles?: ItemStyleProperties
   fieldStyles?: FieldStyles
   editable?: boolean
+  hiddenFields?: string[]
   activeNodeId?: string | null
   activeNodeType?: ActiveNodeType | null
   activeFieldKey?: string | null
   activeItemId?: string | null
-  hiddenFields?: string[]
-  showHeaderBlock?: boolean
-  standalone?: boolean
-}>(), {
-  showHeaderBlock: true,
-  standalone: true,
-})
+}>()
 
 const emit = defineEmits<{
   selectField: [payload: SelectionPayload | string]
   'update': [fieldKey: string, value: unknown]
 }>()
 
-// Layout options
-const slidesPerView = () => props.data.layout?.slidesPerView ?? '3'
-const autoplay = () => props.data.layout?.autoplay ?? false
-const showArrows = () => props.data.layout?.showArrows ?? true
-
-// Carousel state
-const carouselRef = ref<HTMLDivElement | null>(null)
-const currentIndex = ref(0)
-let autoplayInterval: ReturnType<typeof setInterval> | null = null
-
 // Track selected variant index per product
 const selectedVariants = ref<Record<string, number>>({})
 
+// SPACING MODEL:
+// 1. Section Space Between = gap between header block and products content
+// 2. Products List Space Between = gap between product items
 const repeaterGroupStyles = computed(() => resolveRepeaterGroupStyles(props.sectionStyles, 'items'))
-const spaceBetween = computed(() => repeaterGroupStyles.value.spaceBetween ?? props.sectionStyles?.spaceBetween ?? 16)
-const showHeaderBlock = computed(() => props.showHeaderBlock !== false)
-const isStandalone = computed(() => props.standalone !== false)
+const sectionSpaceBetween = computed(() => props.sectionStyles?.spaceBetween ?? 32)
+const productsListSpaceBetween = computed(() => repeaterGroupStyles.value.spaceBetween ?? 16)
+
+const hasHeaderContent = computed(() => {
+  return Boolean(props.data.headline || props.data.subheadline || props.data.paragraph)
+})
+
+function getSectionStyle(): Record<string, string> {
+  return resolveSectionStyles(props.sectionStyles)
+}
+
+function handleHeaderSelect(fieldKey: string) {
+  emit('selectField', fieldKey)
+}
+
+function handleUpdate(fieldKey: string, value: unknown) {
+  emit('update', fieldKey, value)
+}
 
 // SHARED STYLES - All products use the same visual styling from sectionStyles
 const sharedContainerStyle = computed(() => resolveSharedProductContainerStyles(props.sectionStyles))
@@ -114,61 +114,6 @@ function formatPrice(price: number): string {
   }).format(price)
 }
 
-function getCardWidthClass(): string {
-  switch (slidesPerView()) {
-    case '1': return 'w-full'
-    case '2': return 'w-[calc(50%-var(--spacing-lg)/2)]'
-    default: return 'w-[calc(33.333%-var(--spacing-lg)*2/3)]'
-  }
-}
-
-function scrollToIndex(index: number) {
-  if (!carouselRef.value) return
-  const cards = carouselRef.value.children
-  if (cards[index]) {
-    cards[index].scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
-    currentIndex.value = index
-  }
-}
-
-function scrollPrev() {
-  const maxIndex = props.data.items.length - 1
-  const newIndex = currentIndex.value > 0 ? currentIndex.value - 1 : maxIndex
-  scrollToIndex(newIndex)
-}
-
-function scrollNext() {
-  const maxIndex = props.data.items.length - 1
-  const newIndex = currentIndex.value < maxIndex ? currentIndex.value + 1 : 0
-  scrollToIndex(newIndex)
-}
-
-function startAutoplay() {
-  if (autoplayInterval) clearInterval(autoplayInterval)
-  if (autoplay() && props.data.items.length > 1) {
-    autoplayInterval = setInterval(scrollNext, 4000)
-  }
-}
-
-function stopAutoplay() {
-  if (autoplayInterval) {
-    clearInterval(autoplayInterval)
-    autoplayInterval = null
-  }
-}
-
-onMounted(() => {
-  if (autoplay()) startAutoplay()
-})
-
-onUnmounted(() => {
-  stopAutoplay()
-})
-
-function getSectionStyle(): Record<string, string> {
-  return isStandalone.value ? resolveSectionStyles(props.sectionStyles) : {}
-}
-
 function getProductId(product: ProductItem, fallback: number): string | null {
   if (product?.id) return product.id
   return fallback.toString()
@@ -196,73 +141,45 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
     itemId: productId,
   })
 }
-
-function handleHeaderSelect(fieldKey: string) {
-  emit('selectField', fieldKey)
-}
-
-function handleUpdate(fieldKey: string, value: unknown) {
-  emit('update', fieldKey, value)
-}
 </script>
 
 <template>
-  <component
-    :is="isStandalone ? 'section' : 'div'"
-    class="bg-[var(--color-bg)] text-[var(--color-fg)]"
-    :class="isStandalone ? 'py-[var(--spacing-section)] px-[var(--spacing-container)]' : ''"
+  <section
+    class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)] px-[var(--spacing-container)]"
     :style="getSectionStyle()"
-    @mouseenter="stopAutoplay"
-    @mouseleave="autoplay() && startAutoplay()"
   >
     <div
-      :class="[
-        'flex flex-col w-full',
-        isStandalone ? 'max-w-[1200px] mx-auto' : '',
-      ]"
-      :style="{ gap: `${spaceBetween}px` }"
+      class="max-w-[1200px] mx-auto w-full flex flex-col md:flex-row md:items-start"
+      :style="{ gap: `${sectionSpaceBetween}px` }"
     >
-      <SectionHeaderBlock
-        v-if="showHeaderBlock"
-        :headline="data.headline"
-        :subheadline="data.subheadline"
-        :paragraph="data.paragraph"
-        :field-styles="fieldStyles"
-        :editable="editable"
-        :active-field="activeFieldKey"
-        :hidden-fields="hiddenFields"
-        @selectField="handleHeaderSelect"
-        @update="handleUpdate"
-      />
-      <div class="relative w-full">
-        <!-- Navigation Arrows -->
-        <template v-if="showArrows() && data.items.length > 1">
-          <button
-            class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
-            @click="scrollPrev"
-          >
-            <i class="lni lni-chevron-left text-lg" />
-          </button>
-          <button
-            class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
-            @click="scrollNext"
-          >
-            <i class="lni lni-chevron-right text-lg" />
-          </button>
-        </template>
+      <!-- Header Column -->
+      <div v-if="hasHeaderContent" class="md:w-1/3 md:flex-shrink-0">
+        <SectionHeaderBlock
+          :headline="data.headline"
+          :subheadline="data.subheadline"
+          :paragraph="data.paragraph"
+          :field-styles="fieldStyles"
+          :editable="editable"
+          :active-field="activeFieldKey"
+          :hidden-fields="hiddenFields"
+          @selectField="handleHeaderSelect"
+          @update="handleUpdate"
+        />
+      </div>
 
-        <!-- Carousel Container -->
-        <div
-          ref="carouselRef"
-          class="flex overflow-x-auto pb-[var(--spacing-md)] snap-x snap-mandatory scrollbar-hide"
-          :style="{ gap: `${spaceBetween}px` }"
-        >
+      <!-- Products Row Container -->
+      <div
+        :class="[
+          'flex flex-col md:flex-row flex-1',
+          hasHeaderContent ? 'md:w-2/3' : 'w-full',
+        ]"
+        :style="{ gap: `${productsListSpaceBetween}px` }"
+      >
         <div
           v-for="(product, index) in data.items"
           :key="product.id || index"
-          class="flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden snap-start"
+          class="flex-1 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden"
           :class="[
-            getCardWidthClass(),
             editable && 'cursor-pointer transition-all duration-150 select-none',
             editable && !isProductActive(product, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
             editable && isProductActive(product, index) && 'outline outline-2 outline-primary -outline-offset-2',
@@ -275,12 +192,14 @@ function handleUpdate(fieldKey: string, value: unknown) {
             <div
               class="w-full overflow-hidden"
               :style="sharedMediaStyle"
-              :class="editable && 'pointer-events-none select-none'"
             >
               <img
                 :src="product.image.src"
                 :alt="product.image.alt || product.heading"
-                class="w-full h-full object-cover"
+                :class="[
+                  'w-full h-full object-cover',
+                  editable && 'pointer-events-none select-none',
+                ]"
                 :style="{ aspectRatio: mediaAspectRatio }"
               />
             </div>
@@ -294,7 +213,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
             <span class="text-[var(--color-muted)]">Add image</span>
           </div>
 
-          <!-- Content -->
+          <!-- Content (non-editable inline - edit via inspector) -->
           <div
             class="p-[var(--spacing-md)] flex flex-col flex-1"
             :class="editable && 'pointer-events-none select-none'"
@@ -368,16 +287,5 @@ function handleUpdate(fieldKey: string, value: unknown) {
         </div>
       </div>
     </div>
-    </div>
-  </component>
+  </section>
 </template>
-
-<style scoped>
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-</style>

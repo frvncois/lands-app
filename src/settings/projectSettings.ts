@@ -23,16 +23,6 @@ export const PROJECT_NAV: SettingsSection[] = [
     showInCommand: true,
   },
   {
-    id: 'analytics',
-    title: 'Analytics',
-    breadcrumbLabel: 'Analytics',
-    icon: 'app-analytics',
-    routeName: 'analytics',
-    requiresFeature: 'analytics',
-    showInHeader: true,
-    showInCommand: true,
-  },
-    {
     id: 'settings',
     title: 'Settings',
     breadcrumbLabel: 'Settings',
@@ -47,20 +37,19 @@ export const PROJECT_NAV: SettingsSection[] = [
 import DomainCard from '@/features/project-settings/DomainCard.vue'
 import SeoCard from '@/features/project-settings/SeoCard.vue'
 import PublishingCard from '@/features/project-settings/PublishingCard.vue'
-import AnalyticsCard from '@/features/project-settings/AnalyticsCard.vue'
 import CollaboratorsCard from '@/features/project-settings/CollaboratorsCard.vue'
 import PlanCard from '@/features/project-settings/PlanCard.vue'
+import BillingCard from '@/features/project-settings/BillingCard.vue'
 import DangerZoneCard from '@/features/project-settings/DangerZoneCard.vue'
 
 // Settings tabs configuration
-export type SettingsTab = 'general' | 'publishing' | 'integrations' | 'collaborators' | 'plan'
+export type SettingsTab = 'general' | 'integrations' | 'collaborators' | 'plan'
 
 export const SETTINGS_TABS: { id: SettingsTab; label: string }[] = [
   { id: 'general', label: 'General' },
-  { id: 'publishing', label: 'Publishing' },
   { id: 'integrations', label: 'Integrations' },
   { id: 'collaborators', label: 'Collaborators' },
-  { id: 'plan', label: 'Plan' },
+  { id: 'plan', label: 'Plan & Payments' },
 ]
 
 // Settings sections by tab
@@ -78,14 +67,6 @@ export const SETTINGS_GENERAL: SettingsSection[] = [
     component: DomainCard,
   },
   {
-    id: 'danger',
-    title: 'Danger Zone',
-    component: DangerZoneCard,
-  },
-]
-
-export const SETTINGS_PUBLISHING: SettingsSection[] = [
-  {
     id: 'publishing',
     title: 'Publishing',
     icon: 'lni-globe-1',
@@ -98,10 +79,9 @@ export const SETTINGS_PUBLISHING: SettingsSection[] = [
     component: SeoCard,
   },
   {
-    id: 'analytics',
-    title: 'Analytics Tracking',
-    icon: 'lni-bar-chart-4',
-    component: AnalyticsCard,
+    id: 'danger',
+    title: 'Danger Zone',
+    component: DangerZoneCard,
   },
 ]
 
@@ -121,12 +101,17 @@ export const SETTINGS_PLAN: SettingsSection[] = [
     icon: 'lni-credit-card-multiple',
     component: PlanCard,
   },
+  {
+    id: 'billing',
+    title: 'Billing',
+    icon: 'lni-credit-card-1',
+    component: BillingCard,
+  },
 ]
 
 // Legacy: All settings combined (for backwards compatibility)
 export const PROJECT_SETTINGS: SettingsSection[] = [
   ...SETTINGS_GENERAL,
-  ...SETTINGS_PUBLISHING,
   ...SETTINGS_COLLABORATORS,
   ...SETTINGS_PLAN,
 ]
