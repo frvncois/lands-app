@@ -3,8 +3,7 @@
 
 <template>
     <section>
-        <div class="preview">123</div>
-        <div class=""></div>
+        <div class="preview"></div>
     </section>
 </template>
 

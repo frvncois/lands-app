@@ -97,7 +97,6 @@ function isFieldHidden(fieldKey: string): boolean {
 
 // Hero viewport height style with dynamic spacing
 const heroViewportStyle = computed(() => ({
-  minHeight: 'var(--canvas-vh)',
   gap: `${spaceBetween.value}px`,
 }))
 </script>

@@ -21,9 +21,10 @@ onMounted(() => {
   <RouterView />
   <ToastContainer />
 
-  <!-- Assistant Toggle (fixed bottom left) -->
+  <!-- Assistant Toggle (fixed bottom right) -->
   <button
-    class="fixed bottom-4 left-4 z-50 flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+    v-if="!assistantStore.isOpen"
+    class="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
     @click="assistantStore.toggleOpen()"
   >
     <Icon name="app-ai" :size="20" />

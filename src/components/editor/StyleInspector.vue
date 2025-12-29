@@ -25,7 +25,7 @@ import Combobox from '@/components/ui/Combobox.vue'
 import type { ComboboxItem } from '@/components/ui/Combobox.vue'
 import type { FieldStyleProperties, ItemStyleProperties } from '@/types/sections'
 import { getAccordionLabels, isAccordionSectionType } from '@/lib/accordion-labels'
-import { resolveRepeaterGroupStyles, getRepeaterStylePropertyKey } from '@/lib/section-styles'
+import { resolveRepeaterGroupStyles } from '@/lib/section-styles'
 import ProjectUpload from '@/components/modal/ProjectUpload.vue'
 import ProjectUnsplash from '@/components/modal/ProjectUnsplash.vue'
 import { fontComboboxItems } from '@/lib/font-options'
@@ -33,6 +33,8 @@ import { colorOptions, fontOptions } from '@/lib/style-options'
 import { styleDefaults } from '@/lib/style-defaults'
 import { StylePopoverGroup } from '@/components/editor/style-controls'
 import { sectionStyleConfig, carouselStyleConfig, productsCarouselStyleConfig, galleryCarouselStyleConfig, heroOverlayStyleConfig, heroOverlayMediaStyleConfig, textFieldStyleConfig, buttonFieldStyleConfig, heroStackedMediaStyleConfig, mediaFieldStyleConfig, imageFieldStyleConfig, headerStyleConfig, cardsStyleConfig, productsStyleConfig, accordionStyleConfig, linksStyleConfig, contactFormFieldsStyleConfig, contactSocialLinksStyleConfig } from '@/lib/section-style-configs'
+import { useStyleInspectorSection } from '@/composables/useStyleInspectorSection'
+import { useStyleInspectorRepeater } from '@/composables/useStyleInspectorRepeater'
 
 const editor = useEditorStore()
 const themes = getAllThemes()
@@ -397,22 +399,6 @@ const activeItemSchemaWithLabels = computed(() => {
   })
 })
 
-const repeaterStyleSuffixMap = {
-  spaceBetween: 'SpaceBetween',
-  backgroundColor: 'BackgroundColor',
-  borderColor: 'BorderColor',
-  borderWidth: 'BorderWidth',
-} as const
-
-type RepeaterGroupStyleProperty = keyof typeof repeaterStyleSuffixMap
-
-function updateRepeaterGroupStyle(property: RepeaterGroupStyleProperty, value: unknown) {
-  if (!selectedSection.value || !activeRepeaterField.value) return
-  const suffix = repeaterStyleSuffixMap[property]
-  const key = getRepeaterStylePropertyKey(activeRepeaterField.value.key, suffix)
-  updateSectionStyle(key, value)
-}
-
 // Get design fields for the selected section
 const designFields = computed(() => {
   if (!selectedDefinition.value) return []
@@ -490,67 +476,64 @@ const sectionSpaceBetweenValue = computed(() => {
   return typeof value === 'number' ? value : 32
 })
 
-const isCardsSection = computed(() => selectedSection.value?.type === 'cards')
-const isCardsSplitVariant = computed(() => isCardsSection.value && selectedSection.value?.variant === 'split')
-const isCardsRepeaterGroupSelected = computed(() =>
-  isCardsSplitVariant.value &&
-  activeRepeaterField.value?.key === 'items' &&
-  !isEditingItem.value
-)
-
-// Cards item editing - item selection shows content only, styles are SHARED at section level
-const isEditingCardsItem = computed(() => isCardsSection.value && isEditingItem.value && activeItemId.value)
-
-// Products section detection (mirrors Cards behavior)
-const isProductsSection = computed(() => selectedSection.value?.type === 'products')
-const isProductsSplitVariant = computed(() => isProductsSection.value && selectedSection.value?.variant === 'split')
-const isProductsRepeaterGroupSelected = computed(() =>
-  isProductsSplitVariant.value &&
-  activeRepeaterField.value?.key === 'items' &&
-  !isEditingItem.value
-)
-
-// Products item editing - item selection shows content only, styles are SHARED at section level
-const isEditingProductsItem = computed(() => isProductsSection.value && isEditingItem.value && activeItemId.value)
-
-// Accordion section detection (mirrors Cards behavior)
-const isAccordionSection = computed(() => {
-  const type = selectedSection.value?.type
-  return type === 'faq' || type === 'menu' || type === 'events' || type === 'services'
+// Initialize section detection composable
+const sectionFlags = useStyleInspectorSection({
+  selectedSection,
+  activeRepeaterField,
+  isEditingItem,
+  activeItemId,
 })
-const isEditingAccordionItem = computed(() => isAccordionSection.value && isEditingItem.value && activeItemId.value)
 
-// Links section detection (mirrors Cards behavior)
-const isLinksSection = computed(() => selectedSection.value?.type === 'links')
-const isEditingLinksItem = computed(() => isLinksSection.value && isEditingItem.value && activeItemId.value)
+// Destructure section flags
+const {
+  isCardsSection,
+  isProductsSection,
+  isAccordionSection,
+  isLinksSection,
+  isContactSection,
+  isCTASection,
+  isCardsSplitVariant,
+  isProductsSplitVariant,
+  isCTAStackedVariant,
+  isCardsRepeaterGroupSelected,
+  isProductsRepeaterGroupSelected,
+  isEditingCardsItem,
+  isEditingProductsItem,
+  isEditingAccordionItem,
+  isEditingLinksItem,
+  isEditingContactFormField,
+  isEditingContactSocialLink,
+  isEditingSharedStyleItem,
+  isSharedStyleSection,
+} = sectionFlags
 
-// Contact section detection (mirrors Cards behavior)
-const isContactSection = computed(() => selectedSection.value?.type === 'contact')
-const isEditingContactFormField = computed(() => isContactSection.value && isEditingItem.value && activeItemId.value && activeRepeaterField.value?.key === 'formFields')
-const isEditingContactSocialLink = computed(() => isContactSection.value && isEditingItem.value && activeItemId.value && activeRepeaterField.value?.key === 'socialLinks')
+// Initialize repeater logic composable
+const repeaterLogic = useStyleInspectorRepeater({
+  sectionStyles,
+  activeRepeaterField,
+  updateSectionStyle,
+})
 
-// Combined check for any section using shared styles (Cards pattern)
-// When editing items in these sections, hide per-item visual controls
-const isEditingSharedStyleItem = computed(() =>
-  isEditingCardsItem.value ||
-  isEditingProductsItem.value ||
-  isEditingAccordionItem.value ||
-  isEditingLinksItem.value ||
-  isEditingContactSocialLink.value
-)
-
-// Check if current section uses shared styles (for repeater group level controls)
-const isSharedStyleSection = computed(() =>
-  isCardsSection.value ||
-  isProductsSection.value ||
-  isAccordionSection.value ||
-  isLinksSection.value ||
-  isContactSection.value
-)
-
-// CTA section detection
-const isCTASection = computed(() => selectedSection.value?.type === 'cta')
-const isCTAStackedVariant = computed(() => isCTASection.value && selectedSection.value?.variant === 'stacked')
+// Destructure repeater logic
+const {
+  cardsGroupStyles,
+  productsGroupStyles,
+  accordionGroupStyles,
+  linksGroupStyles,
+  contactFormFieldsGroupStyles,
+  contactSocialLinksGroupStyles,
+  updateCardsGroupStyle,
+  updateProductsGroupStyle,
+  updateAccordionGroupStyle,
+  updateLinksGroupStyle,
+  updateContactFormFieldsGroupStyle,
+  updateContactSocialLinksGroupStyle,
+  updateSharedCardStyle,
+  updateSharedProductStyle,
+  updateSharedAccordionStyle,
+  updateSharedLinkStyle,
+  updateSharedFormInputStyle,
+} = repeaterLogic
 
 // CTA layout options for dropdown
 const ctaLayoutOptions = [
@@ -575,28 +558,16 @@ function getSharedAccordionStyle<T>(key: string, defaultValue: T): T {
   return (styles[key] as T) ?? defaultValue
 }
 
-function updateSharedAccordionStyle(key: string, value: unknown) {
-  updateSectionStyle(key, value)
-}
-
 // Helper to get shared link style values from sectionStyles
 function getSharedLinkStyle<T>(key: string, defaultValue: T): T {
   const styles = sectionStyles.value as Record<string, unknown>
   return (styles[key] as T) ?? defaultValue
 }
 
-function updateSharedLinkStyle(key: string, value: unknown) {
-  updateSectionStyle(key, value)
-}
-
 // Shared form input styles - used for Contact section form inputs
 function getSharedFormInputStyle<T>(key: string, defaultValue: T): T {
   const styles = sectionStyles.value as Record<string, unknown>
   return (styles[key] as T) ?? defaultValue
-}
-
-function updateSharedFormInputStyle(key: string, value: unknown) {
-  updateSectionStyle(key, value)
 }
 
 // Shared card styles - used at section level for ALL cards
@@ -619,108 +590,10 @@ function getSharedCardStyle<T>(key: string, defaultValue: T): T {
   return (styles[key] as T) ?? defaultValue
 }
 
-function updateSharedCardStyle(key: string, value: unknown) {
-  updateSectionStyle(key, value)
-}
-
-// Merged styles for Cards StylePopoverGroup (combines repeater group styles + section styles)
-const cardsGroupStyles = computed(() => ({
-  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
-  ...sectionStyles.value,
-}))
-
-// Update handler for Cards StylePopoverGroup (routes to correct updater)
-function updateCardsGroupStyle(key: string, value: unknown) {
-  if (key === 'spaceBetween') {
-    updateRepeaterGroupStyle(key, value)
-  } else {
-    updateSharedCardStyle(key, value)
-  }
-}
-
-// Merged styles for Products StylePopoverGroup (same as Cards)
-const productsGroupStyles = computed(() => ({
-  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
-  ...sectionStyles.value,
-}))
-
-// Update handler for Products StylePopoverGroup
-function updateProductsGroupStyle(key: string, value: unknown) {
-  if (key === 'spaceBetween') {
-    updateRepeaterGroupStyle(key, value)
-  } else {
-    updateSharedProductStyle(key, value)
-  }
-}
-
-// Merged styles for Accordion StylePopoverGroup
-const accordionGroupStyles = computed(() => ({
-  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
-  ...sectionStyles.value,
-}))
-
-// Update handler for Accordion StylePopoverGroup
-function updateAccordionGroupStyle(key: string, value: unknown) {
-  if (key === 'spaceBetween') {
-    updateRepeaterGroupStyle(key, value)
-  } else {
-    updateSharedAccordionStyle(key, value)
-  }
-}
-
-// Merged styles for Links StylePopoverGroup
-const linksGroupStyles = computed(() => ({
-  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
-  ...sectionStyles.value,
-}))
-
-// Update handler for Links StylePopoverGroup
-function updateLinksGroupStyle(key: string, value: unknown) {
-  if (key === 'spaceBetween') {
-    updateRepeaterGroupStyle(key, value)
-  } else {
-    updateSharedLinkStyle(key, value)
-  }
-}
-
-// Merged styles for Contact Form Fields StylePopoverGroup
-const contactFormFieldsGroupStyles = computed(() => ({
-  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
-  ...sectionStyles.value,
-}))
-
-// Update handler for Contact Form Fields StylePopoverGroup
-function updateContactFormFieldsGroupStyle(key: string, value: unknown) {
-  if (key === 'spaceBetween') {
-    updateRepeaterGroupStyle(key, value)
-  } else {
-    updateSharedFormInputStyle(key, value)
-  }
-}
-
-// Merged styles for Contact Social Links StylePopoverGroup
-const contactSocialLinksGroupStyles = computed(() => ({
-  spaceBetween: activeRepeaterGroupStyles.value.spaceBetween,
-  ...sectionStyles.value,
-}))
-
-// Update handler for Contact Social Links StylePopoverGroup
-function updateContactSocialLinksGroupStyle(key: string, value: unknown) {
-  if (key === 'spaceBetween') {
-    updateRepeaterGroupStyle(key, value)
-  } else {
-    updateSharedLinkStyle(key, value)
-  }
-}
-
 // Helper to get shared product style values from sectionStyles (mirrors Cards)
 function getSharedProductStyle<T>(key: string, defaultValue: T): T {
   const styles = sectionStyles.value as Record<string, unknown>
   return (styles[key] as T) ?? defaultValue
-}
-
-function updateSharedProductStyle(key: string, value: unknown) {
-  updateSectionStyle(key, value)
 }
 
 // Get current item styles (shared across all items in repeater)

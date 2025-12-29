@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watchEffect, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAssistantStore } from '@/stores/assistant'
 import AssistantMessage from './AssistantMessage.vue'
 import AssistantOptions from './AssistantOptions.vue'
@@ -8,6 +9,7 @@ import AssistantThemePicker from './AssistantThemePicker.vue'
 import AssistantProjectList from './AssistantProjectList.vue'
 
 const assistantStore = useAssistantStore()
+const { chatMode, isAIProcessing } = storeToRefs(assistantStore)
 const messagesContainer = ref<HTMLElement | null>(null)
 
 function handleMinimize() {
@@ -68,13 +70,8 @@ const shouldShowOptions = computed(() => {
 })
 
 const needsInput = computed(() => {
-  // Show input when we're on step 3 of create flow (asking for project name)
-  // Check if last message is from assistant and has no options/component
-  if (!lastMessage.value || lastMessage.value.role !== 'assistant') return false
-  if (lastMessage.value.options || lastMessage.value.component) return false
-
-  // Check if we're in create flow at step 3
-  return assistantStore.currentFlow === 'create' && assistantStore.flowStep === 3
+  // ALWAYS show input - simple chat interface
+  return true
 })
 
 const needsThemePicker = computed(() => {
@@ -86,10 +83,10 @@ const needsProjectList = computed(() => {
 })
 
 const inputPlaceholder = computed(() => {
-  if (assistantStore.currentFlow === 'create' && assistantStore.flowStep === 3) {
-    return 'Enter project name...'
+  if (chatMode.value === 'chat') {
+    return 'Ask me to edit your page...'
   }
-  return 'Type your answer...'
+  return 'Ask me anything...'
 })
 
 function handleOptionSelect(optionId: string) {
@@ -97,7 +94,11 @@ function handleOptionSelect(optionId: string) {
 }
 
 function handleInputSubmit(value: string) {
-  assistantStore.submitInput(value)
+  if (chatMode.value === 'chat') {
+    assistantStore.sendChatMessage(value)
+  } else {
+    assistantStore.submitInput(value)
+  }
 }
 
 function handleThemeSelect(themeId: string) {
@@ -126,15 +127,15 @@ const canGoBack = computed(() => {
   <Teleport to="body">
     <Transition
       enter-active-class="transition-all duration-200 ease-out"
-      enter-from-class="translate-y-4 opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
+      enter-from-class="scale-75 opacity-0"
+      enter-to-class="scale-100 opacity-100"
       leave-active-class="transition-all duration-200 ease-in"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="translate-y-4 opacity-0"
+      leave-from-class="scale-100 opacity-100"
+      leave-to-class="scale-75 opacity-0"
     >
       <div
         v-if="assistantStore.isOpen"
-        class="fixed bottom-4 right-4 w-96 max-h-[500px] bg-background border border-border rounded-xl shadow-2xl flex flex-col"
+        class="fixed bottom-4 right-4 w-96 max-h-[500px] bg-background border border-border rounded-xl shadow-2xl flex flex-col origin-bottom-right"
       >
         <!-- Header -->
         <div
@@ -146,6 +147,15 @@ const canGoBack = computed(() => {
             <h3 class="text-sm font-medium">Assistant</h3>
             <!-- Loading spinner -->
             <div v-if="assistantStore.isProcessing" class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <!-- New Chat button (chat mode only) -->
+            <button
+              v-if="chatMode === 'chat' && !assistantStore.isMinimized"
+              class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              @click.stop="handleStartOver"
+              title="Start new chat"
+            >
+              New Chat
+            </button>
           </div>
           <div class="flex items-center gap-2">
             <button
@@ -183,26 +193,26 @@ const canGoBack = computed(() => {
 
             <!-- Theme Picker (if message has theme-picker component) -->
             <AssistantThemePicker
-              v-if="message.component === 'theme-picker' && message.id === lastMessage?.id"
+              v-if="chatMode !== 'chat' && message.component === 'theme-picker' && message.id === lastMessage?.id"
               @select="handleThemeSelect"
             />
 
             <!-- Project List (if message has project-list component) -->
             <AssistantProjectList
-              v-if="message.component === 'project-list' && message.id === lastMessage?.id"
+              v-if="chatMode !== 'chat' && message.component === 'project-list' && message.id === lastMessage?.id"
               @select="handleProjectSelect"
             />
           </template>
 
           <!-- Options (if last message has options) -->
           <AssistantOptions
-            v-if="shouldShowOptions && lastMessage && !assistantStore.isProcessing"
+            v-if="chatMode !== 'chat' && shouldShowOptions && lastMessage && !assistantStore.isProcessing"
             :options="lastMessage.options!"
             @select="handleOptionSelect"
           />
 
           <!-- Back / Start Over buttons -->
-          <div v-if="assistantStore.messages.length > 1 && !assistantStore.isProcessing" class="flex items-center gap-2 pt-2 border-t border-border mt-3 pt-3">
+          <div v-if="chatMode !== 'chat' && assistantStore.messages.length > 1 && !assistantStore.isProcessing" class="flex items-center gap-2 pt-2 border-t border-border mt-3 pt-3">
             <button
               v-if="canGoBack"
               class="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"

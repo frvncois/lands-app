@@ -7,7 +7,7 @@ import type { Project } from '@/types/project'
 
 import { Header, Card, Button, Icon, Badge } from '@/components/ui'
 import { ProjectsGrid, ProjectsEmpty, ProjectsSkeleton } from '@/features/projects'
-import ProjectCreate from '@/components/modal/ProjectCreate.vue'
+import ProjectCreateWizard from '@/components/modal/ProjectCreateWizard.vue'
 import ProjectDelete from '@/components/modal/ProjectDelete.vue'
 import SupportChat from '@/components/modal/SupportChat.vue'
 
@@ -177,7 +177,10 @@ function handleDeleted() {
   </div>
 
   <!-- Modals -->
-  <ProjectCreate v-model:open="showCreateModal" />
+  <ProjectCreateWizard
+    v-model:open="showCreateModal"
+    @created="(id) => router.push({ name: 'designer', params: { projectId: id } })"
+  />
 
   <ProjectDelete
     v-if="projectToDelete"

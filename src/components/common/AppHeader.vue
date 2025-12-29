@@ -12,7 +12,7 @@ import { useUserStore } from '@/stores/user'
 import { Button, Command, Dropdown, Icon, Badge } from '@/components/ui'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
-import ProjectCreate from '@/components/modal/ProjectCreate.vue'
+import ProjectCreateWizard from '@/components/modal/ProjectCreateWizard.vue'
 import ProjectTranslation from '@/components/modal/ProjectTranslation.vue'
 
 const route = useRoute()
@@ -508,7 +508,7 @@ function onProjectCreated(newProjectId: string) {
   />
 
   <!-- New Project Modal -->
-  <ProjectCreate
+  <ProjectCreateWizard
     v-model:open="showNewProjectModal"
     @created="onProjectCreated"
   />

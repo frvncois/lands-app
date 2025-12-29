@@ -14,10 +14,8 @@
                     <li class="blue">
                         <div>
                             <h3>Design</h3>
-                            <p>Customize every aspect of your site with our intuitive design tools.</p>
-                        </div>
-                        <div>
-                            123
+                            <h4>Customize every aspect of your site</h4>
+                            <p>with our intuitive design tools.</p>
                         </div>
                     </li>
                     <li class="green">
@@ -55,6 +53,7 @@
         overflow: hidden;
         ul {
             display: flex;
+            justify-content: space-evenly;
             gap: 4em;
             border-bottom: 1px solid black;
             padding: 2em 0;
@@ -70,14 +69,21 @@
         max-width: none;
             > div {
                 flex: 1;
+                > ul {
+                    margin: 0;
+                    padding: 0;
+                }
                 > ul li {
                     height: 100vh;
+                    position: sticky;
+                    top: 0;
                     overflow: hidden;
                     display: flex;
                     align-items: center;
                     flex-direction: row;
                     gap: 3em;
                     padding: 10em;
+                    list-style: none;
                     > div {
                         display: flex;
                         flex: 1;

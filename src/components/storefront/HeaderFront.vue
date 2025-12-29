@@ -19,7 +19,7 @@ import LandsLogo from '@/assets/LandsLogo.vue';
 
 <style scoped>
     header {
-        position: sticky;
+        position: relative;
         top: 1em;
         left: auto;
         right: auto;

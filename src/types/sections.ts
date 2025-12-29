@@ -630,7 +630,7 @@ export interface Template {
   thumbnail?: string
 
   /** Category for grouping */
-  category: 'blank' | 'portfolio' | 'business' | 'creator' | 'landing'
+  category: 'blank' | 'portfolio' | 'business' | 'creator' | 'landing' | 'preset'
 
   /** Theme ID to apply initially */
   themeId: string

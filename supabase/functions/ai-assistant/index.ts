@@ -52,6 +52,47 @@ Content: heading (content, level:h1-h6), text (content), button (label, url), im
 Stack settings: direction (horizontal/vertical), gap, align (start/center/end)
 Styles: padding/margin {top,bottom,left,right}, gap, fontSize, fontWeight (400-700), color, backgroundColor, borderRadius`
 
+const PROJECT_EDIT_SYSTEM_PROMPT = `You are a landing page editor assistant for Lands.
+
+## RESPONSE FORMAT
+Always respond with valid JSON:
+{
+  "message": "Description of what you did, or clarifying question",
+  "actions": []
+}
+
+## ACTIONS YOU CAN TAKE
+
+ADD_SECTION - Add a new section
+{"type": "ADD_SECTION", "sectionType": "cards", "variant": "grid", "position": "end", "data": {"headline": "...", "items": [...]}}
+
+UPDATE_SECTION - Modify existing section content or styles
+{"type": "UPDATE_SECTION", "sectionId": "xxx", "data": {"headline": "New Title"}, "styles": {"backgroundColor": "#f5f5f5"}}
+
+DELETE_SECTION - Remove a section
+{"type": "DELETE_SECTION", "sectionId": "xxx"}
+
+REORDER_SECTION - Change section position
+{"type": "REORDER_SECTION", "sectionId": "xxx", "position": 0}
+
+UPDATE_THEME - Change theme colors or fonts
+{"type": "UPDATE_THEME", "colors": {"primary": "#007bff"}, "fonts": {"heading": "Playfair Display"}}
+
+SELECT_SECTION - Select a section for editing
+{"type": "SELECT_SECTION", "sectionId": "xxx"}
+
+## RULES
+1. Only use section types from AVAILABLE SECTIONS
+2. For testimonials/reviews, use "cards" section
+3. For FAQ, use accordion type "faq"
+4. For pricing, use "cards" or "products" section
+5. When generating content, create realistic placeholder text relevant to the context
+6. If request is unclear, ask a clarifying question with empty actions array
+7. You can execute multiple actions in one response
+8. Preserve existing content unless explicitly asked to change it
+9. When asked to "change design" or "make it look better", update styles not content
+10. Use theme colors (var(--color-primary), etc.) when setting colors unless specific color requested`
+
 interface RequestBody {
   message: string
   projectId?: string
@@ -72,6 +113,35 @@ interface RequestBody {
       description: string
       actions: unknown[]
     }>
+    // Project editing context
+    availableSections?: Array<{
+      type: string
+      displayName: string
+      description: string
+      useCases?: string[]
+      variants: string[]
+      contentFields: string[]
+    }>
+    currentPage?: {
+      sections?: Array<{
+        id: string
+        type: string
+        variant: string
+        position: number
+      }>
+      theme?: {
+        id: string
+        primaryColor: string
+        backgroundColor: string
+        fontHeading: string
+        fontBody: string
+      }
+    }
+    selectedSection?: {
+      id: string
+      type: string
+      variant: string
+    }
   }
   history?: Array<{
     role: 'user' | 'assistant'
@@ -150,17 +220,63 @@ serve(async (req) => {
       )
     }
 
-    // Build enhanced system prompt with project context
+    // Build enhanced system prompt
     let systemPrompt = BASE_SYSTEM_PROMPT
 
-    // Add relevant example template (compact, single line)
-    if (context?.exampleTemplate) {
-      systemPrompt += `\n\n## TEMPLATE FOR THIS REQUEST\nUse this as your template:\n${context.exampleTemplate}`
-    }
+    // Check if we're in project editing mode
+    if (context?.availableSections && Array.isArray(context.availableSections)) {
+      systemPrompt = PROJECT_EDIT_SYSTEM_PROMPT
 
-    // Add style instructions if provided (CRITICAL for consistency)
-    if (context?.styleInstructions) {
-      systemPrompt += `\n\n## PROJECT STYLES (USE THESE COLORS)\n${context.styleInstructions}`
+      // Add available sections documentation
+      systemPrompt += '\n\n## AVAILABLE SECTIONS\n'
+      for (const section of context.availableSections) {
+        systemPrompt += `\n### ${section.displayName} (${section.type})\n`
+        systemPrompt += `Description: ${section.description}\n`
+        if (section.useCases?.length > 0) {
+          systemPrompt += `Use cases: ${section.useCases.join(', ')}\n`
+        }
+        systemPrompt += `Variants: ${section.variants.join(', ')}\n`
+        systemPrompt += `Fields: ${section.contentFields.join(', ')}\n`
+      }
+
+      // Add current page state
+      if (context.currentPage) {
+        systemPrompt += '\n\n## CURRENT PAGE STATE\n'
+        if (context.currentPage.sections?.length > 0) {
+          systemPrompt += 'Current sections:\n'
+          for (const section of context.currentPage.sections) {
+            systemPrompt += `${section.position + 1}. ${section.type} (${section.variant}) - ID: ${section.id}\n`
+          }
+        } else {
+          systemPrompt += 'Page is currently empty.\n'
+        }
+
+        // Add theme info
+        if (context.currentPage.theme) {
+          systemPrompt += `\nTheme: ${context.currentPage.theme.id}\n`
+          systemPrompt += `Primary: ${context.currentPage.theme.primaryColor}\n`
+          systemPrompt += `Background: ${context.currentPage.theme.backgroundColor}\n`
+          systemPrompt += `Font heading: ${context.currentPage.theme.fontHeading}\n`
+          systemPrompt += `Font body: ${context.currentPage.theme.fontBody}\n`
+        }
+      }
+
+      // Add selected section if any
+      if (context.selectedSection) {
+        systemPrompt += '\n\n## SELECTED SECTION\n'
+        systemPrompt += `Type: ${context.selectedSection.type}\n`
+        systemPrompt += `Variant: ${context.selectedSection.variant}\n`
+        systemPrompt += `ID: ${context.selectedSection.id}\n`
+      }
+    } else {
+      // Original flow - add existing context logic
+      if (context?.exampleTemplate) {
+        systemPrompt += `\n\n## TEMPLATE FOR THIS REQUEST\nUse this as your template:\n${context.exampleTemplate}`
+      }
+
+      if (context?.styleInstructions) {
+        systemPrompt += `\n\n## PROJECT STYLES (USE THESE COLORS)\n${context.styleInstructions}`
+      }
     }
 
     const messages: GroqMessage[] = [

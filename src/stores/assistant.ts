@@ -7,6 +7,10 @@ import { MAIN_MENU_OPTIONS, PROJECT_CONTEXT_OPTIONS } from '@/lib/assistant/flow
 import { PROJECT_CATEGORIES } from '@/lib/assistant/categories'
 import { createProjectFromAssistant } from '@/lib/assistant/actions'
 import { useProjectsStore } from '@/stores/projects'
+import { buildAIContext } from '@/lib/assistant/context-builder'
+import { sendProjectEditMessage } from '@/lib/assistant/api'
+import { executeActions } from '@/lib/assistant/action-executor'
+import type { ChatMessage } from '@/lib/assistant/action-types'
 
 export interface Message {
   id: string
@@ -18,35 +22,21 @@ export interface Message {
   isTyping?: boolean
 }
 
-interface AssistantState {
-  messages: Message[]
-  currentFlow: string | null
-  flowData: Record<string, unknown>
-  hasSeenAssistant: boolean
-}
+const STORAGE_KEY = 'lands-assistant-seen'
 
-const STORAGE_KEY = 'lands-assistant-state'
-
-function loadPersistedState(): AssistantState {
+function loadHasSeenAssistant(): boolean {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
+    return stored === 'true'
   } catch (e) {
     console.error('Failed to load assistant state:', e)
-  }
-  return {
-    messages: [],
-    currentFlow: null,
-    flowData: {},
-    hasSeenAssistant: false
+    return false
   }
 }
 
-function saveState(state: AssistantState) {
+function saveHasSeenAssistant(hasSeen: boolean) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    localStorage.setItem(STORAGE_KEY, hasSeen.toString())
   } catch (e) {
     console.error('Failed to save assistant state:', e)
   }
@@ -63,6 +53,9 @@ export const useAssistantStore = defineStore('assistant', () => {
   const currentProjectId = ref<string | null>(null)
   const flowStep = ref(0)
   const isProcessing = ref(false)
+  const chatMode = ref<'flow' | 'chat'>('flow')
+  const chatHistory = ref<ChatMessage[]>([])
+  const isAIProcessing = ref(false)
 
   // Computed
   const currentProject = computed(() => {
@@ -70,26 +63,18 @@ export const useAssistantStore = defineStore('assistant', () => {
     return projectsStore.getProjectById(currentProjectId.value)
   })
 
-  // Persisted state
-  const persisted = loadPersistedState()
-  const messages = ref<Message[]>(persisted.messages)
-  const currentFlow = ref<string | null>(persisted.currentFlow)
-  const flowData = ref<Record<string, unknown>>(persisted.flowData)
-  const hasSeenAssistant = ref<boolean>(persisted.hasSeenAssistant)
+  // Persisted state (only hasSeenAssistant)
+  const hasSeenAssistant = ref<boolean>(loadHasSeenAssistant())
 
-  // Watch for changes to persisted state
-  watch(
-    [messages, currentFlow, flowData, hasSeenAssistant],
-    () => {
-      saveState({
-        messages: messages.value,
-        currentFlow: currentFlow.value,
-        flowData: flowData.value,
-        hasSeenAssistant: hasSeenAssistant.value
-      })
-    },
-    { deep: true }
-  )
+  // Non-persisted conversation state (always starts fresh)
+  const messages = ref<Message[]>([])
+  const currentFlow = ref<string | null>(null)
+  const flowData = ref<Record<string, unknown>>({})
+
+  // Watch for changes to hasSeenAssistant
+  watch(hasSeenAssistant, (value) => {
+    saveHasSeenAssistant(value)
+  })
 
   // Helper to simulate typing delay
   function delay(ms: number) {
@@ -103,13 +88,29 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   // Actions
   function open() {
+    console.log('[ASSISTANT] open() called')
     isOpen.value = true
     isMinimized.value = false
+    // Reset processing states when opening
+    isProcessing.value = false
+    isAIProcessing.value = false
+
+    // Clear all conversation state - fresh start every time
+    messages.value = []
+    chatHistory.value = []
+    currentFlow.value = null
+    flowData.value = {}
+    flowStep.value = 0
+
+    console.log('[ASSISTANT] About to call initializeAssistant()')
     initializeAssistant()
   }
 
   function close() {
     isOpen.value = false
+    // Reset processing states when closing
+    isProcessing.value = false
+    isAIProcessing.value = false
   }
 
   function minimize() {
@@ -117,7 +118,11 @@ export const useAssistantStore = defineStore('assistant', () => {
   }
 
   function toggleOpen() {
-    isOpen.value = !isOpen.value
+    if (isOpen.value) {
+      close()
+    } else {
+      open()
+    }
   }
 
   function reset() {
@@ -125,6 +130,9 @@ export const useAssistantStore = defineStore('assistant', () => {
     currentFlow.value = null
     flowData.value = {}
     flowStep.value = 0
+    chatHistory.value = []
+    isProcessing.value = false
+    isAIProcessing.value = false
   }
 
   function startOver() {
@@ -184,30 +192,45 @@ export const useAssistantStore = defineStore('assistant', () => {
   }
 
   function initializeAssistant() {
-    // Only initialize if messages is empty
-    if (messages.value.length > 0) return
+    console.log('[ASSISTANT] initializeAssistant called', {
+      currentProjectId: currentProjectId.value,
+      routeContext: routeContext.value,
+      currentProject: currentProject.value,
+      messagesLength: messages.value.length
+    })
 
-    // Show welcome message based on context
-    if (routeContext.value === 'project' && currentProjectId.value && currentProject.value) {
-      // Project-specific welcome
-      addMessage({
-        role: 'assistant',
-        content: `Working on ${currentProject.value.title}. How can I help?`,
-        options: PROJECT_CONTEXT_OPTIONS
-      })
+    // ALWAYS use chat mode - simple chat interface
+    chatMode.value = 'chat'
+
+    // Show context-aware welcome message
+    let welcomeMessage = 'Hi! I can help you create and edit your landing pages. What would you like to do?'
+
+    if (currentProjectId.value && routeContext.value === 'project' && currentProject.value) {
+      console.log('[ASSISTANT] Adding project-specific welcome')
+      welcomeMessage = `Working on ${currentProject.value.title}. I can help you edit your page - just ask!`
     } else {
-      // Standard welcome - check if first visit
-      const isFirstVisit = !hasSeenAssistant.value
-      const welcomeMessage = isFirstVisit
-        ? 'Welcome to Lands! I\'m here to help you create your first landing page. What would you like to do?'
-        : 'Welcome to Lands! I\'m here to help you create your landing page. What would you like to do?'
-
-      addMessage({
-        role: 'assistant',
-        content: welcomeMessage,
-        options: MAIN_MENU_OPTIONS
-      })
+      console.log('[ASSISTANT] Adding generic welcome')
     }
+
+    addMessage({
+      role: 'assistant',
+      content: welcomeMessage,
+    })
+
+    console.log('[ASSISTANT] After addMessage, messagesLength:', messages.value.length)
+
+    // Fallback: if messages still empty after 100ms, add a simple message
+    setTimeout(() => {
+      if (messages.value.length === 0) {
+        console.error('[ASSISTANT] Messages still empty after init, adding fallback')
+        messages.value.push({
+          id: `${Date.now()}-fallback`,
+          role: 'assistant',
+          content: 'Hi! How can I help you today?',
+          timestamp: Date.now()
+        })
+      }
+    }, 100)
   }
 
   function startFlow(flowId: FlowId) {
@@ -572,6 +595,76 @@ export const useAssistantStore = defineStore('assistant', () => {
     isProcessing.value = false
   }
 
+  async function sendChatMessage(userMessage: string) {
+    console.log('[ASSISTANT] sendChatMessage called', { userMessage, currentProjectId: currentProjectId.value })
+
+    if (!currentProjectId.value) {
+      console.error('[ASSISTANT] No currentProjectId, aborting')
+      return
+    }
+
+    isAIProcessing.value = true
+    isProcessing.value = true
+
+    // Add user message to UI
+    addMessage({
+      role: 'user',
+      content: userMessage,
+    })
+
+    try {
+      // Build context
+      console.log('[ASSISTANT] Building context...')
+      const context = buildAIContext()
+      console.log('[ASSISTANT] Context built:', context)
+
+      // Call AI
+      console.log('[ASSISTANT] Calling AI...')
+      const response = await sendProjectEditMessage(userMessage, context, chatHistory.value)
+      console.log('[ASSISTANT] AI response:', response)
+
+      // Execute actions
+      let executionSummary = ''
+      if (response.actions.length > 0) {
+        console.log('[ASSISTANT] Executing actions:', response.actions)
+        const result = await executeActions(response.actions)
+        console.log('[ASSISTANT] Execution result:', result)
+        if (result.failed > 0) {
+          executionSummary = `\n\n(${result.executed} actions succeeded, ${result.failed} failed)`
+        } else if (result.executed > 0) {
+          executionSummary = `\n\n(${result.executed} actions executed)`
+        }
+      }
+
+      // Add assistant message to UI
+      addMessage({
+        role: 'assistant',
+        content: response.message + executionSummary,
+      })
+
+      // Update chat history for context
+      chatHistory.value.push(
+        { role: 'user', content: userMessage },
+        { role: 'assistant', content: response.message }
+      )
+
+      // Keep last 10 exchanges for context window
+      if (chatHistory.value.length > 20) {
+        chatHistory.value = chatHistory.value.slice(-20)
+      }
+    } catch (error) {
+      console.error('[ASSISTANT] Error:', error)
+      // Show error message
+      addMessage({
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      })
+    } finally {
+      isAIProcessing.value = false
+      isProcessing.value = false
+    }
+  }
+
   return {
     // State
     isOpen,
@@ -585,6 +678,8 @@ export const useAssistantStore = defineStore('assistant', () => {
     isProcessing,
     currentProject,
     hasSeenAssistant,
+    chatMode,
+    isAIProcessing,
 
     // Actions
     open,
@@ -600,7 +695,8 @@ export const useAssistantStore = defineStore('assistant', () => {
     checkFirstVisit,
     startFlow,
     selectOption,
-    submitInput
+    submitInput,
+    sendChatMessage,
   }
 })
 

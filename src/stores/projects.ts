@@ -1037,6 +1037,22 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
+  async function checkSlugAvailable(slug: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('slug', slug)
+        .maybeSingle()
+
+      if (error) throw error
+      return data === null // Available if no matching project found
+    } catch (e) {
+      console.error('Failed to check slug availability:', e)
+      throw e
+    }
+  }
+
   function clearError() {
     error.value = null
   }
@@ -1067,6 +1083,7 @@ export const useProjectsStore = defineStore('projects', () => {
     updateProject,
     deleteProject,
     duplicateProject,
+    checkSlugAvailable,
     // Actions - Project Content
     fetchProjectContent,
     saveProjectContent,

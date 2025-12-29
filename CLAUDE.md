@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Development Commands
 
 ```bash
@@ -13,211 +11,408 @@ npm run preview      # Preview production build
 
 **Node requirement:** ^20.19.0 || >=22.12.0
 
+---
+
 ## Architecture Overview
 
-This is **lands-app**, a Vue 3 landing page builder with section-based editing. Users create landing pages by adding, configuring, and styling pre-defined section types.
+**lands-app** is a Vue 3 landing page builder using section-based editing. Users create pages by adding, configuring, and styling pre-defined section types.
 
-### Core Concepts
+### Core Primitives
 
-**Section-Based Architecture** (not block-by-block):
-- `SectionDefinition` = structure + component + schema (in `lib/section-registry.ts`)
-- `SectionInstance` = content data + style overrides (stored in editor state)
-- Section components receive props and emit `update`/`selectField` events
-- Inspector UI is auto-generated from section field schemas
+| Primitive | Description | Rules |
+|-----------|-------------|-------|
+| **Section** | Top-level layout unit | Cannot nest. Has variant, data, styles. |
+| **Group** | Repeater collection inside section | Must live inside Section. Owns spacing. |
+| **Child** | Individual item inside Group | Must live inside Group. Content only, NO styles. |
+| **Field** | Non-repeater content field | Owns its own styles via `fieldStyles`. |
 
-**Theme System:**
-- Themes are pure data (`lib/themes/`) defining tokens: colors, fonts, spacing, radius, buttons
-- Applied as CSS variables to document root for preview
-- Per-section and per-field style overrides layer on top of base theme
+### Critical Invariants (DO NOT VIOLATE)
 
-### Directory Structure
+1. **No per-child styling** — All children in a Group share styles
+2. **No inline styles in section components** — Use resolvers only
+3. **No section-specific styling pipelines** — All sections use same resolver system
+4. **No direct style key access in components** — Always use resolver functions
+
+---
+
+## Directory Structure
 
 ```
 src/
 ├── components/
-│   ├── editor/       # PageEditor, SectionList, StyleInspector, FieldRenderer
-│   ├── sections/     # Section components (Hero, Links, Features, etc.)
-│   ├── ui/           # 50+ base UI components (Button, Card, Modal, etc.)
-│   ├── auth/         # Login/signup
-│   ├── common/       # AppHeader, shared layout
-│   ├── modal/        # Dialogs (ProjectCreate, ProjectDelete, etc.)
-│   └── storefront/   # Published site display
-├── stores/           # Pinia state management
-│   ├── user.ts       # Auth + profile + preferences
-│   ├── projects.ts   # Projects collection + collaborators
-│   ├── project.ts    # Current project settings
-│   ├── editor.ts     # Sections, theme, undo/redo history
-│   └── toast.ts      # Notifications
+│   ├── editor/
+│   │   ├── PageEditor.vue         # Three-panel layout (list, canvas, inspector)
+│   │   ├── SectionList.vue        # Left panel - section tree with drag-drop
+│   │   ├── SectionRenderer.vue    # Renders section using registry component
+│   │   ├── StyleInspector.vue     # Right panel - style/content editing
+│   │   ├── FieldRenderer.vue      # Renders form fields by schema type
+│   │   ├── AddSectionMenu.vue     # Section type picker
+│   │   └── style-controls/        # Reusable style control components
+│   │       ├── StylePopoverGroup.vue
+│   │       ├── SliderRow.vue
+│   │       ├── ColorRow.vue
+│   │       ├── SelectRow.vue
+│   │       ├── ToggleRow.vue
+│   │       └── types.ts
+│   ├── sections/                  # Section components by type
+│   │   ├── hero/                  # HeroOverlay, HeroSplit, HeroStacked, HeroPresentation
+│   │   ├── cards/                 # CardsGrid, CardsRow, CardsCarousel, CardsSplit
+│   │   ├── products/              # ProductsGrid, ProductsRow, ProductsCarousel, ProductsSplit
+│   │   ├── contact/               # ContactStacked, ContactSplit
+│   │   ├── links/                 # LinksGrid, LinksStacked, LinksSplit
+│   │   ├── accordion/             # AccordionList, AccordionSplit
+│   │   ├── gallery/               # GalleryGrid, GallerySlider, GalleryMasonry
+│   │   ├── EditableText.vue       # Inline text editing wrapper
+│   │   └── MediaPlaceholder.vue   # Image/video placeholder with upload
+│   └── ui/                        # Base UI components (Button, Input, Modal, etc.)
+├── stores/
+│   ├── editor.ts                  # Sections, theme, selection, undo/redo
+│   ├── user.ts                    # Auth + profile
+│   ├── projects.ts                # Projects collection
+│   ├── project.ts                 # Current project settings
+│   └── toast.ts                   # Notifications
 ├── lib/
-│   ├── supabase/     # Client setup, caching, connection health
-│   ├── themes/       # Theme definitions (minimal, bold, dark)
-│   └── section-registry.ts  # Section definitions + factory
+│   ├── section-registry.ts        # Section definitions + factory
+│   ├── section-styles.ts          # Style resolver functions
+│   ├── section-style-configs.ts   # StylePopoverGroup configurations
+│   ├── style-defaults.ts          # Default values for style controls
+│   ├── style-options.ts           # Color/font option arrays
+│   ├── themes/                    # Theme definitions
+│   │   ├── index.ts               # Registry + CSS variable injection
+│   │   ├── minimal.ts
+│   │   ├── dark.ts
+│   │   └── bold.ts
+│   └── accordion-labels.ts        # Dynamic labels for accordion variants
 ├── types/
-│   ├── sections.ts   # SectionInstance, FieldSchema, ThemeTokens
-│   └── project.ts    # Project, Collaborator, Integration types
-├── composables/      # useTheme, useFeatureGate, useProjectCapabilities
-├── views/            # Top-level pages (DesignerView, DashboardView, etc.)
-└── router/           # Vue Router config + auth guards
+│   ├── sections.ts                # SectionInstance, FieldSchema, Theme types
+│   └── project.ts                 # Project, PageContent types
+└── composables/
+    └── useTheme.ts                # Theme application
 ```
 
-### Key Patterns
+---
 
-**Editor Layout (PageEditor.vue):**
-```
-┌────────────────────────────────────────────┐
-│              AppHeader + Toolbar            │
-├──────────────┬──────────────┬──────────────┤
-│ SectionList  │    Canvas    │   Style      │
-│   (left)     │   (center)   │  Inspector   │
-│              │              │   (right)    │
-└──────────────┴──────────────┴──────────────┘
-```
+## Section Registry (`lib/section-registry.ts`)
 
-**Section Component Contract:**
+### SectionDefinition Structure
+
 ```typescript
-// Props
-data: TData              // Content from editor
-variant: string          // Layout variant
-editable?: boolean       // Edit mode flag
-activeField?: string     // Currently selected field
-fieldStyles?: FieldStyles
-sectionStyles?: SectionStyleProperties
-
-// Emits
-emit('update', key, value)    // Update field value
-emit('selectField', key)      // Select field for styling
+interface SectionDefinition {
+  type: string                    // Unique ID: 'hero', 'cards', etc.
+  displayName: string             // UI label
+  icon: string                    // lineicons name
+  defaultVariant: string          // Initial variant ID
+  variants: SectionVariant[]      // Available layout variants
+  schema: FieldSchema[]           // Content fields
+  styleOptions?: StyleOptionsMap  // Variant-specific style controls
+  component: Component            // Vue component
+  createDefaultData: () => object // Factory for initial data
+}
 ```
 
-**Field Schema Types:** TextField, RichTextField, ImageField, UrlField, BooleanField, SelectField, RepeaterField
+### Adding a New Section
 
-### State Management
-
-- `useEditorStore`: Sections array, theme (base + overrides), history (max 50 states), dirty flag
-- `useUserStore`: Auth state, profile, preferences (light/dark/system theme)
-- `useProjectsStore`: All projects, project contents, integrations, collaborators
-- `useProjectStore`: Current project's extended settings (SEO, analytics, domains)
-
-### Supabase Integration
-
-- PKCE auth flow with auto token refresh
-- In-memory cache: `cachedFetch(key, fetcher, ttl)`, `invalidateCache(prefix?)`
-- Connection health monitoring with recovery on tab visibility change
-- Tables: profiles, user_preferences, projects, project_settings, project_contents, project_integrations, collaborators
-
-### Styling
-
-- Tailwind CSS 4 with `@tailwindcss/vite` plugin
-- Theme tokens become CSS variables (`--color-primary`, `--font-heading`, `--spacing-section`)
-- 11 custom fonts loaded via @font-face in `assets/main.css`
-- Dark mode via `useTheme()` composable + `document.documentElement.classList.toggle('dark')`
-
-### Keyboard Shortcuts (in editor)
-
-- `Cmd+Z` / `Cmd+Shift+Z`: Undo/redo
-- `Delete`/`Backspace`: Delete selected section
-- Arrow keys: Navigate between sections
+1. Create component in `components/sections/{type}/`
+2. Add definition to `section-registry.ts`
+3. Add to `sectionRegistry` Map
+4. Add style configs to `section-style-configs.ts` if needed
+5. Add resolvers to `section-styles.ts` if needed
 
 ---
 
-## 🔒 Frozen Architecture (V2)
+## Style System
 
-> ⚠️ HISTORICAL NOTE
-> The V2 section system freeze is no longer active.
-> This section is kept for reference only.
+### Style Storage Model
 
-The Lands V2 section system is **FROZEN**.
+```typescript
+// SectionInstance.styles (section-level)
+{
+  backgroundColor: '#ffffff',
+  spacingX: 32,
+  spacingY: 64,
+  spaceBetween: 16,
+  // Shared child styles (flat, prefixed)
+  cardPaddingX: 16,
+  cardBorderRadius: 8,
+  linkLabelFontSize: 14,
+}
 
-Claude must treat the following as **non-negotiable constraints**:
+// SectionInstance.fieldStyles (per non-repeater field)
+{
+  headline: { fontSize: 48, color: '#000' },
+  buttonText: { backgroundColor: '#007bff' },
+}
+```
 
-### What Is Frozen
-- Section registry
-- Approved section list
-- Variants per section
-- Content schemas
-- Style options and their scoping rules
-- Inspector separation (Content vs Style)
+### Style Key Naming Convention
 
-### Approved Sections (V2)
-The ONLY allowed section types are:
+**Pattern:** `{prefix}{PropertyName}`
 
-- header
-- hero
-- media-text
-- text
-- cards
-- links
-- accordion
-- cta
-- subscribe
-- contact
-- gallery
-- footer
-- logoList
-- promo
+| Section Type | Prefix | Example Keys |
+|--------------|--------|--------------|
+| Cards | `card` | `cardPaddingX`, `cardRadius`, `cardBorderColor` |
+| Products | `product` | `productPaddingX`, `productRadius` |
+| Links | `link` | `linkPaddingX`, `linkLabelFontSize` |
+| Accordion | `accordion` | `accordionRadius`, `accordionHeadlineFontSize` |
+| Form Fields | `formInput` | `formInputFontSize`, `formInputBorderColor` |
 
-No other section types may exist in V2.
+### Resolver Functions (`lib/section-styles.ts`)
 
-### Hard Rules (Must Never Be Broken)
-- Do NOT add new sections
-- Do NOT add new variants
-- Do NOT add new style options
-- Do NOT add inspector UI without schema backing
-- Do NOT introduce layout logic into themes
-- Do NOT introduce theme logic into sections
-- Do NOT keep "temporary" or commented-out code paths
+| Scope | Resolver | Purpose |
+|-------|----------|---------|
+| Section | `resolveSectionStyles()` | Background, padding |
+| Group | `resolveRepeaterGroupStyles()` | Space between items |
+| Field (text) | `getTextStyle()` | Font size, color, line height |
+| Field (button) | `getButtonStyle()` | Button-specific styles |
+| Field (media) | `getMediaStyle()` | Aspect ratio, border radius |
+| Shared Cards | `resolveSharedCardContainerStyles()` | Card container styles |
+| Shared Links | `resolveSharedLinkContainerStyles()` | Link container styles |
+| Shared Accordion | `resolveSharedAccordionContainerStyles()` | Accordion item styles |
 
-### Allowed Extensions
-The ONLY allowed ways to extend Lands post-freeze are:
-- Client-specific custom blocks (namespaced, isolated)
-- Client-specific themes
-- Future V3 work in a separate branch
+**Rule:** Components MUST use resolvers. Never access style keys directly.
 
-Core V2 sections must NEVER be modified for client needs.
+```typescript
+// ✅ CORRECT
+const containerStyle = resolveSharedCardContainerStyles(props.sectionStyles)
 
-### Audit Requirement
-Any attempt to change:
-- sections
-- variants
-- schemas
-- inspector behavior
-- registry contents
+// ❌ WRONG
+const padding = props.sectionStyles?.cardPaddingX ?? 16
+```
 
-REQUIRES a full system self-audit before implementation.
+### Style Config Structure (`lib/section-style-configs.ts`)
 
-Details are documented in FREEZE.md.
-
-Claude must obey these rules at all times.
+```typescript
+export const cardsStyleConfig = {
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'spaceBetween', label: 'Space between', min: 0, max: 64, unit: 'px' },
+      { type: 'slider', key: 'cardPaddingX', label: 'Padding X', min: 0, max: 48, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { spaceBetween: 16, cardPaddingX: 16 },
+  },
+  borders: { /* ... */ },
+  background: { /* ... */ },
+}
+```
 
 ---
 
-## 🔓 Active Refactor Mode (V3)
+## StyleInspector Selection Contract
 
-The Lands codebase is now in **Active Refactor Mode**.
+| Selection State | Inspector Shows |
+|-----------------|-----------------|
+| Section (no field active) | Section-level styles (background, spacing) |
+| Group (repeater field, no item) | Group styles + Shared child styles |
+| Child (item selected) | **Content fields ONLY** — no styles |
+| Field (non-repeater) | Field-level styles (font, color, spacing) |
 
-Claude is explicitly allowed to:
-- Modify section schemas
-- Add or remove fields
-- Add or remove style options
-- Change rendering behavior
-- Improve consistency across sections
-- Introduce new editor capabilities
+**If a child shows style controls → BUG**
 
-### Refactor Rules (Must Be Followed)
+---
 
-Even though the freeze is lifted, the following rules apply:
+## Section Component Contract
 
-- Changes must be intentional, not accidental
-- Similar sections should converge, not diverge
-- Style systems must remain centralized
-- Field and section responsibilities must stay clear
-- No "temporary" hacks or commented-out logic
-- When a change affects multiple sections, it should be applied consistently
+### Props
 
-### Required Discipline
+```typescript
+defineProps<{
+  data: SectionData              // Content data
+  sectionStyles?: SectionStyleProperties
+  fieldStyles?: FieldStyles
+  itemStyles?: ItemStyleProperties
+  editable?: boolean             // Editor mode
+  activeField?: string | null    // Currently selected field
+  activeNodeId?: string | null
+  activeNodeType?: ActiveNodeType | null
+  activeFieldKey?: string | null
+  activeItemId?: string | null
+  hiddenFields?: string[]
+}>()
+```
 
-For every significant change, Claude must:
-- Explain WHY the change is needed
-- Explain WHAT existing behavior is replaced
-- Identify any breaking changes
+### Emits
 
-This is not experimentation — it is controlled evolution.
+```typescript
+defineEmits<{
+  selectField: [payload: SelectionPayload | string]
+  update: [fieldKey: string, value: unknown]
+}>()
+```
+
+### Component Structure Pattern
+
+```vue
+<script setup lang="ts">
+// 1. Imports
+import { computed } from 'vue'
+import { resolveSectionStyles, getTextStyle, resolveSharedCardContainerStyles } from '@/lib/section-styles'
+import EditableText from '../EditableText.vue'
+
+// 2. Props/Emits
+const props = defineProps<{ /* ... */ }>()
+const emit = defineEmits<{ /* ... */ }>()
+
+// 3. Computed styles (ALWAYS use resolvers)
+function getSectionStyle(): Record<string, string> {
+  return resolveSectionStyles(props.sectionStyles)
+}
+
+function getItemContainerStyle(): Record<string, string> {
+  return resolveSharedCardContainerStyles(props.sectionStyles)
+}
+
+// 4. Event handlers
+function handleSelectField(fieldKey: string) {
+  emit('selectField', fieldKey)
+}
+</script>
+```
+
+---
+
+## Adding New Style Options
+
+### 1. Add style config (`lib/section-style-configs.ts`)
+
+```typescript
+export const newSectionStyleConfig = {
+  spacing: {
+    icon: 'content-spacing',
+    title: 'Spacing',
+    controls: [
+      { type: 'slider', key: 'newSectionPaddingX', label: 'Padding X', min: 0, max: 48, unit: 'px' },
+    ] as StyleControl[],
+    defaults: { newSectionPaddingX: 16 },
+  },
+}
+```
+
+### 2. Add resolver (`lib/section-styles.ts`)
+
+```typescript
+export function resolveSharedNewSectionStyles(
+  sectionStyles: SectionStyleProperties | undefined
+): Record<string, string> {
+  const result: Record<string, string> = {}
+  if (!sectionStyles) return result
+  
+  const styles = sectionStyles as Record<string, unknown>
+  if (styles.newSectionPaddingX !== undefined) {
+    result.paddingLeft = `${styles.newSectionPaddingX}px`
+    result.paddingRight = `${styles.newSectionPaddingX}px`
+  }
+  return result
+}
+```
+
+### 3. Use in StyleInspector.vue
+
+```vue
+<StylePopoverGroup
+  :icon="newSectionStyleConfig.spacing.icon"
+  :title="newSectionStyleConfig.spacing.title"
+  :controls="newSectionStyleConfig.spacing.controls"
+  :styles="sectionStyles"
+  :defaults="newSectionStyleConfig.spacing.defaults"
+  @update="(key, value) => updateSectionStyle(key, value)"
+/>
+```
+
+### 4. Use resolver in section component
+
+```typescript
+const containerStyle = computed(() => resolveSharedNewSectionStyles(props.sectionStyles))
+```
+
+---
+
+## Theme System (`lib/themes/`)
+
+### Theme Structure
+
+```typescript
+interface Theme {
+  id: string
+  name: string
+  isDark: boolean
+  tokens: {
+    colors: ColorTokens      // background, foreground, primary, accent, etc.
+    fonts: FontTokens        // heading, body, mono
+    fontScale: FontScaleTokens
+    spacing: SpacingTokens
+    radius: RadiusTokens
+    button: ButtonTokens
+  }
+  sectionPresets?: Record<string, SectionPreset>
+}
+```
+
+### Adding a New Theme
+
+1. Create `lib/themes/{name}.ts`
+2. Export `{name}Theme` object
+3. Add to registry in `lib/themes/index.ts`
+
+---
+
+## Common Patterns
+
+### Repeater Group Style Merging
+
+```typescript
+const groupStyles = computed(() => ({
+  spaceBetween: resolveRepeaterGroupStyles(props.sectionStyles, 'items').spaceBetween,
+  ...sectionStyles.value,
+}))
+```
+
+### Conditional Section Detection
+
+```typescript
+const isCardsSection = computed(() => selectedSection.value?.type === 'cards')
+const isAccordionSection = computed(() => 
+  ['faq', 'menu', 'events', 'services'].includes(selectedSection.value?.type ?? '')
+)
+```
+
+### Hidden Field Check
+
+```typescript
+function isFieldHidden(fieldKey: string): boolean {
+  return props.hiddenFields?.includes(fieldKey) ?? false
+}
+```
+
+---
+
+## DO NOT
+
+1. ❌ Add per-child styling
+2. ❌ Put inline styles in section components
+3. ❌ Access style keys directly without resolvers
+4. ❌ Create section-specific style pipelines
+5. ❌ Add temporary exceptions without updating EDITOR_SPECS.md
+6. ❌ Hardcode style values in templates
+7. ❌ Skip validation when adding sections to registry
+
+---
+
+## File Change Checklist
+
+When modifying editor:
+
+- [ ] Does change fit Section → Group → Child model?
+- [ ] Are styles resolved via existing resolvers?
+- [ ] Does StyleInspector selection behave correctly?
+- [ ] Are style keys following naming convention?
+- [ ] Is EDITOR_SPECS.md still accurate?
+
+When adding new section:
+
+- [ ] Definition in `section-registry.ts`
+- [ ] Component in `components/sections/{type}/`
+- [ ] Style configs in `section-style-configs.ts`
+- [ ] Resolvers in `section-styles.ts`
+- [ ] Detection logic in StyleInspector if needed

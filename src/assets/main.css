@@ -252,6 +252,10 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  --front-heading: 'Clash Grotesk', 'Satoshi', sans-serif;
+}
+
 @theme {
   --font-sans: 'Geist Sans', sans-serif;
   --font-mono: 'Geist Mono', monospace;

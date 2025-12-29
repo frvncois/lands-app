@@ -10,7 +10,7 @@
             </li>
             <li><p>Build a microsite for your brand, drop, event, service list, link-in-bio, presave, promo, or anything else — all in minutes, with a designer finish.</p></li>
             <li>
-                <a href="#">Get Started</a>
+                <a href="#">Get Started for free</a>
                 <h4>Start for free. No credit card required.</h4>
             </li>
         </ul>
@@ -32,6 +32,8 @@
     }
     h2, h3 {
         font-size: 6em;
+        font-family: 'Clash Grotesk';
+        font-weight: 700;
         line-height: 0.8;
         text-transform: uppercase;
     }
@@ -44,13 +46,14 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 1.5em;
+        gap: 2.5em;
         min-height: 55svh;
     }
     li:last-of-type {
         display: flex;
         flex-direction: column;
         gap: 0.5em;
+        text-align: center;
         & h4 {
             font-size: 0.75em;
             color: gray;

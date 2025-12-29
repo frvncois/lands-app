@@ -23,7 +23,7 @@ const settings = computed(() => projectStore.settings)
         <Input
           :model-value="settings.slug"
           placeholder="my-project"
-          prefix="lands.app/"
+          suffix=".lands.app"
           @update:model-value="projectStore.updateSlug($event as string)"
         />
       </FormField>
