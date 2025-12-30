@@ -6,7 +6,7 @@ export const personalWebsitePreset: UseCasePreset = {
   description: 'Your home on the internet',
   icon: 'user',
   categoryId: 'personal',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'personal-hero',
@@ -23,7 +23,7 @@ export const portfolioPreset: UseCasePreset = {
   description: 'Showcase your best work',
   icon: 'image',
   categoryId: 'personal',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'personal-hero',
@@ -40,7 +40,7 @@ export const resumeCvPreset: UseCasePreset = {
   description: 'Digital resume for job seekers',
   icon: 'file',
   categoryId: 'personal',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'personal-hero',
@@ -90,7 +90,7 @@ export const mediaKitPreset: UseCasePreset = {
   description: 'Attract brand partnerships',
   icon: 'star',
   categoryId: 'personal',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'personal-hero',
@@ -107,7 +107,7 @@ export const speakerPagePreset: UseCasePreset = {
   description: 'Get booked for speaking gigs',
   icon: 'microphone',
   categoryId: 'personal',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'personal-hero',
@@ -124,7 +124,7 @@ export const jobApplicationPreset: UseCasePreset = {
   description: 'Stand out to employers',
   icon: 'briefcase',
   categoryId: 'personal',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'personal-hero',
@@ -141,7 +141,7 @@ export const digitalBusinessCardPreset: UseCasePreset = {
   description: 'Share your contact info easily',
   icon: 'credit-card',
   categoryId: 'personal',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'personal-hero',

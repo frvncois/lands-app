@@ -9,7 +9,7 @@ export const creatorTemplate: Template = {
   name: 'Creator',
   description: 'Perfect for link-in-bio and creator pages',
   category: 'creator',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     {
       type: 'hero',

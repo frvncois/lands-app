@@ -6,10 +6,11 @@
  * Passes data, variant, theme, and editing capabilities as props.
  */
 
-import { computed } from 'vue'
+import { computed, ref, provide } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { getSectionDefinition } from '@/lib/section-registry'
 import type { SectionInstance, SelectionPayload } from '@/types/sections'
+import SectionContextMenu from './SectionContextMenu.vue'
 
 const props = defineProps<{
   section: SectionInstance
@@ -146,6 +147,29 @@ function handleSectionClick() {
   emit('select')
   editor.selectSection(props.section.id)
 }
+
+// Context menu refs
+const sectionMenuRef = ref<InstanceType<typeof SectionContextMenu> | null>(null)
+const contentMenuRef = ref<InstanceType<typeof SectionContextMenu> | null>(null)
+const activeContentField = ref<string | null>(null)
+
+// Right-click handlers
+function handleSectionContextMenu(event: MouseEvent) {
+  if (!props.isEditing) return
+  event.preventDefault()
+  sectionMenuRef.value?.open(event)
+}
+
+function handleContentContextMenu(event: MouseEvent, fieldKey: string) {
+  if (!props.isEditing) return
+  event.preventDefault()
+  event.stopPropagation()
+  activeContentField.value = fieldKey
+  contentMenuRef.value?.open(event)
+}
+
+// Expose content context menu handler to child components via provide
+provide('contentContextMenu', handleContentContextMenu)
 </script>
 
 <template>
@@ -158,6 +182,7 @@ function handleSectionClick() {
       isHeaderSticky && 'sticky top-0 z-50'
     ]"
     @click.stop="handleSectionClick"
+    @contextmenu="handleSectionContextMenu"
   >
     <!-- Section wrapper for editor interactions -->
     <div v-if="isEditing" class="flex absolute top-0 left-0 right-0 pointer-events-none z-10">
@@ -194,5 +219,21 @@ function handleSectionClick() {
     <div v-else class="p-8 text-center bg-destructive/10 text-destructive font-sans">
       Unknown section type: {{ section.type }}
     </div>
+
+    <!-- Section context menu -->
+    <SectionContextMenu
+      ref="sectionMenuRef"
+      :section="section"
+      location="canvas"
+    />
+
+    <!-- Content context menu -->
+    <SectionContextMenu
+      v-if="activeContentField"
+      ref="contentMenuRef"
+      :section="section"
+      :field-key="activeContentField"
+      location="canvas"
+    />
   </div>
 </template>

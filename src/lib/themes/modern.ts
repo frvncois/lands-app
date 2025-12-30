@@ -1,8 +1,8 @@
 import type { Theme } from '@/types/sections'
 
-export const minimalTheme: Theme = {
-  id: 'minimal',
-  name: 'Minimal',
+export const modernTheme: Theme = {
+  id: 'modern',
+  name: 'Modern',
   description: 'Clean and modern with generous whitespace',
   isDark: false,
 

@@ -9,6 +9,10 @@ export const personalHero: SectionBlueprint = {
     subheadline: 'Designer, Developer, Creator',
     primaryCTA: { label: 'Get in Touch', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const personalBlueprints: SectionBlueprint[] = [

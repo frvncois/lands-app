@@ -26,6 +26,10 @@ export const albumHero: SectionBlueprint = {
     subheadline: 'Available on all platforms',
     primaryCTA: { label: 'Pre-Save', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const djHero: SectionBlueprint = {
@@ -48,6 +52,10 @@ export const podcastHero: SectionBlueprint = {
     subheadline: 'New episodes every week',
     primaryCTA: { label: 'Listen Now', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const labelHero: SectionBlueprint = {
@@ -68,6 +76,10 @@ export const studioHero: SectionBlueprint = {
     headline: 'Studio Name',
     subheadline: 'Professional Recording & Production',
     primaryCTA: { label: 'Book a Session', url: '#' },
+  },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
   },
 }
 
@@ -91,6 +103,10 @@ export const composerHero: SectionBlueprint = {
     subheadline: 'Film • TV • Games',
     primaryCTA: { label: 'Listen to Reel', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const teacherHero: SectionBlueprint = {
@@ -101,6 +117,10 @@ export const teacherHero: SectionBlueprint = {
     headline: 'Music Lessons',
     subheadline: 'Piano • Guitar • Voice',
     primaryCTA: { label: 'Book a Lesson', url: '#' },
+  },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
   },
 }
 
@@ -250,12 +270,37 @@ export const lessonTypes: SectionBlueprint = {
 
 export const subscribeNewsletter: SectionBlueprint = {
   id: 'subscribe-newsletter',
-  type: 'cta',
+  type: 'subscribe',
   variant: 'stacked',
   dataOverrides: {
     headline: 'Stay Updated',
-    paragraph: 'Get the latest news and updates',
-    primaryCTA: { label: 'Subscribe', url: '#' },
+    paragraph: 'Get the latest news and updates delivered to your inbox.',
+    emailPlaceholder: 'Enter your email',
+    submitButton: { label: 'Subscribe', url: '#' },
+  },
+}
+
+export const musicSubscribe: SectionBlueprint = {
+  id: 'music-subscribe',
+  type: 'subscribe',
+  variant: 'stacked',
+  dataOverrides: {
+    headline: 'Join the Mailing List',
+    paragraph: 'Be the first to hear about new releases, tour dates, and exclusive content.',
+    emailPlaceholder: 'Your email',
+    submitButton: { label: 'Sign Up', url: '#' },
+  },
+}
+
+export const fanClubSubscribe: SectionBlueprint = {
+  id: 'fan-club-subscribe',
+  type: 'subscribe',
+  variant: 'split',
+  dataOverrides: {
+    headline: 'Join the Fan Club',
+    paragraph: 'Get early access to tickets, exclusive merch, and behind-the-scenes content.',
+    emailPlaceholder: 'Enter your email',
+    submitButton: { label: 'Join Now', url: '#' },
   },
 }
 
@@ -284,4 +329,6 @@ export const musicBlueprints: SectionBlueprint[] = [
   musicPortfolio,
   lessonTypes,
   subscribeNewsletter,
+  musicSubscribe,
+  fanClubSubscribe,
 ]

@@ -24,7 +24,7 @@ export const singleProductPreset: UseCasePreset = {
   description: 'One product, one focus',
   icon: 'package',
   categoryId: 'commerce',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'product-launch-hero',
@@ -41,7 +41,7 @@ export const digitalProductsPreset: UseCasePreset = {
   description: 'Sell ebooks, templates, and downloads',
   icon: 'download',
   categoryId: 'commerce',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'product-launch-hero',
@@ -57,7 +57,7 @@ export const coursesWorkshopsPreset: UseCasePreset = {
   description: 'Sell your knowledge online',
   icon: 'graduation',
   categoryId: 'commerce',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'product-launch-hero',
@@ -74,7 +74,7 @@ export const affiliateHubPreset: UseCasePreset = {
   description: 'Curate and share your favorite products',
   icon: 'link',
   categoryId: 'commerce',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'product-launch-hero',
@@ -90,7 +90,7 @@ export const domainResalePreset: UseCasePreset = {
   description: 'Sell your premium domain',
   icon: 'globe',
   categoryId: 'commerce',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'product-launch-hero',

@@ -9,7 +9,7 @@ import { useToast } from '@/stores/toast'
 // Default content for new projects
 function createDefaultPageContent(): PageContent {
   return {
-    themeId: 'minimal',
+    themeId: 'modern',
     sections: [],
     meta: {
       title: '',

@@ -30,7 +30,7 @@ export const albumPresavePreset: UseCasePreset = {
   description: 'Build hype for your upcoming release',
   icon: 'music-note',
   categoryId: 'music-creative',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'album-hero',
@@ -64,7 +64,7 @@ export const djProducerPreset: UseCasePreset = {
   description: 'Bookings, mixes, and upcoming shows',
   icon: 'control-panel',
   categoryId: 'music-creative',
-  themeId: 'dark',
+  themeId: 'bold',
   sections: [
     'simple-header',
     'dj-hero',
@@ -83,7 +83,7 @@ export const labelCollectivePreset: UseCasePreset = {
   description: 'Showcase your roster and releases',
   icon: 'tag',
   categoryId: 'music-creative',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'label-hero',
@@ -101,7 +101,7 @@ export const studioServicesPreset: UseCasePreset = {
   description: 'Promote your recording and production services',
   icon: 'microphone',
   categoryId: 'music-creative',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'studio-hero',
@@ -139,7 +139,7 @@ export const podcastPreset: UseCasePreset = {
   description: 'Grow your podcast audience',
   icon: 'mic',
   categoryId: 'music-creative',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'podcast-hero',
@@ -157,7 +157,7 @@ export const audiobookPreset: UseCasePreset = {
   description: 'Promote your audiobook or spoken word content',
   icon: 'book',
   categoryId: 'music-creative',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'album-hero',
@@ -174,7 +174,7 @@ export const soundDesignerPreset: UseCasePreset = {
   description: 'Showcase your sound design work',
   icon: 'waveform',
   categoryId: 'music-creative',
-  themeId: 'dark',
+  themeId: 'bold',
   sections: [
     'simple-header',
     'composer-hero',
@@ -192,7 +192,7 @@ export const composerPreset: UseCasePreset = {
   description: 'Film, TV, and game composition portfolio',
   icon: 'music-note',
   categoryId: 'music-creative',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'composer-hero',
@@ -210,7 +210,7 @@ export const musicTeacherPreset: UseCasePreset = {
   description: 'Offer music lessons and grow your student base',
   icon: 'graduation',
   categoryId: 'music-creative',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'music-teacher-hero',

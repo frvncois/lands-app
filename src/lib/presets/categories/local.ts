@@ -6,7 +6,7 @@ export const realEstatePreset: UseCasePreset = {
   description: 'Showcase listings and generate leads',
   icon: 'home',
   categoryId: 'local',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'real-estate-hero',
@@ -41,7 +41,7 @@ export const landscapingPreset: UseCasePreset = {
   description: 'Beautiful lawns and outdoor spaces',
   icon: 'tree',
   categoryId: 'local',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'real-estate-hero',
@@ -59,7 +59,7 @@ export const cleaningPreset: UseCasePreset = {
   description: 'Professional cleaning for homes and offices',
   icon: 'spray',
   categoryId: 'local',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'real-estate-hero',
@@ -113,7 +113,7 @@ export const yogaPilatesPreset: UseCasePreset = {
   description: 'Classes, schedules, and community',
   icon: 'heart',
   categoryId: 'local',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'real-estate-hero',
@@ -131,7 +131,7 @@ export const tattooShopPreset: UseCasePreset = {
   description: 'Showcase your art and book consultations',
   icon: 'pen',
   categoryId: 'local',
-  themeId: 'dark',
+  themeId: 'bold',
   sections: [
     'centeredHeader',
     'real-estate-hero',
@@ -149,7 +149,7 @@ export const hairSalonPreset: UseCasePreset = {
   description: 'Services, stylists, and appointments',
   icon: 'scissors',
   categoryId: 'local',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'real-estate-hero',

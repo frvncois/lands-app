@@ -598,6 +598,9 @@ export interface TemplateSectionData {
 
   /** Default content data */
   data: Record<string, unknown>
+
+  /** Optional style overrides */
+  styles?: Record<string, unknown>
 }
 
 /**

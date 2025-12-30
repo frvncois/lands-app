@@ -56,6 +56,7 @@ export const useAssistantStore = defineStore('assistant', () => {
   const chatMode = ref<'flow' | 'chat'>('flow')
   const chatHistory = ref<ChatMessage[]>([])
   const isAIProcessing = ref(false)
+  const prefillInput = ref('')
 
   // Computed
   const currentProject = computed(() => {
@@ -665,6 +666,16 @@ export const useAssistantStore = defineStore('assistant', () => {
     }
   }
 
+  function prefillMessage(message: string) {
+    prefillInput.value = message
+  }
+
+  function clearPrefill() {
+    const msg = prefillInput.value
+    prefillInput.value = ''
+    return msg
+  }
+
   return {
     // State
     isOpen,
@@ -680,6 +691,7 @@ export const useAssistantStore = defineStore('assistant', () => {
     hasSeenAssistant,
     chatMode,
     isAIProcessing,
+    prefillInput,
 
     // Actions
     open,
@@ -697,6 +709,8 @@ export const useAssistantStore = defineStore('assistant', () => {
     selectOption,
     submitInput,
     sendChatMessage,
+    prefillMessage,
+    clearPrefill,
   }
 })
 

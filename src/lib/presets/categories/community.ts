@@ -6,7 +6,7 @@ export const nonprofitPreset: UseCasePreset = {
   description: 'Share your mission and accept donations',
   icon: 'heart',
   categoryId: 'community',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'nonprofit-hero',
@@ -24,7 +24,7 @@ export const fundraisingPreset: UseCasePreset = {
   description: 'Raise money for your cause',
   icon: 'dollar',
   categoryId: 'community',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'nonprofit-hero',
@@ -41,7 +41,7 @@ export const communityGroupPreset: UseCasePreset = {
   description: 'Connect people around a shared interest',
   icon: 'users',
   categoryId: 'community',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'nonprofit-hero',
@@ -58,7 +58,7 @@ export const churchPreset: UseCasePreset = {
   description: 'Welcome visitors and share your faith',
   icon: 'heart',
   categoryId: 'community',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'nonprofit-hero',
@@ -74,7 +74,7 @@ export const openSourcePreset: UseCasePreset = {
   description: 'Document and promote your project',
   icon: 'code',
   categoryId: 'community',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'nonprofit-hero',
@@ -90,7 +90,7 @@ export const volunteerSignupPreset: UseCasePreset = {
   description: 'Recruit volunteers for your cause',
   icon: 'hand',
   categoryId: 'community',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'nonprofit-hero',

@@ -15,6 +15,10 @@ export const freelancerHero: SectionBlueprint = {
     primaryCTA: { label: 'Hire Me', url: '#' },
     secondaryCTA: { label: 'View Work', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const agencyHero: SectionBlueprint = {
@@ -37,6 +41,10 @@ export const consultantHero: SectionBlueprint = {
     subheadline: 'Business Strategy & Growth',
     primaryCTA: { label: 'Book a Call', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const coachHero: SectionBlueprint = {
@@ -47,6 +55,10 @@ export const coachHero: SectionBlueprint = {
     headline: 'Coach Name',
     subheadline: 'Executive & Life Coaching',
     primaryCTA: { label: 'Book Discovery Call', url: '#' },
+  },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
   },
 }
 
@@ -92,6 +104,10 @@ export const marketingHero: SectionBlueprint = {
     subheadline: 'Full-Service Marketing Agency',
     primaryCTA: { label: 'Get Started', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const seoHero: SectionBlueprint = {
@@ -114,6 +130,10 @@ export const techServicesHero: SectionBlueprint = {
     subheadline: 'Support • Security • Cloud',
     primaryCTA: { label: 'Get Support', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const legalHero: SectionBlueprint = {
@@ -124,6 +144,10 @@ export const legalHero: SectionBlueprint = {
     headline: 'Firm Name',
     subheadline: 'Legal & Accounting Services',
     primaryCTA: { label: 'Schedule Consultation', url: '#' },
+  },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
   },
 }
 

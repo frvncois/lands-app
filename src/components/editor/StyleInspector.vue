@@ -679,7 +679,7 @@ function deleteItem() {
 </script>
 
 <template>
-  <div class="flex flex-col h-full select-none">
+  <div class="flex flex-col h-full select-none" data-tour="inspector">
     <!-- Breadcrumb Header -->
     <div class="flex items-center gap-1.5 h-14 px-4 py-3 border-b border-border">
       <button

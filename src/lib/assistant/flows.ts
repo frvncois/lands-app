@@ -56,9 +56,9 @@ export const PROJECT_CONTEXT_OPTIONS: FlowOption[] = [
 
 export const THEME_OPTIONS = [
   {
-    id: 'minimal',
-    label: 'Minimal',
-    description: 'Clean and simple design with plenty of whitespace'
+    id: 'modern',
+    label: 'Modern',
+    description: 'Clean and minimal with generous whitespace'
   },
   {
     id: 'bold',
@@ -66,8 +66,18 @@ export const THEME_OPTIONS = [
     description: 'Strong, vibrant design with high contrast'
   },
   {
-    id: 'dark',
-    label: 'Dark',
-    description: 'Modern dark theme with elegant styling'
+    id: 'soft',
+    label: 'Soft',
+    description: 'Warm and approachable with rounded elements'
+  },
+  {
+    id: 'editorial',
+    label: 'Editorial',
+    description: 'Refined typography for content-focused sites'
+  },
+  {
+    id: 'classic',
+    label: 'Classic',
+    description: 'Timeless and professional, trustworthy feel'
   }
 ]

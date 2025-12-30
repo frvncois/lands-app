@@ -10,7 +10,7 @@ export const freelancerPreset: UseCasePreset = {
   description: 'Showcase your skills and attract clients',
   icon: 'user',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'freelancer-hero',
@@ -49,7 +49,7 @@ export const consultantPreset: UseCasePreset = {
   description: 'Build credibility and generate leads',
   icon: 'briefcase',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'consultant-hero',
@@ -68,7 +68,7 @@ export const coachMentorPreset: UseCasePreset = {
   description: 'Connect with potential clients',
   icon: 'heart',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'coach-hero',
@@ -88,7 +88,7 @@ export const photographerPreset: UseCasePreset = {
   description: 'Display your portfolio beautifully',
   icon: 'camera',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'photographer-hero',
@@ -107,7 +107,7 @@ export const videographerPreset: UseCasePreset = {
   description: 'Showcase your video work',
   icon: 'video',
   categoryId: 'services',
-  themeId: 'dark',
+  themeId: 'bold',
   sections: [
     'simple-header',
     'videographer-hero',
@@ -126,7 +126,7 @@ export const copywriterPreset: UseCasePreset = {
   description: 'Words that sell, stories that connect',
   icon: 'pencil',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'copywriter-hero',
@@ -165,7 +165,7 @@ export const seoAdsPreset: UseCasePreset = {
   description: 'Help businesses grow online',
   icon: 'search',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'seo-hero',
@@ -185,7 +185,7 @@ export const techServicesPreset: UseCasePreset = {
   description: 'Technology solutions and support',
   icon: 'laptop',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'tech-services-hero',
@@ -203,7 +203,7 @@ export const legalAccountingPreset: UseCasePreset = {
   description: 'Professional services with trust',
   icon: 'balance',
   categoryId: 'services',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'legal-hero',

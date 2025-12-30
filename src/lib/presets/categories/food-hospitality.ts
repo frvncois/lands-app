@@ -10,7 +10,7 @@ export const restaurantPreset: UseCasePreset = {
   description: 'Showcase your menu and accept reservations',
   icon: 'dinner',
   categoryId: 'food-hospitality',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'restaurant-hero',
@@ -29,7 +29,7 @@ export const cafePreset: UseCasePreset = {
   description: 'Cozy vibes, great coffee, and your menu',
   icon: 'coffee-cup',
   categoryId: 'food-hospitality',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'cafe-hero',
@@ -47,7 +47,7 @@ export const barPubPreset: UseCasePreset = {
   description: 'Drinks menu, events, and atmosphere',
   icon: 'glass',
   categoryId: 'food-hospitality',
-  themeId: 'dark',
+  themeId: 'bold',
   sections: [
     'centeredHeader',
     'bar-hero',
@@ -65,7 +65,7 @@ export const bistroPreset: UseCasePreset = {
   description: 'Casual dining with a refined touch',
   icon: 'restaurant',
   categoryId: 'food-hospitality',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'bistro-hero',
@@ -103,7 +103,7 @@ export const bakeryPreset: UseCasePreset = {
   description: 'Fresh baked goods and online orders',
   icon: 'cake',
   categoryId: 'food-hospitality',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'bakery-hero',
@@ -121,7 +121,7 @@ export const cateringPreset: UseCasePreset = {
   description: 'Services, menus, and booking inquiries',
   icon: 'delivery',
   categoryId: 'food-hospitality',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'catering-hero',
@@ -159,7 +159,7 @@ export const wineryBreweryPreset: UseCasePreset = {
   description: 'Tastings, tours, and shop your products',
   icon: 'wine',
   categoryId: 'food-hospitality',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'winery-hero',

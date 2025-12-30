@@ -11,6 +11,19 @@ export const eventHero: SectionBlueprint = {
   },
 }
 
+export const eventSubscribe: SectionBlueprint = {
+  id: 'event-subscribe',
+  type: 'subscribe',
+  variant: 'stacked',
+  dataOverrides: {
+    headline: 'Stay Updated',
+    paragraph: 'Subscribe for event updates and announcements.',
+    emailPlaceholder: 'Your email',
+    submitButton: { label: 'Subscribe', url: '#' },
+  },
+}
+
 export const eventsBlueprints: SectionBlueprint[] = [
   eventHero,
+  eventSubscribe,
 ]

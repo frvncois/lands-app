@@ -133,6 +133,15 @@ export interface ContactData {
   socialLinks: LinkItem[]
 }
 
+// --- Subscribe ---
+export interface SubscribeData {
+  headline?: string
+  subheadline?: string
+  paragraph?: string
+  emailPlaceholder?: string
+  submitButton: CTAData
+}
+
 // --- Accordion ---
 export type AccordionUseCase = 'faq' | 'menu' | 'event'
 
@@ -381,6 +390,14 @@ const contactSchema: FieldSchema[] = [
       { type: 'text', key: 'description', label: 'Description' },
     ],
   },
+]
+
+const subscribeSchema: FieldSchema[] = [
+  { type: 'text', key: 'headline', label: 'Headline', placeholder: 'Stay Updated' },
+  { type: 'text', key: 'subheadline', label: 'Subheadline', placeholder: 'Subscribe to our newsletter' },
+  { type: 'text', key: 'paragraph', label: 'Paragraph', placeholder: 'Get the latest news and updates delivered to your inbox.' },
+  { type: 'text', key: 'emailPlaceholder', label: 'Email Placeholder', placeholder: 'Enter your email' },
+  { type: 'link', key: 'submitButton', label: 'Submit Button' },
 ]
 
 const accordionSchema: FieldSchema[] = [
@@ -683,6 +700,37 @@ const contactSection: SectionDefinition<ContactData> = {
   }),
 }
 
+const subscribeSection: SectionDefinition<SubscribeData> = {
+  type: 'subscribe',
+  displayName: 'Subscribe',
+  icon: 'section-subscribe',
+  description: 'Newsletter subscription with email input and submit button',
+  useCase: 'Newsletter sign-ups, email collection, subscription forms',
+  previewImage: '/previews/subscribe.png',
+  defaultVariant: 'stacked',
+  variants: [
+    { id: 'stacked', label: 'Stacked' },
+    { id: 'split', label: 'Split' },
+  ],
+  styleOptions: {
+    split: [
+      { key: 'splitLayout', label: 'Layout', type: 'select', options: [{ value: 'title-content', label: 'Title | Content' }, { value: 'content-title', label: 'Content | Title' }], default: 'title-content' },
+    ],
+  },
+  schema: subscribeSchema,
+  component: defineAsyncComponent(() => import('@/components/sections/SubscribeSection.vue')),
+  createDefaultData: () => ({
+    headline: 'Stay Updated',
+    subheadline: 'Subscribe to our newsletter',
+    paragraph: 'Get the latest news and updates delivered to your inbox.',
+    emailPlaceholder: 'Enter your email',
+    submitButton: {
+      label: 'Subscribe',
+      url: '#',
+    },
+  }),
+}
+
 const accordionVariants = [
   { id: 'list', label: 'List' },
   { id: 'split', label: 'Split' },
@@ -981,6 +1029,7 @@ export const sectionRegistry = new Map<string, SectionDefinition>([
   ['gallery', gallerySection as unknown as SectionDefinition],
   ['links', linksSection as unknown as SectionDefinition],
   ['contact', contactSection as unknown as SectionDefinition],
+  ['subscribe', subscribeSection as unknown as SectionDefinition],
   ['footer', footerSection as unknown as SectionDefinition],
 ])
 

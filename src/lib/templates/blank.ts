@@ -9,6 +9,6 @@ export const blankTemplate: Template = {
   name: 'Blank',
   description: 'Start from scratch with an empty canvas',
   category: 'blank',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [],
 }

@@ -24,7 +24,7 @@ export const concertPartyPreset: UseCasePreset = {
   description: 'Promote your show or party',
   icon: 'music',
   categoryId: 'events',
-  themeId: 'dark',
+  themeId: 'bold',
   sections: [
     'simple-header',
     'event-hero',
@@ -41,7 +41,7 @@ export const bookingPreset: UseCasePreset = {
   description: 'Let clients book appointments',
   icon: 'clock',
   categoryId: 'events',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'event-hero',
@@ -59,7 +59,7 @@ export const conferencePreset: UseCasePreset = {
   description: 'Multi-day conference with speakers',
   icon: 'users',
   categoryId: 'events',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'event-hero',
@@ -77,7 +77,7 @@ export const workshopPreset: UseCasePreset = {
   description: 'Hands-on learning event',
   icon: 'tool',
   categoryId: 'events',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'event-hero',
@@ -94,7 +94,7 @@ export const webinarPreset: UseCasePreset = {
   description: 'Online presentation or training',
   icon: 'video',
   categoryId: 'events',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'event-hero',
@@ -110,7 +110,7 @@ export const meetupPreset: UseCasePreset = {
   description: 'Community gathering',
   icon: 'users',
   categoryId: 'events',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'event-hero',
@@ -127,7 +127,7 @@ export const retreatPreset: UseCasePreset = {
   description: 'Immersive getaway experience',
   icon: 'sun',
   categoryId: 'events',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'event-hero',
@@ -145,7 +145,7 @@ export const exhibitionPreset: UseCasePreset = {
   description: 'Art exhibition or gallery opening',
   icon: 'frame',
   categoryId: 'events',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'simple-header',
     'event-hero',

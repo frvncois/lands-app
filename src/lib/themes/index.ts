@@ -8,9 +8,11 @@
  */
 
 import type { Theme, ThemeTokens, SectionPreset } from '@/types/sections'
-import { minimalTheme } from './minimal'
-import { darkTheme } from './dark'
+import { modernTheme } from './modern'
 import { boldTheme } from './bold'
+import { softTheme } from './soft'
+import { editorialTheme } from './editorial'
+import { classicTheme } from './classic'
 
 // ============================================
 // THEME REGISTRY
@@ -20,9 +22,11 @@ import { boldTheme } from './bold'
  * All available themes
  */
 export const themeRegistry: Map<string, Theme> = new Map([
-  ['minimal', minimalTheme],
-  ['dark', darkTheme],
+  ['modern', modernTheme],
   ['bold', boldTheme],
+  ['soft', softTheme],
+  ['editorial', editorialTheme],
+  ['classic', classicTheme],
 ])
 
 /**
@@ -43,7 +47,7 @@ export function getAllThemes(): Theme[] {
  * Get default theme
  */
 export function getDefaultTheme(): Theme {
-  return minimalTheme
+  return modernTheme
 }
 
 // ============================================
@@ -198,6 +202,8 @@ export function getEffectiveVariant(
 }
 
 // Re-export themes for direct access
-export { minimalTheme } from './minimal'
-export { darkTheme } from './dark'
+export { modernTheme } from './modern'
 export { boldTheme } from './bold'
+export { softTheme } from './soft'
+export { editorialTheme } from './editorial'
+export { classicTheme } from './classic'

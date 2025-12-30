@@ -14,6 +14,7 @@ import { getSectionDefinition } from '@/lib/section-registry'
 import type { FieldSchema, RepeaterField, SectionInstance, SectionDefinition } from '@/types/sections'
 import Icon from '@/components/ui/Icon.vue'
 import AddSectionMenu from './AddSectionMenu.vue'
+import SectionContextMenu from './SectionContextMenu.vue'
 import { getAccordionLabels, isAccordionSectionType } from '@/lib/accordion-labels'
 
 const editor = useEditorStore()
@@ -334,6 +335,30 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
   e.stopPropagation()
   editor.toggleFieldVisibility(sectionId, fieldKey)
 }
+
+// Context menu state
+const activeMenuSection = ref<SectionListEntry | null>(null)
+const sectionMenuRef = ref<InstanceType<typeof SectionContextMenu> | null>(null)
+const contentMenuRef = ref<InstanceType<typeof SectionContextMenu> | null>(null)
+const activeContentField = ref<string | null>(null)
+
+// Section right-click handler
+function handleSectionContextMenu(event: MouseEvent, section: SectionListEntry) {
+  event.preventDefault()
+  event.stopPropagation()
+  activeMenuSection.value = section
+  activeContentField.value = null
+  sectionMenuRef.value?.open(event)
+}
+
+// Content field right-click handler
+function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fieldKey: string) {
+  event.preventDefault()
+  event.stopPropagation()
+  activeMenuSection.value = section
+  activeContentField.value = fieldKey
+  contentMenuRef.value?.open(event)
+}
 </script>
 
 <template>
@@ -341,7 +366,9 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
     <!-- Header -->
     <div class="flex items-center justify-between px-4 py-3 h-14 border-b border-border">
       <span class="text-sm font-semibold text-foreground">Sections</span>
-      <AddSectionMenu />
+      <div data-tour="add-section">
+        <AddSectionMenu />
+      </div>
     </div>
 
     <!-- Empty State -->
@@ -379,6 +406,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
             draggedIndex !== null && section.type !== 'header' && section.type !== 'footer' && 'cursor-grabbing'
           ]"
           @click="selectSection(section.id)"
+          @contextmenu="handleSectionContextMenu($event, section)"
         >
           <!-- Expand Toggle -->
           <button
@@ -429,6 +457,7 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
               editor.isFieldHidden(section.id, field.key) && 'opacity-50'
             ]"
             @click="selectField(section.id, field.key)"
+            @contextmenu="handleFieldContextMenu($event, section, field.key)"
           >
             <Icon
               :name="getFieldIcon(field)"
@@ -625,5 +654,21 @@ function toggleFieldVisibility(e: MouseEvent, sectionId: string, fieldKey: strin
         </div>
       </div>
     </div>
+
+    <!-- Context menus -->
+    <SectionContextMenu
+      v-if="activeMenuSection"
+      ref="sectionMenuRef"
+      :section="activeMenuSection"
+      location="sidebar"
+    />
+
+    <SectionContextMenu
+      v-if="activeMenuSection && activeContentField"
+      ref="contentMenuRef"
+      :section="activeMenuSection"
+      :field-key="activeContentField"
+      location="sidebar"
+    />
   </div>
 </template>

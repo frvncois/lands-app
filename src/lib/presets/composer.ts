@@ -44,11 +44,18 @@ export function composeTemplate(
     const defaultData = definition.createDefaultData()
     const mergedData = deepMerge(defaultData, blueprint.dataOverrides ?? {})
 
-    sections.push({
+    const sectionData: TemplateSectionData = {
       type: blueprint.type,
       variant: blueprint.variant,
       data: mergedData,
-    })
+    }
+
+    // Apply style overrides if provided
+    if (blueprint.styleOverrides) {
+      sectionData.styles = blueprint.styleOverrides
+    }
+
+    sections.push(sectionData)
   }
 
   return {

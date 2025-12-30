@@ -11,6 +11,19 @@ export const startupHero: SectionBlueprint = {
   },
 }
 
+export const waitlistSubscribe: SectionBlueprint = {
+  id: 'waitlist-subscribe',
+  type: 'subscribe',
+  variant: 'stacked',
+  dataOverrides: {
+    headline: 'Join the Waitlist',
+    paragraph: 'Be the first to know when we launch.',
+    emailPlaceholder: 'Enter your email',
+    submitButton: { label: 'Join Waitlist', url: '#' },
+  },
+}
+
 export const businessBlueprints: SectionBlueprint[] = [
   startupHero,
+  waitlistSubscribe,
 ]

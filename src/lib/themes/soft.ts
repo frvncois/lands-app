@@ -1,28 +1,28 @@
 import type { Theme } from '@/types/sections'
 
-export const darkTheme: Theme = {
-  id: 'dark',
-  name: 'Dark',
-  description: 'Sleek dark mode with vibrant accents',
-  isDark: true,
+export const softTheme: Theme = {
+  id: 'soft',
+  name: 'Soft',
+  description: 'Warm and approachable with rounded elements',
+  isDark: false,
 
   tokens: {
     colors: {
-      background: '#0a0a0a',
-      foreground: '#fafafa',
-      primary: '#fafafa',
-      primaryForeground: '#0a0a0a',
-      secondary: '#1a1a1a',
-      secondaryForeground: '#fafafa',
-      muted: '#a3a3a3',
-      mutedForeground: '#737373',
-      accent: '#8b5cf6',
+      background: '#faf8f5',
+      foreground: '#3d3d3d',
+      primary: '#3d3d3d',
+      primaryForeground: '#ffffff',
+      secondary: '#f3efe9',
+      secondaryForeground: '#3d3d3d',
+      muted: '#9c9c9c',
+      mutedForeground: '#7a7a7a',
+      accent: '#e07a5f',
       accentForeground: '#ffffff',
-      border: '#262626',
+      border: '#e8e4de',
     },
     fonts: {
-      heading: 'Switzer, sans-serif',
-      body: 'Switzer, sans-serif',
+      heading: 'Telma, sans-serif',
+      body: 'Familjen Grotesk, sans-serif',
       mono: 'Geist Mono, monospace',
     },
     fontScale: {
@@ -37,7 +37,7 @@ export const darkTheme: Theme = {
       '5xl': '3rem',
     },
     spacing: {
-      section: '5rem',
+      section: '6rem',
       container: '1.5rem',
       xs: '0.25rem',
       sm: '0.5rem',
@@ -48,15 +48,15 @@ export const darkTheme: Theme = {
     },
     radius: {
       none: '0',
-      sm: '0.25rem',
-      md: '0.5rem',
-      lg: '0.75rem',
-      xl: '1rem',
+      sm: '0.5rem',
+      md: '0.75rem',
+      lg: '1rem',
+      xl: '1.5rem',
       full: '9999px',
     },
     button: {
-      borderRadius: '0.5rem',
-      paddingX: '1.5rem',
+      borderRadius: '9999px',
+      paddingX: '1.75rem',
       paddingY: '0.75rem',
       fontWeight: '500',
     },
@@ -64,7 +64,7 @@ export const darkTheme: Theme = {
 
   sectionPresets: {
     hero: {
-      defaultVariant: 'overlay',
+      defaultVariant: 'stacked',
     },
   },
 }

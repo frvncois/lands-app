@@ -90,6 +90,46 @@ export const socialLinks: SectionBlueprint = {
 }
 
 // ============================================
+// SUBSCRIBE SECTIONS
+// ============================================
+
+export const subscribeStacked: SectionBlueprint = {
+  id: 'subscribe-stacked',
+  type: 'subscribe',
+  variant: 'stacked',
+  dataOverrides: {
+    headline: 'Stay Updated',
+    paragraph: 'Subscribe to our newsletter for the latest updates.',
+    emailPlaceholder: 'Enter your email',
+    submitButton: { label: 'Subscribe', url: '#' },
+  },
+}
+
+export const subscribeSplit: SectionBlueprint = {
+  id: 'subscribe-split',
+  type: 'subscribe',
+  variant: 'split',
+  dataOverrides: {
+    headline: 'Join Our Newsletter',
+    paragraph: 'Get exclusive content and updates delivered to your inbox.',
+    emailPlaceholder: 'Enter your email',
+    submitButton: { label: 'Subscribe', url: '#' },
+  },
+}
+
+export const subscribeSection: SectionBlueprint = {
+  id: 'subscribe-section',
+  type: 'subscribe',
+  variant: 'stacked',
+  dataOverrides: {
+    headline: 'Stay in the Loop',
+    paragraph: 'Subscribe to get notified about new releases and updates.',
+    emailPlaceholder: 'Your email address',
+    submitButton: { label: 'Subscribe', url: '#' },
+  },
+}
+
+// ============================================
 // EXPORT ALL
 // ============================================
 
@@ -105,4 +145,7 @@ export const sharedBlueprints: SectionBlueprint[] = [
   gallerySection,
   linksSection,
   socialLinks,
+  subscribeStacked,
+  subscribeSplit,
+  subscribeSection,
 ]

@@ -432,7 +432,7 @@ export function createDefaultPageMeta(): PageMeta {
 
 export function createDefaultPageContent(): PageContent {
   return {
-    themeId: 'minimal',
+    themeId: 'modern',
     sections: [],
     meta: createDefaultPageMeta(),
   }

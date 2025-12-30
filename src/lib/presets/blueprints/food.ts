@@ -26,6 +26,10 @@ export const cafeHero: SectionBlueprint = {
     subheadline: 'Coffee & Good Vibes',
     primaryCTA: { label: 'Order Online', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const barHero: SectionBlueprint = {
@@ -47,6 +51,10 @@ export const bistroHero: SectionBlueprint = {
     headline: 'Bistro Name',
     subheadline: 'Casual French Dining',
     primaryCTA: { label: 'Book a Table', url: '#' },
+  },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
   },
 }
 
@@ -70,6 +78,10 @@ export const bakeryHero: SectionBlueprint = {
     subheadline: 'Fresh Baked Daily',
     primaryCTA: { label: 'Order Now', url: '#' },
   },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
+  },
 }
 
 export const cateringHero: SectionBlueprint = {
@@ -80,6 +92,10 @@ export const cateringHero: SectionBlueprint = {
     headline: 'Catering Company',
     subheadline: 'Events Made Delicious',
     primaryCTA: { label: 'Get a Quote', url: '#' },
+  },
+  styleOverrides: {
+    spacingY: 0,
+    spacingX: 60,
   },
 }
 

@@ -19,7 +19,7 @@
  * - Be referenced after project creation
  */
 
-import type { Template, TemplateSectionData, SectionInstance } from '@/types/sections'
+import type { Template, TemplateSectionData, SectionInstance, SectionStyleProperties } from '@/types/sections'
 import { blankTemplate } from './blank'
 import { portfolioTemplate } from './portfolio'
 import { creatorTemplate } from './creator'
@@ -96,7 +96,7 @@ export function instantiateTemplate(template: Template): {
       variant: sectionData.variant,
       data: { ...sectionData.data }, // Deep copy to prevent mutations
       fieldStyles: {},
-      styles: {},
+      styles: sectionData.styles ? ({ ...sectionData.styles } as SectionStyleProperties) : {},
       itemStyles: {},
     })
   )

@@ -275,6 +275,7 @@ function onProjectCreated(newProjectId: string) {
             variant="ghost"
             size="sm"
             :class="route.name === tab.name ? 'bg-accent text-foreground' : ''"
+            :data-tour="tab.name === 'settings' ? 'settings' : undefined"
             @click="navigateToProjectRoute(tab.name)"
           >
             {{ tab.label }}
@@ -359,6 +360,7 @@ function onProjectCreated(newProjectId: string) {
       <Dropdown ref="languageDropdownRef" align="left" width="min-w-48">
         <template #trigger="{ toggle }">
           <button
+            data-tour="translations"
             class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors"
             :class="editor.hasTranslations
               ? 'text-foreground hover:bg-accent'
@@ -446,7 +448,7 @@ function onProjectCreated(newProjectId: string) {
         </div>
 
         <!-- Publish Button -->
-        <Button size="sm" :loading="isPublishing" @click="handlePublish">
+        <Button size="sm" :loading="isPublishing" data-tour="publish" @click="handlePublish">
           {{ isPublishing ? 'Publishing...' : (currentProject?.isPublished ? 'Update' : 'Publish') }}
         </Button>
       </template>

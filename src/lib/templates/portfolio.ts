@@ -9,7 +9,7 @@ export const portfolioTemplate: Template = {
   name: 'Portfolio',
   description: 'Showcase your work with a clean portfolio layout',
   category: 'portfolio',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     {
       type: 'hero',

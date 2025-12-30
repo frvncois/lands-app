@@ -24,7 +24,7 @@ export const saasWaitlistPreset: UseCasePreset = {
   description: 'Build hype before launch',
   icon: 'clock',
   categoryId: 'business',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'startup-hero',
@@ -59,7 +59,7 @@ export const betaSignupPreset: UseCasePreset = {
   description: 'Recruit beta testers',
   icon: 'code',
   categoryId: 'business',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'startup-hero',
@@ -75,7 +75,7 @@ export const featureAnnouncementPreset: UseCasePreset = {
   description: 'Announce new features',
   icon: 'megaphone',
   categoryId: 'business',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'startup-hero',
@@ -91,7 +91,7 @@ export const changelogPreset: UseCasePreset = {
   description: 'Keep users informed',
   icon: 'list',
   categoryId: 'business',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'startup-hero',
@@ -107,7 +107,7 @@ export const pricingPagePreset: UseCasePreset = {
   description: 'Clear and compelling pricing',
   icon: 'tag',
   categoryId: 'business',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'startup-hero',
@@ -124,7 +124,7 @@ export const investorTeaserPreset: UseCasePreset = {
   description: 'Attract investor interest',
   icon: 'chart-up',
   categoryId: 'business',
-  themeId: 'minimal',
+  themeId: 'modern',
   sections: [
     'centeredHeader',
     'startup-hero',
