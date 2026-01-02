@@ -12,6 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:open': [value: boolean]
   'created': [projectId: string]
+  'openWizard': []
 }>()
 
 const router = useRouter()
@@ -186,10 +187,10 @@ async function createProject() {
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-xl font-semibold text-foreground">
-              Create blank project
+              Create new project
             </h2>
             <p class="text-sm text-muted-foreground mt-0.5">
-              Start with an empty canvas
+              Choose how you want to start
             </p>
           </div>
           <button
@@ -254,30 +255,35 @@ async function createProject() {
           </div>
         </div>
 
-        <!-- Custom Domain Info -->
-        <div class="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
-          <svg class="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p class="text-xs text-muted-foreground">
-            Want to use your own domain? Upgrade to <span class="font-medium text-foreground">Pro</span> to connect a custom domain like <span class="font-medium">yoursite.com</span>
-          </p>
-        </div>
-
         <!-- Actions -->
-        <div class="flex items-center justify-end gap-3">
+        <div class="space-y-3">
           <button
-            class="h-9 px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            @click="close"
+            class="w-full h-11 px-5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            :disabled="!canCreate"
+            @click="emit('openWizard')"
           >
-            Cancel
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Setup wizard
           </button>
+
           <button
-            class="h-9 px-5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full h-11 px-5 border border-border text-sm font-medium rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             :disabled="!canCreate"
             @click="createProject"
           >
-            {{ isCreating ? 'Creating...' : 'Create project' }}
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            {{ isCreating ? 'Creating...' : 'Start with blank template' }}
+          </button>
+
+          <button
+            class="w-full h-9 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            @click="close"
+          >
+            Cancel
           </button>
         </div>
       </div>

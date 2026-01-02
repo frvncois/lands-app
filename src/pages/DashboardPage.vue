@@ -7,6 +7,7 @@ import type { Project } from '@/types/project'
 
 import { Header, Card, Button, Icon, Badge } from '@/components/ui'
 import { ProjectsGrid, ProjectsEmpty, ProjectsSkeleton } from '@/features/projects'
+import ProjectCreate from '@/components/modal/ProjectCreate.vue'
 import ProjectCreateWizard from '@/components/modal/ProjectCreateWizard.vue'
 import ProjectDelete from '@/components/modal/ProjectDelete.vue'
 import SupportChat from '@/components/modal/SupportChat.vue'
@@ -33,7 +34,8 @@ const userName = computed(
 )
 
 // Modal state
-const showCreateModal = ref(false)
+const showSimpleCreateModal = ref(false)
+const showWizardModal = ref(false)
 const showDeleteModal = ref(false)
 const projectToDelete = ref<Project | null>(null)
 
@@ -42,7 +44,12 @@ onMounted(() => {
 })
 
 function handleCreate() {
-  showCreateModal.value = true
+  showSimpleCreateModal.value = true
+}
+
+function handleOpenWizard() {
+  showSimpleCreateModal.value = false
+  showWizardModal.value = true
 }
 
 function handleDelete(project: Project) {
@@ -177,8 +184,14 @@ function handleDeleted() {
   </div>
 
   <!-- Modals -->
+  <ProjectCreate
+    v-model:open="showSimpleCreateModal"
+    @created="(id) => router.push({ name: 'designer', params: { projectId: id } })"
+    @open-wizard="handleOpenWizard"
+  />
+
   <ProjectCreateWizard
-    v-model:open="showCreateModal"
+    v-model:open="showWizardModal"
     @created="(id) => router.push({ name: 'designer', params: { projectId: id } })"
   />
 
