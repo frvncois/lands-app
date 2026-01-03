@@ -17,19 +17,14 @@ app.use(router)
 // Setup assistant route watcher
 setupAssistantRouteWatcher(router)
 
-// Register Supabase connection recovery on tab visibility change
+// Register visibility handler (currently a no-op, keeping for compatibility)
 registerVisibilityHandler()
 
 const userStore = useUserStore()
 
-// Mount app with timeout - don't let slow auth block the entire app
-const AUTH_TIMEOUT = 5000
-Promise.race([
-  userStore.initAuth(),
-  new Promise(resolve => setTimeout(resolve, AUTH_TIMEOUT))
-]).then(() => {
-  app.mount('#app')
-}).catch((error) => {
-  console.error('[Main] Auth initialization failed:', error)
-  app.mount('#app') // Mount anyway so the app is usable
-})
+// FIRE-AND-FORGET: Start auth initialization without blocking app mount
+// The app will render immediately and self-correct when auth resolves
+userStore.initAuth()
+
+// Mount app immediately - no waiting for auth
+app.mount('#app')

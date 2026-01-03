@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { supabase, ensureHealthy } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import type { Json } from '@/lib/supabase/types'
 import type { Project, ProjectIntegration, IntegrationProvider, PageContent, Collaborator, CollaboratorInvite, CollaboratorRole } from '@/types/project'
 import { useUserStore } from '@/stores/user'
@@ -114,33 +114,12 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function createProject(title: string, customSlug?: string, retryCount = 0): Promise<Project | null> {
-    const MAX_RETRIES = 1
+  async function createProject(title: string, customSlug?: string): Promise<Project | null> {
     const userStore = useUserStore()
 
     if (!userStore.authUser) {
       error.value = 'You must be logged in to create a project'
       console.error('createProject: No authenticated user')
-      return null
-    }
-
-    // Check session health before attempting create
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      console.error('createProject: No active session')
-
-      // Try to recover connection
-      if (retryCount < MAX_RETRIES) {
-        console.log('Attempting to recover connection...')
-        const recovered = await ensureHealthy()
-        if (recovered) {
-          console.log('Connection recovered, retrying create...')
-          return createProject(title, customSlug, retryCount + 1)
-        }
-      }
-
-      error.value = 'Your session has expired. Please refresh the page and log in again.'
-      toast.error('Session expired', 'Please refresh and log in again')
       return null
     }
 
@@ -172,21 +151,6 @@ export const useProjectsStore = defineStore('projects', () => {
 
       if (insertError) {
         console.error('createProject: Insert error', insertError)
-
-        // Check for auth-related errors and retry
-        const isAuthError = insertError.code === 'PGRST301' ||
-          insertError.message?.includes('JWT') ||
-          insertError.message?.includes('expired')
-
-        if (isAuthError && retryCount < MAX_RETRIES) {
-          console.log('Auth error during create, attempting connection recovery...')
-          const recovered = await ensureHealthy()
-          if (recovered) {
-            console.log('Connection recovered, retrying create...')
-            return createProject(title, customSlug, retryCount + 1)
-          }
-        }
-
         throw insertError
       }
 
@@ -353,29 +317,7 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function saveProjectContent(projectId: string, content: PageContent, retryCount = 0): Promise<boolean> {
-    const MAX_RETRIES = 1
-
-    // Check if user is authenticated before attempting save
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      console.error('saveProjectContent: No active session')
-
-      // Try to recover connection
-      if (retryCount < MAX_RETRIES) {
-        console.log('Attempting to recover connection...')
-        const recovered = await ensureHealthy()
-        if (recovered) {
-          console.log('Connection recovered, retrying save...')
-          return saveProjectContent(projectId, content, retryCount + 1)
-        }
-      }
-
-      error.value = 'Your session has expired. Please refresh the page and log in again.'
-      toast.error('Session expired', 'Please refresh and log in again')
-      return false
-    }
-
+  async function saveProjectContent(projectId: string, content: PageContent): Promise<boolean> {
     // Store previous state for rollback
     const previousContent = projectContents.value.get(projectId)
     const projectIndex = projects.value.findIndex(p => p.id === projectId)
@@ -423,32 +365,6 @@ export const useProjectsStore = defineStore('projects', () => {
         )
 
       if (upsertError) {
-        // Check for auth-related errors and retry
-        const isAuthError = upsertError.code === 'PGRST301' ||
-          upsertError.message?.includes('JWT') ||
-          upsertError.message?.includes('expired')
-
-        if (isAuthError && retryCount < MAX_RETRIES) {
-          console.log('Auth error during save, attempting connection recovery...')
-          const recovered = await ensureHealthy()
-          if (recovered) {
-            // Restore state before retry
-            if (previousContent) {
-              projectContents.value.set(projectId, previousContent)
-            }
-            if (previousProject && projectIndex !== -1) {
-              projects.value[projectIndex] = previousProject
-            }
-            console.log('Connection recovered, retrying save...')
-            return saveProjectContent(projectId, content, retryCount + 1)
-          }
-        }
-
-        if (isAuthError) {
-          console.error('saveProjectContent: Auth error during save', upsertError)
-          error.value = 'Your session has expired. Please refresh the page.'
-          toast.error('Session expired', 'Please refresh the page')
-        }
         throw upsertError
       }
 

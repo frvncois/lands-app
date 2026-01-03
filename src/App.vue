@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/user'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
 import { AssistantModal } from '@/components/assistant'
 import Icon from '@/components/ui/Icon.vue'
+import ConnectionStatus from '@/components/common/ConnectionStatus.vue'
 
 useTheme()
 
@@ -28,6 +29,7 @@ onMounted(() => {
 <template>
   <RouterView />
   <ToastContainer />
+  <ConnectionStatus />
 
   <!-- Assistant Toggle (fixed bottom right) -->
   <button

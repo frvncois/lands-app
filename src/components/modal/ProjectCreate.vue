@@ -12,7 +12,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:open': [value: boolean]
   'created': [projectId: string]
-  'openWizard': []
+  'openWizard': [{ name: string; slug: string }]
 }>()
 
 const router = useRouter()
@@ -260,7 +260,7 @@ async function createProject() {
           <button
             class="w-full h-11 px-5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             :disabled="!canCreate"
-            @click="emit('openWizard')"
+            @click="emit('openWizard', { name: projectTitle, slug: projectSlug })"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />

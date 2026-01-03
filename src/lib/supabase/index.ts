@@ -4,10 +4,6 @@ export {
   getConnectionState,
   isHealthy,
   isRecovering,
-  recoverConnection,
-  ensureHealthy,
-  markUnhealthy,
-  markHealthy,
   registerVisibilityHandler,
   type ConnectionState,
 } from './connection'

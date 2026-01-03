@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useUserStore } from '@/stores/user'
@@ -17,6 +17,17 @@ const projectsStore = useProjectsStore()
 const userStore = useUserStore()
 const showChat = ref(false)
 
+// EVENTUAL CONSISTENCY: Watch auth status and redirect if unauthenticated
+watch(() => userStore.authStatus, (status) => {
+  if (status === 'unauthenticated') {
+    // Auth resolved to unauthenticated - redirect to login
+    router.push({ name: 'auth' })
+  } else if (status === 'authenticated' && !projectsStore.isLoading && projectsStore.projects.length === 0) {
+    // Auth resolved to authenticated and projects not loaded yet - fetch them
+    projectsStore.fetchProjects()
+  }
+})
+
 // Did you know tips
 const tips = [
   'You can duplicate any project to use it as a template for new landing pages.',
@@ -28,7 +39,10 @@ const tips = [
 const currentTip = computed(() => tips[Math.floor(Math.random() * tips.length)])
 
 const projects = computed(() => projectsStore.projects)
-const isLoading = computed(() => projectsStore.isLoading)
+const isLoading = computed(() => {
+  // Show loading if auth is unknown OR projects are loading
+  return userStore.authStatus === 'unknown' || projectsStore.isLoading
+})
 const userName = computed(
   () => userStore.settings.profile?.name?.split(' ')[0] ?? 'there'
 )
@@ -38,16 +52,24 @@ const showSimpleCreateModal = ref(false)
 const showWizardModal = ref(false)
 const showDeleteModal = ref(false)
 const projectToDelete = ref<Project | null>(null)
+const wizardProjectName = ref('')
+const wizardProjectSlug = ref('')
 
 onMounted(() => {
-  projectsStore.fetchProjects()
+  // EVENTUAL CONSISTENCY: Only fetch if auth is already resolved to authenticated
+  // Otherwise, the watcher will trigger fetch when auth resolves
+  if (userStore.authStatus === 'authenticated') {
+    projectsStore.fetchProjects()
+  }
 })
 
 function handleCreate() {
   showSimpleCreateModal.value = true
 }
 
-function handleOpenWizard() {
+function handleOpenWizard(data: { name: string; slug: string }) {
+  wizardProjectName.value = data.name
+  wizardProjectSlug.value = data.slug
   showSimpleCreateModal.value = false
   showWizardModal.value = true
 }
@@ -192,6 +214,8 @@ function handleDeleted() {
 
   <ProjectCreateWizard
     v-model:open="showWizardModal"
+    :project-name="wizardProjectName"
+    :project-slug="wizardProjectSlug"
     @created="(id) => router.push({ name: 'designer', params: { projectId: id } })"
   />
 

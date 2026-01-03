@@ -10,6 +10,7 @@
 
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { hydrateProject } from '@/lib/project-hydrator'
 import SectionList from './SectionList.vue'
 import SectionRenderer from './SectionRenderer.vue'
 import StyleInspector from './StyleInspector.vue'
@@ -17,6 +18,11 @@ import AddSectionMenu from './AddSectionMenu.vue'
 import Icon from '@/components/ui/Icon.vue'
 
 const editor = useEditorStore()
+
+// STEP 3 — USE HYDRATOR IN EDITOR PREVIEW
+const hydratedSections = computed(() => {
+  return hydrateProject({ sections: editor.sections }).sections
+})
 
 // Canvas ref for viewport height measurement
 const canvasRef = ref<HTMLElement | null>(null)
@@ -30,7 +36,7 @@ function updateCanvasViewportHeight() {
   )
 }
 
-const sections = computed(() => editor.sections)
+const sections = computed(() => hydratedSections.value)
 const selectedId = computed(() => editor.selectedSectionId)
 const previewMode = computed(() => editor.previewMode)
 

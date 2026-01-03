@@ -15,11 +15,15 @@ import WizardStepCategory from './wizard/WizardStepCategory.vue'
 import WizardStepUseCase from './wizard/WizardStepUseCase.vue'
 import WizardStepTheme from './wizard/WizardStepTheme.vue'
 import WizardStepStyle, { type ColorPalette, type FontPairing } from './wizard/WizardStepStyle.vue'
-import WizardStepDetails from './wizard/WizardStepDetails.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
-}>()
+  projectName?: string
+  projectSlug?: string
+}>(), {
+  projectName: '',
+  projectSlug: ''
+})
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
@@ -33,7 +37,7 @@ const projectsStore = useProjectsStore()
 // WIZARD STATE
 // ============================================
 
-type WizardStep = 'category' | 'usecase' | 'theme' | 'style' | 'details' | 'creating'
+type WizardStep = 'category' | 'usecase' | 'theme' | 'style' | 'creating'
 
 const currentStep = ref<WizardStep>('category')
 const selectedCategory = ref<PresetCategory | null>(null)
@@ -43,32 +47,11 @@ const selectedPaletteId = ref<string>('modern')
 const selectedFontPairingId = ref<string>('modern-clean')
 
 // Project details
-const projectName = ref('')
-const projectDescription = ref('')
-const referenceUrl = ref('')
-const projectSlug = ref('')
-const hasManuallyEditedSlug = ref(false)
-const isCheckingSlug = ref(false)
-const slugAvailable = ref<boolean | null>(null)
-const slugError = ref<string | null>(null)
 const isCreating = ref(false)
 
 // ============================================
 // COMPUTED VALUES
 // ============================================
-
-const generatedSlug = computed(() => {
-  return projectName.value
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .substring(0, 50)
-})
-
-const previewUrl = computed(() => {
-  const slug = projectSlug.value || generatedSlug.value || 'my-project'
-  return `${slug}.lands.app`
-})
 
 const selectedTheme = computed(() => {
   if (!selectedThemeId.value) return undefined
@@ -159,14 +142,6 @@ const canContinue = computed(() => {
       return selectedThemeId.value !== ''
     case 'style':
       return selectedPaletteId.value !== '' && selectedFontPairingId.value !== ''
-    case 'details':
-      return (
-        projectName.value.trim().length > 0 &&
-        (projectSlug.value || generatedSlug.value) &&
-        slugAvailable.value !== false &&
-        !slugError.value &&
-        !isCheckingSlug.value
-      )
     default:
       return false
   }
@@ -182,7 +157,6 @@ const stepTitle = computed(() => {
     case 'usecase': return selectedCategory.value?.name || 'Choose a template'
     case 'theme': return 'Choose a theme'
     case 'style': return 'Customize your style'
-    case 'details': return 'Project details'
     case 'creating': return 'Creating your project...'
   }
 })
@@ -193,14 +167,13 @@ const stepNumber = computed(() => {
     usecase: 2,
     theme: 3,
     style: 4,
-    details: 5,
-    creating: 6,
+    creating: 5,
   }
   return steps[currentStep.value]
 })
 
 const totalSteps = computed(() => {
-  return selectedPreset.value ? 5 : 3 // Skip usecase/theme/style if starting blank
+  return 4 // category -> usecase -> theme -> style
 })
 
 // ============================================
@@ -236,15 +209,8 @@ function selectFontPairing(fontPairingId: string) {
   selectedFontPairingId.value = fontPairingId
 }
 
-function startBlank() {
-  selectedCategory.value = null
-  selectedPreset.value = null
-  selectedThemeId.value = 'modern'
-  currentStep.value = 'details'
-}
-
 function goToNextStep() {
-  const stepOrder: WizardStep[] = ['category', 'usecase', 'theme', 'style', 'details']
+  const stepOrder: WizardStep[] = ['category', 'usecase', 'theme', 'style']
   const currentIndex = stepOrder.indexOf(currentStep.value)
 
   if (currentIndex >= 0 && currentIndex < stepOrder.length - 1) {
@@ -252,14 +218,14 @@ function goToNextStep() {
     if (nextStep) {
       currentStep.value = nextStep
     }
-  } else if (currentStep.value === 'details') {
-    // Create project
+  } else if (currentStep.value === 'style') {
+    // Create project after style step
     createProject()
   }
 }
 
 function goBack() {
-  const stepOrder: WizardStep[] = ['category', 'usecase', 'theme', 'style', 'details']
+  const stepOrder: WizardStep[] = ['category', 'usecase', 'theme', 'style']
   const currentIndex = stepOrder.indexOf(currentStep.value)
 
   if (currentIndex > 0) {
@@ -278,74 +244,24 @@ function goBack() {
 }
 
 // ============================================
-// SLUG HANDLING
-// ============================================
-
-let slugCheckTimeout: ReturnType<typeof setTimeout> | null = null
-
-watch(projectName, (newTitle) => {
-  if (!hasManuallyEditedSlug.value) {
-    projectSlug.value = newTitle
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .substring(0, 50)
-    checkSlugAvailability()
-  }
-})
-
-function checkSlugAvailability() {
-  if (slugCheckTimeout) {
-    clearTimeout(slugCheckTimeout)
-  }
-
-  const slug = projectSlug.value || generatedSlug.value
-  if (!slug) {
-    slugAvailable.value = null
-    slugError.value = null
-    return
-  }
-
-  if (slug.length < 3) {
-    slugError.value = 'Slug must be at least 3 characters'
-    slugAvailable.value = false
-    return
-  }
-
-  isCheckingSlug.value = true
-  slugError.value = null
-
-  slugCheckTimeout = setTimeout(async () => {
-    try {
-      const available = await projectsStore.checkSlugAvailable(slug)
-      slugAvailable.value = available
-      if (!available) {
-        slugError.value = 'This slug is already taken'
-      }
-    } catch (e) {
-      slugError.value = 'Failed to check availability'
-      slugAvailable.value = null
-    } finally {
-      isCheckingSlug.value = false
-    }
-  }, 300)
-}
-
-// ============================================
 // PROJECT CREATION
 // ============================================
 
 async function createProject() {
   if (!canContinue.value) return
 
+  // Validate that we have a project name and slug
+  if (!props.projectName || !props.projectSlug) {
+    console.error('Project name and slug are required')
+    return
+  }
+
   currentStep.value = 'creating'
   isCreating.value = true
 
   try {
-    const slug = projectSlug.value || generatedSlug.value
-
-    // Create the project
-    const project = await projectsStore.createProject(projectName.value, slug)
+    // Create the project using the name and slug from parent
+    const project = await projectsStore.createProject(props.projectName, props.projectSlug)
     if (!project) {
       throw new Error('Failed to create project')
     }
@@ -360,21 +276,11 @@ async function createProject() {
           themeId: selectedThemeId.value || template.themeId,
           sections,
           meta: {
-            title: projectName.value,
-            description: projectDescription.value || selectedPreset.value.description,
+            title: props.projectName,
+            description: selectedPreset.value.description,
           },
         })
       }
-    } else {
-      // Blank project
-      await projectsStore.saveProjectContent(project.id, {
-        themeId: selectedThemeId.value || 'modern',
-        sections: [],
-        meta: {
-          title: projectName.value,
-          description: projectDescription.value,
-        },
-      })
     }
 
     emit('created', project.id)
@@ -382,7 +288,7 @@ async function createProject() {
     router.push({ name: 'designer', params: { projectId: project.id } })
   } catch (e) {
     console.error('Failed to create project:', e)
-    currentStep.value = 'details'
+    currentStep.value = 'style'
   } finally {
     isCreating.value = false
   }
@@ -420,13 +326,6 @@ function reset() {
   selectedThemeId.value = ''
   selectedPaletteId.value = 'modern'
   selectedFontPairingId.value = 'modern-clean'
-  projectName.value = ''
-  projectDescription.value = ''
-  referenceUrl.value = ''
-  projectSlug.value = ''
-  hasManuallyEditedSlug.value = false
-  slugAvailable.value = null
-  slugError.value = null
   isCreating.value = false
 }
 
@@ -494,7 +393,6 @@ watch(() => props.open, (isOpen) => {
               <WizardStepCategory
                 v-if="currentStep === 'category'"
                 @select="selectCategory"
-                @start-blank="startBlank"
               />
 
               <!-- Step 2: Use Case -->
@@ -520,15 +418,7 @@ watch(() => props.open, (isOpen) => {
                 @select-font="selectFontPairing"
               />
 
-              <!-- Step 5: Project Details -->
-              <WizardStepDetails
-                v-else-if="currentStep === 'details'"
-                v-model:project-name="projectName"
-                v-model:project-description="projectDescription"
-                v-model:reference-url="referenceUrl"
-              />
-
-              <!-- Step 6: Creating -->
+              <!-- Step 5: Creating -->
               <div v-else-if="currentStep === 'creating'" class="flex flex-col items-center justify-center py-20">
                 <Spinner class="w-12 h-12 text-primary" />
                 <p class="mt-6 text-lg font-medium text-foreground">
@@ -559,7 +449,7 @@ watch(() => props.open, (isOpen) => {
             :disabled="!canContinue"
             @click="goToNextStep"
           >
-            {{ currentStep === 'details' ? 'Create project' : 'Continue' }}
+            {{ currentStep === 'style' ? 'Create project' : 'Continue' }}
           </Button>
         </div>
       </div>

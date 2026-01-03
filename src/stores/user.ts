@@ -10,57 +10,194 @@ import type {
 import { getDefaultUserSettings } from '@/types/user'
 import { useToast } from '@/stores/toast'
 
+const DEBUG_AUTH = import.meta.env.DEV && import.meta.env.VITE_DEBUG_AUTH === 'true'
+
+export type AuthStatus = 'unknown' | 'authenticated' | 'unauthenticated'
+
 export const useUserStore = defineStore('user', () => {
   const toast = useToast()
 
   // State
   const settings = ref<UserSettings>(getDefaultUserSettings())
-  const isLoading = ref(false)
-  const isAuthenticated = ref(false)
+  const authStatus = ref<AuthStatus>('unknown')
+  const isHydrating = ref(false)
   const authUser = ref<User | null>(null)
+
+  // Computed (for backward compatibility)
+  const isAuthenticated = computed(() => authStatus.value === 'authenticated')
+  const isLoading = computed(() => isHydrating.value)
 
   // Getters
   const user = computed(() => settings.value.profile)
   const preferences = computed(() => settings.value.preferences)
 
-  // Initialize auth state listener
-  async function initAuth() {
-    isLoading.value = true
-
-    // Get initial session
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      authUser.value = session.user
-      isAuthenticated.value = true
-      await fetchUserProfile(session.user.id)
+  /**
+   * Rehydrate auth state from Supabase session
+   * FIRE-AND-FORGET: This NEVER blocks, NEVER throws, ALWAYS resolves
+   * Called on app boot, tab visibility changes, and bfcache restoration
+   */
+  function rehydrateFromSupabase(): void {
+    // Prevent concurrent hydration
+    if (isHydrating.value) {
+      if (DEBUG_AUTH) {
+        console.log('[Auth Rehydrate] Already hydrating, skipping...')
+      }
+      return
     }
 
-    // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id)
+    isHydrating.value = true
+
+    if (DEBUG_AUTH) {
+      console.log('[Auth Rehydrate] Starting session rehydration...')
+    }
+
+    // Timeout protection: if hydration takes >5s, force completion
+    const timeoutId = setTimeout(() => {
+      console.error('[Auth Rehydrate] TIMEOUT after 5s, forcing unauthenticated state')
+      authStatus.value = 'unauthenticated'
+      authUser.value = null
+      isHydrating.value = false
+    }, 5000)
+
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        clearTimeout(timeoutId)
+
+        if (error) {
+          console.error('[Auth Rehydrate] Failed to get session:', error)
+          authStatus.value = 'unauthenticated'
+          authUser.value = null
+          return
+        }
+
+        if (session?.user) {
+          authStatus.value = 'authenticated'
+          authUser.value = session.user
+
+          if (DEBUG_AUTH) {
+            console.log('[Auth Rehydrate] Session found:', {
+              userId: session.user.id,
+              expiresAt: session.expires_at,
+            })
+          }
+
+          // Fetch user profile (non-blocking)
+          fetchUserProfile(session.user.id).catch(err => {
+            console.error('[Auth Rehydrate] Failed to fetch user profile:', err)
+          })
+        } else {
+          if (DEBUG_AUTH) {
+            console.log('[Auth Rehydrate] No session found')
+          }
+
+          authStatus.value = 'unauthenticated'
+          authUser.value = null
+        }
+      })
+      .catch(err => {
+        clearTimeout(timeoutId)
+        console.error('[Auth Rehydrate] Unexpected error:', err)
+        authStatus.value = 'unauthenticated'
+        authUser.value = null
+      })
+      .finally(() => {
+        isHydrating.value = false
+      })
+  }
+
+  /**
+   * Ensure hydration has started (non-blocking)
+   * FIRE-AND-FORGET: Does NOT return a promise to await
+   * Safe to call multiple times - only hydrates once
+   */
+  function ensureHydrationStarted(): void {
+    // Already resolved - no need to hydrate again
+    if (authStatus.value !== 'unknown') {
+      return
+    }
+
+    // Already hydrating - don't start again
+    if (isHydrating.value) {
+      return
+    }
+
+    // Start hydration (non-blocking)
+    rehydrateFromSupabase()
+  }
+
+  /**
+   * Start listening to auth state changes
+   * Should be called once on app initialization
+   */
+  function startAuthListener() {
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (DEBUG_AUTH) {
+        console.log('[Auth State Change]', {
+          event,
+          userId: session?.user?.id,
+          expiresAt: session?.expires_at,
+          currentStatus: authStatus.value,
+        })
+      }
 
       if (event === 'INITIAL_SESSION') {
         // Handle initial session on page load
         if (session?.user) {
+          authStatus.value = 'authenticated'
           authUser.value = session.user
-          isAuthenticated.value = true
-          await fetchUserProfile(session.user.id)
+          fetchUserProfile(session.user.id).catch(err => {
+            console.error('[Auth State Change] Failed to fetch profile:', err)
+          })
+        } else {
+          authStatus.value = 'unauthenticated'
+          authUser.value = null
         }
-      } else if (event === 'SIGNED_IN' && session?.user) {
-        authUser.value = session.user
-        isAuthenticated.value = true
-        await fetchUserProfile(session.user.id)
+      } else if (event === 'SIGNED_IN') {
+        if (session?.user) {
+          authStatus.value = 'authenticated'
+          authUser.value = session.user
+          fetchUserProfile(session.user.id).catch(err => {
+            console.error('[Auth State Change] Failed to fetch profile:', err)
+          })
+        }
       } else if (event === 'SIGNED_OUT') {
+        authStatus.value = 'unauthenticated'
         authUser.value = null
-        isAuthenticated.value = false
         settings.value = getDefaultUserSettings()
-      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        // Token was refreshed, update user
-        authUser.value = session.user
+      } else if (event === 'TOKEN_REFRESHED') {
+        // CRITICAL: Do not set unauthenticated if session exists
+        if (session?.user) {
+          authStatus.value = 'authenticated'
+          authUser.value = session.user
+
+          if (DEBUG_AUTH) {
+            console.log('[Auth State Change] Token refreshed successfully')
+          }
+        } else {
+          // Token refresh failed - no session returned
+          console.error('[Auth State Change] Token refresh returned no session')
+          authStatus.value = 'unauthenticated'
+          authUser.value = null
+          toast.error('Session expired', 'Please sign in again')
+        }
+      } else if (event === 'USER_UPDATED') {
+        if (session?.user) {
+          authUser.value = session.user
+        }
       }
     })
+  }
 
-    isLoading.value = false
+  /**
+   * Initialize auth state
+   * FIRE-AND-FORGET: Starts hydration but does NOT wait for it
+   */
+  function initAuth() {
+    // Start auth listener immediately
+    startAuthListener()
+
+    // Start hydration (non-blocking)
+    rehydrateFromSupabase()
   }
 
   async function fetchUserProfile(userId: string) {
@@ -167,7 +304,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function signIn(email: string, password: string) {
-    isLoading.value = true
+    isHydrating.value = true
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -176,8 +313,8 @@ export const useUserStore = defineStore('user', () => {
 
       if (error) throw error
 
+      authStatus.value = 'authenticated'
       authUser.value = data.user
-      isAuthenticated.value = true
 
       if (data.user) {
         await fetchUserProfile(data.user.id)
@@ -188,12 +325,12 @@ export const useUserStore = defineStore('user', () => {
       toast.error('Failed to sign in', e instanceof Error ? e.message : 'Please check your credentials')
       throw e
     } finally {
-      isLoading.value = false
+      isHydrating.value = false
     }
   }
 
   async function signUp(email: string, password: string, name: string) {
-    isLoading.value = true
+    isHydrating.value = true
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -219,7 +356,7 @@ export const useUserStore = defineStore('user', () => {
       toast.error('Failed to create account', e instanceof Error ? e.message : 'Please try again')
       throw e
     } finally {
-      isLoading.value = false
+      isHydrating.value = false
     }
   }
 
@@ -228,9 +365,9 @@ export const useUserStore = defineStore('user', () => {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
 
+      authStatus.value = 'unauthenticated'
       authUser.value = null
       settings.value = getDefaultUserSettings()
-      isAuthenticated.value = false
       toast.success('Signed out')
     } catch (e) {
       console.error('Failed to sign out:', e)
@@ -318,21 +455,24 @@ export const useUserStore = defineStore('user', () => {
 
   function resetSettings() {
     settings.value = getDefaultUserSettings()
-    isAuthenticated.value = false
+    authStatus.value = 'unauthenticated'
     authUser.value = null
   }
 
   return {
     // State
     settings,
-    isLoading,
+    authStatus,
+    isHydrating,
     isAuthenticated,
+    isLoading,
     authUser,
     // Getters
     user,
     preferences,
     // Actions
     initAuth,
+    ensureHydrationStarted,
     fetchUser,
     updateProfile,
     updatePreferences,
