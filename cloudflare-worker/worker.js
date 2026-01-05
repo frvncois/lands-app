@@ -16,6 +16,16 @@ export default {
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'SAMEORIGIN',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'X-XSS-Protection': '1; mode=block',
+      'Content-Security-Policy': [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://cloud.umami.is",
+        "style-src 'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com",
+        "font-src 'self' https://api.fontshare.com https://fonts.gstatic.com",
+        "img-src 'self' data: https: blob:",
+        "connect-src 'self' https://cloud.umami.is",
+        "frame-ancestors 'none'",
+      ].join('; '),
     }
 
     // Handle favicon requests
@@ -239,7 +249,7 @@ async function serveCSSFile(kvNamespace, siteKey, securityHeaders, request) {
     // Build cache headers for CSS
     const cacheHeaders = {
       'Content-Type': 'text/css;charset=UTF-8',
-      'Cache-Control': 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400', // Allow revalidation for CSS updates
+      'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400', // Cache CSS for 24 hours, use ETag for invalidation
       'Access-Control-Allow-Origin': '*', // Allow CORS for CSS
       ...securityHeaders
     }

@@ -113,11 +113,8 @@ serve(async (req) => {
       }
 
       const result = await res.json()
-      console.log('Email sent successfully:', result)
     } else {
-      console.log('RESEND_API_KEY not set, skipping email send')
-      console.log('Would send invite email to:', invite.email)
-      console.log('Invite URL:', inviteUrl)
+      // RESEND_API_KEY not set, email sending skipped in development
     }
 
     return new Response(JSON.stringify({ success: true }), {

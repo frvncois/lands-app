@@ -11,10 +11,22 @@ const DAILY_LIMITS: Record<string, number> = {
   business: 200,
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = [
+  'https://lands.app',
+  'https://app.lands.app',
+  'https://www.lands.app',
+  Deno.env.get('ALLOWED_ORIGIN'), // For local dev
+].filter(Boolean) as string[]
+
+function getCorsHeaders(request: Request) {
+  const origin = request.headers.get('Origin') || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 // Compact system prompt to stay under token limits
@@ -155,6 +167,8 @@ interface GroqMessage {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req)
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -403,7 +417,6 @@ serve(async (req) => {
         }
       } catch {
         // Last resort: treat as plain message
-        console.log('Failed to parse AI response as JSON:', assistantContent.slice(0, 200))
         parsedResponse = { message: assistantContent, actions: [] }
       }
     }

@@ -236,7 +236,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     // Add current state
-    history.value.push(JSON.parse(JSON.stringify(sections.value)))
+    history.value.push(structuredClone(sections.value))
     historyIndex.value = history.value.length - 1
 
     // Limit history size
@@ -251,14 +251,14 @@ export const useEditorStore = defineStore('editor', () => {
   function undo() {
     if (!canUndo.value) return
     historyIndex.value--
-    sections.value = JSON.parse(JSON.stringify(history.value[historyIndex.value]))
+    sections.value = structuredClone(history.value[historyIndex.value])
     isDirty.value = true
   }
 
   function redo() {
     if (!canRedo.value) return
     historyIndex.value++
-    sections.value = JSON.parse(JSON.stringify(history.value[historyIndex.value]))
+    sections.value = structuredClone(history.value[historyIndex.value])
     isDirty.value = true
   }
 
@@ -286,7 +286,7 @@ export const useEditorStore = defineStore('editor', () => {
     currentLanguage.value = null
 
     // Initialize history
-    history.value = [JSON.parse(JSON.stringify(sections.value))]
+    history.value = [structuredClone(sections.value)]
     historyIndex.value = 0
     isDirty.value = false
     activeNode.value = null
@@ -456,7 +456,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     const original = sections.value[index]
     const duplicate: SectionInstance = {
-      ...JSON.parse(JSON.stringify(original)),
+      ...structuredClone(original),
       id: generateId(),
     }
     ensureSectionItemIds(duplicate)
@@ -807,7 +807,7 @@ export const useEditorStore = defineStore('editor', () => {
     pushHistory()
 
     // Deep clone the item
-    const duplicate = JSON.parse(JSON.stringify(items[index])) as Record<string, unknown>
+    const duplicate = structuredClone(items[index]) as Record<string, unknown>
     duplicate.id = generateId()
     ensureNestedRepeaterIds(duplicate, repeaterField.itemSchema)
     items.splice(index + 1, 0, duplicate)

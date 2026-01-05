@@ -18,6 +18,24 @@ const emit = defineEmits<{
 const router = useRouter()
 const projectsStore = useProjectsStore()
 
+// Reserved slugs that cannot be used
+const RESERVED_SLUGS = new Set([
+  // Subdomains we use or might use
+  'www', 'api', 'app', 'admin', 'dashboard', 'cdn', 'assets', 'static',
+  // Auth-related
+  'auth', 'login', 'logout', 'signup', 'register', 'oauth', 'callback', 'sso',
+  // Account/settings
+  'account', 'settings', 'profile', 'preferences', 'billing', 'subscription',
+  // Support/info
+  'help', 'support', 'docs', 'documentation', 'faq', 'status', 'about', 'contact',
+  // Marketing
+  'blog', 'news', 'pricing', 'features', 'terms', 'privacy', 'legal',
+  // Technical
+  'mail', 'email', 'smtp', 'ftp', 'ssh', 'git', 'test', 'dev', 'staging', 'demo',
+  // Generic reserved
+  'admin', 'administrator', 'root', 'system', 'null', 'undefined', 'true', 'false',
+])
+
 // Form state
 const projectTitle = ref('')
 const projectSlug = ref('')
@@ -43,21 +61,53 @@ function generateSlug(title: string): string {
 
 // Check if slug is available
 async function checkSlugAvailability(slug: string) {
+  // Reset state
+  slugAvailable.value = null
+  slugError.value = null
+
+  // Minimum length check
   if (!slug || slug.length < 2) {
-    slugAvailable.value = null
     slugError.value = slug ? 'Slug must be at least 2 characters' : null
     return
   }
 
-  // Validate slug format
+  // Maximum length check
+  if (slug.length > 63) {
+    slugAvailable.value = false
+    slugError.value = 'Slug must be 63 characters or less'
+    return
+  }
+
+  // Format validation (lowercase letters, numbers, hyphens only)
   if (!/^[a-z0-9-]+$/.test(slug)) {
     slugAvailable.value = false
     slugError.value = 'Only lowercase letters, numbers, and hyphens allowed'
     return
   }
 
+  // No leading/trailing hyphens
+  if (slug.startsWith('-') || slug.endsWith('-')) {
+    slugAvailable.value = false
+    slugError.value = 'Slug cannot start or end with a hyphen'
+    return
+  }
+
+  // No consecutive hyphens
+  if (slug.includes('--')) {
+    slugAvailable.value = false
+    slugError.value = 'Slug cannot contain consecutive hyphens'
+    return
+  }
+
+  // Reserved word check
+  if (RESERVED_SLUGS.has(slug.toLowerCase())) {
+    slugAvailable.value = false
+    slugError.value = 'This slug is reserved and cannot be used'
+    return
+  }
+
+  // Database availability check
   isCheckingSlug.value = true
-  slugError.value = null
 
   try {
     const { data, error } = await supabase

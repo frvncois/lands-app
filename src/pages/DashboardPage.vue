@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useUserStore } from '@/stores/user'
@@ -7,10 +7,20 @@ import type { Project } from '@/types/project'
 
 import { Header, Card, Button, Icon, Badge } from '@/components/ui'
 import { ProjectsGrid, ProjectsEmpty, ProjectsSkeleton } from '@/features/projects'
-import ProjectCreate from '@/components/modal/ProjectCreate.vue'
-import ProjectCreateWizard from '@/components/modal/ProjectCreateWizard.vue'
-import ProjectDelete from '@/components/modal/ProjectDelete.vue'
-import SupportChat from '@/components/modal/SupportChat.vue'
+
+// Lazy load modals for better performance
+const ProjectCreate = defineAsyncComponent(() =>
+  import('@/components/modal/ProjectCreate.vue')
+)
+const ProjectCreateWizard = defineAsyncComponent(() =>
+  import('@/components/modal/ProjectCreateWizard.vue')
+)
+const ProjectDelete = defineAsyncComponent(() =>
+  import('@/components/modal/ProjectDelete.vue')
+)
+const SupportChat = defineAsyncComponent(() =>
+  import('@/components/modal/SupportChat.vue')
+)
 
 const router = useRouter()
 const projectsStore = useProjectsStore()
@@ -105,8 +115,22 @@ function handleDeleted() {
       @delete="handleDelete"
     />
 
+    <!-- Load More Button -->
+    <div
+      v-if="projectsStore.hasMoreProjects && !isLoading"
+      class="flex justify-center mt-8"
+    >
+      <Button
+        variant="outline"
+        :loading="projectsStore.isLoading"
+        @click="projectsStore.loadMoreProjects"
+      >
+        Load more projects
+      </Button>
+    </div>
+
     <!-- Empty State -->
-    <ProjectsEmpty v-else @create="handleCreate" />
+    <ProjectsEmpty v-else-if="!projects.length && !isLoading" @create="handleCreate" />
 
     <!-- Resources Section -->
     <div v-if="!isLoading" class="mt-12 pt-10 border-t border-border">

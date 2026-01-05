@@ -19,10 +19,22 @@ interface UmamiWebsite {
   createdAt: string
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = [
+  'https://lands.app',
+  'https://app.lands.app',
+  'https://www.lands.app',
+  Deno.env.get('ALLOWED_ORIGIN'), // For local dev
+].filter(Boolean) as string[]
+
+function getCorsHeaders(request: Request) {
+  const origin = request.headers.get('Origin') || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 // Create a website in Umami
@@ -97,18 +109,15 @@ async function getUmamiStats(websiteId: string, startAt: number, endAt: number):
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    console.log('setup-umami-site: Starting request')
-    console.log('UMAMI_API_URL:', UMAMI_API_URL)
-    console.log('UMAMI_API_KEY exists:', !!UMAMI_API_KEY)
-
     const { projectId, action } = await req.json() as RequestBody
-    console.log('Request body:', { projectId, action })
 
     if (!projectId || !action) {
       return new Response(JSON.stringify({ error: 'Missing projectId or action' }), {
@@ -171,8 +180,6 @@ serve(async (req) => {
       // Create new Umami website
       const domain = `${project.slug}.lands.app`
       const website = await createUmamiWebsite(project.title, domain)
-
-      console.log('Created Umami website:', website)
 
       // Save the site ID to project_settings
       const { error: updateError } = await supabase

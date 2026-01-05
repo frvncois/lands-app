@@ -55,13 +55,22 @@ interface RequestBody {
   state?: string
 }
 
-// CORS - restrict to your app domain in production
-const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'http://localhost:5173'
+const ALLOWED_ORIGINS = [
+  'https://lands.app',
+  'https://app.lands.app',
+  'https://www.lands.app',
+  Deno.env.get('ALLOWED_ORIGIN'), // For local dev
+].filter(Boolean) as string[]
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+function getCorsHeaders(request: Request) {
+  const origin = request.headers.get('Origin') || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 // Generate secure random state
@@ -133,6 +142,8 @@ async function decryptToken(encrypted: string, secret: string): Promise<string> 
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

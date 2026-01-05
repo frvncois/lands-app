@@ -5,7 +5,7 @@
  */
 
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { useEditorStore } from '@/stores/editor'
 import { useProjectsStore } from '@/stores/projects'
 import { useToast } from '@/stores/toast'
@@ -82,39 +82,51 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-// Apply default theme on mount
-onMounted(() => {
-  applyTheme(getDefaultTheme())
-  window.addEventListener('keydown', handleKeydown)
-})
-
 // Load project when route changes
 watch(
   () => route.params.projectId as string,
-  async (projectId) => {
-    if (projectId) {
-      isLoading.value = true
+  async (projectId, _, onCleanup) => {
+    if (!projectId) return
 
-      // Fetch project content from database
-      const content = await projects.fetchProjectContent(projectId)
-      if (content) {
-        // Initialize editor with the fetched content
-        editor.initializeEditor(content, projectId)
+    // Track if this watch has been superseded
+    let cancelled = false
+    onCleanup(() => {
+      cancelled = true
+    })
 
-        // Small delay to ensure smooth transition
+    isLoading.value = true
+
+    // Fetch project content from database
+    const content = await projects.fetchProjectContent(projectId)
+
+    // CRITICAL: Abort if user navigated away during fetch
+    if (cancelled) {
+      console.log('[DesignerView] Navigation occurred during load, aborting')
+      return
+    }
+
+    if (content) {
+      // Initialize editor with the fetched content
+      editor.initializeEditor(content, projectId)
+
+      // Small delay to ensure smooth transition
+      setTimeout(() => {
+        if (cancelled) return
+        isLoading.value = false
+      }, 300)
+
+      // Check and start tour for new projects
+      const shouldShowTour = await tour.checkTourStatus(projectId)
+      if (shouldShowTour && !cancelled) {
+        // Delay tour start to ensure UI is fully rendered
         setTimeout(() => {
-          isLoading.value = false
-        }, 300)
-
-        // Check and start tour for new projects
-        const shouldShowTour = await tour.checkTourStatus(projectId)
-        if (shouldShowTour) {
-          // Delay tour start to ensure UI is fully rendered
-          setTimeout(() => {
+          if (!cancelled) {
             tour.startTour(projectId)
-          }, 1100)
-        }
-      } else {
+          }
+        }, 1100)
+      }
+    } else {
+      if (!cancelled) {
         isLoading.value = false
       }
     }
@@ -122,9 +134,39 @@ watch(
   { immediate: true }
 )
 
+// ============================================
+// UNSAVED CHANGES WARNING
+// ============================================
+
+// Warn when navigating away via Vue Router
+onBeforeRouteLeave((to, from) => {
+  if (editor.isDirty) {
+    const answer = window.confirm(
+      'You have unsaved changes. Are you sure you want to leave?'
+    )
+    if (!answer) return false
+  }
+})
+
+// Warn when closing browser tab or refreshing
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  if (editor.isDirty) {
+    e.preventDefault()
+    e.returnValue = '' // Required for Chrome
+  }
+}
+
+// Apply default theme on mount and add event listeners
+onMounted(() => {
+  applyTheme(getDefaultTheme())
+  window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
 // Cleanup
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
   editor.resetEditor()
 })
 </script>

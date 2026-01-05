@@ -60,10 +60,22 @@ interface ThemeTokens {
   }
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = [
+  'https://lands.app',
+  'https://app.lands.app',
+  'https://www.lands.app',
+  Deno.env.get('ALLOWED_ORIGIN'), // For local dev
+].filter(Boolean) as string[]
+
+function getCorsHeaders(request: Request) {
+  const origin = request.headers.get('Origin') || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 // ============================================
@@ -4972,15 +4984,12 @@ function generateHTML(project: any, content: PageContent, settings: any, umamiSi
   styleExtractor.setTheme(theme)
 
   // Generate sections HTML (this populates the styleExtractor)
-  console.log('[PUBLISH_HTML_GEN_START] Starting HTML generation')
   const sectionsHTML = content.sections
     .map(section => generateSectionHTML(section, theme))
     .join('\n')
-  console.log('[PUBLISH_HTML_GEN_END] HTML generation complete')
 
   // Get generated CSS from styleExtractor
   const generatedCSS = styleExtractor.getCSS()
-  console.log('[PUBLISH_CSS_EXTRACT] CSS extracted, length:', generatedCSS.length)
 
   // Generate base CSS (theme variables, resets, etc.)
   const baseCSS = generateCSS(theme)
@@ -5030,9 +5039,6 @@ ${generatedCSS}`
     }
   })
 
-  // DEBUG: Log all fonts being loaded
-  console.log('[PUBLISH_FONTS_TO_LOAD]', Array.from(fonts))
-
   const fontLinks = Array.from(fonts)
     .filter(f => f && !f.includes('system'))
     .map(f => {
@@ -5066,8 +5072,12 @@ ${generatedCSS}`
   ${favicon ? `<link rel="icon" href="${escapeHtml(favicon)}">` : ''}
   ${umamiScript}
 
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  ${umamiSiteId ? '<link rel="preconnect" href="https://cloud.umami.is" crossorigin>' : ''}
+  <link rel="dns-prefetch" href="https://api.fontshare.com">
+
   <!-- Fonts -->
-  <link rel="preconnect" href="https://api.fontshare.com">
   ${fontLinks}
 
   <!-- Stylesheet -->
@@ -5104,7 +5114,6 @@ interface SiteData {
 
 async function storeInKV(key: string, data: SiteData): Promise<void> {
   if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_KV_NAMESPACE_ID) {
-    console.log('Cloudflare credentials not configured, skipping KV storage')
     return
   }
 
@@ -5127,7 +5136,6 @@ async function storeInKV(key: string, data: SiteData): Promise<void> {
 
 async function deleteFromKV(key: string): Promise<void> {
   if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_KV_NAMESPACE_ID) {
-    console.log('Cloudflare credentials not configured, skipping KV deletion')
     return
   }
 
@@ -5151,6 +5159,8 @@ async function deleteFromKV(key: string): Promise<void> {
 // ============================================
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -5182,6 +5192,36 @@ serve(async (req) => {
       })
     }
 
+    // Rate limiting: max 10 publishes per hour per user
+    const ONE_HOUR_AGO = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+
+    const { count: recentPublishes } = await supabase
+      .from('publish_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', project.user_id)
+      .gte('created_at', ONE_HOUR_AGO)
+
+    if ((recentPublishes || 0) >= 10) {
+      return new Response(JSON.stringify({
+        error: 'Rate limit exceeded. Maximum 10 publishes per hour.',
+        retryAfter: 3600
+      }), {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': '3600',
+          ...corsHeaders
+        },
+      })
+    }
+
+    // Log this publish attempt
+    await supabase.from('publish_logs').insert({
+      user_id: project.user_id,
+      project_id: projectId,
+      action: action,
+    })
+
     if (action === 'publish') {
       // Fetch project content
       const { data: contentRow, error: contentError } = await supabase
@@ -5206,15 +5246,6 @@ serve(async (req) => {
         translation: blocksData.translation as TranslationSettings | undefined,
         translations: blocksData.translations as Record<string, Record<string, Record<string, unknown>>> | undefined,
       }
-
-      // DEBUG: Log theme overrides
-      console.log('[PUBLISH_THEME_OVERRIDES]', JSON.stringify(content.themeOverrides, null, 2))
-
-      // STEP 1 — RAW PROJECT DUMP (PUBLISH)
-      console.log(
-        '[PUBLISH_RAW_PROJECT]',
-        JSON.stringify(content.sections, null, 2)
-      )
 
       // STEP 4 — USE HYDRATOR IN PUBLISH FUNCTION
       const hydratedContent = hydrateProject(content)
@@ -5249,6 +5280,15 @@ serve(async (req) => {
         const hashBuffer = await crypto.subtle.digest('SHA-256', data)
         const hashArray = Array.from(new Uint8Array(hashBuffer))
         passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+        // Also update project_settings with hashed password if it's not already hashed
+        // (Hashed passwords are always 64 characters in hex)
+        if (settings.password.length !== 64 || !/^[0-9a-f]+$/i.test(settings.password)) {
+          await supabase
+            .from('project_settings')
+            .update({ password: passwordHash })
+            .eq('project_id', projectId)
+        }
       }
 
       await storeInKV(project.slug, {
@@ -5283,8 +5323,6 @@ serve(async (req) => {
           updated_at: new Date().toISOString(),
         }, { onConflict: 'project_id' })
 
-      console.log(`Project ${project.slug} published to ${publishedUrl}`)
-
       return new Response(JSON.stringify({
         success: true,
         publishedUrl,
@@ -5310,8 +5348,6 @@ serve(async (req) => {
       if (updateError) {
         throw updateError
       }
-
-      console.log(`Project ${project.slug} unpublished`)
 
       return new Response(JSON.stringify({
         success: true,

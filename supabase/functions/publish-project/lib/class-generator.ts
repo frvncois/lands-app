@@ -22,7 +22,6 @@ export class ClassGenerator {
     } while (this.usedIds.has(className))
 
     this.usedIds.add(className)
-    console.log('[CLASS_GEN] Created class:', className)
     return className
   }
 

@@ -30,6 +30,14 @@ export const useProjectsStore = defineStore('projects', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
+  // Pagination state
+  const projectsPage = ref(1)
+  const projectsLimit = ref(20)
+  const projectsTotal = ref(0)
+  const hasMoreProjects = computed(() =>
+    projects.value.length < projectsTotal.value
+  )
+
   // Getters
   const projectCount = computed(() => projects.value.length)
   const publishedProjects = computed(() => projects.value.filter(p => p.isPublished))
@@ -95,23 +103,60 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   // Actions - Projects
-  async function fetchProjects() {
+  async function fetchProjects(options: {
+    page?: number
+    limit?: number
+    append?: boolean
+  } = {}) {
+    const { page = 1, limit = 20, append = false } = options
+
     isLoading.value = true
     error.value = null
+
     try {
-      const { data, error: fetchError } = await supabase
+      const from = (page - 1) * limit
+      const to = from + limit - 1
+
+      const { data, error: fetchError, count } = await supabase
         .from('projects')
-        .select('id, user_id, title, slug, description, thumbnail_url, is_published, published_url, custom_domain, plan, created_at, updated_at')
+        .select('id, user_id, title, slug, description, thumbnail_url, is_published, published_url, custom_domain, plan, created_at, updated_at', { count: 'exact' })
         .order('updated_at', { ascending: false })
+        .range(from, to)
 
       if (fetchError) throw fetchError
 
-      projects.value = (data || []).map(mapDbToProject)
+      const mapped = (data || []).map(mapDbToProject)
+
+      if (append && page > 1) {
+        // Append to existing (for "load more")
+        projects.value = [...projects.value, ...mapped]
+      } else {
+        // Replace (for initial load or refresh)
+        projects.value = mapped
+      }
+
+      projectsPage.value = page
+      projectsTotal.value = count || 0
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch projects'
     } finally {
       isLoading.value = false
     }
+  }
+
+  async function loadMoreProjects() {
+    if (!hasMoreProjects.value || isLoading.value) return
+
+    await fetchProjects({
+      page: projectsPage.value + 1,
+      limit: projectsLimit.value,
+      append: true,
+    })
+  }
+
+  async function refreshProjects() {
+    projectsPage.value = 1
+    await fetchProjects({ page: 1, limit: projectsLimit.value })
   }
 
   async function createProject(title: string, customSlug?: string): Promise<Project | null> {
@@ -987,10 +1032,13 @@ export const useProjectsStore = defineStore('projects', () => {
     collaboratorInvites,
     isLoading,
     error,
+    projectsPage,
+    projectsTotal,
     // Getters
     projectCount,
     publishedProjects,
     draftProjects,
+    hasMoreProjects,
     getProjectById,
     getProjectIntegrations,
     getProjectIntegration,
@@ -1000,6 +1048,8 @@ export const useProjectsStore = defineStore('projects', () => {
     getPendingInvites,
     // Actions - Projects
     fetchProjects,
+    loadMoreProjects,
+    refreshProjects,
     createProject,
     updateProject,
     deleteProject,

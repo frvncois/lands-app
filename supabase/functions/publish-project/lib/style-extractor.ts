@@ -142,10 +142,6 @@ export class StyleExtractor {
       resolved = resolved.replace(varPattern, varValue)
     }
 
-    if (resolved !== value) {
-      console.log(`[RESOLVE_VALUE] "${value}" → "${resolved}"`)
-    }
-
     return resolved
   }
 

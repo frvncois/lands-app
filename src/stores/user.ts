@@ -23,6 +23,58 @@ export const useUserStore = defineStore('user', () => {
   const isHydrating = ref(false)
   const authUser = ref<User | null>(null)
 
+  // ============================================
+  // RATE LIMITING
+  // ============================================
+
+  const AUTH_MAX_ATTEMPTS = 5
+  const AUTH_LOCKOUT_MS = 15 * 60 * 1000 // 15 minutes
+
+  const authAttempts = ref(0)
+  const authLockedUntil = ref<number | null>(null)
+
+  /**
+   * Check if auth is rate limited
+   */
+  function isAuthRateLimited(): boolean {
+    if (authLockedUntil.value && Date.now() < authLockedUntil.value) {
+      return true
+    }
+    // Reset if lockout expired
+    if (authLockedUntil.value && Date.now() >= authLockedUntil.value) {
+      authLockedUntil.value = null
+      authAttempts.value = 0
+    }
+    return false
+  }
+
+  /**
+   * Get remaining lockout time in minutes
+   */
+  function getLockoutMinutes(): number {
+    if (!authLockedUntil.value) return 0
+    return Math.ceil((authLockedUntil.value - Date.now()) / 60000)
+  }
+
+  /**
+   * Record an auth attempt
+   */
+  function recordAuthAttempt(success: boolean) {
+    if (success) {
+      authAttempts.value = 0
+      authLockedUntil.value = null
+    } else {
+      authAttempts.value++
+      if (authAttempts.value >= AUTH_MAX_ATTEMPTS) {
+        authLockedUntil.value = Date.now() + AUTH_LOCKOUT_MS
+        toast.error(
+          'Too many failed attempts',
+          `Please wait ${AUTH_LOCKOUT_MS / 60000} minutes before trying again.`
+        )
+      }
+    }
+  }
+
   // Computed (for backward compatibility)
   const isAuthenticated = computed(() => authStatus.value === 'authenticated')
   const isLoading = computed(() => isHydrating.value)
@@ -304,6 +356,13 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function signIn(email: string, password: string) {
+    // Check rate limit
+    if (isAuthRateLimited()) {
+      const minutes = getLockoutMinutes()
+      toast.error('Account locked', `Too many failed attempts. Try again in ${minutes} minutes.`)
+      throw new Error('Rate limited')
+    }
+
     isHydrating.value = true
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -311,8 +370,12 @@ export const useUserStore = defineStore('user', () => {
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        recordAuthAttempt(false)
+        throw error
+      }
 
+      recordAuthAttempt(true)
       authStatus.value = 'authenticated'
       authUser.value = data.user
 
@@ -322,7 +385,10 @@ export const useUserStore = defineStore('user', () => {
       toast.success('Welcome back!')
     } catch (e) {
       console.error('Failed to sign in:', e)
-      toast.error('Failed to sign in', e instanceof Error ? e.message : 'Please check your credentials')
+      // Don't show error toast if it's a rate limit error (already shown)
+      if (!(e instanceof Error && e.message === 'Rate limited')) {
+        toast.error('Failed to sign in', e instanceof Error ? e.message : 'Please check your credentials')
+      }
       throw e
     } finally {
       isHydrating.value = false
