@@ -277,8 +277,8 @@ export const useEditorStore = defineStore('editor', () => {
     if (loadedTheme) {
       baseTheme.value = loadedTheme
     }
-    // TODO: Load themeOverrides from content when supported
-    themeOverrides.value = {}
+    // Load theme overrides
+    themeOverrides.value = content.themeOverrides || {}
 
     // Load translations
     translationSettings.value = content.translation || null
@@ -1098,6 +1098,11 @@ export const useEditorStore = defineStore('editor', () => {
       themeId: theme.value.id,
       sections: sections.value,
       meta: meta.value,
+    }
+
+    // Include theme overrides if any
+    if (Object.keys(themeOverrides.value).length > 0) {
+      content.themeOverrides = themeOverrides.value
     }
 
     // Include translations if configured

@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { hydrateProject } from './hydrator.ts'
+import { styleExtractor } from './lib/style-extractor.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -32,6 +33,10 @@ interface SectionInstance {
 interface PageContent {
   themeId: string
   sections: SectionInstance[]
+  themeOverrides?: {
+    colors?: Partial<ThemeTokens['colors']>
+    fonts?: Partial<ThemeTokens['fonts']>
+  }
   translation?: TranslationSettings
   translations?: Record<string, Record<string, Record<string, unknown>>>
 }
@@ -265,6 +270,54 @@ function buildFieldStyle(fieldStyles: Record<string, Record<string, unknown>> | 
   return parts.join('; ')
 }
 
+/**
+ * Extract section styles as CSS object for styleExtractor
+ * This gets the user's custom values that should NOT use theme var() defaults
+ */
+function extractSectionStyles(styles: Record<string, unknown> | undefined): Record<string, string> {
+  if (!styles) return {}
+  const cssStyles: Record<string, string> = {}
+
+  if (styles.backgroundColor) cssStyles.backgroundColor = `${styles.backgroundColor}`
+  if (styles.spacingY !== undefined) {
+    cssStyles.paddingTop = `${styles.spacingY}px`
+    cssStyles.paddingBottom = `${styles.spacingY}px`
+  }
+  if (styles.spacingX !== undefined) {
+    cssStyles.paddingLeft = `${styles.spacingX}px`
+    cssStyles.paddingRight = `${styles.spacingX}px`
+  }
+
+  return cssStyles
+}
+
+/**
+ * Extract field styles as CSS object for styleExtractor
+ */
+function extractFieldStyles(fieldStyles: Record<string, Record<string, unknown>> | undefined, fieldKey: string): Record<string, string> {
+  if (!fieldStyles || !fieldStyles[fieldKey]) return {}
+  const styles = fieldStyles[fieldKey]
+  const cssStyles: Record<string, string> = {}
+
+  if (styles.fontSize) cssStyles.fontSize = `${styles.fontSize}px`
+  if (styles.lineHeight) cssStyles.lineHeight = `${styles.lineHeight}`
+  if (styles.fontFamily) cssStyles.fontFamily = `${styles.fontFamily}`
+  if (styles.fontWeight) cssStyles.fontWeight = `${styles.fontWeight}`
+  if (styles.color) cssStyles.color = `${styles.color}`
+  if (styles.backgroundColor) cssStyles.backgroundColor = `${styles.backgroundColor}`
+  if (styles.spacingY) {
+    cssStyles.marginTop = `${styles.spacingY}px`
+    cssStyles.marginBottom = `${styles.spacingY}px`
+  }
+  if (styles.spacingX) {
+    cssStyles.marginLeft = `${styles.spacingX}px`
+    cssStyles.marginRight = `${styles.spacingX}px`
+  }
+  if (styles.borderRadius) cssStyles.borderRadius = `${styles.borderRadius}px`
+
+  return cssStyles
+}
+
 // ============================================
 // HERO SECTION
 // ============================================
@@ -283,80 +336,284 @@ function generateHeroHTML(section: SectionInstance, theme: ThemeTokens, sectionS
   // Extract styles
   const spaceBetween = (styles as Record<string, unknown>)?.spaceBetween ?? 32
   const stackedLayout = (styles as Record<string, unknown>)?.heroStackedLayout ?? 'option1'
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
 
-  // Field styles
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const subheadlineStyle = buildFieldStyle(fieldStyles, 'subheadline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
-  const primaryCTAStyle = buildFieldStyle(fieldStyles, 'primaryCTA')
-  const secondaryCTAStyle = buildFieldStyle(fieldStyles, 'secondaryCTA')
+  // Create class names
+  const heroClass = styleExtractor.createRootClass('hero')
+  const containerClass = styleExtractor.createChildClass(heroClass, 'container')
+  const headlineClass = styleExtractor.createChildClass(heroClass, 'headline')
+  const subheadlineClass = styleExtractor.createChildClass(heroClass, 'subheadline')
+  const paragraphClass = styleExtractor.createChildClass(heroClass, 'paragraph')
+  const mediaContainerClass = styleExtractor.createChildClass(heroClass, 'media-container')
+  const mediaClass = styleExtractor.createChildClass(heroClass, 'media')
+  const primaryBtnClass = styleExtractor.createChildClass(heroClass, 'primary-btn')
+  const secondaryBtnClass = styleExtractor.createChildClass(heroClass, 'secondary-btn')
+  const buttonsClass = styleExtractor.createChildClass(heroClass, 'buttons')
+  const headerClass = styleExtractor.createChildClass(heroClass, 'header')
+  const contentClass = styleExtractor.createChildClass(heroClass, 'content')
 
-  // Media HTML
-  const mediaHTML = media?.src
-    ? (media.type === 'video'
-        ? `<video src="${escapeHtml(media.src)}" autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>`
-        : `<img src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || '')}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;" />`)
+  // Process section element
+  styleExtractor.processElement({
+    className: heroClass,
+    tailwindClasses: 'text-[var(--color-fg)]',
+    additionalStyles: customStyles,
+  })
+
+  // Process media
+  if (media?.src) {
+    styleExtractor.processElement({
+      className: mediaContainerClass,
+      tailwindClasses: 'w-full min-h-0 relative overflow-hidden',
+      additionalStyles: { aspectRatio: '16 / 9' },
+    })
+
+    styleExtractor.processElement({
+      className: mediaClass,
+      tailwindClasses: 'w-full h-full object-cover',
+    })
+  }
+
+  // Process headline
+  styleExtractor.processElement({
+    className: headlineClass,
+    tailwindClasses: 'text-[var(--text-5xl)] font-bold m-0',
+    additionalStyles: {
+      lineHeight: '1.2',
+      fontFamily: 'var(--font-heading)',
+      ...extractFieldStyles(fieldStyles, 'headline'),
+    },
+  })
+
+  // Process subheadline
+  styleExtractor.processElement({
+    className: subheadlineClass,
+    tailwindClasses: 'text-[var(--text-xl)] m-0',
+    additionalStyles: {
+      color: theme.colors.mutedForeground,
+      fontFamily: 'var(--font-body)',
+      ...extractFieldStyles(fieldStyles, 'subheadline'),
+    },
+  })
+
+  // Process paragraph
+  styleExtractor.processElement({
+    className: paragraphClass,
+    tailwindClasses: 'text-[var(--text-base)] m-0',
+    additionalStyles: {
+      color: theme.colors.mutedForeground,
+      fontFamily: 'var(--font-body)',
+      ...extractFieldStyles(fieldStyles, 'paragraph'),
+    },
+  })
+
+  // Process buttons
+  if (primaryCTA?.label) {
+    styleExtractor.processElement({
+      className: primaryBtnClass,
+      tailwindClasses: 'inline-flex items-center justify-center no-underline',
+      additionalStyles: {
+        padding: 'var(--btn-py) var(--btn-px)',
+        backgroundColor: theme.colors.primary,
+        color: theme.colors.primaryForeground,
+        fontSize: 'var(--text-base)',
+        fontWeight: 'var(--btn-weight)',
+        borderRadius: 'var(--btn-radius)',
+        ...extractFieldStyles(fieldStyles, 'primaryCTA'),
+      },
+    })
+  }
+
+  if (secondaryCTA?.label) {
+    styleExtractor.processElement({
+      className: secondaryBtnClass,
+      tailwindClasses: 'inline-flex items-center justify-center no-underline',
+      additionalStyles: {
+        padding: 'var(--btn-py) var(--btn-px)',
+        backgroundColor: theme.colors.secondary,
+        color: theme.colors.secondaryForeground,
+        fontSize: 'var(--text-base)',
+        fontWeight: 'var(--btn-weight)',
+        borderRadius: 'var(--btn-radius)',
+        ...extractFieldStyles(fieldStyles, 'secondaryCTA'),
+      },
+    })
+  }
+
+  const mediaHTML = media?.src ? (media.type === 'video'
+    ? `<video class="${mediaClass}" src="${escapeHtml(media.src)}" autoplay loop muted playsinline></video>`
+    : `<img class="${mediaClass}" src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || '')}" loading="lazy" />`)
     : ''
 
-  // Section wrapper style
-  const sectionWrapperStyle = `background-color: ${theme.colors.background}; color: ${theme.colors.foreground}; padding: var(--spacing-section) var(--spacing-container); ${sectionStyle}`
+  const primaryButtonHTML = primaryCTA?.label ? `<a class="${primaryBtnClass}" href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA">${escapeHtml(primaryCTA.label)}</a>` : ''
+  const secondaryButtonHTML = secondaryCTA?.label ? `<a class="${secondaryBtnClass}" href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA">${escapeHtml(secondaryCTA.label)}</a>` : ''
 
   if (variant === 'stacked') {
-    const gapStyle = `gap: ${spaceBetween}px;`
-
     if (stackedLayout === 'option1') {
       // Option 1: A (headline+subheadline) → B (media) → C (paragraph+buttons right 50%)
+      styleExtractor.processElement({
+        className: containerClass,
+        tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-col',
+        additionalStyles: { gap: `${spaceBetween}px` },
+      })
+
+      styleExtractor.processElement({
+        className: headerClass,
+        tailwindClasses: 'flex flex-col',
+      })
+
+      styleExtractor.processElement({
+        className: contentClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-lg)] ml-auto w-full max-w-[50%]',
+      })
+
+      styleExtractor.processElement({
+        className: buttonsClass,
+        tailwindClasses: 'flex gap-[var(--spacing-md)]',
+      })
+
+      styleExtractor.processElement({
+        className: subheadlineClass,
+        tailwindClasses: 'text-[var(--text-xl)] m-0 max-w-[600px]',
+        additionalStyles: {
+          color: theme.colors.mutedForeground,
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'subheadline'),
+        },
+      })
+
       return `
-      <section data-section-id="${id}" style="${sectionWrapperStyle}">
-        <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: column; ${gapStyle}">
-          <div style="display: flex; flex-direction: column;">
-            ${headline ? `<h1 data-field="headline" style="font-size: var(--text-5xl); font-weight: bold; line-height: 1.2; margin: 0; ${headlineStyle}">${escapeHtml(headline)}</h1>` : ''}
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-xl); color: ${theme.colors.mutedForeground}; margin: 0; max-width: 600px; ${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
+      <section class="${heroClass}" data-section-id="${id}">
+        <div class="${containerClass}">
+          <div class="${headerClass}">
+            ${headline ? `<h1 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h1>` : ''}
+            ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
           </div>
-          ${media?.src ? `<div style="width: 100%; min-height: 0; position: relative; overflow: hidden; aspect-ratio: 16 / 9;">${mediaHTML}</div>` : ''}
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-lg); margin-left: auto; width: 100%; max-width: 50%;">
-            ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: ${theme.colors.mutedForeground}; margin: 0; ${paragraphStyle}">${paragraph}</div>` : ''}
-            <div style="display: flex; gap: var(--spacing-md);">
-              ${primaryCTA?.label ? `<a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: ${theme.colors.primary}; color: ${theme.colors.primaryForeground}; font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAStyle}">${escapeHtml(primaryCTA.label)}</a>` : ''}
-              ${secondaryCTA?.label ? `<a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: ${theme.colors.secondary}; color: ${theme.colors.secondaryForeground}; font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAStyle}">${escapeHtml(secondaryCTA.label)}</a>` : ''}
+          ${media?.src ? `<div class="${mediaContainerClass}">${mediaHTML}</div>` : ''}
+          <div class="${contentClass}">
+            ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+            <div class="${buttonsClass}">
+              ${primaryButtonHTML}
+              ${secondaryButtonHTML}
             </div>
           </div>
         </div>
       </section>`
     } else if (stackedLayout === 'option2') {
       // Option 2: A (headline+subheadline center) → C (paragraph+buttons center) → B (media)
+      styleExtractor.processElement({
+        className: containerClass,
+        tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-col items-center text-center',
+        additionalStyles: { gap: `${spaceBetween}px` },
+      })
+
+      styleExtractor.processElement({
+        className: headerClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-md)] items-center',
+      })
+
+      styleExtractor.processElement({
+        className: contentClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-lg)] items-center',
+      })
+
+      styleExtractor.processElement({
+        className: buttonsClass,
+        tailwindClasses: 'flex gap-[var(--spacing-md)] justify-center',
+      })
+
+      styleExtractor.processElement({
+        className: subheadlineClass,
+        tailwindClasses: 'text-[var(--text-xl)] m-0 max-w-[600px]',
+        additionalStyles: {
+          color: theme.colors.mutedForeground,
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'subheadline'),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0 max-w-[600px]',
+        additionalStyles: {
+          color: theme.colors.mutedForeground,
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+
       return `
-      <section data-section-id="${id}" style="${sectionWrapperStyle}">
-        <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; ${gapStyle}">
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md); align-items: center;">
-            ${headline ? `<h1 data-field="headline" style="font-size: var(--text-5xl); font-weight: bold; line-height: 1.2; margin: 0; ${headlineStyle}">${escapeHtml(headline)}</h1>` : ''}
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-xl); color: ${theme.colors.mutedForeground}; margin: 0; max-width: 600px; ${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
+      <section class="${heroClass}" data-section-id="${id}">
+        <div class="${containerClass}">
+          <div class="${headerClass}">
+            ${headline ? `<h1 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h1>` : ''}
+            ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-lg); align-items: center;">
-            ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: ${theme.colors.mutedForeground}; margin: 0; max-width: 600px; ${paragraphStyle}">${paragraph}</div>` : ''}
-            <div style="display: flex; gap: var(--spacing-md); justify-content: center;">
-              ${primaryCTA?.label ? `<a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: ${theme.colors.primary}; color: ${theme.colors.primaryForeground}; font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAStyle}">${escapeHtml(primaryCTA.label)}</a>` : ''}
-              ${secondaryCTA?.label ? `<a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: ${theme.colors.secondary}; color: ${theme.colors.secondaryForeground}; font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAStyle}">${escapeHtml(secondaryCTA.label)}</a>` : ''}
+          <div class="${contentClass}">
+            ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+            <div class="${buttonsClass}">
+              ${primaryButtonHTML}
+              ${secondaryButtonHTML}
             </div>
           </div>
-          ${media?.src ? `<div style="width: 100%; min-height: 0; position: relative; overflow: hidden; aspect-ratio: 16 / 9;">${mediaHTML}</div>` : ''}
+          ${media?.src ? `<div class="${mediaContainerClass}">${mediaHTML}</div>` : ''}
         </div>
       </section>`
     } else {
       // Option 3: B (media) → A (headline+subheadline center) → C (paragraph+buttons center)
+      styleExtractor.processElement({
+        className: containerClass,
+        tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-col items-center text-center',
+        additionalStyles: { gap: `${spaceBetween}px` },
+      })
+
+      styleExtractor.processElement({
+        className: headerClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-md)] items-center',
+      })
+
+      styleExtractor.processElement({
+        className: contentClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-lg)] items-center',
+      })
+
+      styleExtractor.processElement({
+        className: buttonsClass,
+        tailwindClasses: 'flex gap-[var(--spacing-md)] justify-center',
+      })
+
+      styleExtractor.processElement({
+        className: subheadlineClass,
+        tailwindClasses: 'text-[var(--text-xl)] m-0 max-w-[600px]',
+        additionalStyles: {
+          color: theme.colors.mutedForeground,
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'subheadline'),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0 max-w-[600px]',
+        additionalStyles: {
+          color: theme.colors.mutedForeground,
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+
       return `
-      <section data-section-id="${id}" style="${sectionWrapperStyle}">
-        <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; ${gapStyle}">
-          ${media?.src ? `<div style="width: 100%; min-height: 0; position: relative; overflow: hidden; aspect-ratio: 16 / 9;">${mediaHTML}</div>` : ''}
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md); align-items: center;">
-            ${headline ? `<h1 data-field="headline" style="font-size: var(--text-5xl); font-weight: bold; line-height: 1.2; margin: 0; ${headlineStyle}">${escapeHtml(headline)}</h1>` : ''}
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-xl); color: ${theme.colors.mutedForeground}; margin: 0; max-width: 600px; ${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
+      <section class="${heroClass}" data-section-id="${id}">
+        <div class="${containerClass}">
+          ${media?.src ? `<div class="${mediaContainerClass}">${mediaHTML}</div>` : ''}
+          <div class="${headerClass}">
+            ${headline ? `<h1 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h1>` : ''}
+            ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-lg); align-items: center;">
-            ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: ${theme.colors.mutedForeground}; margin: 0; max-width: 600px; ${paragraphStyle}">${paragraph}</div>` : ''}
-            <div style="display: flex; gap: var(--spacing-md); justify-content: center;">
-              ${primaryCTA?.label ? `<a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: ${theme.colors.primary}; color: ${theme.colors.primaryForeground}; font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAStyle}">${escapeHtml(primaryCTA.label)}</a>` : ''}
-              ${secondaryCTA?.label ? `<a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: ${theme.colors.secondary}; color: ${theme.colors.secondaryForeground}; font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAStyle}">${escapeHtml(secondaryCTA.label)}</a>` : ''}
+          <div class="${contentClass}">
+            ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+            <div class="${buttonsClass}">
+              ${primaryButtonHTML}
+              ${secondaryButtonHTML}
             </div>
           </div>
         </div>
@@ -372,24 +629,130 @@ function generateHeroHTML(section: SectionInstance, theme: ThemeTokens, sectionS
     const mediaOrder = isContentRight ? 1 : 2
     const contentOrder = isContentRight ? 2 : 1
 
+    const splitContainerClass = styleExtractor.createChildClass(heroClass, 'split-container')
+    const mediaColumnClass = styleExtractor.createChildClass(heroClass, 'media-column')
+    const contentColumnClass = styleExtractor.createChildClass(heroClass, 'content-column')
+    const mediaInnerClass = styleExtractor.createChildClass(heroClass, 'media-inner')
+    const placeholderClass = styleExtractor.createChildClass(heroClass, 'placeholder')
+
+    // Extract spacingX and spacingY from section styles
+    const spacingY = (styles as Record<string, unknown>)?.spacingY
+    const spacingX = (styles as Record<string, unknown>)?.spacingX
+    const bgColor = (styles as Record<string, unknown>)?.backgroundColor
+
+    // Build section style with only backgroundColor and spacingY
+    const sectionAdditionalStyles: Record<string, string> = {
+      minHeight: minHeight,
+      backgroundColor: bgColor ? `${bgColor}` : theme.colors.background,
+      color: theme.colors.foreground,
+    }
+    if (spacingY !== undefined) {
+      sectionAdditionalStyles.paddingTop = `${spacingY}px`
+      sectionAdditionalStyles.paddingBottom = `${spacingY}px`
+    }
+
+    // Process split variant styling
+    styleExtractor.processElement({
+      className: heroClass,
+      tailwindClasses: 'flex',
+      additionalStyles: sectionAdditionalStyles,
+    })
+
+    styleExtractor.processElement({
+      className: splitContainerClass,
+      tailwindClasses: 'max-w-[1200px] mx-auto w-full grid grid-cols-2 items-center',
+    })
+
+    styleExtractor.processElement({
+      className: mediaColumnClass,
+      tailwindClasses: 'h-full',
+      additionalStyles: { order: mediaOrder.toString() },
+    })
+
+    styleExtractor.processElement({
+      className: mediaInnerClass,
+      tailwindClasses: 'h-full',
+    })
+
+    if (media?.src) {
+      styleExtractor.processElement({
+        className: mediaClass,
+        tailwindClasses: 'w-full h-full object-cover rounded-[var(--radius-lg)]',
+      })
+    } else {
+      styleExtractor.processElement({
+        className: placeholderClass,
+        tailwindClasses: 'h-full bg-[var(--color-secondary)] rounded-[var(--radius-lg)]',
+      })
+    }
+
+    // Apply spacingX to content column if set, otherwise use default
+    const contentColumnAdditionalStyles: Record<string, string> = {
+      gap: `${spaceBetween}px`,
+      order: contentOrder.toString(),
+    }
+    if (spacingX !== undefined) {
+      contentColumnAdditionalStyles.paddingLeft = `${spacingX}px`
+      contentColumnAdditionalStyles.paddingRight = `${spacingX}px`
+    }
+
+    styleExtractor.processElement({
+      className: contentColumnClass,
+      tailwindClasses: spacingX !== undefined ? 'flex flex-col' : 'flex flex-col px-[var(--spacing-container)]',
+      additionalStyles: contentColumnAdditionalStyles,
+    })
+
+    styleExtractor.processElement({
+      className: headerClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-md)]',
+    })
+
+    styleExtractor.processElement({
+      className: contentClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-md)]',
+    })
+
+    styleExtractor.processElement({
+      className: buttonsClass,
+      tailwindClasses: 'flex gap-[var(--spacing-md)]',
+    })
+
+    styleExtractor.processElement({
+      className: subheadlineClass,
+      tailwindClasses: 'text-[var(--text-xl)] m-0',
+      additionalStyles: {
+        color: 'var(--color-muted)',
+        fontFamily: 'var(--font-body)',
+        ...extractFieldStyles(fieldStyles, 'subheadline'),
+      },
+    })
+
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[var(--text-base)] m-0',
+      additionalStyles: {
+        color: 'var(--color-muted)',
+        fontFamily: 'var(--font-body)',
+        ...extractFieldStyles(fieldStyles, 'paragraph'),
+      },
+    })
+
     return `
-    <section data-section-id="${id}" style="display: flex; background-color: ${theme.colors.background}; color: ${theme.colors.foreground}; padding: var(--spacing-section) 0; min-height: ${minHeight}; ${sectionStyle}">
-      <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); align-items: center;">
-        <!-- Media Column -->
-        <div style="height: 100%; order: ${mediaOrder};">
-          ${media?.src ? `<div style="height: 100%;">${mediaHTML.replace('width: 100%; height: 100%;', 'width: 100%; height: 100%; border-radius: var(--radius-lg);')}</div>` : '<div style="height: 100%; background-color: var(--color-secondary); border-radius: var(--radius-lg);"></div>'}
+    <section class="${heroClass}" data-section-id="${id}">
+      <div class="${splitContainerClass}">
+        <div class="${mediaColumnClass}">
+          ${media?.src ? `<div class="${mediaInnerClass}">${mediaHTML}</div>` : `<div class="${placeholderClass}"></div>`}
         </div>
-        <!-- Content Column -->
-        <div style="display: flex; flex-direction: column; gap: ${spaceBetween}px; padding-left: var(--spacing-container); padding-right: var(--spacing-container); order: ${contentOrder};">
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
-            ${headline ? `<h1 data-field="headline" style="font-size: var(--text-5xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineStyle}">${escapeHtml(headline)}</h1>` : ''}
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-xl); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
+        <div class="${contentColumnClass}">
+          <div class="${headerClass}">
+            ${headline ? `<h1 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h1>` : ''}
+            ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
-            ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${paragraphStyle}">${paragraph}</div>` : ''}
-            <div style="display: flex; gap: var(--spacing-md);">
-              ${primaryCTA?.label ? `<a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-primary); color: var(--color-primary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAStyle}">${escapeHtml(primaryCTA.label)}</a>` : ''}
-              ${secondaryCTA?.label ? `<a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-secondary); color: var(--color-secondary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAStyle}">${escapeHtml(secondaryCTA.label)}</a>` : ''}
+          <div class="${contentClass}">
+            ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+            <div class="${buttonsClass}">
+              ${primaryButtonHTML}
+              ${secondaryButtonHTML}
             </div>
           </div>
         </div>
@@ -414,34 +777,154 @@ function generateHeroHTML(section: SectionInstance, theme: ThemeTokens, sectionS
     const b = parseInt(hex.substring(4, 6), 16)
     const rgba = `rgba(${r}, ${g}, ${b}, ${overlayOpacity / 100})`
 
-    // Position classes
-    let positionStyle = 'position: absolute; z-index: 10; padding: var(--spacing-container) var(--spacing-section);'
-    if (positionY === 'top') positionStyle += ' top: 0;'
-    else if (positionY === 'bottom') positionStyle += ' bottom: 0;'
-    else positionStyle += ' top: 50%; transform: translateY(-50%);'
-
-    if (positionX === 'left') positionStyle += ' left: 0;'
-    else if (positionX === 'right') positionStyle += ' right: 0;'
-    else positionStyle += positionY === 'middle' ? ' left: 50%; transform: translate(-50%, -50%);' : ' left: 50%; transform: translateX(-50%);'
-
     const textAlign = positionX === 'left' ? 'left' : positionX === 'right' ? 'right' : 'center'
     const itemsAlign = positionX === 'left' ? 'flex-start' : positionX === 'right' ? 'flex-end' : 'center'
 
+    const mediaBgClass = styleExtractor.createChildClass(heroClass, 'media-bg')
+    const overlayLayerClass = styleExtractor.createChildClass(heroClass, 'overlay-layer')
+    const overlayContainerClass = styleExtractor.createChildClass(heroClass, 'overlay-container')
+    const overlayWrapperClass = styleExtractor.createChildClass(heroClass, 'overlay-wrapper')
+
+    // Process overlay variant styling
+    styleExtractor.processElement({
+      className: heroClass,
+      tailwindClasses: 'relative overflow-hidden flex',
+      additionalStyles: { minHeight: minHeight },
+    })
+
+    styleExtractor.processElement({
+      className: mediaBgClass,
+      tailwindClasses: 'absolute inset-0',
+      additionalStyles: {
+        backgroundColor: 'var(--color-secondary)',
+      },
+    })
+
+    if (media?.src) {
+      styleExtractor.processElement({
+        className: mediaClass,
+        tailwindClasses: 'w-full h-full object-cover',
+      })
+    }
+
+    styleExtractor.processElement({
+      className: overlayLayerClass,
+      tailwindClasses: 'absolute inset-0',
+      additionalStyles: {
+        backgroundColor: rgba,
+        ...(overlayBlur > 0 && { backdropFilter: `blur(${overlayBlur}px)` }),
+      },
+    })
+
+    // Position style calculation
+    const positionStyles: Record<string, string> = { position: 'absolute', zIndex: '10' }
+    if (positionY === 'top') {
+      positionStyles.top = '0'
+    } else if (positionY === 'bottom') {
+      positionStyles.bottom = '0'
+    } else {
+      positionStyles.top = '50%'
+      positionStyles.transform = 'translateY(-50%)'
+    }
+
+    if (positionX === 'left') {
+      positionStyles.left = '0'
+    } else if (positionX === 'right') {
+      positionStyles.right = '0'
+    } else {
+      positionStyles.left = '50%'
+      if (positionY === 'middle') {
+        positionStyles.transform = 'translate(-50%, -50%)'
+      } else {
+        positionStyles.transform = 'translateX(-50%)'
+      }
+    }
+
+    styleExtractor.processElement({
+      className: overlayContainerClass,
+      tailwindClasses: 'p-[var(--spacing-container)] py-[var(--spacing-section)] w-full max-w-[1200px] mx-auto',
+      additionalStyles: positionStyles,
+    })
+
+    styleExtractor.processElement({
+      className: overlayWrapperClass,
+      tailwindClasses: 'flex flex-col',
+      additionalStyles: {
+        gap: `${spaceBetween}px`,
+        textAlign: textAlign,
+        alignItems: itemsAlign,
+      },
+    })
+
+    styleExtractor.processElement({
+      className: headerClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+      additionalStyles: {
+        textAlign: textAlign,
+        alignItems: itemsAlign,
+      },
+    })
+
+    styleExtractor.processElement({
+      className: contentClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-md)]',
+      additionalStyles: {
+        textAlign: textAlign,
+        alignItems: itemsAlign,
+      },
+    })
+
+    styleExtractor.processElement({
+      className: buttonsClass,
+      tailwindClasses: 'flex gap-[var(--spacing-md)]',
+    })
+
+    styleExtractor.processElement({
+      className: headlineClass,
+      tailwindClasses: 'text-[var(--text-5xl)] font-bold m-0',
+      additionalStyles: {
+        lineHeight: '1.2',
+        color: 'white',
+        fontFamily: 'var(--font-heading)',
+        ...extractFieldStyles(fieldStyles, 'headline'),
+      },
+    })
+
+    styleExtractor.processElement({
+      className: subheadlineClass,
+      tailwindClasses: 'text-[var(--text-xl)] m-0',
+      additionalStyles: {
+        color: 'rgba(255,255,255,0.9)',
+        fontFamily: 'var(--font-body)',
+        ...extractFieldStyles(fieldStyles, 'subheadline'),
+      },
+    })
+
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[var(--text-base)] m-0 max-w-[600px]',
+      additionalStyles: {
+        color: 'rgba(255,255,255,0.9)',
+        fontFamily: 'var(--font-body)',
+        ...extractFieldStyles(fieldStyles, 'paragraph'),
+      },
+    })
+
     return `
-    <section data-section-id="${id}" style="position: relative; overflow: hidden; display: flex; min-height: ${minHeight};">
-      ${media?.src ? `<div style="position: absolute; inset: 0;">${mediaHTML}</div>` : `<div style="position: absolute; inset: 0; background-color: var(--color-secondary);"></div>`}
-      <div style="position: absolute; inset: 0; background-color: ${rgba}; ${overlayBlur > 0 ? `backdrop-filter: blur(${overlayBlur}px);` : ''}"></div>
-      <div style="${positionStyle} width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto;">
-        <div style="display: flex; flex-direction: column; gap: ${spaceBetween}px; text-align: ${textAlign}; align-items: ${itemsAlign};">
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-sm); text-align: ${textAlign}; align-items: ${itemsAlign};">
-            ${headline ? `<h1 data-field="headline" style="font-size: var(--text-5xl); font-weight: bold; line-height: 1.2; margin: 0; color: white; font-family: var(--font-heading); ${headlineStyle}">${escapeHtml(headline)}</h1>` : ''}
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-xl); margin: 0; color: rgba(255,255,255,0.9); font-family: var(--font-body); ${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
+    <section class="${heroClass}" data-section-id="${id}">
+      <div class="${mediaBgClass}">${media?.src ? mediaHTML : ''}</div>
+      <div class="${overlayLayerClass}"></div>
+      <div class="${overlayContainerClass}">
+        <div class="${overlayWrapperClass}">
+          <div class="${headerClass}">
+            ${headline ? `<h1 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h1>` : ''}
+            ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md); text-align: ${textAlign}; align-items: ${itemsAlign};">
-            ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); margin: 0; color: rgba(255,255,255,0.9); max-width: 600px; font-family: var(--font-body); ${paragraphStyle}">${paragraph}</div>` : ''}
-            <div style="display: flex; gap: var(--spacing-md);">
-              ${primaryCTA?.label ? `<a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-primary); color: var(--color-primary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAStyle}">${escapeHtml(primaryCTA.label)}</a>` : ''}
-              ${secondaryCTA?.label ? `<a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-secondary); color: var(--color-secondary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAStyle}">${escapeHtml(secondaryCTA.label)}</a>` : ''}
+          <div class="${contentClass}">
+            ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+            <div class="${buttonsClass}">
+              ${primaryButtonHTML}
+              ${secondaryButtonHTML}
             </div>
           </div>
         </div>
@@ -452,43 +935,231 @@ function generateHeroHTML(section: SectionInstance, theme: ThemeTokens, sectionS
   if (variant === 'presentation') {
     const layout = (styles as Record<string, unknown>)?.heroPresentationLayout ?? 'inline'
 
+    const presContainerClass = styleExtractor.createChildClass(heroClass, 'pres-container')
+    const profileClass = styleExtractor.createChildClass(heroClass, 'profile')
+    const profileImgClass = styleExtractor.createChildClass(heroClass, 'profile-img')
+    const profilePlaceholderClass = styleExtractor.createChildClass(heroClass, 'profile-placeholder')
+    const profilePlaceholderTextClass = styleExtractor.createChildClass(heroClass, 'profile-placeholder-text')
+    const presContentClass = styleExtractor.createChildClass(heroClass, 'pres-content')
+    const presHeaderRowClass = styleExtractor.createChildClass(heroClass, 'pres-header-row')
+    const presButtonsClass = styleExtractor.createChildClass(heroClass, 'pres-buttons')
+
     if (layout === 'inline') {
+      // Process inline presentation variant
+      styleExtractor.processElement({
+        className: presContainerClass,
+        tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-row items-start',
+        additionalStyles: { gap: `${spaceBetween}px` },
+      })
+
+      styleExtractor.processElement({
+        className: profileClass,
+        tailwindClasses: 'flex-shrink-0',
+      })
+
+      if (media?.src && media.type === 'image') {
+        styleExtractor.processElement({
+          className: profileImgClass,
+          tailwindClasses: 'w-[128px] h-[128px] rounded-full object-cover',
+        })
+      } else {
+        styleExtractor.processElement({
+          className: profilePlaceholderClass,
+          tailwindClasses: 'w-[128px] h-[128px] rounded-full bg-[var(--color-secondary)] flex items-center justify-center',
+        })
+        styleExtractor.processElement({
+          className: profilePlaceholderTextClass,
+          tailwindClasses: 'text-[12px]',
+          additionalStyles: {
+            color: 'var(--color-muted)',
+          },
+        })
+      }
+
+      styleExtractor.processElement({
+        className: presContentClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-md)] flex-1',
+      })
+
+      styleExtractor.processElement({
+        className: presHeaderRowClass,
+        tailwindClasses: 'flex flex-wrap items-center gap-[var(--spacing-md)]',
+      })
+
+      styleExtractor.processElement({
+        className: presButtonsClass,
+        tailwindClasses: 'flex gap-[var(--spacing-sm)]',
+      })
+
+      styleExtractor.processElement({
+        className: headlineClass,
+        tailwindClasses: 'text-[var(--text-4xl)] font-bold m-0',
+        additionalStyles: {
+          lineHeight: '1.2',
+          fontFamily: 'var(--font-heading)',
+          ...extractFieldStyles(fieldStyles, 'headline'),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: subheadlineClass,
+        tailwindClasses: 'text-[var(--text-lg)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'subheadline'),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+
+      if (primaryCTA?.label) {
+        styleExtractor.processElement({
+          className: primaryBtnClass,
+          tailwindClasses: 'inline-flex items-center justify-center no-underline',
+          additionalStyles: {
+            padding: 'var(--btn-py) var(--btn-px)',
+            backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-primary-fg)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 'var(--btn-weight)',
+            borderRadius: 'var(--btn-radius)',
+            ...extractFieldStyles(fieldStyles, 'primaryCTA'),
+          },
+        })
+      }
+
+      if (secondaryCTA?.label) {
+        styleExtractor.processElement({
+          className: secondaryBtnClass,
+          tailwindClasses: 'inline-flex items-center justify-center no-underline',
+          additionalStyles: {
+            padding: 'var(--btn-py) var(--btn-px)',
+            backgroundColor: 'var(--color-secondary)',
+            color: 'var(--color-secondary-fg)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 'var(--btn-weight)',
+            borderRadius: 'var(--btn-radius)',
+            ...extractFieldStyles(fieldStyles, 'secondaryCTA'),
+          },
+        })
+      }
+
+      const primaryButtonHTMLSmall = primaryCTA?.label ? `<a class="${primaryBtnClass}" href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA">${escapeHtml(primaryCTA.label)}</a>` : ''
+      const secondaryButtonHTMLSmall = secondaryCTA?.label ? `<a class="${secondaryBtnClass}" href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA">${escapeHtml(secondaryCTA.label)}</a>` : ''
+
       return `
-      <section data-section-id="${id}" style="${sectionWrapperStyle}">
-        <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: row; align-items: flex-start; gap: ${spaceBetween}px;">
-          <!-- Profile Image -->
-          <div style="flex-shrink: 0;">
-            ${media?.src && media.type === 'image' ? `<img src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || '')}" style="width: 128px; height: 128px; border-radius: 50%; object-fit: cover;" />` : '<div style="width: 128px; height: 128px; border-radius: 50%; background-color: var(--color-secondary); display: flex; align-items: center; justify-content: center;"><span style="color: var(--color-muted); font-size: 12px;">Photo</span></div>'}
+      <section class="${heroClass}" data-section-id="${id}">
+        <div class="${presContainerClass}">
+          <div class="${profileClass}">
+            ${media?.src && media.type === 'image' ? `<img class="${profileImgClass}" src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || '')}" />` : `<div class="${profilePlaceholderClass}"><span class="${profilePlaceholderTextClass}">Photo</span></div>`}
           </div>
-          <!-- Content -->
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md); flex: 1;">
-            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-md);">
-              ${headline ? `<h1 data-field="headline" style="font-size: var(--text-4xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineStyle}">${escapeHtml(headline)}</h1>` : ''}
-              <div style="display: flex; gap: var(--spacing-sm);">
-                ${primaryCTA?.label ? `<a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-primary); color: var(--color-primary-fg); font-size: var(--text-sm); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAStyle}">${escapeHtml(primaryCTA.label)}</a>` : ''}
-                ${secondaryCTA?.label ? `<a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-secondary); color: var(--color-secondary-fg); font-size: var(--text-sm); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAStyle}">${escapeHtml(secondaryCTA.label)}</a>` : ''}
+          <div class="${presContentClass}">
+            <div class="${presHeaderRowClass}">
+              ${headline ? `<h1 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h1>` : ''}
+              <div class="${presButtonsClass}">
+                ${primaryButtonHTMLSmall}
+                ${secondaryButtonHTMLSmall}
               </div>
             </div>
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-lg); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
-            ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${paragraphStyle}">${paragraph}</div>` : ''}
+            ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
+            ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
           </div>
         </div>
       </section>`
     } else {
       // Stacked layout
+      styleExtractor.processElement({
+        className: presContainerClass,
+        tailwindClasses: 'max-w-[800px] mx-auto w-full flex flex-col items-center text-center',
+        additionalStyles: { gap: `${spaceBetween}px` },
+      })
+
+      if (media?.src && media.type === 'image') {
+        styleExtractor.processElement({
+          className: profileImgClass,
+          tailwindClasses: 'w-[128px] h-[128px] rounded-full object-cover',
+        })
+      } else {
+        styleExtractor.processElement({
+          className: profilePlaceholderClass,
+          tailwindClasses: 'w-[128px] h-[128px] rounded-full bg-[var(--color-secondary)] flex items-center justify-center',
+        })
+        styleExtractor.processElement({
+          className: profilePlaceholderTextClass,
+          tailwindClasses: 'text-[12px]',
+          additionalStyles: {
+            color: 'var(--color-muted)',
+          },
+        })
+      }
+
+      styleExtractor.processElement({
+        className: headerClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-md)] items-center',
+      })
+
+      styleExtractor.processElement({
+        className: contentClass,
+        tailwindClasses: 'flex flex-col gap-[var(--spacing-md)] items-center',
+      })
+
+      styleExtractor.processElement({
+        className: presButtonsClass,
+        tailwindClasses: 'flex gap-[var(--spacing-sm)]',
+      })
+
+      styleExtractor.processElement({
+        className: headlineClass,
+        tailwindClasses: 'text-[var(--text-4xl)] font-bold m-0',
+        additionalStyles: {
+          lineHeight: '1.2',
+          fontFamily: 'var(--font-heading)',
+          ...extractFieldStyles(fieldStyles, 'headline'),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: subheadlineClass,
+        tailwindClasses: 'text-[var(--text-lg)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'subheadline'),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+
       return `
-      <section data-section-id="${id}" style="${sectionWrapperStyle}">
-        <div style="max-width: 800px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; gap: ${spaceBetween}px;">
-          ${media?.src && media.type === 'image' ? `<img src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || '')}" style="width: 128px; height: 128px; border-radius: 50%; object-fit: cover;" />` : '<div style="width: 128px; height: 128px; border-radius: 50%; background-color: var(--color-secondary); display: flex; align-items: center; justify-content: center;"><span style="color: var(--color-muted); font-size: 12px;">Photo</span></div>'}
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md); align-items: center;">
-            ${headline ? `<h1 data-field="headline" style="font-size: var(--text-4xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineStyle}">${escapeHtml(headline)}</h1>` : ''}
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-lg); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
+      <section class="${heroClass}" data-section-id="${id}">
+        <div class="${presContainerClass}">
+          ${media?.src && media.type === 'image' ? `<img class="${profileImgClass}" src="${escapeHtml(media.src)}" alt="${escapeHtml(media.alt || '')}" />` : `<div class="${profilePlaceholderClass}"><span class="${profilePlaceholderTextClass}">Photo</span></div>`}
+          <div class="${headerClass}">
+            ${headline ? `<h1 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h1>` : ''}
+            ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
           </div>
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-md); align-items: center;">
-            ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${paragraphStyle}">${paragraph}</div>` : ''}
-            <div style="display: flex; gap: var(--spacing-sm);">
-              ${primaryCTA?.label ? `<a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-primary); color: var(--color-primary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAStyle}">${escapeHtml(primaryCTA.label)}</a>` : ''}
-              ${secondaryCTA?.label ? `<a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-secondary); color: var(--color-secondary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAStyle}">${escapeHtml(secondaryCTA.label)}</a>` : ''}
+          <div class="${contentClass}">
+            ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+            <div class="${presButtonsClass}">
+              ${primaryButtonHTML}
+              ${secondaryButtonHTML}
             </div>
           </div>
         </div>
@@ -839,12 +1510,7 @@ function generateCardsHTML(section: SectionInstance, theme: ThemeTokens, section
   const sectionSpaceBetween = (styles as Record<string, unknown>)?.spaceBetween ?? 32
   const itemsSpaceBetween = (styles as Record<string, unknown>)?.itemsSpaceBetween ?? 16
 
-  // Field styles for header block
-  const headlineFieldStyle = buildFieldStyle(fieldStyles, 'headline')
-  const subheadlineFieldStyle = buildFieldStyle(fieldStyles, 'subheadline')
-  const paragraphFieldStyle = buildFieldStyle(fieldStyles, 'paragraph')
-
-  // Shared card styles
+  // Shared card styles (these are resolved but not directly used - passed to styleExtractor)
   const sharedContainerStyle = resolveSharedCardContainerStyles(styles as Record<string, unknown>)
   const sharedInnerGap = resolveSharedCardInnerGap(styles as Record<string, unknown>)
   const sharedMediaStyle = resolveSharedCardMediaStyles(styles as Record<string, unknown>)
@@ -853,57 +1519,259 @@ function generateCardsHTML(section: SectionInstance, theme: ThemeTokens, section
   const sharedParagraphStyle = resolveSharedCardTextStyles(styles as Record<string, unknown>, 'Paragraph')
   const sharedButtonStyle = resolveSharedCardButtonStyles(styles as Record<string, unknown>)
 
-  // Section header block (matching SectionHeaderBlock.vue)
+  // Create class names
+  const cardsClass = styleExtractor.createRootClass('cards')
+  const containerClass = styleExtractor.createChildClass(cardsClass, 'container')
+  const headerBlockClass = styleExtractor.createChildClass(cardsClass, 'header-block')
+  const headlineClass = styleExtractor.createChildClass(cardsClass, 'headline')
+  const subheadlineClass = styleExtractor.createChildClass(cardsClass, 'subheadline')
+  const paragraphClass = styleExtractor.createChildClass(cardsClass, 'paragraph')
+  const gridClass = styleExtractor.createChildClass(cardsClass, 'grid')
+  const rowContainerClass = styleExtractor.createChildClass(cardsClass, 'row-container')
+
+  // Process section element
+  styleExtractor.processElement({
+    className: cardsClass,
+    tailwindClasses: 'px-[var(--spacing-container)] py-[var(--spacing-section)]',
+    inlineStyle: sectionStyle,
+    additionalStyles: {
+      backgroundColor: 'var(--color-bg)',
+      color: 'var(--color-fg)',
+    },
+  })
+
+  // Process container
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: 'flex flex-col w-full max-w-[1200px] mx-auto',
+    additionalStyles: { gap: `${sectionSpaceBetween}px` },
+  })
+
+  // Process header block
   const hasHeaderContent = headline || subheadline || paragraph
+  if (hasHeaderContent) {
+    styleExtractor.processElement({
+      className: headerBlockClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+    })
+
+    if (headline) {
+      styleExtractor.processElement({
+        className: headlineClass,
+        tailwindClasses: 'text-[var(--text-3xl)] font-bold m-0',
+        additionalStyles: {
+          lineHeight: '1.2',
+          fontFamily: 'var(--font-heading)',
+          ...extractFieldStyles(fieldStyles, 'headline'),
+        },
+      })
+    }
+
+    if (subheadline) {
+      styleExtractor.processElement({
+        className: subheadlineClass,
+        tailwindClasses: 'text-[var(--text-lg)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-heading)',
+          ...extractFieldStyles(fieldStyles, 'subheadline'),
+        },
+      })
+    }
+
+    if (paragraph) {
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+    }
+  }
+
   const sectionHeaderHTML = hasHeaderContent ? `
-    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-      ${headline ? `<h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${subheadline ? `<h3 data-field="subheadline" style="font-size: var(--text-lg); color: var(--color-muted); margin: 0; font-family: var(--font-heading); ${subheadlineFieldStyle}">${escapeHtml(subheadline)}</h3>` : ''}
-      ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${paragraphFieldStyle}">${paragraph}</div>` : ''}
+    <div class="${headerBlockClass}">
+      ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+      ${subheadline ? `<h3 class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</h3>` : ''}
+      ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
     </div>
   ` : ''
 
-  // Generate card HTML (used by all variants)
-  function generateCardHTML(item: typeof items[0], index: number, additionalContainerStyle = ''): string {
+  // Generate card HTML with styleExtractor (used by all variants)
+  function generateCardHTML(item: typeof items[0], index: number, variantType: string): string {
     const mediaAspectRatio = getCardMediaAspectRatio((styles as Record<string, unknown>)?.cardMediaAspect as string)
+    const cardItemClass = styleExtractor.createChildClass(cardsClass, `item_${index}`)
+    const mediaContainerClass = styleExtractor.createChildClass(cardsClass, `item_${index}_media-container`)
+    const mediaClass = styleExtractor.createChildClass(cardsClass, `item_${index}_media`)
+    const contentClass = styleExtractor.createChildClass(cardsClass, `item_${index}_content`)
+    const itemHeadlineClass = styleExtractor.createChildClass(cardsClass, `item_${index}_headline`)
+    const itemSubheadlineClass = styleExtractor.createChildClass(cardsClass, `item_${index}_subheadline`)
+    const itemParagraphClass = styleExtractor.createChildClass(cardsClass, `item_${index}_paragraph`)
+    const buttonClass = styleExtractor.createChildClass(cardsClass, `item_${index}_button`)
+
+    // Process media container
+    if (item.media?.src) {
+      styleExtractor.processElement({
+        className: mediaContainerClass,
+        tailwindClasses: 'w-full overflow-hidden',
+        additionalStyles: {
+          ...(sharedMediaStyle && Object.fromEntries(
+            sharedMediaStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: mediaClass,
+        tailwindClasses: 'w-full h-full object-cover',
+        additionalStyles: {
+          aspectRatio: mediaAspectRatio,
+        },
+      })
+    }
+
+    // Process content container
+    styleExtractor.processElement({
+      className: contentClass,
+      tailwindClasses: 'p-[var(--spacing-md)] flex flex-col',
+      additionalStyles: { gap: sharedInnerGap },
+    })
+
+    // Process item headline
+    if (item.headline) {
+      const textSize = variantType === 'row' ? 'var(--text-3xl)' : 'var(--text-xl)'
+      styleExtractor.processElement({
+        className: itemHeadlineClass,
+        tailwindClasses: `text-[${textSize}] ${variantType === 'row' ? 'font-bold' : 'font-semibold'} m-0`,
+        additionalStyles: {
+          lineHeight: variantType === 'row' ? '1.2' : '1.5',
+          fontFamily: 'var(--font-heading)',
+          ...(sharedHeadlineStyle && Object.fromEntries(
+            sharedHeadlineStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
+
+    // Process item subheadline
+    if (item.subheadline) {
+      const textSize = variantType === 'row' ? 'var(--text-lg)' : 'var(--text-sm)'
+      styleExtractor.processElement({
+        className: itemSubheadlineClass,
+        tailwindClasses: `text-[${textSize}] m-0`,
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...(sharedSubheadlineStyle && Object.fromEntries(
+            sharedSubheadlineStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
+
+    // Process item paragraph
+    if (item.paragraph) {
+      styleExtractor.processElement({
+        className: itemParagraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...(sharedParagraphStyle && Object.fromEntries(
+            sharedParagraphStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
+
+    // Process button
+    if (item.buttonLabel && item.buttonUrl) {
+      styleExtractor.processElement({
+        className: buttonClass,
+        tailwindClasses: 'mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium no-underline',
+        additionalStyles: {
+          ...(sharedButtonStyle && Object.fromEntries(
+            sharedButtonStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
 
     const mediaHTML = item.media?.src ? `
-      <div style="width: 100%; overflow: hidden; ${sharedMediaStyle}">
+      <div class="${mediaContainerClass}">
         ${item.media.type === 'video'
-          ? `<video src="${escapeHtml(item.media.src)}" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: ${mediaAspectRatio};" autoplay muted loop playsinline></video>`
-          : `<img src="${escapeHtml(item.media.src)}" alt="${escapeHtml(item.media.alt || '')}" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: ${mediaAspectRatio};" loading="lazy" />`
+          ? `<video class="${mediaClass}" src="${escapeHtml(item.media.src)}" autoplay muted loop playsinline></video>`
+          : `<img class="${mediaClass}" src="${escapeHtml(item.media.src)}" alt="${escapeHtml(item.media.alt || '')}" loading="lazy" />`
         }
       </div>
     ` : ''
 
     const contentHTML = `
-      <div style="padding: var(--spacing-md); display: flex; flex-direction: column; gap: ${sharedInnerGap};">
-        ${item.headline ? `<h3 style="font-size: var(--text-xl); font-weight: 600; margin: 0; font-family: var(--font-heading); ${sharedHeadlineStyle}">${escapeHtml(item.headline)}</h3>` : ''}
-        ${item.subheadline ? `<p style="font-size: var(--text-sm); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${sharedSubheadlineStyle}">${escapeHtml(item.subheadline)}</p>` : ''}
-        ${item.paragraph ? `<div style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${sharedParagraphStyle}">${item.paragraph}</div>` : ''}
-        ${item.buttonLabel && item.buttonUrl ? `<a href="${escapeHtml(item.buttonUrl)}" target="_blank" rel="noopener noreferrer" style="margin-top: var(--spacing-sm); display: inline-flex; align-items: center; justify-content: center; font-weight: 500; text-decoration: none; ${sharedButtonStyle}">${escapeHtml(item.buttonLabel)}</a>` : ''}
+      <div class="${contentClass}">
+        ${item.headline ? `<h3 class="${itemHeadlineClass}">${escapeHtml(item.headline)}</h3>` : ''}
+        ${item.subheadline ? `<p class="${itemSubheadlineClass}">${escapeHtml(item.subheadline)}</p>` : ''}
+        ${item.paragraph ? `<div class="${itemParagraphClass}">${item.paragraph}</div>` : ''}
+        ${item.buttonLabel && item.buttonUrl ? `<a class="${buttonClass}" href="${escapeHtml(item.buttonUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.buttonLabel)}</a>` : ''}
       </div>
     `
 
-    return `${mediaHTML}${contentHTML}`
+    return { cardItemClass, mediaHTML, contentHTML }
   }
-
-  // Section wrapper style
-  const sectionWrapperStyle = `background-color: var(--color-bg); color: var(--color-fg); padding: var(--spacing-section) var(--spacing-container); ${sectionStyle}`
 
   // Variant-specific layouts
   if (variant === 'grid') {
-    const cardsHTML = items.map((item, index) => `
-      <div key="${item.id || index}" data-field="items" data-index="${index}" style="display: flex; flex-direction: column; background-color: var(--color-surface); border-radius: var(--radius-lg); overflow: hidden; ${sharedContainerStyle}">
-        ${generateCardHTML(item, index)}
+    styleExtractor.processElement({
+      className: gridClass,
+      tailwindClasses: 'grid grid-cols-1',
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
+    const cardsHTML = items.map((item, index) => {
+      const { cardItemClass, mediaHTML, contentHTML } = generateCardHTML(item, index, 'grid')
+
+      styleExtractor.processElement({
+        className: cardItemClass,
+        tailwindClasses: 'flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden',
+        additionalStyles: {
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      return `
+      <div class="${cardItemClass}" data-field="items" data-index="${index}">
+        ${mediaHTML}${contentHTML}
       </div>
-    `).join('')
+    `
+    }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; gap: ${sectionSpaceBetween}px;">
+    <section class="${cardsClass}" data-section-id="${id}">
+      <div class="${containerClass}">
         ${sectionHeaderHTML}
-        <div style="display: grid; grid-template-columns: repeat(1, 1fr); gap: ${itemsSpaceBetween}px;">
+        <div class="${gridClass}">
           ${cardsHTML}
         </div>
       </div>
@@ -911,42 +1779,60 @@ function generateCardsHTML(section: SectionInstance, theme: ThemeTokens, section
   }
 
   if (variant === 'row') {
+    styleExtractor.processElement({
+      className: rowContainerClass,
+      tailwindClasses: 'flex flex-col w-full',
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
     const cardsHTML = items.map((item, index) => {
       const isMediaLeft = index % 2 === 0
+      const { cardItemClass, mediaHTML, contentHTML } = generateCardHTML(item, index, 'row')
+      const mediaWrapperClass = styleExtractor.createChildClass(cardsClass, `item_${index}_media-wrapper`)
+      const contentWrapperClass = styleExtractor.createChildClass(cardsClass, `item_${index}_content-wrapper`)
 
-      const mediaHTML = item.media?.src ? `
-        <div style="${isMediaLeft ? '' : 'order: 2;'}">
-          <div style="width: 100%; overflow: hidden; border-radius: var(--radius-lg); ${sharedMediaStyle}">
-            ${item.media.type === 'video'
-              ? `<video src="${escapeHtml(item.media.src)}" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: ${getCardMediaAspectRatio((styles as Record<string, unknown>)?.cardMediaAspect as string)};" autoplay muted loop playsinline></video>`
-              : `<img src="${escapeHtml(item.media.src)}" alt="${escapeHtml(item.media.alt || '')}" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: ${getCardMediaAspectRatio((styles as Record<string, unknown>)?.cardMediaAspect as string)};" loading="lazy" />`
-            }
-          </div>
-        </div>
-      ` : `<div style="${isMediaLeft ? '' : 'order: 2;'}"><div style="width: 100%; aspect-ratio: 4/3; border-radius: var(--radius-lg); background-color: var(--color-surface); display: flex; align-items: center; justify-content: center;"><span style="color: var(--color-muted);">Add media</span></div></div>`
+      styleExtractor.processElement({
+        className: cardItemClass,
+        tailwindClasses: 'grid grid-cols-2 items-center gap-[var(--spacing-xl)]',
+        additionalStyles: {
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
 
-      const contentHTML = `
-        <div style="display: flex; flex-direction: column; gap: ${sharedInnerGap}; ${isMediaLeft ? '' : 'order: 1;'}">
-          ${item.headline ? `<h3 style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${sharedHeadlineStyle}">${escapeHtml(item.headline)}</h3>` : ''}
-          ${item.subheadline ? `<p style="font-size: var(--text-lg); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${sharedSubheadlineStyle}">${escapeHtml(item.subheadline)}</p>` : ''}
-          ${item.paragraph ? `<div style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${sharedParagraphStyle}">${item.paragraph}</div>` : ''}
-          ${item.buttonLabel && item.buttonUrl ? `<a href="${escapeHtml(item.buttonUrl)}" target="_blank" rel="noopener noreferrer" style="margin-top: var(--spacing-sm); display: inline-flex; align-items: center; justify-content: center; font-weight: 500; text-decoration: none; ${sharedButtonStyle}">${escapeHtml(item.buttonLabel)}</a>` : ''}
-        </div>
-      `
+      styleExtractor.processElement({
+        className: mediaWrapperClass,
+        tailwindClasses: '',
+        additionalStyles: { order: isMediaLeft ? '1' : '2' },
+      })
+
+      styleExtractor.processElement({
+        className: contentWrapperClass,
+        tailwindClasses: 'flex flex-col',
+        additionalStyles: { order: isMediaLeft ? '2' : '1', gap: sharedInnerGap },
+      })
 
       return `
-        <div key="${item.id || index}" data-field="items" data-index="${index}" style="display: grid; grid-template-columns: repeat(2, 1fr); align-items: center; gap: var(--spacing-xl); ${sharedContainerStyle}">
-          ${mediaHTML}
-          ${contentHTML}
+        <div class="${cardItemClass}" data-field="items" data-index="${index}">
+          <div class="${mediaWrapperClass}">
+            ${mediaHTML || `<div class="w-full aspect-[4/3] rounded-[var(--radius-lg)] bg-[var(--color-surface)] flex items-center justify-center"><span class="text-[var(--color-muted)]">Add media</span></div>`}
+          </div>
+          <div class="${contentWrapperClass}">
+            ${contentHTML}
+          </div>
         </div>
       `
     }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; gap: ${sectionSpaceBetween}px;">
+    <section class="${cardsClass}" data-section-id="${id}">
+      <div class="${containerClass}">
         ${sectionHeaderHTML}
-        <div style="display: flex; flex-direction: column; width: 100%; gap: ${itemsSpaceBetween}px;">
+        <div class="${rowContainerClass}">
           ${cardsHTML}
         </div>
       </div>
@@ -959,18 +1845,50 @@ function generateCardsHTML(section: SectionInstance, theme: ThemeTokens, section
     const gapOffset = ((slidesPerView - 1) * gap) / slidesPerView
     const cardWidth = `calc(${100 / slidesPerView}% - ${gapOffset}px)`
 
-    const cardsHTML = items.map((item, index) => `
-      <div key="${item.id || index}" data-field="items" data-index="${index}" style="flex-shrink: 0; display: flex; flex-direction: column; background-color: var(--color-surface); border-radius: var(--radius-lg); overflow: hidden; width: ${cardWidth}; ${sharedContainerStyle}">
-        ${generateCardHTML(item, index)}
+    const carouselWrapperClass = styleExtractor.createChildClass(cardsClass, 'carousel-wrapper')
+    const carouselClass = styleExtractor.createChildClass(cardsClass, 'carousel')
+
+    styleExtractor.processElement({
+      className: carouselWrapperClass,
+      tailwindClasses: 'relative w-full',
+    })
+
+    styleExtractor.processElement({
+      className: carouselClass,
+      tailwindClasses: 'flex overflow-x-auto pb-[var(--spacing-md)]',
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
+    const cardsHTML = items.map((item, index) => {
+      const { cardItemClass, mediaHTML, contentHTML } = generateCardHTML(item, index, 'carousel')
+
+      styleExtractor.processElement({
+        className: cardItemClass,
+        tailwindClasses: 'flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden',
+        additionalStyles: {
+          width: cardWidth,
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      return `
+      <div class="${cardItemClass}" data-field="items" data-index="${index}">
+        ${mediaHTML}${contentHTML}
       </div>
-    `).join('')
+    `
+    }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; gap: ${sectionSpaceBetween}px;">
+    <section class="${cardsClass}" data-section-id="${id}">
+      <div class="${containerClass}">
         ${sectionHeaderHTML}
-        <div style="position: relative; width: 100%;">
-          <div style="display: flex; overflow-x: auto; padding-bottom: var(--spacing-md); gap: ${itemsSpaceBetween}px;">
+        <div class="${carouselWrapperClass}">
+          <div class="${carouselClass}">
             ${cardsHTML}
           </div>
         </div>
@@ -979,17 +1897,57 @@ function generateCardsHTML(section: SectionInstance, theme: ThemeTokens, section
   }
 
   if (variant === 'split') {
-    const cardsHTML = items.map((item, index) => `
-      <div key="${item.id || index}" data-field="items" data-index="${index}" style="flex: 1; display: flex; flex-direction: column; background-color: var(--color-surface); border-radius: var(--radius-lg); overflow: hidden; ${sharedContainerStyle}">
-        ${generateCardHTML(item, index)}
+    const splitContainerClass = styleExtractor.createChildClass(cardsClass, 'split-container')
+    const splitHeaderClass = styleExtractor.createChildClass(cardsClass, 'split-header')
+    const splitContentClass = styleExtractor.createChildClass(cardsClass, 'split-content')
+
+    styleExtractor.processElement({
+      className: splitContainerClass,
+      tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-row items-start',
+      additionalStyles: { gap: `${sectionSpaceBetween}px` },
+    })
+
+    if (hasHeaderContent) {
+      styleExtractor.processElement({
+        className: splitHeaderClass,
+        tailwindClasses: 'w-[33.333%] flex-shrink-0',
+      })
+    }
+
+    styleExtractor.processElement({
+      className: splitContentClass,
+      tailwindClasses: `flex flex-col flex-1 ${hasHeaderContent ? 'w-[66.667%]' : 'w-full'}`,
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
+    const cardsHTML = items.map((item, index) => {
+      const { cardItemClass, mediaHTML, contentHTML } = generateCardHTML(item, index, 'split')
+
+      styleExtractor.processElement({
+        className: cardItemClass,
+        tailwindClasses: 'flex-1 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden',
+        additionalStyles: {
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      return `
+      <div class="${cardItemClass}" data-field="items" data-index="${index}">
+        ${mediaHTML}${contentHTML}
       </div>
-    `).join('')
+    `
+    }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: row; align-items: flex-start; gap: ${sectionSpaceBetween}px;">
-        ${hasHeaderContent ? `<div style="width: 33.333%; flex-shrink: 0;">${sectionHeaderHTML}</div>` : ''}
-        <div style="display: flex; flex-direction: column; flex: 1; ${hasHeaderContent ? 'width: 66.667%;' : 'width: 100%;'} gap: ${itemsSpaceBetween}px;">
+    <section class="${cardsClass}" data-section-id="${id}">
+      <div class="${splitContainerClass}">
+        ${hasHeaderContent ? `<div class="${splitHeaderClass}">${sectionHeaderHTML}</div>` : ''}
+        <div class="${splitContentClass}">
           ${cardsHTML}
         </div>
       </div>
@@ -1019,36 +1977,132 @@ function generateCTAHTML(section: SectionInstance, theme: ThemeTokens, sectionSt
   const ctaWrapGap = (styles as Record<string, unknown>)?.ctaWrapGap ?? 32
   const splitLayout = (styles as Record<string, unknown>)?.splitLayout ?? 'content-buttons'
 
+  // Create class names
+  const ctaClass = styleExtractor.createRootClass('cta')
+  const containerClass = styleExtractor.createChildClass(ctaClass, 'container')
+  const headlineClass = styleExtractor.createChildClass(ctaClass, 'headline')
+  const paragraphClass = styleExtractor.createChildClass(ctaClass, 'paragraph')
+  const buttonsClass = styleExtractor.createChildClass(ctaClass, 'buttons')
+  const primaryBtnClass = styleExtractor.createChildClass(ctaClass, 'primary-btn')
+  const secondaryBtnClass = styleExtractor.createChildClass(ctaClass, 'secondary-btn')
+  const wrapperClass = styleExtractor.createChildClass(ctaClass, 'wrapper')
+  const contentClass = styleExtractor.createChildClass(ctaClass, 'content')
+
   // Height class (1=auto, 2=50vh, 3=100vh)
   const minHeight = ctaHeight === 3 ? '100vh' : ctaHeight === 2 ? '50vh' : 'auto'
 
-  // Field styles
-  const headlineFieldStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphFieldStyle = buildFieldStyle(fieldStyles, 'paragraph')
-  const primaryCTAFieldStyle = buildFieldStyle(fieldStyles, 'primaryCTA')
-  const secondaryCTAFieldStyle = buildFieldStyle(fieldStyles, 'secondaryCTA')
+  // Process section element
+  styleExtractor.processElement({
+    className: ctaClass,
+    tailwindClasses: 'px-[var(--spacing-container)] py-[var(--spacing-section)]',
+    inlineStyle: sectionStyle,
+    additionalStyles: {
+      minHeight: minHeight,
+      backgroundColor: 'var(--color-bg)',
+      color: 'var(--color-fg)',
+    },
+  })
 
-  // Section wrapper style
-  const sectionWrapperStyle = `background-color: var(--color-bg); color: var(--color-fg); padding: var(--spacing-section) var(--spacing-container); min-height: ${minHeight}; ${sectionStyle}`
+  // Process headline
+  styleExtractor.processElement({
+    className: headlineClass,
+    tailwindClasses: 'text-[var(--text-3xl)] font-bold m-0',
+    additionalStyles: {
+      lineHeight: '1.2',
+      fontFamily: 'var(--font-heading)',
+      ...extractFieldStyles(fieldStyles, 'headline'),
+    },
+  })
 
-  // Buttons HTML (used by all layouts)
+  // Process paragraph
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[var(--text-base)] m-0',
+      additionalStyles: {
+        color: 'var(--color-muted)',
+        fontFamily: 'var(--font-body)',
+        ...extractFieldStyles(fieldStyles, 'paragraph'),
+      },
+    })
+  }
+
+  // Process primary button
+  if (primaryCTA?.label) {
+    styleExtractor.processElement({
+      className: primaryBtnClass,
+      tailwindClasses: 'inline-flex items-center justify-center no-underline',
+      additionalStyles: {
+        padding: 'var(--btn-py) var(--btn-px)',
+        backgroundColor: 'var(--color-primary)',
+        color: 'var(--color-primary-fg)',
+        fontSize: 'var(--text-base)',
+        fontWeight: 'var(--btn-weight)',
+        borderRadius: 'var(--btn-radius)',
+        ...extractFieldStyles(fieldStyles, 'primaryCTA'),
+      },
+    })
+  }
+
+  // Process secondary button
+  if (secondaryCTA?.label) {
+    styleExtractor.processElement({
+      className: secondaryBtnClass,
+      tailwindClasses: 'inline-flex items-center justify-center no-underline',
+      additionalStyles: {
+        padding: 'var(--btn-py) var(--btn-px)',
+        backgroundColor: 'var(--color-secondary)',
+        color: 'var(--color-secondary-fg)',
+        fontSize: 'var(--text-base)',
+        fontWeight: 'var(--btn-weight)',
+        borderRadius: 'var(--btn-radius)',
+        ...extractFieldStyles(fieldStyles, 'secondaryCTA'),
+      },
+    })
+  }
+
+  // Buttons HTML
   const primaryButtonHTML = primaryCTA?.label ? `
-    <a href="${escapeHtml(primaryCTA.url || '#')}" data-field="primaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-primary); color: var(--color-primary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${primaryCTAFieldStyle}">${escapeHtml(primaryCTA.label)}</a>
+    <a href="${escapeHtml(primaryCTA.url || '#')}" class="${primaryBtnClass}" data-field="primaryCTA">${escapeHtml(primaryCTA.label)}</a>
   ` : ''
 
   const secondaryButtonHTML = secondaryCTA?.label ? `
-    <a href="${escapeHtml(secondaryCTA.url || '#')}" data-field="secondaryCTA" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-secondary); color: var(--color-secondary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${secondaryCTAFieldStyle}">${escapeHtml(secondaryCTA.label)}</a>
+    <a href="${escapeHtml(secondaryCTA.url || '#')}" class="${secondaryBtnClass}" data-field="secondaryCTA">${escapeHtml(secondaryCTA.label)}</a>
   ` : ''
 
   if (variant === 'stacked') {
     if (ctaLayout === 'option1') {
       // Option 1: Centered
+      styleExtractor.processElement({
+        className: containerClass,
+        tailwindClasses: 'max-w-[800px] mx-auto w-full text-center flex flex-col items-center gap-[var(--spacing-md)]',
+        additionalStyles: ctaHeight !== 1 ? { justifyContent: 'center', height: '100%' } : {},
+      })
+
+      styleExtractor.processElement({
+        className: buttonsClass,
+        tailwindClasses: 'flex flex-wrap items-center justify-center mt-[var(--spacing-sm)]',
+        additionalStyles: { gap: `${ctaWrapGap}px` },
+      })
+
+      if (paragraph) {
+        styleExtractor.processElement({
+          className: paragraphClass,
+          tailwindClasses: 'text-[var(--text-base)] m-0 max-w-[600px]',
+          additionalStyles: {
+            color: 'var(--color-muted)',
+            fontFamily: 'var(--font-body)',
+            ...extractFieldStyles(fieldStyles, 'paragraph'),
+          },
+        })
+      }
+
       return `
-      <section data-section-id="${id}" style="${sectionWrapperStyle}">
-        <div style="max-width: 800px; margin-left: auto; margin-right: auto; width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--spacing-md); ${ctaHeight !== 1 ? 'justify-content: center; height: 100%;' : ''}">
-          <h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>
-          ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); max-width: 600px; ${paragraphFieldStyle}">${paragraph}</div>` : ''}
-          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: center; margin-top: var(--spacing-sm); gap: ${ctaWrapGap}px;">
+      <section class="${ctaClass}" data-section-id="${id}">
+        <div class="${containerClass}">
+          <h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>
+          ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+          <div class="${buttonsClass}">
             ${primaryButtonHTML}
             ${secondaryButtonHTML}
           </div>
@@ -1058,12 +2112,36 @@ function generateCTAHTML(section: SectionInstance, theme: ThemeTokens, sectionSt
 
     if (ctaLayout === 'option2') {
       // Option 2: Left-aligned
+      styleExtractor.processElement({
+        className: containerClass,
+        tailwindClasses: 'max-w-[800px] mx-auto w-full flex flex-col gap-[var(--spacing-md)]',
+        additionalStyles: ctaHeight !== 1 ? { justifyContent: 'center', height: '100%' } : {},
+      })
+
+      styleExtractor.processElement({
+        className: buttonsClass,
+        tailwindClasses: 'flex flex-wrap items-center mt-[var(--spacing-sm)]',
+        additionalStyles: { gap: `${ctaWrapGap}px` },
+      })
+
+      if (paragraph) {
+        styleExtractor.processElement({
+          className: paragraphClass,
+          tailwindClasses: 'text-[var(--text-base)] m-0 max-w-[600px]',
+          additionalStyles: {
+            color: 'var(--color-muted)',
+            fontFamily: 'var(--font-body)',
+            ...extractFieldStyles(fieldStyles, 'paragraph'),
+          },
+        })
+      }
+
       return `
-      <section data-section-id="${id}" style="${sectionWrapperStyle}">
-        <div style="max-width: 800px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: column; gap: var(--spacing-md); ${ctaHeight !== 1 ? 'justify-content: center; height: 100%;' : ''}">
-          <h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>
-          ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); max-width: 600px; ${paragraphFieldStyle}">${paragraph}</div>` : ''}
-          <div style="display: flex; flex-wrap: wrap; align-items: center; margin-top: var(--spacing-sm); gap: ${ctaWrapGap}px;">
+      <section class="${ctaClass}" data-section-id="${id}">
+        <div class="${containerClass}">
+          <h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>
+          ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+          <div class="${buttonsClass}">
             ${primaryButtonHTML}
             ${secondaryButtonHTML}
           </div>
@@ -1072,17 +2150,47 @@ function generateCTAHTML(section: SectionInstance, theme: ThemeTokens, sectionSt
     }
 
     // Option 3: Headline with inline buttons
+    styleExtractor.processElement({
+      className: containerClass,
+      tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-col gap-[var(--spacing-md)]',
+      additionalStyles: ctaHeight !== 1 ? { justifyContent: 'center', height: '100%' } : {},
+    })
+
+    styleExtractor.processElement({
+      className: wrapperClass,
+      tailwindClasses: 'flex flex-wrap items-center',
+      additionalStyles: { gap: `${ctaWrapGap}px` },
+    })
+
+    styleExtractor.processElement({
+      className: buttonsClass,
+      tailwindClasses: 'flex flex-wrap items-center',
+      additionalStyles: { gap: `${ctaWrapGap}px` },
+    })
+
+    if (paragraph) {
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0 max-w-[600px]',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+    }
+
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: column; gap: var(--spacing-md); ${ctaHeight !== 1 ? 'justify-content: center; height: 100%;' : ''}">
-        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: ${ctaWrapGap}px;">
-          <h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>
-          <div style="display: flex; flex-wrap: wrap; align-items: center; gap: ${ctaWrapGap}px;">
+    <section class="${ctaClass}" data-section-id="${id}">
+      <div class="${containerClass}">
+        <div class="${wrapperClass}">
+          <h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>
+          <div class="${buttonsClass}">
             ${primaryButtonHTML}
             ${secondaryButtonHTML}
           </div>
         </div>
-        ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); max-width: 600px; ${paragraphFieldStyle}">${paragraph}</div>` : ''}
+        ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
       </div>
     </section>`
   }
@@ -1093,16 +2201,48 @@ function generateCTAHTML(section: SectionInstance, theme: ThemeTokens, sectionSt
     const buttonsOrder = isButtonsFirst ? 1 : 2
     const buttonsJustify = isButtonsFirst ? 'flex-start' : 'flex-end'
 
+    styleExtractor.processElement({
+      className: containerClass,
+      tailwindClasses: 'max-w-[1200px] mx-auto w-full grid grid-cols-2 gap-[var(--spacing-xl)] items-center',
+      additionalStyles: ctaHeight !== 1 ? { height: '100%' } : {},
+    })
+
+    styleExtractor.processElement({
+      className: contentClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-md)]',
+      additionalStyles: { order: contentOrder.toString() },
+    })
+
+    styleExtractor.processElement({
+      className: buttonsClass,
+      tailwindClasses: 'flex flex-wrap items-center',
+      additionalStyles: {
+        justifyContent: buttonsJustify,
+        order: buttonsOrder.toString(),
+        gap: `${ctaWrapGap}px`,
+      },
+    })
+
+    if (paragraph) {
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+    }
+
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-xl); align-items: center; ${ctaHeight !== 1 ? 'height: 100%;' : ''}">
-        <!-- Content Column -->
-        <div style="display: flex; flex-direction: column; gap: var(--spacing-md); order: ${contentOrder};">
-          <h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>
-          ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${paragraphFieldStyle}">${paragraph}</div>` : ''}
+    <section class="${ctaClass}" data-section-id="${id}">
+      <div class="${containerClass}">
+        <div class="${contentClass}">
+          <h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>
+          ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
         </div>
-        <!-- Buttons Column -->
-        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: ${buttonsJustify}; order: ${buttonsOrder}; gap: ${ctaWrapGap}px;">
+        <div class="${buttonsClass}">
           ${primaryButtonHTML}
           ${secondaryButtonHTML}
         </div>
@@ -1119,7 +2259,7 @@ function generateCTAHTML(section: SectionInstance, theme: ThemeTokens, sectionSt
 // ============================================
 
 function generateLinksHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles, itemStyles } = section
+  const { id, variant, data, fieldStyles, itemStyles, styles } = section
 
   // Match exact schema field names
   const headline = data.headline as string || ''
@@ -1131,33 +2271,134 @@ function generateLinksHTML(section: SectionInstance, theme: ThemeTokens, section
     description?: string
   }> || []
 
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
 
-  // Item styles
-  const itemStyle: string[] = []
-  if (itemStyles?.backgroundColor) itemStyle.push(`background-color: ${itemStyles.backgroundColor}`)
-  if (itemStyles?.borderRadius) itemStyle.push(`border-radius: ${itemStyles.borderRadius}px`)
-  if (itemStyles?.spacingX) itemStyle.push(`padding-left: ${itemStyles.spacingX}px; padding-right: ${itemStyles.spacingX}px`)
-  if (itemStyles?.spacingY) itemStyle.push(`padding-top: ${itemStyles.spacingY}px; padding-bottom: ${itemStyles.spacingY}px`)
-  const itemStyleStr = itemStyle.join('; ')
+  // Create class names
+  const linksClass = styleExtractor.createRootClass('links')
+  const containerClass = styleExtractor.createChildClass(linksClass, 'container')
+  const headerClass = styleExtractor.createChildClass(linksClass, 'header')
+  const headlineClass = styleExtractor.createChildClass(linksClass, 'headline')
+  const paragraphClass = styleExtractor.createChildClass(linksClass, 'paragraph')
+  const listClass = styleExtractor.createChildClass(linksClass, 'list')
 
-  const linksHTML = items.map((link, index) => `
-    <a class="ld-link-item" href="${escapeHtml(link.url || '#')}" data-field="items" data-index="${index}" style="${itemStyleStr}">
-      ${link.image?.src ? `<img class="ld-link-item__image" src="${escapeHtml(link.image.src)}" alt="${escapeHtml(link.image.alt || '')}" loading="lazy" />` : ''}
-      <span class="ld-link-item__label" data-item-field="label">${escapeHtml(link.label || '')}</span>
-      ${link.description ? `<span class="ld-link-item__desc" data-item-field="description">${escapeHtml(link.description)}</span>` : ''}
+  // Process section element
+  styleExtractor.processElement({
+    className: linksClass,
+    tailwindClasses: 'text-[var(--color-fg)]',
+    additionalStyles: customStyles,
+  })
+
+  // Process container - variant-specific layout
+  const maxWidth = variant === 'grid' ? '1200px' : variant === 'split' ? '1200px' : '600px'
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: `max-w-[${maxWidth}] mx-auto w-full`,
+  })
+
+  // Process header
+  if (headline || paragraph) {
+    styleExtractor.processElement({
+      className: headerClass,
+      tailwindClasses: 'text-center mb-[var(--spacing-xl)]',
+    })
+  }
+
+  // Process headline with field styles
+  if (headline) {
+    styleExtractor.processElement({
+      className: headlineClass,
+      tailwindClasses: 'text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-md)]',
+      additionalStyles: extractFieldStyles(fieldStyles, 'headline'),
+    })
+  }
+
+  // Process paragraph with field styles
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[length:var(--text-base)] text-[var(--color-muted)] m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'paragraph'),
+    })
+  }
+
+  // Process list
+  styleExtractor.processElement({
+    className: listClass,
+    tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+  })
+
+  // Generate links HTML with indexed classes
+  const linksHTML = items.map((link, index) => {
+    const itemClass = styleExtractor.createChildClass(linksClass, `item_${index}`)
+    const imageClass = styleExtractor.createChildClass(linksClass, `item_${index}_image`)
+    const contentClass = styleExtractor.createChildClass(linksClass, `item_${index}_content`)
+    const labelClass = styleExtractor.createChildClass(linksClass, `item_${index}_label`)
+    const descClass = styleExtractor.createChildClass(linksClass, `item_${index}_desc`)
+
+    // Process link item container
+    styleExtractor.processElement({
+      className: itemClass,
+      tailwindClasses: 'flex items-center gap-[var(--spacing-md)] p-[var(--spacing-md)] bg-[var(--color-surface)] rounded-[var(--radius-md)] hover:bg-[var(--color-secondary)] transition-colors group',
+    })
+
+    // Process image if present
+    if (link.image?.src) {
+      styleExtractor.processElement({
+        className: imageClass,
+        tailwindClasses: 'w-10 h-10 rounded-[var(--radius-sm)] object-cover flex-shrink-0',
+      })
+    }
+
+    // Process content wrapper
+    styleExtractor.processElement({
+      className: contentClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-xs)] min-w-0 flex-1',
+    })
+
+    // Process label
+    styleExtractor.processElement({
+      className: labelClass,
+      tailwindClasses: 'text-[length:var(--text-base)] font-medium',
+    })
+
+    // Process description if present
+    if (link.description) {
+      styleExtractor.processElement({
+        className: descClass,
+        tailwindClasses: 'text-[length:var(--text-sm)] text-[var(--color-muted)]',
+      })
+    }
+
+    const arrowClass = styleExtractor.createChildClass(linksClass, `item_${index}_arrow`)
+    styleExtractor.processElement({
+      className: arrowClass,
+      tailwindClasses: 'text-[var(--color-muted)] flex-shrink-0',
+    })
+
+    return `
+    <a class="${itemClass}" href="${escapeHtml(link.url || '#')}" data-field="items" data-index="${index}">
+      ${link.image?.src ? `<img class="${imageClass}" src="${escapeHtml(link.image.src)}" alt="${escapeHtml(link.image.alt || '')}" loading="lazy" />` : ''}
+      <div class="${contentClass}">
+        <span class="${labelClass}" data-item-field="label">${escapeHtml(link.label || '')}</span>
+        ${link.description ? `<span class="${descClass}" data-item-field="description">${escapeHtml(link.description)}</span>` : ''}
+      </div>
+      <span class="${arrowClass}">→</span>
     </a>
-  `).join('')
+  `
+  }).join('')
 
   return `
-  <section class="ld-links" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-links__header">
-      ${headline ? `<h2 class="ld-links__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${paragraph ? `<p class="ld-links__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-    </div>
-    <div class="ld-links__list">
-      ${linksHTML}
+  <section class="${linksClass}" data-section-id="${id}">
+    <div class="${containerClass}">
+      ${headline || paragraph ? `
+      <div class="${headerClass}">
+        ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+        ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+      </div>
+      ` : ''}
+      <div class="${listClass}">
+        ${linksHTML}
+      </div>
     </div>
   </section>`
 }
@@ -1167,31 +2408,120 @@ function generateLinksHTML(section: SectionInstance, theme: ThemeTokens, section
 // ============================================
 
 function generateAccordionHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles, itemStyles } = section
+  const { id, variant, data, fieldStyles, itemStyles, styles } = section
 
   // Match exact schema field names
   const headline = data.headline as string || ''
   const paragraph = data.paragraph as string || ''
   const items = data.items as Array<{ headline?: string; content?: string }> || []
 
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
+  // Get custom section styles
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
 
-  const itemsHTML = items.map((item, index) => `
-    <details class="ld-accordion-item" data-field="items" data-index="${index}">
-      <summary class="ld-accordion-item__headline" data-item-field="headline">${escapeHtml(item.headline || '')}</summary>
-      <div class="ld-accordion-item__content" data-item-field="content">${escapeHtml(item.content || '')}</div>
+  // Create class names
+  const accordionClass = styleExtractor.createRootClass('accordion')
+  const containerClass = styleExtractor.createChildClass(accordionClass, 'container')
+  const headerClass = styleExtractor.createChildClass(accordionClass, 'header')
+  const headlineClass = styleExtractor.createChildClass(accordionClass, 'headline')
+  const paragraphClass = styleExtractor.createChildClass(accordionClass, 'paragraph')
+  const listClass = styleExtractor.createChildClass(accordionClass, 'list')
+
+  // Process section element - NO var() for user-customizable properties
+  styleExtractor.processElement({
+    className: accordionClass,
+    tailwindClasses: 'text-[var(--color-fg)]', // Only use var() for theme colors
+    additionalStyles: customStyles, // User's custom bg color and spacing
+  })
+
+  // Process container - variant-specific max-width
+  const maxWidth = variant === 'split' ? '1200px' : '800px'
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: `max-w-[${maxWidth}] mx-auto w-full`,
+  })
+
+  // Process header
+  styleExtractor.processElement({
+    className: headerClass,
+    tailwindClasses: 'text-center mb-[2rem]',
+  })
+
+  // Process headline with field styles
+  if (headline) {
+    styleExtractor.processElement({
+      className: headlineClass,
+      tailwindClasses: 'text-[3rem] font-bold leading-tight m-0 mb-[1rem]',
+      additionalStyles: extractFieldStyles(fieldStyles, 'headline'),
+    })
+  }
+
+  // Process paragraph with field styles
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[1rem] text-[var(--color-muted)] m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'paragraph'),
+    })
+  }
+
+  // Process list
+  styleExtractor.processElement({
+    className: listClass,
+    tailwindClasses: 'flex flex-col gap-[0.5rem]',
+  })
+
+  // Generate accordion items with indexed classes
+  const itemsHTML = items.map((item, index) => {
+    const itemClass = styleExtractor.createChildClass(accordionClass, `item_${index}`)
+    const itemButtonClass = styleExtractor.createChildClass(accordionClass, `item_${index}_button`)
+    const itemHeadlineClass = styleExtractor.createChildClass(accordionClass, `item_${index}_headline`)
+    const itemContentClass = styleExtractor.createChildClass(accordionClass, `item_${index}_content`)
+
+    // Process accordion item
+    styleExtractor.processElement({
+      className: itemClass,
+      tailwindClasses: 'bg-[var(--color-surface)] rounded-[0.5rem] overflow-hidden',
+    })
+
+    // Process item button (summary element)
+    styleExtractor.processElement({
+      className: itemButtonClass,
+      tailwindClasses: 'w-full flex items-center justify-between gap-[1rem] text-left p-[1rem] cursor-pointer',
+    })
+
+    // Process item headline
+    styleExtractor.processElement({
+      className: itemHeadlineClass,
+      tailwindClasses: 'text-[1rem] font-medium block',
+    })
+
+    // Process item content
+    styleExtractor.processElement({
+      className: itemContentClass,
+      tailwindClasses: 'px-[1rem] pb-[1rem] text-[1rem] text-[var(--color-muted)]',
+    })
+
+    return `
+    <details class="${itemClass}" data-field="items" data-index="${index}">
+      <summary class="${itemButtonClass}" data-item-field="headline">
+        <span class="${itemHeadlineClass}">${escapeHtml(item.headline || '')}</span>
+        <span class="${styleExtractor.createChildClass(accordionClass, `item_${index}_icon`)}" style="color: var(--color-muted); flex-shrink: 0;">▼</span>
+      </summary>
+      <div class="${itemContentClass}" data-item-field="content">${item.content || ''}</div>
     </details>
-  `).join('')
+  `
+  }).join('')
 
   return `
-  <section class="ld-accordion" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-accordion__header">
-      ${headline ? `<h2 class="ld-accordion__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${paragraph ? `<p class="ld-accordion__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-    </div>
-    <div class="ld-accordion__list">
-      ${itemsHTML}
+  <section class="${accordionClass}" data-section-id="${id}">
+    <div class="${containerClass}">
+      <div class="${headerClass}">
+        ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+        ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+      </div>
+      <div class="${listClass}">
+        ${itemsHTML}
+      </div>
     </div>
   </section>`
 }
@@ -1201,22 +2531,84 @@ function generateAccordionHTML(section: SectionInstance, theme: ThemeTokens, sec
 // ============================================
 
 function generateHeaderHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles } = section
+  const { id, data, fieldStyles, variant, styles } = section
 
   // Match exact schema field names
   const logo = data.logo as { src?: string; alt?: string } | undefined
   const title = data.title as string || ''
   const link = data.link as { label?: string; url?: string } | undefined
 
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
+
+  // Create class names
+  const headerClass = styleExtractor.createRootClass('header')
+  const containerClass = styleExtractor.createChildClass(headerClass, 'container')
+  const brandClass = styleExtractor.createChildClass(headerClass, 'brand')
+  const logoClass = styleExtractor.createChildClass(headerClass, 'logo')
+  const titleClass = styleExtractor.createChildClass(headerClass, 'title')
+  const linkClass = styleExtractor.createChildClass(headerClass, 'link')
+
+  // Process header element
+  styleExtractor.processElement({
+    className: headerClass,
+    tailwindClasses: 'text-[var(--color-fg)]',
+    additionalStyles: customStyles,
+  })
+
+  // Process container with variant-specific classes
+  const containerVariantClasses = variant === 'centered'
+    ? 'max-w-[1200px] mx-auto w-full flex flex-col items-center gap-[var(--spacing-sm)]'
+    : 'max-w-[1200px] mx-auto w-full flex items-center justify-between gap-[var(--spacing-md)]'
+
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: containerVariantClasses,
+  })
+
+  // Process brand container (logo + title wrapper)
+  const brandVariantClasses = variant === 'centered' ? 'flex-row' : ''
+  styleExtractor.processElement({
+    className: brandClass,
+    tailwindClasses: `flex items-center gap-[var(--header-gap)] ${brandVariantClasses}`,
+  })
+
+  // Process logo
+  if (logo?.src) {
+    styleExtractor.processElement({
+      className: logoClass,
+      tailwindClasses: 'max-h-10 w-auto object-contain',
+      additionalStyles: extractFieldStyles(fieldStyles, 'logo.src'),
+    })
+  }
+
+  // Process title
+  if (title) {
+    const titleVariantClasses = variant === 'centered' ? 'text-center' : ''
+    styleExtractor.processElement({
+      className: titleClass,
+      tailwindClasses: `font-semibold text-[length:var(--text-lg)] ${titleVariantClasses}`,
+      additionalStyles: extractFieldStyles(fieldStyles, 'title'),
+    })
+  }
+
+  // Process link (button-styled)
+  if (link?.label) {
+    styleExtractor.processElement({
+      className: linkClass,
+      tailwindClasses: 'inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-sm)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity',
+      additionalStyles: extractFieldStyles(fieldStyles, 'link'),
+    })
+  }
+
   return `
-  <header class="ld-header" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-header__brand">
-      ${logo?.src ? `<img class="ld-header__logo" src="${escapeHtml(logo.src)}" alt="${escapeHtml(logo.alt || title)}" data-field="logo" />` : ''}
-      ${title ? `<span class="ld-header__title" data-field="title">${escapeHtml(title)}</span>` : ''}
+  <header class="${headerClass}" data-section-id="${id}">
+    <div class="${containerClass}">
+      <div class="${brandClass}">
+        ${logo?.src ? `<img class="${logoClass}" src="${escapeHtml(logo.src)}" alt="${escapeHtml(logo.alt || '')}" data-field="logo" />` : ''}
+        ${title ? `<span class="${titleClass}" data-field="title">${escapeHtml(title)}</span>` : ''}
+      </div>
+      ${link?.label ? `<a class="${linkClass}" href="${escapeHtml(link.url || '#')}" data-field="link">${escapeHtml(link.label)}</a>` : ''}
     </div>
-    <nav class="ld-header__nav">
-      ${link?.label ? `<a class="ld-header__link" href="${escapeHtml(link.url || '#')}" data-field="link">${escapeHtml(link.label)}</a>` : ''}
-    </nav>
   </header>`
 }
 
@@ -1225,7 +2617,7 @@ function generateHeaderHTML(section: SectionInstance, theme: ThemeTokens, sectio
 // ============================================
 
 function generateFooterHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles } = section
+  const { id, data, fieldStyles, variant, styles } = section
 
   // Match exact schema field names
   const logo = data.logo as string || ''
@@ -1233,17 +2625,101 @@ function generateFooterHTML(section: SectionInstance, theme: ThemeTokens, sectio
   const paragraph = data.paragraph as string || ''
   const secondaryText = data.secondaryText as string || ''
 
-  const titleStyle = buildFieldStyle(fieldStyles, 'title')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
-  const secondaryTextStyle = buildFieldStyle(fieldStyles, 'secondaryText')
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
+
+  // Create class names
+  const footerClass = styleExtractor.createRootClass('footer')
+  const containerClass = styleExtractor.createChildClass(footerClass, 'container')
+  const logoInfoClass = styleExtractor.createChildClass(footerClass, 'logo_info')
+  const logoTitleWrapperClass = styleExtractor.createChildClass(footerClass, 'logo_title_wrapper')
+  const logoClass = styleExtractor.createChildClass(footerClass, 'logo')
+  const titleClass = styleExtractor.createChildClass(footerClass, 'title')
+  const paragraphClass = styleExtractor.createChildClass(footerClass, 'paragraph')
+  const secondaryClass = styleExtractor.createChildClass(footerClass, 'secondary')
+
+  // Process footer element
+  styleExtractor.processElement({
+    className: footerClass,
+    tailwindClasses: 'text-[var(--color-fg)]',
+    additionalStyles: customStyles,
+  })
+
+  // Process container with variant-specific classes
+  const containerVariantClasses = variant === 'centered'
+    ? 'flex flex-col items-center text-center gap-[var(--spacing-md)]'
+    : variant === 'minimal'
+    ? 'flex items-center justify-center'
+    : 'flex flex-col md:flex-row items-start md:items-center justify-between gap-[var(--spacing-lg)]'
+
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: `max-w-[1200px] mx-auto w-full ${containerVariantClasses}`,
+  })
+
+  // Process logo + info wrapper (not shown in minimal variant)
+  if (variant !== 'minimal') {
+    const logoInfoVariantClasses = variant === 'centered' ? 'items-center' : ''
+    styleExtractor.processElement({
+      className: logoInfoClass,
+      tailwindClasses: `flex flex-col gap-[var(--spacing-sm)] ${logoInfoVariantClasses}`,
+    })
+  }
+
+  // Process logo + title wrapper
+  styleExtractor.processElement({
+    className: logoTitleWrapperClass,
+    tailwindClasses: 'flex items-center gap-[var(--spacing-sm)]',
+  })
+
+  // Process logo
+  if (logo) {
+    styleExtractor.processElement({
+      className: logoClass,
+      tailwindClasses: 'h-8 w-auto',
+    })
+  }
+
+  // Process title with field styles
+  if (title) {
+    styleExtractor.processElement({
+      className: titleClass,
+      tailwindClasses: 'font-semibold text-[length:var(--text-lg)]',
+      additionalStyles: extractFieldStyles(fieldStyles, 'title'),
+    })
+  }
+
+  // Process paragraph with field styles
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[length:var(--text-sm)] text-[var(--color-muted)] max-w-[300px]',
+      additionalStyles: extractFieldStyles(fieldStyles, 'paragraph'),
+    })
+  }
+
+  // Process secondary text with field styles
+  if (secondaryText) {
+    const secondaryVariantClasses = variant === 'centered' ? 'mt-[var(--spacing-md)]' : ''
+    styleExtractor.processElement({
+      className: secondaryClass,
+      tailwindClasses: `text-[length:var(--text-sm)] text-[var(--color-muted)] m-0 ${secondaryVariantClasses}`,
+      additionalStyles: extractFieldStyles(fieldStyles, 'secondaryText'),
+    })
+  }
 
   return `
-  <footer class="ld-footer" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-footer__content">
-      ${logo ? `<img class="ld-footer__logo" src="${escapeHtml(logo)}" alt="${escapeHtml(title)}" data-field="logo" />` : ''}
-      ${title ? `<p class="ld-footer__title" data-field="title" style="${titleStyle}">${escapeHtml(title)}</p>` : ''}
-      ${paragraph ? `<p class="ld-footer__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-      ${secondaryText ? `<p class="ld-footer__secondary" data-field="secondaryText" style="${secondaryTextStyle}">${escapeHtml(secondaryText)}</p>` : ''}
+  <footer class="${footerClass}" data-section-id="${id}">
+    <div class="${containerClass}">
+      ${variant !== 'minimal' ? `
+      <div class="${logoInfoClass}">
+        <div class="${logoTitleWrapperClass}">
+          ${logo ? `<img class="${logoClass}" src="${escapeHtml(logo)}" alt="" data-field="logo" />` : ''}
+          ${title ? `<span class="${titleClass}" data-field="title">${escapeHtml(title)}</span>` : ''}
+        </div>
+        ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${escapeHtml(paragraph)}</div>` : ''}
+      </div>
+      ` : ''}
+      ${secondaryText ? `<p class="${secondaryClass}" data-field="secondaryText">${escapeHtml(secondaryText)}</p>` : ''}
     </div>
   </footer>`
 }
@@ -1253,7 +2729,7 @@ function generateFooterHTML(section: SectionInstance, theme: ThemeTokens, sectio
 // ============================================
 
 function generateGalleryHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles, itemStyles } = section
+  const { id, data, fieldStyles, itemStyles, styles } = section
   const headline = data.headline as string || ''
   const subheadline = data.subheadline as string || ''
   const paragraph = data.paragraph as string || ''
@@ -1262,25 +2738,107 @@ function generateGalleryHTML(section: SectionInstance, theme: ThemeTokens, secti
     link?: { url?: string }
   }> || []
 
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const subheadlineStyle = buildFieldStyle(fieldStyles, 'subheadline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
+  const contentSpacing = (styles as Record<string, unknown>)?.spaceBetween ?? 32
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
 
-  // Item styles
-  const itemStyle: string[] = []
-  if (itemStyles?.borderRadius) itemStyle.push(`border-radius: ${itemStyles.borderRadius}px`)
-  const itemStyleStr = itemStyle.join('; ')
+  // Create class names
+  const galleryClass = styleExtractor.createRootClass('gallery')
+  const containerClass = styleExtractor.createChildClass(galleryClass, 'container')
+  const headerClass = styleExtractor.createChildClass(galleryClass, 'header')
+  const headlineClass = styleExtractor.createChildClass(galleryClass, 'headline')
+  const subheadlineClass = styleExtractor.createChildClass(galleryClass, 'subheadline')
+  const paragraphClass = styleExtractor.createChildClass(galleryClass, 'paragraph')
+  const gridClass = styleExtractor.createChildClass(galleryClass, 'grid')
 
+  // Process section element
+  styleExtractor.processElement({
+    className: galleryClass,
+    tailwindClasses: 'text-[var(--color-fg)]',
+    additionalStyles: customStyles,
+  })
+
+  // Process container
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-col',
+    additionalStyles: { gap: `${contentSpacing}px` },
+  })
+
+  // Process header
+  if (headline || subheadline || paragraph) {
+    styleExtractor.processElement({
+      className: headerClass,
+      tailwindClasses: 'text-center flex flex-col gap-[var(--spacing-sm)]',
+    })
+  }
+
+  // Process headline with field styles
+  if (headline) {
+    styleExtractor.processElement({
+      className: headlineClass,
+      tailwindClasses: 'text-[length:var(--text-3xl)] font-bold leading-tight m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'headline'),
+    })
+  }
+
+  // Process subheadline with field styles
+  if (subheadline) {
+    styleExtractor.processElement({
+      className: subheadlineClass,
+      tailwindClasses: 'text-[length:var(--text-lg)] text-[var(--color-muted)] m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'subheadline'),
+    })
+  }
+
+  // Process paragraph with field styles
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[length:var(--text-base)] text-[var(--color-muted)] m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'paragraph'),
+    })
+  }
+
+  // Process grid
+  styleExtractor.processElement({
+    className: gridClass,
+    tailwindClasses: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-md)]',
+  })
+
+  // Generate gallery items with indexed classes
   const itemsHTML = items.map((item, index) => {
     const mediaSrc = item.media?.src || ''
     const mediaAlt = item.media?.alt || ''
     const mediaType = item.media?.type || 'image'
 
+    const itemClass = styleExtractor.createChildClass(galleryClass, `item_${index}`)
+    const imageClass = styleExtractor.createChildClass(galleryClass, `item_${index}_image`)
+    const videoClass = styleExtractor.createChildClass(galleryClass, `item_${index}_video`)
+
+    // Process gallery item
+    styleExtractor.processElement({
+      className: itemClass,
+      tailwindClasses: 'block aspect-square rounded-[var(--radius-md)] overflow-hidden',
+    })
+
+    // Process image or video
+    if (mediaType === 'image') {
+      styleExtractor.processElement({
+        className: imageClass,
+        tailwindClasses: 'w-full h-full object-cover',
+      })
+    } else {
+      styleExtractor.processElement({
+        className: videoClass,
+        tailwindClasses: 'w-full h-full object-cover',
+      })
+    }
+
     const content = `
-      <div class="ld-gallery__item" data-field="items" data-index="${index}" style="${itemStyleStr}">
+      <div class="${itemClass}" data-field="items" data-index="${index}">
         ${mediaType === 'image'
-          ? `<img class="ld-gallery__image" src="${escapeHtml(mediaSrc)}" alt="${escapeHtml(mediaAlt)}" loading="lazy" />`
-          : `<video class="ld-gallery__video" src="${escapeHtml(mediaSrc)}" controls></video>`
+          ? `<img class="${imageClass}" src="${escapeHtml(mediaSrc)}" alt="${escapeHtml(mediaAlt)}" loading="lazy" />`
+          : `<video class="${videoClass}" src="${escapeHtml(mediaSrc)}" controls></video>`
         }
       </div>
     `
@@ -1290,14 +2848,18 @@ function generateGalleryHTML(section: SectionInstance, theme: ThemeTokens, secti
   }).join('')
 
   return `
-  <section class="ld-gallery" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-gallery__header">
-      ${headline ? `<h2 class="ld-gallery__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${subheadline ? `<p class="ld-gallery__subheadline" data-field="subheadline" style="${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
-      ${paragraph ? `<p class="ld-gallery__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-    </div>
-    <div class="ld-gallery__grid">
-      ${itemsHTML}
+  <section class="${galleryClass}" data-section-id="${id}">
+    <div class="${containerClass}">
+      ${headline || subheadline || paragraph ? `
+      <div class="${headerClass}">
+        ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+        ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
+        ${paragraph ? `<p class="${paragraphClass}" data-field="paragraph">${escapeHtml(paragraph)}</p>` : ''}
+      </div>
+      ` : ''}
+      <div class="${gridClass}">
+        ${itemsHTML}
+      </div>
     </div>
   </section>`
 }
@@ -1325,10 +2887,7 @@ function generateProductsHTML(section: SectionInstance, theme: ThemeTokens, sect
   const sectionSpaceBetween = (styles as Record<string, unknown>)?.spaceBetween ?? 32
   const itemsSpaceBetween = (styles as Record<string, unknown>)?.itemsSpaceBetween ?? 16
 
-  const headlineFieldStyle = buildFieldStyle(fieldStyles, 'headline')
-  const subheadlineFieldStyle = buildFieldStyle(fieldStyles, 'subheadline')
-  const paragraphFieldStyle = buildFieldStyle(fieldStyles, 'paragraph')
-
+  // Shared product styles (resolved but passed to styleExtractor)
   const sharedContainerStyle = resolveSharedProductContainerStyles(styles as Record<string, unknown>)
   const sharedInnerGap = resolveSharedProductInnerGap(styles as Record<string, unknown>)
   const sharedMediaStyle = resolveSharedProductMediaStyles(styles as Record<string, unknown>)
@@ -1337,50 +2896,255 @@ function generateProductsHTML(section: SectionInstance, theme: ThemeTokens, sect
   const sharedPriceStyle = resolveSharedProductTextStyles(styles as Record<string, unknown>, 'Price')
   const sharedButtonStyle = resolveSharedProductButtonStyles(styles as Record<string, unknown>)
 
+  // Create class names
+  const productsClass = styleExtractor.createRootClass('products')
+  const containerClass = styleExtractor.createChildClass(productsClass, 'container')
+  const headerBlockClass = styleExtractor.createChildClass(productsClass, 'header-block')
+  const headlineClass = styleExtractor.createChildClass(productsClass, 'headline')
+  const subheadlineClass = styleExtractor.createChildClass(productsClass, 'subheadline')
+  const paragraphClass = styleExtractor.createChildClass(productsClass, 'paragraph')
+  const gridClass = styleExtractor.createChildClass(productsClass, 'grid')
+  const rowContainerClass = styleExtractor.createChildClass(productsClass, 'row-container')
+
+  // Process section element
+  styleExtractor.processElement({
+    className: productsClass,
+    tailwindClasses: 'px-[var(--spacing-container)] py-[var(--spacing-section)]',
+    inlineStyle: sectionStyle,
+    additionalStyles: {
+      backgroundColor: 'var(--color-bg)',
+      color: 'var(--color-fg)',
+    },
+  })
+
+  // Process container
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: 'flex flex-col w-full max-w-[1200px] mx-auto',
+    additionalStyles: { gap: `${sectionSpaceBetween}px` },
+  })
+
+  // Process header block
   const hasHeaderContent = headline || subheadline || paragraph
+  if (hasHeaderContent) {
+    styleExtractor.processElement({
+      className: headerBlockClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+    })
+
+    if (headline) {
+      styleExtractor.processElement({
+        className: headlineClass,
+        tailwindClasses: 'text-[var(--text-3xl)] font-bold m-0',
+        additionalStyles: {
+          lineHeight: '1.2',
+          fontFamily: 'var(--font-heading)',
+          ...extractFieldStyles(fieldStyles, 'headline'),
+        },
+      })
+    }
+
+    if (subheadline) {
+      styleExtractor.processElement({
+        className: subheadlineClass,
+        tailwindClasses: 'text-[var(--text-lg)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-heading)',
+          ...extractFieldStyles(fieldStyles, 'subheadline'),
+        },
+      })
+    }
+
+    if (paragraph) {
+      styleExtractor.processElement({
+        className: paragraphClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...extractFieldStyles(fieldStyles, 'paragraph'),
+        },
+      })
+    }
+  }
+
   const sectionHeaderHTML = hasHeaderContent ? `
-    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-      ${headline ? `<h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${subheadline ? `<h3 data-field="subheadline" style="font-size: var(--text-lg); color: var(--color-muted); margin: 0; font-family: var(--font-heading); ${subheadlineFieldStyle}">${escapeHtml(subheadline)}</h3>` : ''}
-      ${paragraph ? `<div data-field="paragraph" style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${paragraphFieldStyle}">${paragraph}</div>` : ''}
+    <div class="${headerBlockClass}">
+      ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+      ${subheadline ? `<h3 class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</h3>` : ''}
+      ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
     </div>
   ` : ''
 
-  function generateProductHTML(item: typeof items[0], index: number): string {
+  // Generate product HTML with styleExtractor
+  function generateProductHTML(item: typeof items[0], index: number, variantType: string): { productItemClass: string; mediaHTML: string; contentHTML: string } {
     const mediaAspectRatio = getCardMediaAspectRatio((styles as Record<string, unknown>)?.productMediaAspect as string)
+    const productItemClass = styleExtractor.createChildClass(productsClass, `item_${index}`)
+    const mediaContainerClass = styleExtractor.createChildClass(productsClass, `item_${index}_media-container`)
+    const mediaClass = styleExtractor.createChildClass(productsClass, `item_${index}_media`)
+    const contentClass = styleExtractor.createChildClass(productsClass, `item_${index}_content`)
+    const nameClass = styleExtractor.createChildClass(productsClass, `item_${index}_name`)
+    const descriptionClass = styleExtractor.createChildClass(productsClass, `item_${index}_description`)
+    const priceClass = styleExtractor.createChildClass(productsClass, `item_${index}_price`)
+    const buttonClass = styleExtractor.createChildClass(productsClass, `item_${index}_button`)
+
+    // Process media container
+    if (item.image?.src) {
+      styleExtractor.processElement({
+        className: mediaContainerClass,
+        tailwindClasses: 'w-full overflow-hidden',
+        additionalStyles: {
+          ...(sharedMediaStyle && Object.fromEntries(
+            sharedMediaStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      styleExtractor.processElement({
+        className: mediaClass,
+        tailwindClasses: 'w-full h-full object-cover',
+        additionalStyles: {
+          aspectRatio: mediaAspectRatio,
+        },
+      })
+    }
+
+    // Process content container
+    styleExtractor.processElement({
+      className: contentClass,
+      tailwindClasses: 'p-[var(--spacing-md)] flex flex-col',
+      additionalStyles: { gap: sharedInnerGap },
+    })
+
+    // Process name
+    if (item.name) {
+      const textSize = variantType === 'row' ? 'var(--text-3xl)' : 'var(--text-xl)'
+      styleExtractor.processElement({
+        className: nameClass,
+        tailwindClasses: `text-[${textSize}] ${variantType === 'row' ? 'font-bold' : 'font-semibold'} m-0`,
+        additionalStyles: {
+          lineHeight: variantType === 'row' ? '1.2' : '1.5',
+          fontFamily: 'var(--font-heading)',
+          ...(sharedNameStyle && Object.fromEntries(
+            sharedNameStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
+
+    // Process description
+    if (item.description) {
+      styleExtractor.processElement({
+        className: descriptionClass,
+        tailwindClasses: 'text-[var(--text-base)] m-0',
+        additionalStyles: {
+          color: 'var(--color-muted)',
+          fontFamily: 'var(--font-body)',
+          ...(sharedDescriptionStyle && Object.fromEntries(
+            sharedDescriptionStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
+
+    // Process price
+    if (item.price) {
+      const textSize = variantType === 'row' ? 'var(--text-xl)' : 'var(--text-lg)'
+      styleExtractor.processElement({
+        className: priceClass,
+        tailwindClasses: `text-[${textSize}] font-semibold m-0`,
+        additionalStyles: {
+          fontFamily: 'var(--font-body)',
+          ...(sharedPriceStyle && Object.fromEntries(
+            sharedPriceStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
+
+    // Process button
+    if (item.ctaLabel && item.ctaUrl) {
+      styleExtractor.processElement({
+        className: buttonClass,
+        tailwindClasses: 'mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium no-underline',
+        additionalStyles: {
+          ...(sharedButtonStyle && Object.fromEntries(
+            sharedButtonStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+    }
 
     const mediaHTML = item.image?.src ? `
-      <div style="width: 100%; overflow: hidden; ${sharedMediaStyle}">
-        <img src="${escapeHtml(item.image.src)}" alt="${escapeHtml(item.image.alt || '')}" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: ${mediaAspectRatio};" loading="lazy" />
+      <div class="${mediaContainerClass}">
+        <img class="${mediaClass}" src="${escapeHtml(item.image.src)}" alt="${escapeHtml(item.image.alt || '')}" loading="lazy" />
       </div>
     ` : ''
 
     const contentHTML = `
-      <div style="padding: var(--spacing-md); display: flex; flex-direction: column; gap: ${sharedInnerGap};">
-        ${item.name ? `<h3 style="font-size: var(--text-xl); font-weight: 600; margin: 0; font-family: var(--font-heading); ${sharedNameStyle}">${escapeHtml(item.name)}</h3>` : ''}
-        ${item.description ? `<div style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${sharedDescriptionStyle}">${item.description}</div>` : ''}
-        ${item.price ? `<p style="font-size: var(--text-lg); font-weight: 600; margin: 0; font-family: var(--font-body); ${sharedPriceStyle}">${escapeHtml(item.price)}</p>` : ''}
-        ${item.ctaLabel && item.ctaUrl ? `<a href="${escapeHtml(item.ctaUrl)}" target="_blank" rel="noopener noreferrer" style="margin-top: var(--spacing-sm); display: inline-flex; align-items: center; justify-content: center; font-weight: 500; text-decoration: none; ${sharedButtonStyle}">${escapeHtml(item.ctaLabel)}</a>` : ''}
+      <div class="${contentClass}">
+        ${item.name ? `<h3 class="${nameClass}">${escapeHtml(item.name)}</h3>` : ''}
+        ${item.description ? `<div class="${descriptionClass}">${item.description}</div>` : ''}
+        ${item.price ? `<p class="${priceClass}">${escapeHtml(item.price)}</p>` : ''}
+        ${item.ctaLabel && item.ctaUrl ? `<a class="${buttonClass}" href="${escapeHtml(item.ctaUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.ctaLabel)}</a>` : ''}
       </div>
     `
 
-    return `${mediaHTML}${contentHTML}`
+    return { productItemClass, mediaHTML, contentHTML }
   }
 
-  const sectionWrapperStyle = `background-color: var(--color-bg); color: var(--color-fg); padding: var(--spacing-section) var(--spacing-container); ${sectionStyle}`
-
+  // Variant-specific layouts
   if (variant === 'grid') {
-    const productsHTML = items.map((item, index) => `
-      <div key="${item.id || index}" data-field="items" data-index="${index}" style="display: flex; flex-direction: column; background-color: var(--color-surface); border-radius: var(--radius-lg); overflow: hidden; ${sharedContainerStyle}">
-        ${generateProductHTML(item, index)}
+    styleExtractor.processElement({
+      className: gridClass,
+      tailwindClasses: 'grid grid-cols-1',
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
+    const productsHTML = items.map((item, index) => {
+      const { productItemClass, mediaHTML, contentHTML } = generateProductHTML(item, index, 'grid')
+
+      styleExtractor.processElement({
+        className: productItemClass,
+        tailwindClasses: 'flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden',
+        additionalStyles: {
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      return `
+      <div class="${productItemClass}" data-field="items" data-index="${index}">
+        ${mediaHTML}${contentHTML}
       </div>
-    `).join('')
+    `
+    }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; gap: ${sectionSpaceBetween}px;">
+    <section class="${productsClass}" data-section-id="${id}">
+      <div class="${containerClass}">
         ${sectionHeaderHTML}
-        <div style="display: grid; grid-template-columns: repeat(1, 1fr); gap: ${itemsSpaceBetween}px;">
+        <div class="${gridClass}">
           ${productsHTML}
         </div>
       </div>
@@ -1388,40 +3152,60 @@ function generateProductsHTML(section: SectionInstance, theme: ThemeTokens, sect
   }
 
   if (variant === 'row') {
+    styleExtractor.processElement({
+      className: rowContainerClass,
+      tailwindClasses: 'flex flex-col w-full',
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
     const productsHTML = items.map((item, index) => {
       const isMediaLeft = index % 2 === 0
-      const mediaAspectRatio = getCardMediaAspectRatio((styles as Record<string, unknown>)?.productMediaAspect as string)
+      const { productItemClass, mediaHTML, contentHTML } = generateProductHTML(item, index, 'row')
+      const mediaWrapperClass = styleExtractor.createChildClass(productsClass, `item_${index}_media-wrapper`)
+      const contentWrapperClass = styleExtractor.createChildClass(productsClass, `item_${index}_content-wrapper`)
 
-      const mediaHTML = item.image?.src ? `
-        <div style="${isMediaLeft ? '' : 'order: 2;'}">
-          <div style="width: 100%; overflow: hidden; border-radius: var(--radius-lg); ${sharedMediaStyle}">
-            <img src="${escapeHtml(item.image.src)}" alt="${escapeHtml(item.image.alt || '')}" style="width: 100%; height: 100%; object-fit: cover; aspect-ratio: ${mediaAspectRatio};" loading="lazy" />
-          </div>
-        </div>
-      ` : `<div style="${isMediaLeft ? '' : 'order: 2;'}"><div style="width: 100%; aspect-ratio: 4/3; border-radius: var(--radius-lg); background-color: var(--color-surface); display: flex; align-items: center; justify-content: center;"><span style="color: var(--color-muted);">Add image</span></div></div>`
+      styleExtractor.processElement({
+        className: productItemClass,
+        tailwindClasses: 'grid grid-cols-2 items-center gap-[var(--spacing-xl)]',
+        additionalStyles: {
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
 
-      const contentHTML = `
-        <div style="display: flex; flex-direction: column; gap: ${sharedInnerGap}; ${isMediaLeft ? '' : 'order: 1;'}">
-          ${item.name ? `<h3 style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${sharedNameStyle}">${escapeHtml(item.name)}</h3>` : ''}
-          ${item.description ? `<div style="font-size: var(--text-base); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${sharedDescriptionStyle}">${item.description}</div>` : ''}
-          ${item.price ? `<p style="font-size: var(--text-xl); font-weight: 600; margin: 0; font-family: var(--font-body); ${sharedPriceStyle}">${escapeHtml(item.price)}</p>` : ''}
-          ${item.ctaLabel && item.ctaUrl ? `<a href="${escapeHtml(item.ctaUrl)}" target="_blank" rel="noopener noreferrer" style="margin-top: var(--spacing-sm); display: inline-flex; align-items: center; justify-content: center; font-weight: 500; text-decoration: none; ${sharedButtonStyle}">${escapeHtml(item.ctaLabel)}</a>` : ''}
-        </div>
-      `
+      styleExtractor.processElement({
+        className: mediaWrapperClass,
+        tailwindClasses: '',
+        additionalStyles: { order: isMediaLeft ? '1' : '2' },
+      })
+
+      styleExtractor.processElement({
+        className: contentWrapperClass,
+        tailwindClasses: 'flex flex-col',
+        additionalStyles: { order: isMediaLeft ? '2' : '1', gap: sharedInnerGap },
+      })
 
       return `
-        <div key="${item.id || index}" data-field="items" data-index="${index}" style="display: grid; grid-template-columns: repeat(2, 1fr); align-items: center; gap: var(--spacing-xl); ${sharedContainerStyle}">
-          ${mediaHTML}
-          ${contentHTML}
+        <div class="${productItemClass}" data-field="items" data-index="${index}">
+          <div class="${mediaWrapperClass}">
+            ${mediaHTML || `<div class="w-full aspect-[4/3] rounded-[var(--radius-lg)] bg-[var(--color-surface)] flex items-center justify-center"><span class="text-[var(--color-muted)]">Add image</span></div>`}
+          </div>
+          <div class="${contentWrapperClass}">
+            ${contentHTML}
+          </div>
         </div>
       `
     }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; gap: ${sectionSpaceBetween}px;">
+    <section class="${productsClass}" data-section-id="${id}">
+      <div class="${containerClass}">
         ${sectionHeaderHTML}
-        <div style="display: flex; flex-direction: column; width: 100%; gap: ${itemsSpaceBetween}px;">
+        <div class="${rowContainerClass}">
           ${productsHTML}
         </div>
       </div>
@@ -1434,18 +3218,50 @@ function generateProductsHTML(section: SectionInstance, theme: ThemeTokens, sect
     const gapOffset = ((slidesPerView - 1) * gap) / slidesPerView
     const productWidth = `calc(${100 / slidesPerView}% - ${gapOffset}px)`
 
-    const productsHTML = items.map((item, index) => `
-      <div key="${item.id || index}" data-field="items" data-index="${index}" style="flex-shrink: 0; display: flex; flex-direction: column; background-color: var(--color-surface); border-radius: var(--radius-lg); overflow: hidden; width: ${productWidth}; ${sharedContainerStyle}">
-        ${generateProductHTML(item, index)}
+    const carouselWrapperClass = styleExtractor.createChildClass(productsClass, 'carousel-wrapper')
+    const carouselClass = styleExtractor.createChildClass(productsClass, 'carousel')
+
+    styleExtractor.processElement({
+      className: carouselWrapperClass,
+      tailwindClasses: 'relative w-full',
+    })
+
+    styleExtractor.processElement({
+      className: carouselClass,
+      tailwindClasses: 'flex overflow-x-auto pb-[var(--spacing-md)]',
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
+    const productsHTML = items.map((item, index) => {
+      const { productItemClass, mediaHTML, contentHTML } = generateProductHTML(item, index, 'carousel')
+
+      styleExtractor.processElement({
+        className: productItemClass,
+        tailwindClasses: 'flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden',
+        additionalStyles: {
+          width: productWidth,
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      return `
+      <div class="${productItemClass}" data-field="items" data-index="${index}">
+        ${mediaHTML}${contentHTML}
       </div>
-    `).join('')
+    `
+    }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin-left: auto; margin-right: auto; gap: ${sectionSpaceBetween}px;">
+    <section class="${productsClass}" data-section-id="${id}">
+      <div class="${containerClass}">
         ${sectionHeaderHTML}
-        <div style="position: relative; width: 100%;">
-          <div style="display: flex; overflow-x: auto; padding-bottom: var(--spacing-md); gap: ${itemsSpaceBetween}px;">
+        <div class="${carouselWrapperClass}">
+          <div class="${carouselClass}">
             ${productsHTML}
           </div>
         </div>
@@ -1454,17 +3270,57 @@ function generateProductsHTML(section: SectionInstance, theme: ThemeTokens, sect
   }
 
   if (variant === 'split') {
-    const productsHTML = items.map((item, index) => `
-      <div key="${item.id || index}" data-field="items" data-index="${index}" style="flex: 1; display: flex; flex-direction: column; background-color: var(--color-surface); border-radius: var(--radius-lg); overflow: hidden; ${sharedContainerStyle}">
-        ${generateProductHTML(item, index)}
+    const splitContainerClass = styleExtractor.createChildClass(productsClass, 'split-container')
+    const splitHeaderClass = styleExtractor.createChildClass(productsClass, 'split-header')
+    const splitContentClass = styleExtractor.createChildClass(productsClass, 'split-content')
+
+    styleExtractor.processElement({
+      className: splitContainerClass,
+      tailwindClasses: 'max-w-[1200px] mx-auto w-full flex flex-row items-start',
+      additionalStyles: { gap: `${sectionSpaceBetween}px` },
+    })
+
+    if (hasHeaderContent) {
+      styleExtractor.processElement({
+        className: splitHeaderClass,
+        tailwindClasses: 'w-[33.333%] flex-shrink-0',
+      })
+    }
+
+    styleExtractor.processElement({
+      className: splitContentClass,
+      tailwindClasses: `flex flex-col flex-1 ${hasHeaderContent ? 'w-[66.667%]' : 'w-full'}`,
+      additionalStyles: { gap: `${itemsSpaceBetween}px` },
+    })
+
+    const productsHTML = items.map((item, index) => {
+      const { productItemClass, mediaHTML, contentHTML } = generateProductHTML(item, index, 'split')
+
+      styleExtractor.processElement({
+        className: productItemClass,
+        tailwindClasses: 'flex-1 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden',
+        additionalStyles: {
+          ...(sharedContainerStyle && Object.fromEntries(
+            sharedContainerStyle.split('; ').filter(s => s).map(s => {
+              const [k, v] = s.split(': ')
+              return [k.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), v]
+            })
+          )),
+        },
+      })
+
+      return `
+      <div class="${productItemClass}" data-field="items" data-index="${index}">
+        ${mediaHTML}${contentHTML}
       </div>
-    `).join('')
+    `
+    }).join('')
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: flex; flex-direction: row; align-items: flex-start; gap: ${sectionSpaceBetween}px;">
-        ${hasHeaderContent ? `<div style="width: 33.333%; flex-shrink: 0;">${sectionHeaderHTML}</div>` : ''}
-        <div style="display: flex; flex-direction: column; flex: 1; ${hasHeaderContent ? 'width: 66.667%;' : 'width: 100%;'} gap: ${itemsSpaceBetween}px;">
+    <section class="${productsClass}" data-section-id="${id}">
+      <div class="${splitContainerClass}">
+        ${hasHeaderContent ? `<div class="${splitHeaderClass}">${sectionHeaderHTML}</div>` : ''}
+        <div class="${splitContentClass}">
           ${productsHTML}
         </div>
       </div>
@@ -1479,7 +3335,8 @@ function generateProductsHTML(section: SectionInstance, theme: ThemeTokens, sect
 // ============================================
 
 function generateEventsHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles, itemStyles } = section
+  const { id, variant, data, fieldStyles, itemStyles, styles } = section
+
   const headline = data.headline as string || ''
   const paragraph = data.paragraph as string || ''
   const items = data.items as Array<{
@@ -1492,35 +3349,196 @@ function generateEventsHTML(section: SectionInstance, theme: ThemeTokens, sectio
     button?: { label?: string; url?: string }
   }> || []
 
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
+  // Get custom section styles
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
 
-  const eventsHTML = items.map((item, index) => `
-    <details class="ld-event-item" data-field="items" data-index="${index}">
-      <summary class="ld-event-item__summary">
-        <div class="ld-event-item__header">
-          ${item.headline ? `<h3 class="ld-event-item__title" data-item-field="headline">${escapeHtml(item.headline)}</h3>` : ''}
-          ${item.datetime ? `<p class="ld-event-item__datetime" data-item-field="datetime">${escapeHtml(item.datetime)}</p>` : ''}
-          ${item.location ? `<p class="ld-event-item__location" data-item-field="location">${escapeHtml(item.location)}</p>` : ''}
+  // Create class names
+  const eventsClass = styleExtractor.createRootClass('events')
+  const containerClass = styleExtractor.createChildClass(eventsClass, 'container')
+  const headerClass = styleExtractor.createChildClass(eventsClass, 'header')
+  const headlineClass = styleExtractor.createChildClass(eventsClass, 'headline')
+  const paragraphClass = styleExtractor.createChildClass(eventsClass, 'paragraph')
+  const listClass = styleExtractor.createChildClass(eventsClass, 'list')
+
+  // Process section element - NO var() for user-customizable properties
+  styleExtractor.processElement({
+    className: eventsClass,
+    tailwindClasses: 'text-[var(--color-fg)]',
+    additionalStyles: customStyles,
+  })
+
+  // Process container - variant-specific max-width
+  const maxWidth = variant === 'split' ? '1200px' : '800px'
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: `max-w-[${maxWidth}] mx-auto w-full`,
+  })
+
+  // Process header
+  styleExtractor.processElement({
+    className: headerClass,
+    tailwindClasses: 'text-center mb-[2rem]',
+  })
+
+  // Process headline with field styles
+  if (headline) {
+    styleExtractor.processElement({
+      className: headlineClass,
+      tailwindClasses: 'text-[3rem] font-bold leading-tight m-0 mb-[1rem]',
+      additionalStyles: extractFieldStyles(fieldStyles, 'headline'),
+    })
+  }
+
+  // Process paragraph with field styles
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[1rem] text-[var(--color-muted)] m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'paragraph'),
+    })
+  }
+
+  // Process list
+  styleExtractor.processElement({
+    className: listClass,
+    tailwindClasses: 'flex flex-col gap-[0.5rem]',
+  })
+
+  // Generate event items with indexed classes
+  const eventsHTML = items.map((item, index) => {
+    const itemClass = styleExtractor.createChildClass(eventsClass, `item_${index}`)
+    const summaryClass = styleExtractor.createChildClass(eventsClass, `item_${index}_summary`)
+    const titleWrapperClass = styleExtractor.createChildClass(eventsClass, `item_${index}_title_wrapper`)
+    const titleClass = styleExtractor.createChildClass(eventsClass, `item_${index}_title`)
+    const metaClass = styleExtractor.createChildClass(eventsClass, `item_${index}_meta`)
+    const iconClass = styleExtractor.createChildClass(eventsClass, `item_${index}_icon`)
+    const detailsContainerClass = styleExtractor.createChildClass(eventsClass, `item_${index}_details_container`)
+    const contentWrapperClass = styleExtractor.createChildClass(eventsClass, `item_${index}_content_wrapper`)
+    const imageClass = styleExtractor.createChildClass(eventsClass, `item_${index}_image`)
+    const descClass = styleExtractor.createChildClass(eventsClass, `item_${index}_desc`)
+    const priceClass = styleExtractor.createChildClass(eventsClass, `item_${index}_price`)
+    const btnClass = styleExtractor.createChildClass(eventsClass, `item_${index}_btn`)
+
+    // Process event item container
+    styleExtractor.processElement({
+      className: itemClass,
+      tailwindClasses: 'bg-[var(--color-surface)] rounded-[0.5rem] overflow-hidden',
+    })
+
+    // Process summary (button element)
+    styleExtractor.processElement({
+      className: summaryClass,
+      tailwindClasses: 'w-full flex items-center justify-between gap-[1rem] text-left p-[1rem] cursor-pointer',
+    })
+
+    // Process title wrapper
+    styleExtractor.processElement({
+      className: titleWrapperClass,
+      tailwindClasses: 'flex-1 min-w-0',
+    })
+
+    // Process title
+    if (item.headline) {
+      styleExtractor.processElement({
+        className: titleClass,
+        tailwindClasses: 'text-[1rem] font-medium block',
+      })
+    }
+
+    // Process meta (datetime + location)
+    const metaParts = []
+    if (item.datetime) metaParts.push(item.datetime)
+    if (item.location) metaParts.push(item.location)
+    const metaText = metaParts.join(' • ')
+
+    if (metaText) {
+      styleExtractor.processElement({
+        className: metaClass,
+        tailwindClasses: 'text-[0.875rem] text-[var(--color-muted)] mt-1 block',
+      })
+    }
+
+    // Process chevron icon
+    styleExtractor.processElement({
+      className: iconClass,
+      tailwindClasses: 'text-[var(--color-muted)] flex-shrink-0',
+    })
+
+    // Process details container (expandable content)
+    styleExtractor.processElement({
+      className: detailsContainerClass,
+      tailwindClasses: 'px-[1rem] pb-[1rem]',
+    })
+
+    // Process content wrapper
+    styleExtractor.processElement({
+      className: contentWrapperClass,
+      tailwindClasses: 'flex flex-col gap-[1rem]',
+    })
+
+    // Process image
+    if (item.image?.src) {
+      styleExtractor.processElement({
+        className: imageClass,
+        tailwindClasses: 'w-full aspect-video object-cover rounded-[0.5rem]',
+      })
+    }
+
+    // Process description
+    if (item.details) {
+      styleExtractor.processElement({
+        className: descClass,
+        tailwindClasses: 'text-[1rem] text-[var(--color-muted)]',
+      })
+    }
+
+    // Process price
+    if (item.price) {
+      styleExtractor.processElement({
+        className: priceClass,
+        tailwindClasses: 'text-[1.125rem] font-medium',
+      })
+    }
+
+    // Process button
+    if (item.button?.label) {
+      styleExtractor.processElement({
+        className: btnClass,
+        tailwindClasses: 'inline-flex items-center justify-center py-[0.875rem] px-[2rem] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[0.875rem] font-medium rounded-[0.5rem] hover:opacity-90 transition-opacity self-start',
+      })
+    }
+
+    return `
+      <details class="${itemClass}" data-field="items" data-index="${index}">
+        <summary class="${summaryClass}">
+          <div class="${titleWrapperClass}">
+            ${item.headline ? `<span class="${titleClass}" data-item-field="headline">${escapeHtml(item.headline)}</span>` : ''}
+            ${metaText ? `<span class="${metaClass}">${escapeHtml(metaText)}</span>` : ''}
+          </div>
+          <span class="${iconClass}">▼</span>
+        </summary>
+        <div class="${detailsContainerClass}">
+          <div class="${contentWrapperClass}">
+            ${item.image?.src ? `<img class="${imageClass}" src="${escapeHtml(item.image.src)}" alt="${escapeHtml(item.image.alt || '')}" loading="lazy" />` : ''}
+            ${item.details ? `<div class="${descClass}" data-item-field="details">${item.details}</div>` : ''}
+            ${item.price ? `<div class="${priceClass}">${escapeHtml(item.price)}</div>` : ''}
+            ${item.button?.label ? `<a class="${btnClass}" href="${escapeHtml(item.button.url || '#')}" data-item-field="button">${escapeHtml(item.button.label)}</a>` : ''}
+          </div>
         </div>
-      </summary>
-      <div class="ld-event-item__details">
-        ${item.image?.src ? `<img class="ld-event-item__image" src="${escapeHtml(item.image.src)}" alt="${escapeHtml(item.image.alt || '')}" loading="lazy" />` : ''}
-        ${item.details ? `<p class="ld-event-item__desc" data-item-field="details">${escapeHtml(item.details)}</p>` : ''}
-        ${item.price ? `<p class="ld-event-item__price">Price: ${escapeHtml(item.price)}</p>` : ''}
-        ${item.button?.label ? `<a class="ld-btn ld-event-item__btn" href="${escapeHtml(item.button.url || '#')}" data-item-field="button">${escapeHtml(item.button.label)}</a>` : ''}
-      </div>
-    </details>
-  `).join('')
+      </details>
+    `
+  }).join('')
 
   return `
-  <section class="ld-events" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-events__header">
-      ${headline ? `<h2 class="ld-events__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${paragraph ? `<p class="ld-events__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
-    </div>
-    <div class="ld-events__list">
-      ${eventsHTML}
+  <section class="${eventsClass}" data-section-id="${id}">
+    <div class="${containerClass}">
+      ${headline || paragraph ? `<div class="${headerClass}">
+        ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+        ${paragraph ? `<div class="${paragraphClass}" data-field="paragraph">${paragraph}</div>` : ''}
+      </div>` : ''}
+      <div class="${listClass}">
+        ${eventsHTML}
+      </div>
     </div>
   </section>`
 }
@@ -1557,110 +3575,399 @@ function generateContactHTML(section: SectionInstance, theme: ThemeTokens, secti
   const formFieldsSpaceBetween = (styles as Record<string, unknown>)?.formFieldsSpaceBetween
   const socialLinksSpaceBetween = (styles as Record<string, unknown>)?.socialLinksSpaceBetween
 
+  // Shared styles (convert to style objects)
+  const sharedFormInputStyleStr = resolveSharedFormInputStyles(styles as Record<string, unknown>)
+  const sharedFormInputStyle = Object.fromEntries(
+    sharedFormInputStyleStr.split(';').filter(Boolean).map((s) => {
+      const [key, value] = s.split(':').map((x) => x.trim())
+      const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+      return [camelKey, value]
+    })
+  )
+
+  const sharedLinkContainerStyleStr = resolveSharedLinkContainerStyles(styles as Record<string, unknown>)
+  const sharedLinkContainerStyle = Object.fromEntries(
+    sharedLinkContainerStyleStr.split(';').filter(Boolean).map((s) => {
+      const [key, value] = s.split(':').map((x) => x.trim())
+      const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+      return [camelKey, value]
+    })
+  )
+
+  const sharedLinkLabelStyleStr = resolveSharedLinkTextStyles(styles as Record<string, unknown>, 'Label')
+  const sharedLinkLabelStyle = Object.fromEntries(
+    sharedLinkLabelStyleStr.split(';').filter(Boolean).map((s) => {
+      const [key, value] = s.split(':').map((x) => x.trim())
+      const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+      return [camelKey, value]
+    })
+  )
+
+  const sharedLinkDescriptionStyleStr = resolveSharedLinkTextStyles(styles as Record<string, unknown>, 'Description')
+  const sharedLinkDescriptionStyle = Object.fromEntries(
+    sharedLinkDescriptionStyleStr.split(';').filter(Boolean).map((s) => {
+      const [key, value] = s.split(':').map((x) => x.trim())
+      const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase())
+      return [camelKey, value]
+    })
+  )
+
+  // Create class names
+  const contactClass = styleExtractor.createRootClass('contact')
+  const containerClass = styleExtractor.createChildClass(contactClass, 'container')
+  const headerClass = styleExtractor.createChildClass(contactClass, 'header')
+  const headlineClass = styleExtractor.createChildClass(contactClass, 'headline')
+  const subheadlineClass = styleExtractor.createChildClass(contactClass, 'subheadline')
+  const paragraphsContainerClass = styleExtractor.createChildClass(contactClass, 'paragraphs-container')
+  const formClass = styleExtractor.createChildClass(contactClass, 'form')
+  const submitButtonClass = styleExtractor.createChildClass(contactClass, 'submit-button')
+  const socialLinksContainerClass = styleExtractor.createChildClass(contactClass, 'social-links-container')
+
+  // Process section-level styles
+  styleExtractor.processElement({
+    className: contactClass,
+    tailwindClasses: 'py-[var(--spacing-section)] px-[var(--spacing-container)]',
+    inlineStyle: sectionStyle,
+    additionalStyles: {
+      backgroundColor: 'var(--color-bg)',
+      color: 'var(--color-fg)',
+    },
+  })
+
   // Field styles
-  const headlineFieldStyle = buildFieldStyle(fieldStyles, 'headline')
-  const subheadlineFieldStyle = buildFieldStyle(fieldStyles, 'subheadline')
-  const submitButtonFieldStyle = buildFieldStyle(fieldStyles, 'submitButton')
+  styleExtractor.processElement({
+    className: headlineClass,
+    tailwindClasses: 'text-3xl font-bold mb-2',
+    additionalStyles: {
+      fontFamily: 'var(--font-heading)',
+      lineHeight: '1.2',
+      margin: '0',
+      marginBottom: 'var(--spacing-sm)',
+      ...extractFieldStyles(fieldStyles, 'headline'),
+    },
+  })
 
-  // Shared styles
-  const sharedFormInputStyle = resolveSharedFormInputStyles(styles as Record<string, unknown>)
-  const sharedLinkContainerStyle = resolveSharedLinkContainerStyles(styles as Record<string, unknown>)
-  const sharedLinkLabelStyle = resolveSharedLinkTextStyles(styles as Record<string, unknown>, 'Label')
-  const sharedLinkDescriptionStyle = resolveSharedLinkTextStyles(styles as Record<string, unknown>, 'Description')
+  styleExtractor.processElement({
+    className: subheadlineClass,
+    tailwindClasses: 'text-lg',
+    additionalStyles: {
+      fontFamily: 'var(--font-body)',
+      color: 'var(--color-muted)',
+      margin: '0',
+      ...extractFieldStyles(fieldStyles, 'subheadline'),
+    },
+  })
 
-  // Section wrapper style
-  const sectionWrapperStyle = `background-color: var(--color-bg); color: var(--color-fg); padding: var(--spacing-section) var(--spacing-container); ${sectionStyle}`
+  styleExtractor.processElement({
+    className: submitButtonClass,
+    tailwindClasses: 'inline-flex items-center justify-center',
+    additionalStyles: {
+      padding: 'var(--btn-py) var(--btn-px)',
+      backgroundColor: 'var(--color-primary)',
+      color: 'var(--color-primary-fg)',
+      fontSize: 'var(--text-base)',
+      fontWeight: 'var(--btn-weight)',
+      borderRadius: 'var(--btn-radius)',
+      textDecoration: 'none',
+      ...extractFieldStyles(fieldStyles, 'submitButton'),
+    },
+  })
 
-  // Generate form fields HTML (all types)
+  // Generate form fields HTML (all types) with indexed classes
   const formFieldsHTML = formFields.map((field, index) => {
     const fieldType = field.type || 'text'
+    const inputClass = styleExtractor.createChildClass(formClass, `input_${index}`)
+
+    // Process input field styles
+    styleExtractor.processElement({
+      className: inputClass,
+      tailwindClasses: '',
+      additionalStyles: {
+        width: '100%',
+        ...sharedFormInputStyle,
+      },
+    })
 
     switch (fieldType) {
       case 'text':
       case 'email':
       case 'phone':
-        return `<input type="${fieldType === 'phone' ? 'tel' : fieldType}" placeholder="${escapeHtml(field.label || '')}" style="width: 100%; ${sharedFormInputStyle}" />`
+        return `<input type="${fieldType === 'phone' ? 'tel' : fieldType}" placeholder="${escapeHtml(field.label || '')}" class="${inputClass}" />`
 
       case 'datetime':
-        return `<input type="datetime-local" placeholder="${escapeHtml(field.label || '')}" style="width: 100%; ${sharedFormInputStyle}" />`
+        return `<input type="datetime-local" placeholder="${escapeHtml(field.label || '')}" class="${inputClass}" />`
 
       case 'select':
         return `
-          <select style="width: 100%; ${sharedFormInputStyle}">
+          <select class="${inputClass}">
             <option value="" disabled selected>${escapeHtml(field.label || '')}</option>
             ${(field.options || []).map(opt => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join('')}
           </select>`
 
-      case 'checkbox':
-        return `
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
-            ${(field.options || []).map(opt => `
-              <label style="display: flex; align-items: center; gap: var(--spacing-sm); font-size: var(--text-base);">
-                <input type="checkbox" value="${escapeHtml(opt)}" style="width: 16px; height: 16px;" />
-                <span>${escapeHtml(opt)}</span>
-              </label>
-            `).join('')}
-          </div>`
+      case 'checkbox': {
+        const checkboxContainerClass = styleExtractor.createChildClass(formClass, `checkbox-container_${index}`)
+        styleExtractor.processElement({
+          className: checkboxContainerClass,
+          tailwindClasses: 'flex flex-col gap-[var(--spacing-xs)]',
+        })
 
-      case 'radio':
         return `
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
-            ${(field.options || []).map(opt => `
-              <label style="display: flex; align-items: center; gap: var(--spacing-sm); font-size: var(--text-base);">
-                <input type="radio" name="radio-${index}" value="${escapeHtml(opt)}" style="width: 16px; height: 16px;" />
+          <div class="${checkboxContainerClass}">
+            ${(field.options || []).map((opt, optIndex) => {
+              const checkboxLabelClass = styleExtractor.createChildClass(checkboxContainerClass, `label_${optIndex}`)
+              const checkboxInputClass = styleExtractor.createChildClass(checkboxContainerClass, `input_${optIndex}`)
+
+              styleExtractor.processElement({
+                className: checkboxLabelClass,
+                tailwindClasses: 'flex items-center gap-[var(--spacing-sm)]',
+                additionalStyles: { fontSize: 'var(--text-base)' },
+              })
+
+              styleExtractor.processElement({
+                className: checkboxInputClass,
+                additionalStyles: { width: '16px', height: '16px' },
+              })
+
+              return `
+              <label class="${checkboxLabelClass}">
+                <input type="checkbox" value="${escapeHtml(opt)}" class="${checkboxInputClass}" />
                 <span>${escapeHtml(opt)}</span>
-              </label>
-            `).join('')}
+              </label>`
+            }).join('')}
           </div>`
+      }
+
+      case 'radio': {
+        const radioContainerClass = styleExtractor.createChildClass(formClass, `radio-container_${index}`)
+        styleExtractor.processElement({
+          className: radioContainerClass,
+          tailwindClasses: 'flex flex-col gap-[var(--spacing-xs)]',
+        })
+
+        return `
+          <div class="${radioContainerClass}">
+            ${(field.options || []).map((opt, optIndex) => {
+              const radioLabelClass = styleExtractor.createChildClass(radioContainerClass, `label_${optIndex}`)
+              const radioInputClass = styleExtractor.createChildClass(radioContainerClass, `input_${optIndex}`)
+
+              styleExtractor.processElement({
+                className: radioLabelClass,
+                tailwindClasses: 'flex items-center gap-[var(--spacing-sm)]',
+                additionalStyles: { fontSize: 'var(--text-base)' },
+              })
+
+              styleExtractor.processElement({
+                className: radioInputClass,
+                additionalStyles: { width: '16px', height: '16px' },
+              })
+
+              return `
+              <label class="${radioLabelClass}">
+                <input type="radio" name="radio-${index}" value="${escapeHtml(opt)}" class="${radioInputClass}" />
+                <span>${escapeHtml(opt)}</span>
+              </label>`
+            }).join('')}
+          </div>`
+      }
 
       case 'textarea':
-        return `<textarea placeholder="${escapeHtml(field.label || '')}" rows="4" style="width: 100%; resize: vertical; ${sharedFormInputStyle}"></textarea>`
+        styleExtractor.processElement({
+          className: inputClass,
+          additionalStyles: {
+            width: '100%',
+            resize: 'vertical',
+            ...sharedFormInputStyle,
+          },
+        })
+        return `<textarea placeholder="${escapeHtml(field.label || '')}" rows="4" class="${inputClass}"></textarea>`
 
       default:
-        return `<input type="text" placeholder="${escapeHtml(field.label || '')}" style="width: 100%; ${sharedFormInputStyle}" />`
+        return `<input type="text" placeholder="${escapeHtml(field.label || '')}" class="${inputClass}" />`
     }
   }).join('')
 
-  // Generate social links HTML
-  const socialLinksHTML = socialLinks.map((link, index) => `
-    <a href="${escapeHtml(link.url || '#')}" data-field="socialLinks" data-index="${index}" style="display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-md); background-color: var(--color-surface); border-radius: var(--radius-md); text-decoration: none; ${sharedLinkContainerStyle}">
-      ${link.image?.src ? `<img src="${escapeHtml(link.image.src)}" alt="${escapeHtml(link.image.alt || '')}" style="width: 40px; height: 40px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0;" />` : ''}
-      <div style="display: flex; flex-direction: column; gap: var(--spacing-xs); min-width: 0; flex: 1;">
-        <span style="font-size: var(--text-base); font-weight: 500; ${sharedLinkLabelStyle}">${escapeHtml(link.label || '')}</span>
-        ${link.description ? `<span style="font-size: var(--text-sm); color: var(--color-muted); ${sharedLinkDescriptionStyle}">${escapeHtml(link.description)}</span>` : ''}
+  // Generate social links HTML with indexed classes
+  const socialLinksHTML = socialLinks.map((link, index) => {
+    const linkClass = styleExtractor.createChildClass(socialLinksContainerClass, `item_${index}`)
+    const linkImageClass = styleExtractor.createChildClass(linkClass, 'image')
+    const linkContentClass = styleExtractor.createChildClass(linkClass, 'content')
+    const linkLabelClass = styleExtractor.createChildClass(linkClass, 'label')
+    const linkDescriptionClass = styleExtractor.createChildClass(linkClass, 'description')
+    const linkIconClass = styleExtractor.createChildClass(linkClass, 'icon')
+
+    styleExtractor.processElement({
+      className: linkClass,
+      tailwindClasses: 'flex items-center gap-[var(--spacing-md)]',
+      additionalStyles: {
+        padding: 'var(--spacing-md)',
+        backgroundColor: 'var(--color-surface)',
+        borderRadius: 'var(--radius-md)',
+        textDecoration: 'none',
+        ...sharedLinkContainerStyle,
+      },
+    })
+
+    styleExtractor.processElement({
+      className: linkImageClass,
+      additionalStyles: {
+        width: '40px',
+        height: '40px',
+        borderRadius: 'var(--radius-sm)',
+        objectFit: 'cover',
+        flexShrink: '0',
+      },
+    })
+
+    styleExtractor.processElement({
+      className: linkContentClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-xs)]',
+      additionalStyles: {
+        minWidth: '0',
+        flex: '1',
+      },
+    })
+
+    styleExtractor.processElement({
+      className: linkLabelClass,
+      additionalStyles: {
+        fontSize: 'var(--text-base)',
+        fontWeight: '500',
+        ...sharedLinkLabelStyle,
+      },
+    })
+
+    styleExtractor.processElement({
+      className: linkDescriptionClass,
+      additionalStyles: {
+        fontSize: 'var(--text-sm)',
+        color: 'var(--color-muted)',
+        ...sharedLinkDescriptionStyle,
+      },
+    })
+
+    styleExtractor.processElement({
+      className: linkIconClass,
+      additionalStyles: {
+        color: 'var(--color-muted)',
+        flexShrink: '0',
+        marginLeft: 'var(--spacing-md)',
+      },
+    })
+
+    return `
+    <a href="${escapeHtml(link.url || '#')}" data-field="socialLinks" data-index="${index}" class="${linkClass}">
+      ${link.image?.src ? `<img src="${escapeHtml(link.image.src)}" alt="${escapeHtml(link.image.alt || '')}" class="${linkImageClass}" />` : ''}
+      <div class="${linkContentClass}">
+        <span class="${linkLabelClass}">${escapeHtml(link.label || '')}</span>
+        ${link.description ? `<span class="${linkDescriptionClass}">${escapeHtml(link.description)}</span>` : ''}
       </div>
-      <i class="lni lni-arrow-right" style="color: var(--color-muted); flex-shrink: 0; margin-left: var(--spacing-md);"></i>
-    </a>
-  `).join('')
+      <i class="lni lni-arrow-right ${linkIconClass}"></i>
+    </a>`
+  }).join('')
 
   if (variant === 'stacked') {
+    // Stacked-specific classes
+    const stackedContainerClass = styleExtractor.createChildClass(contactClass, 'stacked-container')
+    const stackedHeaderClass = styleExtractor.createChildClass(contactClass, 'stacked-header')
+    const stackedParagraphsClass = styleExtractor.createChildClass(contactClass, 'stacked-paragraphs')
+    const stackedFormClass = styleExtractor.createChildClass(contactClass, 'stacked-form')
+    const stackedSocialLinksClass = styleExtractor.createChildClass(contactClass, 'stacked-social-links')
+
+    styleExtractor.processElement({
+      className: stackedContainerClass,
+      additionalStyles: {
+        maxWidth: '600px',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        width: '100%',
+      },
+    })
+
+    styleExtractor.processElement({
+      className: stackedHeaderClass,
+      additionalStyles: {
+        textAlign: 'center',
+        marginBottom: 'var(--spacing-xl)',
+      },
+    })
+
+    styleExtractor.processElement({
+      className: stackedParagraphsClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+      additionalStyles: {
+        marginBottom: 'var(--spacing-xl)',
+        textAlign: 'center',
+      },
+    })
+
+    const formGapStyles: Record<string, string> = {}
+    if (formFieldsSpaceBetween !== undefined) {
+      formGapStyles.gap = `${formFieldsSpaceBetween}px`
+    }
+
+    styleExtractor.processElement({
+      className: stackedFormClass,
+      tailwindClasses: 'flex flex-col',
+      additionalStyles: {
+        marginBottom: 'var(--spacing-xl)',
+        ...formGapStyles,
+      },
+    })
+
+    const socialLinksGapStyles: Record<string, string> = {}
+    if (socialLinksSpaceBetween !== undefined) {
+      socialLinksGapStyles.gap = `${socialLinksSpaceBetween}px`
+    }
+
+    styleExtractor.processElement({
+      className: stackedSocialLinksClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+      additionalStyles: socialLinksGapStyles,
+    })
+
+    // Process paragraph classes
+    paragraphs.forEach((_, i) => {
+      const paragraphClass = styleExtractor.createChildClass(stackedParagraphsClass, `p_${i}`)
+      styleExtractor.processElement({
+        className: paragraphClass,
+        additionalStyles: {
+          fontSize: 'var(--text-base)',
+          margin: '0',
+          fontFamily: 'var(--font-body)',
+        },
+      })
+    })
+
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="max-width: 600px; margin-left: auto; margin-right: auto; width: 100%;">
+    <section data-section-id="${id}" class="${contactClass}">
+      <div class="${stackedContainerClass}">
         <!-- Section Header -->
         ${(headline || subheadline) ? `
-          <div style="text-align: center; margin-bottom: var(--spacing-xl);">
-            ${headline ? `<h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; margin-bottom: var(--spacing-sm); font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>` : ''}
-            ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-lg); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${subheadlineFieldStyle}">${escapeHtml(subheadline)}</p>` : ''}
+          <div class="${stackedHeaderClass}">
+            ${headline ? `<h2 data-field="headline" class="${headlineClass}">${escapeHtml(headline)}</h2>` : ''}
+            ${subheadline ? `<p data-field="subheadline" class="${subheadlineClass}">${escapeHtml(subheadline)}</p>` : ''}
           </div>
         ` : ''}
 
         <!-- Paragraphs (Email, Phone, Address) -->
         ${paragraphs.length === 3 ? `
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-sm); margin-bottom: var(--spacing-xl); text-align: center;">
-            ${paragraphs.map((p, i) => `<p data-field="paragraphs.${i}" style="font-size: var(--text-base); margin: 0; font-family: var(--font-body);">${escapeHtml(p)}</p>`).join('')}
+          <div class="${stackedParagraphsClass}">
+            ${paragraphs.map((p, i) => {
+              const pClass = styleExtractor.createChildClass(stackedParagraphsClass, `p_${i}`)
+              return `<p data-field="paragraphs.${i}" class="${pClass}">${escapeHtml(p)}</p>`
+            }).join('')}
           </div>
         ` : ''}
 
         <!-- Form -->
-        <form style="display: flex; flex-direction: column; margin-bottom: var(--spacing-xl); ${formFieldsSpaceBetween !== undefined ? `gap: ${formFieldsSpaceBetween}px;` : ''}" onsubmit="event.preventDefault();">
+        <form class="${stackedFormClass}" onsubmit="event.preventDefault();">
           ${formFieldsHTML}
-          ${submitButton?.label ? `<a href="${escapeHtml(submitButton.url || '#')}" data-field="submitButton" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-primary); color: var(--color-primary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${submitButtonFieldStyle}">${escapeHtml(submitButton.label)}</a>` : ''}
+          ${submitButton?.label ? `<a href="${escapeHtml(submitButton.url || '#')}" data-field="submitButton" class="${submitButtonClass}">${escapeHtml(submitButton.label)}</a>` : ''}
         </form>
 
         <!-- Social Links -->
         ${socialLinks.length > 0 ? `
-          <div style="display: flex; flex-direction: column; gap: var(--spacing-sm); ${socialLinksSpaceBetween !== undefined ? `gap: ${socialLinksSpaceBetween}px;` : ''}">
+          <div class="${stackedSocialLinksClass}">
             ${socialLinksHTML}
           </div>
         ` : ''}
@@ -1670,37 +3977,116 @@ function generateContactHTML(section: SectionInstance, theme: ThemeTokens, secti
 
   if (variant === 'split') {
     const isTitleFirst = splitLayout === 'title-content'
-    const titleOrder = isTitleFirst ? 1 : 2
-    const contentOrder = isTitleFirst ? 2 : 1
+    const titleOrder = isTitleFirst ? '1' : '2'
+    const contentOrder = isTitleFirst ? '2' : '1'
+
+    // Split-specific classes
+    const splitContainerClass = styleExtractor.createChildClass(contactClass, 'split-container')
+    const splitContentColumnClass = styleExtractor.createChildClass(contactClass, 'split-content-column')
+    const splitFormClass = styleExtractor.createChildClass(contactClass, 'split-form')
+    const splitSocialLinksClass = styleExtractor.createChildClass(contactClass, 'split-social-links')
+    const splitTitleColumnClass = styleExtractor.createChildClass(contactClass, 'split-title-column')
+    const splitParagraphsClass = styleExtractor.createChildClass(contactClass, 'split-paragraphs')
+
+    styleExtractor.processElement({
+      className: splitContainerClass,
+      tailwindClasses: 'grid grid-cols-2 gap-[var(--spacing-2xl)]',
+      additionalStyles: {
+        maxWidth: '1200px',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        width: '100%',
+        alignItems: 'flex-start',
+      },
+    })
+
+    styleExtractor.processElement({
+      className: splitContentColumnClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-xl)]',
+      additionalStyles: {
+        order: contentOrder,
+      },
+    })
+
+    const formGapStyles: Record<string, string> = {}
+    if (formFieldsSpaceBetween !== undefined) {
+      formGapStyles.gap = `${formFieldsSpaceBetween}px`
+    }
+
+    styleExtractor.processElement({
+      className: splitFormClass,
+      tailwindClasses: 'flex flex-col',
+      additionalStyles: formGapStyles,
+    })
+
+    const socialLinksGapStyles: Record<string, string> = {}
+    if (socialLinksSpaceBetween !== undefined) {
+      socialLinksGapStyles.gap = `${socialLinksSpaceBetween}px`
+    }
+
+    styleExtractor.processElement({
+      className: splitSocialLinksClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+      additionalStyles: socialLinksGapStyles,
+    })
+
+    styleExtractor.processElement({
+      className: splitTitleColumnClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-lg)]',
+      additionalStyles: {
+        order: titleOrder,
+      },
+    })
+
+    styleExtractor.processElement({
+      className: splitParagraphsClass,
+      tailwindClasses: 'flex flex-col gap-[var(--spacing-sm)]',
+    })
+
+    // Process paragraph classes
+    paragraphs.forEach((_, i) => {
+      const paragraphClass = styleExtractor.createChildClass(splitParagraphsClass, `p_${i}`)
+      styleExtractor.processElement({
+        className: paragraphClass,
+        additionalStyles: {
+          fontSize: 'var(--text-base)',
+          margin: '0',
+          fontFamily: 'var(--font-body)',
+        },
+      })
+    })
 
     return `
-    <section data-section-id="${id}" style="${sectionWrapperStyle}">
-      <div style="max-width: 1200px; margin-left: auto; margin-right: auto; width: 100%; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-2xl); align-items: flex-start;">
+    <section data-section-id="${id}" class="${contactClass}">
+      <div class="${splitContainerClass}">
         <!-- Form + Social Links Column -->
-        <div style="display: flex; flex-direction: column; gap: var(--spacing-xl); order: ${contentOrder};">
+        <div class="${splitContentColumnClass}">
           <!-- Form -->
-          <form style="display: flex; flex-direction: column; ${formFieldsSpaceBetween !== undefined ? `gap: ${formFieldsSpaceBetween}px;` : ''}" onsubmit="event.preventDefault();">
+          <form class="${splitFormClass}" onsubmit="event.preventDefault();">
             ${formFieldsHTML}
-            ${submitButton?.label ? `<a href="${escapeHtml(submitButton.url || '#')}" data-field="submitButton" style="display: inline-flex; align-items: center; justify-content: center; padding: var(--btn-py) var(--btn-px); background-color: var(--color-primary); color: var(--color-primary-fg); font-size: var(--text-base); font-weight: var(--btn-weight); border-radius: var(--btn-radius); text-decoration: none; ${submitButtonFieldStyle}">${escapeHtml(submitButton.label)}</a>` : ''}
+            ${submitButton?.label ? `<a href="${escapeHtml(submitButton.url || '#')}" data-field="submitButton" class="${submitButtonClass}">${escapeHtml(submitButton.label)}</a>` : ''}
           </form>
 
           <!-- Social Links -->
           ${socialLinks.length > 0 ? `
-            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm); ${socialLinksSpaceBetween !== undefined ? `gap: ${socialLinksSpaceBetween}px;` : ''}">
+            <div class="${splitSocialLinksClass}">
               ${socialLinksHTML}
             </div>
           ` : ''}
         </div>
 
         <!-- Title Column -->
-        <div style="display: flex; flex-direction: column; gap: var(--spacing-lg); order: ${titleOrder};">
-          ${headline ? `<h2 data-field="headline" style="font-size: var(--text-3xl); font-weight: bold; line-height: 1.2; margin: 0; font-family: var(--font-heading); ${headlineFieldStyle}">${escapeHtml(headline)}</h2>` : ''}
-          ${subheadline ? `<p data-field="subheadline" style="font-size: var(--text-lg); color: var(--color-muted); margin: 0; font-family: var(--font-body); ${subheadlineFieldStyle}">${escapeHtml(subheadline)}</p>` : ''}
+        <div class="${splitTitleColumnClass}">
+          ${headline ? `<h2 data-field="headline" class="${headlineClass}">${escapeHtml(headline)}</h2>` : ''}
+          ${subheadline ? `<p data-field="subheadline" class="${subheadlineClass}">${escapeHtml(subheadline)}</p>` : ''}
 
           <!-- Paragraphs (Email, Phone, Address) -->
           ${paragraphs.length === 3 ? `
-            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
-              ${paragraphs.map((p, i) => `<p data-field="paragraphs.${i}" style="font-size: var(--text-base); margin: 0; font-family: var(--font-body);">${escapeHtml(p)}</p>`).join('')}
+            <div class="${splitParagraphsClass}">
+              ${paragraphs.map((p, i) => {
+                const pClass = styleExtractor.createChildClass(splitParagraphsClass, `p_${i}`)
+                return `<p data-field="paragraphs.${i}" class="${pClass}">${escapeHtml(p)}</p>`
+              }).join('')}
             </div>
           ` : ''}
         </div>
@@ -1717,28 +4103,122 @@ function generateContactHTML(section: SectionInstance, theme: ThemeTokens, secti
 // ============================================
 
 function generateSubscribeHTML(section: SectionInstance, theme: ThemeTokens, sectionStyle: string): string {
-  const { id, data, fieldStyles } = section
+  const { id, data, fieldStyles, styles } = section
   const headline = data.headline as string || ''
   const subheadline = data.subheadline as string || ''
   const paragraph = data.paragraph as string || ''
   const emailPlaceholder = data.emailPlaceholder as string || 'Enter your email'
   const submitButton = data.submitButton as { label?: string } | undefined
 
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const subheadlineStyle = buildFieldStyle(fieldStyles, 'subheadline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
+  const customStyles = extractSectionStyles(styles as Record<string, unknown>)
+
+  // Create class names
+  const subscribeClass = styleExtractor.createRootClass('subscribe')
+  const containerClass = styleExtractor.createChildClass(subscribeClass, 'container')
+  const headerClass = styleExtractor.createChildClass(subscribeClass, 'header')
+  const headlineClass = styleExtractor.createChildClass(subscribeClass, 'headline')
+  const subheadlineClass = styleExtractor.createChildClass(subscribeClass, 'subheadline')
+  const paragraphWrapperClass = styleExtractor.createChildClass(subscribeClass, 'paragraph_wrapper')
+  const paragraphClass = styleExtractor.createChildClass(subscribeClass, 'paragraph')
+  const formClass = styleExtractor.createChildClass(subscribeClass, 'form')
+  const inputClass = styleExtractor.createChildClass(subscribeClass, 'input')
+  const buttonClass = styleExtractor.createChildClass(subscribeClass, 'button')
+
+  // Process subscribe section
+  styleExtractor.processElement({
+    className: subscribeClass,
+    tailwindClasses: 'text-[var(--color-fg)]',
+    additionalStyles: customStyles,
+  })
+
+  // Process container
+  styleExtractor.processElement({
+    className: containerClass,
+    tailwindClasses: 'max-w-[600px] mx-auto w-full',
+  })
+
+  // Process header (headline + subheadline wrapper)
+  if (headline || subheadline) {
+    styleExtractor.processElement({
+      className: headerClass,
+      tailwindClasses: 'text-center mb-[var(--spacing-xl)]',
+    })
+  }
+
+  // Process headline
+  if (headline) {
+    styleExtractor.processElement({
+      className: headlineClass,
+      tailwindClasses: 'text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-sm)]',
+      additionalStyles: extractFieldStyles(fieldStyles, 'headline'),
+    })
+  }
+
+  // Process subheadline
+  if (subheadline) {
+    styleExtractor.processElement({
+      className: subheadlineClass,
+      tailwindClasses: 'text-[length:var(--text-lg)] text-[var(--color-muted)] m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'subheadline'),
+    })
+  }
+
+  // Process paragraph wrapper
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphWrapperClass,
+      tailwindClasses: 'text-center mb-[var(--spacing-lg)]',
+    })
+  }
+
+  // Process paragraph
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: 'text-[length:var(--text-base)] text-[var(--color-muted)] m-0',
+      additionalStyles: extractFieldStyles(fieldStyles, 'paragraph'),
+    })
+  }
+
+  // Process form
+  styleExtractor.processElement({
+    className: formClass,
+    tailwindClasses: 'flex flex-col sm:flex-row gap-[var(--spacing-sm)] items-stretch',
+  })
+
+  // Process input
+  styleExtractor.processElement({
+    className: inputClass,
+    tailwindClasses: 'flex-1 px-[var(--spacing-md)] py-[var(--spacing-sm)] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-input)] text-[var(--color-fg)] text-[length:var(--text-base)] font-[var(--font-body)] outline-none focus:border-[var(--color-primary)] transition-colors',
+  })
+
+  // Process button
+  if (submitButton?.label) {
+    styleExtractor.processElement({
+      className: buttonClass,
+      tailwindClasses: 'inline-flex items-center justify-center px-[var(--spacing-lg)] py-[var(--spacing-sm)] rounded-[var(--radius-md)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-medium font-[var(--font-body)] no-underline whitespace-nowrap transition-colors hover:opacity-90 cursor-pointer',
+    })
+  }
 
   return `
-  <section class="ld-subscribe" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-subscribe__content">
-      ${headline ? `<h2 class="ld-subscribe__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${subheadline ? `<p class="ld-subscribe__subheadline" data-field="subheadline" style="${subheadlineStyle}">${escapeHtml(subheadline)}</p>` : ''}
-      ${paragraph ? `<p class="ld-subscribe__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
+  <section class="${subscribeClass}" data-section-id="${id}">
+    <div class="${containerClass}">
+      ${headline || subheadline ? `
+      <div class="${headerClass}">
+        ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+        ${subheadline ? `<p class="${subheadlineClass}" data-field="subheadline">${escapeHtml(subheadline)}</p>` : ''}
+      </div>
+      ` : ''}
+      ${paragraph ? `
+      <div class="${paragraphWrapperClass}">
+        <p class="${paragraphClass}" data-field="paragraph">${escapeHtml(paragraph)}</p>
+      </div>
+      ` : ''}
+      <form class="${formClass}">
+        <input type="email" class="${inputClass}" placeholder="${escapeHtml(emailPlaceholder)}" required data-field="emailPlaceholder" />
+        ${submitButton?.label ? `<button type="submit" class="${buttonClass}" data-field="submitButton">${escapeHtml(submitButton.label)}</button>` : ''}
+      </form>
     </div>
-    <form class="ld-subscribe__form">
-      <input type="email" placeholder="${escapeHtml(emailPlaceholder)}" required data-field="emailPlaceholder" />
-      ${submitButton?.label ? `<button type="submit" class="ld-btn" data-field="submitButton">${escapeHtml(submitButton.label)}</button>` : ''}
-    </form>
   </section>`
 }
 
@@ -1751,14 +4231,51 @@ function generateTextHTML(section: SectionInstance, theme: ThemeTokens, sectionS
   const headline = data.headline as string || ''
   const paragraph = data.paragraph as string || ''
 
-  const headlineStyle = buildFieldStyle(fieldStyles, 'headline')
-  const paragraphStyle = buildFieldStyle(fieldStyles, 'paragraph')
+  // Create class names
+  const textClass = styleExtractor.createRootClass('text')
+  const contentClass = styleExtractor.createChildClass(textClass, 'content')
+  const headlineClass = styleExtractor.createChildClass(textClass, 'headline')
+  const paragraphClass = styleExtractor.createChildClass(textClass, 'paragraph')
+
+  // Process text section
+  styleExtractor.processElement({
+    className: textClass,
+    tailwindClasses: 'py-[4rem] px-[1.5rem] max-w-[800px] mx-auto',
+    inlineStyle: sectionStyle,
+  })
+
+  // Process content container
+  styleExtractor.processElement({
+    className: contentClass,
+    tailwindClasses: 'flex flex-col gap-[1.5rem]',
+  })
+
+  // Process headline with field styles
+  if (headline) {
+    styleExtractor.processElement({
+      className: headlineClass,
+      tailwindClasses: '',
+      additionalStyles: extractFieldStyles(fieldStyles, 'headline'),
+    })
+  }
+
+  // Process paragraph with field styles
+  if (paragraph) {
+    styleExtractor.processElement({
+      className: paragraphClass,
+      tailwindClasses: '',
+      additionalStyles: {
+        lineHeight: '1.8',
+        ...extractFieldStyles(fieldStyles, 'paragraph'),
+      },
+    })
+  }
 
   return `
-  <section class="ld-text" data-section-id="${id}" style="${sectionStyle}">
-    <div class="ld-text__content">
-      ${headline ? `<h2 class="ld-text__headline" data-field="headline" style="${headlineStyle}">${escapeHtml(headline)}</h2>` : ''}
-      ${paragraph ? `<p class="ld-text__paragraph" data-field="paragraph" style="${paragraphStyle}">${escapeHtml(paragraph)}</p>` : ''}
+  <section class="${textClass}" data-section-id="${id}">
+    <div class="${contentClass}">
+      ${headline ? `<h2 class="${headlineClass}" data-field="headline">${escapeHtml(headline)}</h2>` : ''}
+      ${paragraph ? `<p class="${paragraphClass}" data-field="paragraph">${escapeHtml(paragraph)}</p>` : ''}
     </div>
   </section>`
 }
@@ -2428,21 +4945,63 @@ function generateTranslationJS(content: PageContent): string {
 // HTML GENERATION
 // ============================================
 
-function generateHTML(project: any, content: PageContent, settings: any, umamiSiteId?: string): string {
-  const theme = getTheme(content.themeId)
+function generateHTML(project: any, content: PageContent, settings: any, umamiSiteId?: string): { html: string; css: string } {
+  // Get base theme and merge with overrides
+  const baseTheme = getTheme(content.themeId)
+  const theme: ThemeTokens = {
+    colors: {
+      ...baseTheme.colors,
+      ...(content.themeOverrides?.colors || {}),
+    },
+    fonts: {
+      ...baseTheme.fonts,
+      ...(content.themeOverrides?.fonts || {}),
+    },
+  }
+
   const title = settings?.meta_title || project.title || 'Untitled'
   const description = settings?.meta_description || project.description || ''
   const ogImage = settings?.og_image || ''
   const favicon = settings?.favicon || ''
   const keywords = settings?.keywords || ''
 
-  // Generate sections HTML
+  // Reset style extractor for new page generation
+  styleExtractor.reset()
+
+  // Set theme for CSS variable resolution
+  styleExtractor.setTheme(theme)
+
+  // Generate sections HTML (this populates the styleExtractor)
+  console.log('[PUBLISH_HTML_GEN_START] Starting HTML generation')
   const sectionsHTML = content.sections
     .map(section => generateSectionHTML(section, theme))
     .join('\n')
+  console.log('[PUBLISH_HTML_GEN_END] HTML generation complete')
 
-  // Generate CSS
-  const css = generateCSS(theme)
+  // Get generated CSS from styleExtractor
+  const generatedCSS = styleExtractor.getCSS()
+  console.log('[PUBLISH_CSS_EXTRACT] CSS extracted, length:', generatedCSS.length)
+
+  // Generate base CSS (theme variables, resets, etc.)
+  const baseCSS = generateCSS(theme)
+
+  // Generate font imports for CSS file
+  const fontImports = Array.from(fonts)
+    .filter(f => f && !f.includes('system'))
+    .map(f => {
+      const fontName = f.split(',')[0].replace(/'/g, '').trim()
+      return `@import url('https://api.fontshare.com/v2/css?f[]=${encodeURIComponent(fontName.toLowerCase().replace(/\s+/g, '-'))}@400,500,600,700&display=swap');`
+    })
+    .join('\n')
+
+  // Combine font imports, base CSS, and generated component CSS
+  const css = `/* Font Imports */
+${fontImports}
+
+${baseCSS}
+
+/* Generated Component Styles */
+${generatedCSS}`
 
   // Generate language switcher if translations exist
   const langSwitcher = content.translation && content.translation.languages.length > 0
@@ -2457,8 +5016,23 @@ function generateHTML(project: any, content: PageContent, settings: any, umamiSi
     ? `<script defer src="${UMAMI_API_URL}/script.js" data-website-id="${umamiSiteId}"></script>`
     : ''
 
-  // Font preload
+  // Font preload - collect ALL fonts used (theme + fieldStyles)
   const fonts = new Set([theme.fonts.heading, theme.fonts.body])
+
+  // Scan all sections for custom fonts in fieldStyles
+  content.sections.forEach(section => {
+    if (section.fieldStyles) {
+      Object.values(section.fieldStyles).forEach(fieldStyle => {
+        if (fieldStyle.fontFamily && typeof fieldStyle.fontFamily === 'string') {
+          fonts.add(fieldStyle.fontFamily)
+        }
+      })
+    }
+  })
+
+  // DEBUG: Log all fonts being loaded
+  console.log('[PUBLISH_FONTS_TO_LOAD]', Array.from(fonts))
+
   const fontLinks = Array.from(fonts)
     .filter(f => f && !f.includes('system'))
     .map(f => {
@@ -2467,7 +5041,7 @@ function generateHTML(project: any, content: PageContent, settings: any, umamiSi
     })
     .join('\n  ')
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="${content.translation?.defaultLanguage || 'en'}">
 <head>
   <meta charset="UTF-8">
@@ -2496,9 +5070,8 @@ function generateHTML(project: any, content: PageContent, settings: any, umamiSi
   <link rel="preconnect" href="https://api.fontshare.com">
   ${fontLinks}
 
-  <style>
-${css}
-  </style>
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 ${sectionsHTML}
@@ -2513,6 +5086,8 @@ ${langSwitcher}
 ${translationJS}
 </body>
 </html>`
+
+  return { html, css }
 }
 
 // ============================================
@@ -2521,6 +5096,7 @@ ${translationJS}
 
 interface SiteData {
   html: string
+  css: string
   visibility: 'public' | 'private' | 'password'
   passwordHash?: string
   updatedAt: string
@@ -2626,9 +5202,13 @@ serve(async (req) => {
       const content: PageContent = {
         themeId: (blocksData.themeId as string) || 'minimal',
         sections: (blocksData.sections as SectionInstance[]) || [],
+        themeOverrides: blocksData.themeOverrides as PageContent['themeOverrides'] | undefined,
         translation: blocksData.translation as TranslationSettings | undefined,
         translations: blocksData.translations as Record<string, Record<string, Record<string, unknown>>> | undefined,
       }
+
+      // DEBUG: Log theme overrides
+      console.log('[PUBLISH_THEME_OVERRIDES]', JSON.stringify(content.themeOverrides, null, 2))
 
       // STEP 1 — RAW PROJECT DUMP (PUBLISH)
       console.log(
@@ -2656,8 +5236,8 @@ serve(async (req) => {
         ? settings.umami_site_id
         : undefined
 
-      // Generate static HTML
-      const html = generateHTML(project, hydratedContent, settings, umamiSiteId)
+      // Generate static HTML and CSS
+      const { html, css } = generateHTML(project, hydratedContent, settings, umamiSiteId)
 
       // Store in Cloudflare KV using slug as key
       const visibility = (settings?.visibility as 'public' | 'private' | 'password') || 'public'
@@ -2673,6 +5253,7 @@ serve(async (req) => {
 
       await storeInKV(project.slug, {
         html,
+        css,
         visibility,
         passwordHash,
         updatedAt: new Date().toISOString(),

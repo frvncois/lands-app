@@ -32,8 +32,6 @@
     }
     h2, h3 {
         font-size: 6em;
-        font-family: 'Clash Grotesk';
-        font-weight: 700;
         line-height: 0.8;
         text-transform: uppercase;
     }

@@ -35,6 +35,11 @@ export interface PageContent {
   themeId: string
   sections: SectionInstance[]
   meta: PageMeta
+  /** Custom theme overrides (colors, fonts) */
+  themeOverrides?: {
+    colors?: Partial<import('./sections').ColorTokens>
+    fonts?: Partial<import('./sections').FontTokens>
+  }
   /** Translation settings (optional) */
   translation?: TranslationSettings
   /** Translated content per language */

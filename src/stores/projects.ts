@@ -342,6 +342,11 @@ export const useProjectsStore = defineStore('projects', () => {
         sections: content.sections,
       }
 
+      // Include theme overrides if present
+      if (content.themeOverrides) {
+        blocksData.themeOverrides = content.themeOverrides
+      }
+
       // Include translation data if present
       if (content.translation) {
         blocksData.translation = content.translation

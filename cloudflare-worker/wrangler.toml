@@ -1,0 +1,19 @@
+name = "lands-sites"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# KV Namespace binding
+[[kv_namespaces]]
+binding = "LANDS_SITES"
+id = "b252e0bab2cd443a9a90c9d839a9edda"
+
+# Routes - serve all *.lands.app subdomains
+routes = [
+  { pattern = "*.lands.app/*", zone_name = "lands.app" }
+]
+
+# Custom domains (if using)
+# routes = [
+#   { pattern = "example.com/*", zone_name = "example.com" },
+#   { pattern = "www.example.com/*", zone_name = "example.com" }
+# ]

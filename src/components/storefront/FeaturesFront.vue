@@ -11,30 +11,30 @@
         <div class="container">
             <div>
                 <ul>
-                    <li class="blue">
+                    <li>
                         <div>
                             <h3>Design</h3>
                             <h4>Customize every aspect of your site</h4>
                             <p>with our intuitive design tools.</p>
                         </div>
                     </li>
-                    <li class="green">
+                    <li>
                         <h3>Content</h3>
                         <p>Add images, videos, text, and more to showcase your brand effectively.</p>
                     </li>
-                    <li class="red">
+                    <li>
                         <h3>Audience</h3>
                         <p>Track your site's performance with built-in analytics and insights.</p>
                     </li>
-                    <li class="yellow">
+                    <li>
                         <h3>Translate</h3>
                         <p>Track your site's performance with built-in analytics and insights.</p>
                     </li>
-                    <li class="purple">
+                    <li>
                         <h3>Collaborate</h3>
                         <p>Optimize your site for search engines to increase visibility and reach.</p>
                     </li>
-                    <li class="dark">
+                    <li>
                         <h3>Publish</h3>
                         <p>Optimize your site for search engines to increase visibility and reach.</p>
                     </li>
@@ -84,6 +84,8 @@
                     gap: 3em;
                     padding: 10em;
                     list-style: none;
+                    background: white;
+                    border-top: 1px solid black;
                     > div {
                         display: flex;
                         flex: 1;
@@ -99,24 +101,6 @@
                         line-height: 1;
                         text-transform: uppercase;
                     }
-                }
-                .blue {
-                    background: #155dfc;
-                }
-                .green {
-                    background: #00d492;
-                }
-                .red {
-                    background: #ff6467;
-                }
-                .yellow {
-                    background: #fff085;
-                }
-                .purple {
-                    background: #ad46ff;
-                }
-                .dark {
-                    background: #171717;
                 }
             }
         

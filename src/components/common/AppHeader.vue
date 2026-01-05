@@ -192,7 +192,7 @@ function onProjectCreated(newProjectId: string) {
 </script>
 
 <template>
-  <header class="flex items-center h-14 px-4 bg-sidebar-background border-b border-sidebar-border z-50">
+  <header class="flex items-center h-14 px-4 bg-sidebar-background border-b border-sidebar-border z-150">
     <!-- Left: Logo + Project/Page + Route Tabs -->
     <div class="flex items-center gap-3 flex-1">
       <!-- Logo -->
@@ -333,7 +333,7 @@ function onProjectCreated(newProjectId: string) {
       <!-- View Mode Switcher (Desktop/Mobile) -->
       <div class="flex items-center gap-0.5 p-0.5 bg-secondary rounded-md">
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-sm transition-colors"
           :class="editor.previewMode === 'desktop'
             ? 'bg-background text-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground'"
@@ -344,7 +344,7 @@ function onProjectCreated(newProjectId: string) {
           <span>Desktop</span>
         </button>
         <button
-          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-sm transition-colors"
           :class="editor.previewMode === 'mobile'
             ? 'bg-background text-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground'"

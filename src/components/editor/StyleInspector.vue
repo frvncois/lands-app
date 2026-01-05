@@ -729,15 +729,15 @@ function deleteItem() {
         <!-- Repeater Item Editor -->
         <template v-if="isEditingItem && activeRepeaterDef && activeItemData">
           <!-- Item Content -->
-          <div class="px-4 py-4 border-b border-border">
+          <div class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Content
               </span>
             </div>
             <div class="flex flex-col gap-4">
               <div v-for="field in activeItemSchemaWithLabels" :key="field.key">
-                <label class="block text-xs text-muted-foreground mb-1.5">{{ field.label }}</label>
+                <label class="block text-xs text-foreground mb-1.5">{{ field.label }}</label>
 
                 <!-- Image field - use Upload UI -->
                 <template v-if="field.type === 'image'">
@@ -878,17 +878,17 @@ function deleteItem() {
           <!-- These sections use shared section-level styles instead of per-item styles -->
           <div v-if="!isEditingSharedStyleItem" class="border-b border-border">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Style
               </span>
-              <span class="text-xs text-muted-foreground ml-1">(shared)</span>
+              <span class="text-xs text-foreground ml-1">(shared)</span>
             </div>
 
             <!-- Default item styles for sections that still use per-item styling -->
             <div class="flex flex-col gap-4">
               <!-- Font Size -->
               <div v-if="showItemFontSizeControl" class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Font Size</label>
+                <label class="text-xs text-foreground whitespace-nowrap">Font Size</label>
                 <Slider
                   :model-value="itemStyles.fontSize ?? styleDefaults.fontSize.default"
                   :min="styleDefaults.fontSize.min"
@@ -900,7 +900,7 @@ function deleteItem() {
 
               <!-- Spacing Y -->
               <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing Y</label>
+                <label class="text-xs text-foreground whitespace-nowrap">Spacing Y</label>
                 <Slider
                   :model-value="itemStyles.spacingY ?? styleDefaults.spacingY.default"
                   :min="styleDefaults.spacingY.min"
@@ -912,7 +912,7 @@ function deleteItem() {
 
               <!-- Spacing X -->
               <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing X</label>
+                <label class="text-xs text-foreground whitespace-nowrap">Spacing X</label>
                 <Slider
                   :model-value="itemStyles.spacingX ?? styleDefaults.spacingX.default"
                   :min="styleDefaults.spacingX.min"
@@ -924,7 +924,7 @@ function deleteItem() {
 
               <!-- Background Color -->
               <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Background</label>
+                <label class="text-xs text-foreground whitespace-nowrap">Background</label>
                 <ColorPicker
                   :model-value="itemStyles.backgroundColor ?? currentTheme.tokens.colors.secondary"
                   swatch-only
@@ -934,7 +934,7 @@ function deleteItem() {
 
               <!-- Rounded -->
               <div class="flex items-center justify-between gap-3">
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
+                <label class="text-xs text-foreground whitespace-nowrap">Rounded</label>
                 <Slider
                   :model-value="itemStyles.borderRadius ?? 8"
                   :min="0"
@@ -967,9 +967,9 @@ function deleteItem() {
           class="border-b border-border"
         >
           <!-- FIRST: Items List with drag-and-drop -->
-          <div class="px-4 py-4 border-b border-border">
+          <div class="px-4 py-4">
             <div class="mb-3">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Content
               </span>
             </div>
@@ -1014,7 +1014,7 @@ function deleteItem() {
           <!-- SECOND: Group Styles -->
           <div class="border-b border-border">
             <div class="px-4 py-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 {{ activeRepeaterLabel || 'Group Styles' }} style
               </span>
             </div>
@@ -1109,7 +1109,7 @@ function deleteItem() {
             class="flex flex-col gap-4 mb-4"
           >
             <div class="flex items-center justify-between gap-3">
-              <label class="text-xs text-muted-foreground whitespace-nowrap">Section Space Between</label>
+              <label class="text-xs text-foreground whitespace-nowrap">Section Space Between</label>
               <Slider
                 :model-value="sectionSpaceBetweenValue"
                 :min="0"
@@ -1364,9 +1364,9 @@ function deleteItem() {
         <!-- Image Field Editor -->
         <template v-else-if="activeFieldDef && activeFieldDef.type === 'image'">
           <!-- Image Upload -->
-          <div class="px-4 py-4 border-b border-border">
+          <div class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Image
               </span>
             </div>
@@ -1409,24 +1409,17 @@ function deleteItem() {
                   <Icon name="app-upload" :size="20" class="text-muted-foreground" />
                 </div>
                 <span class="text-sm font-medium text-foreground">Upload Image</span>
-                <span class="text-xs text-muted-foreground mt-0.5">JPEG, PNG, WebP - Max 4MB</span>
+                <span class="text-xs text-foreground mt-0.5">JPEG, PNG, WebP - Max 4MB</span>
               </button>
             </div>
           </div>
 
           <!-- Image Styles -->
-          <div class="border-b border-border">
-            <div class="px-4 py-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Style
-              </span>
-            </div>
-
             <!-- Promo section: ONLY show rounded corners -->
             <template v-if="selectedSection?.type === 'promo'">
               <div class="px-4 pb-4">
                 <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
+                  <label class="text-xs text-foreground whitespace-nowrap">Rounded</label>
                   <Slider
                     :model-value="activeFieldStyles.borderRadius ?? 8"
                     :min="0"
@@ -1463,7 +1456,7 @@ function deleteItem() {
               <div class="px-4 pb-4 flex flex-col gap-4">
                 <!-- Width -->
                 <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Width</label>
+                  <label class="text-xs text-foreground whitespace-nowrap">Width</label>
                   <Slider
                     :model-value="activeFieldStyles.width ?? 120"
                     :min="24"
@@ -1475,7 +1468,7 @@ function deleteItem() {
 
                 <!-- Spacing Y -->
                 <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing Y</label>
+                  <label class="text-xs text-foreground whitespace-nowrap">Spacing Y</label>
                   <Slider
                     :model-value="activeFieldStyles.spacingY ?? styleDefaults.spacingY.default"
                     :min="styleDefaults.spacingY.min"
@@ -1487,7 +1480,7 @@ function deleteItem() {
 
                 <!-- Spacing X -->
                 <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Spacing X</label>
+                  <label class="text-xs text-foreground whitespace-nowrap">Spacing X</label>
                   <Slider
                     :model-value="activeFieldStyles.spacingX ?? styleDefaults.spacingX.default"
                     :min="styleDefaults.spacingX.min"
@@ -1498,15 +1491,15 @@ function deleteItem() {
                 </div>
               </div>
             </template>
-          </div>
+
         </template>
 
         <!-- Media Field Editor (image or video with type selector) -->
         <template v-else-if="activeFieldDef && activeFieldDef.type === 'media'">
           <!-- Media Type Selector -->
-          <div class="px-4 py-4 border-b border-border">
+          <div class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Type
               </span>
             </div>
@@ -1537,9 +1530,9 @@ function deleteItem() {
           </div>
 
           <!-- Media Upload -->
-          <div class="px-4 py-4 border-b border-border">
+          <div class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 {{ getMediaType() === 'video' ? 'Video' : 'Image' }}
               </span>
             </div>
@@ -1603,7 +1596,7 @@ function deleteItem() {
                 <span class="text-sm font-medium text-foreground">
                   Upload {{ getMediaType() === 'video' ? 'Video' : 'Image' }}
                 </span>
-                <span class="text-xs text-muted-foreground mt-0.5">
+                <span class="text-xs text-foreground mt-0.5">
                   {{ getMediaType() === 'video' ? 'MP4, WebM - Max 50MB' : 'JPEG, PNG, WebP - Max 4MB' }}
                 </span>
               </button>
@@ -1621,18 +1614,11 @@ function deleteItem() {
           </div>
 
           <!-- Media Styles -->
-          <div class="border-b border-border">
-            <div class="px-4 py-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Style
-              </span>
-            </div>
-
             <!-- Promo section: ONLY show rounded corners -->
             <template v-if="selectedSection?.type === 'promo'">
               <div class="px-4 py-3 border-t border-border/50">
                 <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-muted-foreground whitespace-nowrap">Rounded</label>
+                  <label class="text-xs text-foreground whitespace-nowrap">Rounded</label>
                   <Slider
                     :model-value="activeFieldStyles.borderRadius ?? 8"
                     :min="0"
@@ -1714,21 +1700,20 @@ function deleteItem() {
                 @update="(key, value) => updateActiveFieldStyle(key, value)"
               />
             </template>
-          </div>
         </template>
 
         <!-- Link Field Editor -->
         <template v-else-if="activeFieldDef && activeFieldDef.type === 'link'">
           <!-- Link Content -->
-          <div class="px-4 py-4 border-b border-border">
+          <div class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Content
               </span>
             </div>
             <div class="flex flex-col gap-4">
               <div>
-                <label class="block text-xs text-muted-foreground mb-1.5">Title</label>
+                <label class="block text-xs text-foreground mb-1.5">Title</label>
                 <Input
                   :model-value="(sectionData[activeFieldDef.key] as { label?: string })?.label || ''"
                   type="text"
@@ -1739,7 +1724,7 @@ function deleteItem() {
                 />
               </div>
               <div>
-                <label class="block text-xs text-muted-foreground mb-1.5">URL</label>
+                <label class="block text-xs text-foreground mb-1.5">URL</label>
                 <Input
                   :model-value="(sectionData[activeFieldDef.key] as { url?: string })?.url || ''"
                   type="url"
@@ -1753,13 +1738,6 @@ function deleteItem() {
           </div>
 
           <!-- Link Styles -->
-          <div class="border-b border-border">
-            <div class="px-4 py-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Style
-              </span>
-            </div>
-
             <!-- Font Group -->
             <StylePopoverGroup
               :icon="textFieldStyleConfig.font.icon"
@@ -1799,21 +1777,20 @@ function deleteItem() {
               :defaults="buttonFieldStyleConfig.borders.defaults"
               @update="(key, value) => updateActiveFieldStyle(key, value)"
             />
-          </div>
         </template>
 
         <!-- Active Field Editor (non-repeater, non-image, non-link) -->
         <template v-else-if="activeFieldDef && !activeRepeaterField">
           <!-- Field Content -->
-          <div class="px-4 py-4 border-b border-border">
+          <div class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Content
               </span>
             </div>
             <div class="flex flex-col gap-4">
               <div>
-                <label class="block text-xs text-muted-foreground mb-1.5">{{ activeFieldDef.label }}</label>
+                <label class="block text-xs text-foreground mb-1.5">{{ activeFieldDef.label }}</label>
                 <FieldRenderer
                   :key="activeFieldDef.key"
                   :field="activeFieldDef"
@@ -1825,7 +1802,7 @@ function deleteItem() {
               <!-- Button-specific settings (URL and Show toggle) -->
               <template v-if="buttonFields.length > 0">
                 <div>
-                  <label class="block text-xs text-muted-foreground mb-1.5">URL</label>
+                  <label class="block text-xs text-foreground mb-1.5">URL</label>
                   <Input
                     :model-value="(sectionData.buttonUrl as string) || ''"
                     type="url"
@@ -1836,7 +1813,7 @@ function deleteItem() {
                   />
                 </div>
                 <div class="flex items-center justify-between">
-                  <label class="text-xs text-muted-foreground">Show Button</label>
+                  <label class="text-xs text-foreground">Show Button</label>
                   <Toggle
                     :model-value="(sectionData.showButton as boolean) ?? true"
                     @update:model-value="updateField('showButton', $event)"
@@ -1847,13 +1824,7 @@ function deleteItem() {
           </div>
 
           <!-- Field Styles -->
-          <div class="border-b border-border">
-            <div class="px-4 py-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Style
-              </span>
-            </div>
-
+          
             <!-- Font Group -->
             <StylePopoverGroup
               :icon="textFieldStyleConfig.font.icon"
@@ -1896,14 +1867,13 @@ function deleteItem() {
                 @update="(key, value) => updateActiveFieldStyle(key, value)"
               />
             </template>
-          </div>
         </template>
 
         <!-- Section-level controls (only shown when no field is active) -->
         <template v-else-if="!activeFieldDef">
           <!-- Variant Selector -->
-          <div class="flex flex-col px-4 py-5 border-b border-border gap-3">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <div class="flex flex-col px-4 py-5 gap-3">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Layout Variant
               </span>
             <div class="flex flex-wrap gap-1.5">
@@ -1924,16 +1894,16 @@ function deleteItem() {
           </div>
 
           <!-- Style Options (from section definition) -->
-          <div v-if="styleOptions.length > 0" class="px-4 py-4 border-b border-border">
+          <div v-if="styleOptions.length > 0" class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Options
               </span>
             </div>
             <div class="flex flex-col gap-4">
               <div v-for="option in styleOptions" :key="option.key">
                 <div class="flex flex-col gap-1.5">
-                  <label class="text-xs text-muted-foreground">{{ option.label }}</label>
+                  <label class="text-xs text-foreground">{{ option.label }}</label>
                   <template v-if="option.type === 'select' && option.options">
                     <Select
                       :model-value="((sectionStyles[option.key] as string | undefined) ?? (option.default as string))"
@@ -1956,7 +1926,7 @@ function deleteItem() {
                 v-if="selectedSection?.type === 'promo' && (sectionStyles.smartBackground as boolean)"
                 class="flex items-center justify-between gap-3"
               >
-                <label class="text-xs text-muted-foreground whitespace-nowrap">Opacity</label>
+                <label class="text-xs text-foreground whitespace-nowrap">Opacity</label>
                 <Slider
                   :model-value="(sectionStyles.smartBackgroundOpacity as number) ?? 0.4"
                   :min="0"
@@ -1969,12 +1939,7 @@ function deleteItem() {
           </div>
 
           <!-- Section Style -->
-          <div class="border-b border-border">
-            <div class="px-4 py-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Style
-              </span>
-            </div>
+          
 
             <!-- General Section Spacing (if space between applies) -->
             <StylePopoverGroup
@@ -2074,18 +2039,18 @@ function deleteItem() {
               :defaults="headerStyleConfig.position.defaults"
               @update="(key, value) => updateSectionStyle(key, value)"
             />
-          </div>
+
 
           <!-- Design Options -->
-          <div v-if="designFields.length > 0" class="px-4 py-4 border-b border-border">
+          <div v-if="designFields.length > 0" class="px-4 py-4">
             <div class="mb-4">
-              <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span class="text-xs font-medium tracking-wide text-foreground">
                 Design Options
               </span>
             </div>
             <div class="flex flex-col gap-4">
               <div v-for="field in designFields" :key="field.key">
-                <label class="block text-xs text-muted-foreground mb-1.5">{{ field.label }}</label>
+                <label class="block text-xs text-foreground mb-1.5">{{ field.label }}</label>
                 <FieldRenderer
                   :field="field"
                   :value="sectionData[field.key]"
@@ -2101,9 +2066,9 @@ function deleteItem() {
       <!-- No Section Selected: Show themes and customization -->
       <template v-else>
         <!-- Theme Preset -->
-        <div class="px-4 py-4 border-b border-border">
+        <div class="px-4 py-4">
           <div class="mb-4">
-            <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span class="text-xs font-medium tracking-wide text-foreground">
               Theme
             </span>
           </div>
@@ -2138,9 +2103,9 @@ function deleteItem() {
         </div>
 
         <!-- Color Palette -->
-        <div class="px-4 py-4 border-b border-border">
+        <div class="px-4 py-4">
           <div class="mb-4">
-            <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span class="text-xs font-medium tracking-wide text-foreground">
               Colors
             </span>
           </div>
@@ -2151,7 +2116,7 @@ function deleteItem() {
               :key="color.key"
               class="flex justify-between gap-1.5"
             >
-              <span class="text-xs text-muted-foreground">{{ color.label }}</span>
+              <span class="text-xs text-foreground">{{ color.label }}</span>
               <ColorPicker
                 :model-value="currentTheme.tokens.colors[color.key]"
                 swatch-only
@@ -2164,7 +2129,7 @@ function deleteItem() {
         <!-- Font Family -->
         <div class="px-4 py-4">
           <div class="mb-4">
-            <span class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span class="text-xs font-medium tracking-wide text-foreground">
               Typography
             </span>
           </div>
@@ -2175,7 +2140,7 @@ function deleteItem() {
               :key="font.key"
               class="flex flex-col gap-1.5"
             >
-              <span class="text-xs text-muted-foreground">{{ font.label }}</span>
+              <span class="text-xs text-foreground">{{ font.label }}</span>
               <Popover align="left" width="w-56">
                 <template #trigger="{ toggle }">
                   <button

@@ -114,6 +114,17 @@ function handleKeydown(e: KeyboardEvent) {
     editor.redo()
   }
 
+  // Duplicate: Cmd/Ctrl + D
+  if ((e.metaKey || e.ctrlKey) && e.key === 'd' && selectedId.value) {
+    const activeEl = document.activeElement as HTMLElement
+    if (activeEl?.tagName !== 'INPUT' &&
+        activeEl?.tagName !== 'TEXTAREA' &&
+        !activeEl?.isContentEditable) {
+      e.preventDefault()
+      editor.duplicateSection(selectedId.value)
+    }
+  }
+
   // Delete: Backspace or Delete
   if ((e.key === 'Backspace' || e.key === 'Delete') && selectedId.value) {
     const activeEl = document.activeElement as HTMLElement
