@@ -46,7 +46,29 @@ export { default as ListThumbnail } from './ListThumbnail.vue'
 export { default as ListTitle } from './ListTitle.vue'
 export { default as ListContent } from './ListContent.vue'
 export { default as ListActions } from './ListActions.vue'
-export { default as Modal } from './Modal.vue'
+
+// Modal Components (new unified system)
+export {
+  Modal,
+  ConfirmModal,
+  FormModal,
+  PickerModal,
+  FloatingPanel,
+  useModal,
+  useModalState,
+} from './Modal'
+
+export type {
+  ModalSize,
+  ModalVariant,
+  ModalPosition,
+  ModalBackdrop,
+  ModalProps,
+  ConfirmModalProps,
+  FormModalProps,
+  PickerModalProps,
+  FloatingPanelProps,
+} from './Modal'
 
 // Display Components
 export { default as Avatar } from './Avatar.vue'

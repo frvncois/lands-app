@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectStore } from '@/stores/project'
+import { Modal } from '@/components/ui/Modal'
 import { Icon, Button, Badge } from '@/components/ui'
 
 const props = defineProps<{
@@ -67,33 +68,13 @@ function upgradeToProForDomain() {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="open"
-      class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-    >
-      <!-- Backdrop -->
-      <div
-        class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
-        @click="close"
-      />
-
-      <!-- Modal -->
-      <div
-        class="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg animate-scaleIn"
-      >
-        <!-- Close button -->
-        <button
-          class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors z-10"
-          @click="close"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
-        <!-- Content -->
-        <div class="p-8 space-y-6">
+  <Modal
+    :open="open"
+    size="lg"
+    backdrop="blur"
+    @update:open="emit('update:open', $event)"
+  >
+    <div class="space-y-6">
           <!-- Glowing Icon -->
           <div class="flex justify-center">
             <div class="relative">
@@ -217,17 +198,15 @@ function upgradeToProForDomain() {
             </div>
           </div>
 
-          <!-- Primary action -->
-          <div class="pt-2 animate-fadeInUp animation-delay-500">
-            <Button class="w-full" size="lg" @click="visitSite">
-              <Icon name="link-external" class="text-sm" />
-              Visit Your Live Site
-            </Button>
-          </div>
-        </div>
+      <!-- Primary action -->
+      <div class="pt-2 animate-fadeInUp animation-delay-500">
+        <Button class="w-full" size="lg" @click="visitSite">
+          <Icon name="link-external" class="text-sm" />
+          Visit Your Live Site
+        </Button>
       </div>
     </div>
-  </Teleport>
+  </Modal>
 </template>
 
 <style scoped>

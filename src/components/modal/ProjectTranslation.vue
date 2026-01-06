@@ -9,11 +9,8 @@
 
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import Modal from '@/components/ui/Modal.vue'
-import Button from '@/components/ui/Button.vue'
-import Icon from '@/components/ui/Icon.vue'
-import Popover from '@/components/ui/Popover.vue'
-import Combobox from '@/components/ui/Combobox.vue'
+import { Modal } from '@/components/ui/Modal'
+import { Button, Icon, Popover, Combobox } from '@/components/ui'
 import type { ComboboxItem } from '@/components/ui/Combobox.vue'
 
 const props = defineProps<{

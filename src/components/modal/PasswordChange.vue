@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Modal, FormField, Input, Button, Alert, PasswordRequirements } from '@/components/ui'
+import { ref, watch } from 'vue'
+import { FormModal } from '@/components/ui/Modal'
+import { FormField, Input, Alert, PasswordRequirements } from '@/components/ui'
 
-interface Props {
+const props = defineProps<{
   open: boolean
-}
+}>()
 
-defineProps<Props>()
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  'changed': []
+  changed: []
 }>()
 
 const currentPassword = ref('')
@@ -19,19 +19,16 @@ const passwordError = ref('')
 const isChangingPassword = ref(false)
 const passwordRequirementsRef = ref<InstanceType<typeof PasswordRequirements> | null>(null)
 
-function resetForm() {
-  currentPassword.value = ''
-  newPassword.value = ''
-  confirmPassword.value = ''
-  passwordError.value = ''
-}
+watch(() => props.open, (isOpen) => {
+  if (isOpen) {
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+    passwordError.value = ''
+  }
+})
 
-function close() {
-  emit('update:open', false)
-  resetForm()
-}
-
-async function handleChangePassword() {
+async function handleSubmit() {
   if (!passwordRequirementsRef.value?.allMet) {
     passwordError.value = 'Please meet all password requirements'
     return
@@ -49,7 +46,7 @@ async function handleChangePassword() {
     // TODO: Implement password change API call
     await new Promise(resolve => setTimeout(resolve, 1000))
     emit('changed')
-    close()
+    emit('update:open', false)
   } catch (error: unknown) {
     passwordError.value = error instanceof Error ? error.message : 'Failed to change password'
   } finally {
@@ -59,12 +56,15 @@ async function handleChangePassword() {
 </script>
 
 <template>
-  <Modal :open="open" size="md" :closable="!isChangingPassword" @update:open="close">
-    <template #header>
-      <h2 class="text-lg font-semibold text-foreground">Change Password</h2>
-    </template>
-
-    <form class="space-y-4" @submit.prevent="handleChangePassword">
+  <FormModal
+    :open="open"
+    title="Change Password"
+    submit-text="Update Password"
+    :loading="isChangingPassword"
+    @update:open="emit('update:open', $event)"
+    @submit="handleSubmit"
+  >
+    <div class="space-y-4">
       <FormField label="Current Password">
         <Input
           v-model="currentPassword"
@@ -98,19 +98,6 @@ async function handleChangePassword() {
       </FormField>
 
       <Alert v-if="passwordError" variant="error">{{ passwordError }}</Alert>
-    </form>
-
-    <template #footer>
-      <Button variant="ghost" :disabled="isChangingPassword" @click="close">
-        Cancel
-      </Button>
-      <Button
-        :loading="isChangingPassword"
-        :disabled="!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword"
-        @click="handleChangePassword"
-      >
-        {{ isChangingPassword ? 'Updating...' : 'Update Password' }}
-      </Button>
-    </template>
-  </Modal>
+    </div>
+  </FormModal>
 </template>

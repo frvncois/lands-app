@@ -3,7 +3,8 @@ import { ref, watch } from 'vue'
 import { useProjectsStore } from '@/stores/projects'
 import type { CollaboratorRole } from '@/types/project'
 import { COLLABORATOR_ROLE_INFO } from '@/types/project'
-import { Modal, Button, Input, FormField, Alert } from '@/components/ui'
+import { FormModal } from '@/components/ui/Modal'
+import { Input, FormField, Alert } from '@/components/ui'
 
 const props = defineProps<{
   open: boolean
@@ -12,7 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
-  'invited': []
+  invited: []
 }>()
 
 const projectsStore = useProjectsStore()
@@ -30,10 +31,6 @@ watch(() => props.open, (isOpen) => {
     projectsStore.clearError()
   }
 })
-
-function close() {
-  emit('update:open', false)
-}
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -63,7 +60,7 @@ async function handleSubmit() {
 
     if (invite) {
       emit('invited')
-      close()
+      emit('update:open', false)
     } else if (projectsStore.error) {
       errorMessage.value = projectsStore.error
     }
@@ -74,12 +71,15 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <Modal :open="open" size="md" @update:open="emit('update:open', $event)">
-    <template #header>
-      <h2 class="text-lg font-semibold text-foreground">Invite Collaborator</h2>
-    </template>
-
-    <form class="space-y-4" @submit.prevent="handleSubmit">
+  <FormModal
+    :open="open"
+    title="Invite Collaborator"
+    submit-text="Send Invite"
+    :loading="isSubmitting"
+    @update:open="emit('update:open', $event)"
+    @submit="handleSubmit"
+  >
+    <div class="space-y-4">
       <!-- Email -->
       <FormField label="Email address">
         <Input
@@ -118,15 +118,6 @@ async function handleSubmit() {
       <Alert v-if="errorMessage" variant="error">
         {{ errorMessage }}
       </Alert>
-    </form>
-
-    <template #footer>
-      <Button variant="ghost" :disabled="isSubmitting" @click="close">
-        Cancel
-      </Button>
-      <Button :loading="isSubmitting" @click="handleSubmit">
-        {{ isSubmitting ? 'Sending...' : 'Send Invite' }}
-      </Button>
-    </template>
-  </Modal>
+    </div>
+  </FormModal>
 </template>
