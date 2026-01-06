@@ -5,7 +5,7 @@
  */
 
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute, onBeforeRouteLeave } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useEditorStore } from '@/stores/editor'
 import { useProjectsStore } from '@/stores/projects'
 import { useToast } from '@/stores/toast'
@@ -14,8 +14,11 @@ import PageEditor from '@/components/editor/PageEditor.vue'
 import { TourProvider } from '@/components/tour'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import { applyTheme, getDefaultTheme } from '@/lib/themes'
+import { ConfirmModal } from '@/components/ui/Modal'
+import type { RouteLocationNormalized } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const editor = useEditorStore()
 const projects = useProjectsStore()
 const toast = useToast()
@@ -24,6 +27,8 @@ const tour = useTourStore()
 const isSaving = ref(false)
 const isPublishing = ref(false)
 const isLoading = ref(true)
+const showUnsavedModal = ref(false)
+const pendingNavigation = ref<RouteLocationNormalized | null>(null)
 
 // Get current project
 const currentProject = computed(() => {
@@ -140,13 +145,37 @@ watch(
 
 // Warn when navigating away via Vue Router
 onBeforeRouteLeave((to, from) => {
-  if (editor.isDirty) {
-    const answer = window.confirm(
-      'You have unsaved changes. Are you sure you want to leave?'
-    )
-    if (!answer) return false
+  if (editor.isDirty && !pendingNavigation.value) {
+    // Store navigation target and show modal
+    pendingNavigation.value = to
+    showUnsavedModal.value = true
+    // Block navigation initially
+    return false
   }
+  // If pendingNavigation is set, user confirmed - clear it and allow
+  if (pendingNavigation.value) {
+    pendingNavigation.value = null
+  }
+  // Allow navigation if no unsaved changes or already confirmed
+  return true
 })
+
+// Handle user confirmation to leave despite unsaved changes
+function handleConfirmLeave() {
+  showUnsavedModal.value = false
+  if (pendingNavigation.value) {
+    const target = pendingNavigation.value
+    // Don't clear pendingNavigation here - let the guard handle it
+    // This prevents the guard from triggering the modal again
+    router.push(target)
+  }
+}
+
+// Handle user cancellation (stay on page)
+function handleCancelLeave() {
+  showUnsavedModal.value = false
+  pendingNavigation.value = null
+}
 
 // Warn when closing browser tab or refreshing
 function handleBeforeUnload(e: BeforeUnloadEvent) {
@@ -221,6 +250,18 @@ onBeforeUnmount(() => {
   <!-- Editor -->
   <PageEditor v-show="!isLoading" />
   <TourProvider />
+
+  <!-- Unsaved Changes Modal -->
+  <ConfirmModal
+    :open="showUnsavedModal"
+    title="Unsaved Changes"
+    message="You have unsaved changes. Are you sure you want to leave?"
+    variant="warning"
+    confirm-text="Leave"
+    cancel-text="Stay"
+    @confirm="handleConfirmLeave"
+    @update:open="(value) => !value && handleCancelLeave()"
+  />
 </template>
 
 <style scoped>

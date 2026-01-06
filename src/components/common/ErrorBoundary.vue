@@ -26,13 +26,14 @@ const emit = defineEmits<{
 
 const error = ref<Error | null>(null)
 const errorInfo = ref<string>('')
+const isDev = import.meta.env.DEV
 
 onErrorCaptured((err, instance, info) => {
   error.value = err
   errorInfo.value = info
 
   // Log to console in development
-  if (import.meta.env.DEV) {
+  if (isDev) {
     console.error('[ErrorBoundary] Caught error:', err)
     console.error('[ErrorBoundary] Component:', instance)
     console.error('[ErrorBoundary] Info:', info)
@@ -70,7 +71,7 @@ function reload() {
     </p>
 
     <!-- Show error details in development -->
-    <details v-if="import.meta.env.DEV" class="mb-6 text-left w-full max-w-lg">
+    <details v-if="isDev" class="mb-6 text-left w-full max-w-lg">
       <summary class="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
         Technical details
       </summary>

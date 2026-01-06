@@ -7,7 +7,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed, shallowRef, watch, nextTick } from 'vue'
+import { ref, computed, shallowRef, watch, nextTick, toRaw } from 'vue'
 import type {
   SectionInstance,
   Theme,
@@ -236,7 +236,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     // Add current state
-    history.value.push(structuredClone(sections.value))
+    history.value.push(structuredClone(toRaw(sections.value)))
     historyIndex.value = history.value.length - 1
 
     // Limit history size
@@ -286,7 +286,7 @@ export const useEditorStore = defineStore('editor', () => {
     currentLanguage.value = null
 
     // Initialize history
-    history.value = [structuredClone(sections.value)]
+    history.value = [structuredClone(toRaw(sections.value))]
     historyIndex.value = 0
     isDirty.value = false
     activeNode.value = null
@@ -456,7 +456,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     const original = sections.value[index]
     const duplicate: SectionInstance = {
-      ...structuredClone(original),
+      ...structuredClone(toRaw(original)),
       id: generateId(),
     }
     ensureSectionItemIds(duplicate)
@@ -807,7 +807,7 @@ export const useEditorStore = defineStore('editor', () => {
     pushHistory()
 
     // Deep clone the item
-    const duplicate = structuredClone(items[index]) as Record<string, unknown>
+    const duplicate = structuredClone(toRaw(items[index])) as Record<string, unknown>
     duplicate.id = generateId()
     ensureNestedRepeaterIds(duplicate, repeaterField.itemSchema)
     items.splice(index + 1, 0, duplicate)
