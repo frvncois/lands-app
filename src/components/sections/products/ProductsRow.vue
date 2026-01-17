@@ -189,14 +189,13 @@ function handleUpdate(fieldKey: string, value: unknown) {
         >
         <!-- Image Column -->
         <div :class="[{ 'md:order-2': !isImageLeft(index) }, editable && 'pointer-events-none select-none']">
-          <template v-if="product.image?.src">
-            <img
-              :src="product.image.src"
-              :alt="product.image.alt || product.heading"
-              class="w-full h-auto rounded-[var(--radius-lg)] object-cover"
-              :style="{ ...sharedMediaStyle, aspectRatio: mediaAspectRatio }"
-            />
-          </template>
+          <img
+            v-if="product.image?.src"
+            :src="product.image.src"
+            :alt="product.image.alt || product.heading"
+            class="w-full h-auto rounded-[var(--radius-lg)] object-cover"
+            :style="{ ...sharedMediaStyle, aspectRatio: mediaAspectRatio }"
+          />
 
           <!-- Placeholder when no image -->
           <div

@@ -96,27 +96,25 @@ function handleDelete() {
             Duplicate
           </Dropdown.Item>
           <Dropdown.Divider />
-          <template v-if="!project.isPublished">
-            <Dropdown.Item
-              icon="app-publish"
-              :disabled="isPublishing"
-              @click="handlePublish"
-            >
-              {{ isPublishing ? 'Publishing...' : 'Publish' }}
-            </Dropdown.Item>
-          </template>
-          <template v-else>
-            <Dropdown.Item icon="app-show" @click="handleOpenSite">
-              View Site
-            </Dropdown.Item>
-            <Dropdown.Item
-              icon="app-hide"
-              :disabled="isPublishing"
-              @click="handleUnpublish"
-            >
-              {{ isPublishing ? 'Unpublishing...' : 'Unpublish' }}
-            </Dropdown.Item>
-          </template>
+          <Dropdown.Item
+            v-if="!project.isPublished"
+            icon="app-publish"
+            :disabled="isPublishing"
+            @click="handlePublish"
+          >
+            {{ isPublishing ? 'Publishing...' : 'Publish' }}
+          </Dropdown.Item>
+          <Dropdown.Item v-if="project.isPublished" icon="app-show" @click="handleOpenSite">
+            View Site
+          </Dropdown.Item>
+          <Dropdown.Item
+            v-if="project.isPublished"
+            icon="app-hide"
+            :disabled="isPublishing"
+            @click="handleUnpublish"
+          >
+            {{ isPublishing ? 'Unpublishing...' : 'Unpublish' }}
+          </Dropdown.Item>
           <Dropdown.Divider />
           <Dropdown.Item icon="app-delete" destructive @click="handleDelete">
             Delete

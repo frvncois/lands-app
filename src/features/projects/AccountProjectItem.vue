@@ -76,21 +76,16 @@ async function handleProjectLeft() {
         <Dropdown.Item icon="lni-gear-1" @click="actions.openSettings(project.id)">
           Settings
         </Dropdown.Item>
-        <template v-if="isOwner">
-          <Dropdown.Item icon="lni-credit-card-multiple" @click="showPlanModal = true">
-            Change Plan
-          </Dropdown.Item>
-          <Dropdown.Divider />
-          <Dropdown.Item icon="lni-trash-3" destructive @click="showDeleteModal = true">
-            Delete Project
-          </Dropdown.Item>
-        </template>
-        <template v-else>
-          <Dropdown.Divider />
-          <Dropdown.Item icon="app-logout" destructive @click="showLeaveModal = true">
-            Leave Project
-          </Dropdown.Item>
-        </template>
+        <Dropdown.Item v-if="isOwner" icon="lni-credit-card-multiple" @click="showPlanModal = true">
+          Change Plan
+        </Dropdown.Item>
+        <Dropdown.Divider />
+        <Dropdown.Item v-if="isOwner" icon="lni-trash-3" destructive @click="showDeleteModal = true">
+          Delete Project
+        </Dropdown.Item>
+        <Dropdown.Item v-if="!isOwner" icon="app-logout" destructive @click="showLeaveModal = true">
+          Leave Project
+        </Dropdown.Item>
       </Dropdown>
     </ListItem.Actions>
 

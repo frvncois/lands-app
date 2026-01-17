@@ -153,23 +153,21 @@ const heroViewportStyle = computed(() => ({
         :style="getMediaContainerStyle('media')"
         @click.stop="isEditing && handleSelectField('media')"
       >
-        <template v-if="data.media?.src">
-          <img
-            v-if="data.media.type === 'image'"
-            :src="data.media.src"
-            :alt="data.media.alt || ''"
-            class="w-full h-full object-cover"
-          />
-          <video
-            v-else-if="data.media.type === 'video'"
-            :src="data.media.src"
-            class="w-full h-full object-cover"
-            autoplay
-            muted
-            loop
-            playsinline
-          />
-        </template>
+        <img
+          v-if="data.media?.src && data.media.type === 'image'"
+          :src="data.media.src"
+          :alt="data.media.alt || ''"
+          class="w-full h-full object-cover"
+        />
+        <video
+          v-else-if="data.media?.src && data.media.type === 'video'"
+          :src="data.media.src"
+          class="w-full h-full object-cover"
+          autoplay
+          muted
+          loop
+          playsinline
+        />
         <MediaPlaceholder v-else :show="true" />
       </div>
 
@@ -309,23 +307,21 @@ const heroViewportStyle = computed(() => ({
         :style="getMediaContainerStyle('media')"
         @click.stop="isEditing && handleSelectField('media')"
       >
-        <template v-if="data.media?.src">
-          <img
-            v-if="data.media.type === 'image'"
-            :src="data.media.src"
-            :alt="data.media.alt || ''"
-            class="w-full h-full object-cover"
-          />
-          <video
-            v-else-if="data.media.type === 'video'"
-            :src="data.media.src"
-            class="w-full h-full object-cover"
-            autoplay
-            muted
-            loop
-            playsinline
-          />
-        </template>
+        <img
+          v-if="data.media?.src && data.media.type === 'image'"
+          :src="data.media.src"
+          :alt="data.media.alt || ''"
+          class="w-full h-full object-cover"
+        />
+        <video
+          v-else-if="data.media?.src && data.media.type === 'video'"
+          :src="data.media.src"
+          class="w-full h-full object-cover"
+          autoplay
+          muted
+          loop
+          playsinline
+        />
         <MediaPlaceholder v-else :show="true" class="w-full h-full" />
       </div>
     </div>
@@ -347,23 +343,21 @@ const heroViewportStyle = computed(() => ({
         :style="getMediaContainerStyle('media')"
         @click.stop="isEditing && handleSelectField('media')"
       >
-        <template v-if="data.media?.src">
-          <img
-            v-if="data.media.type === 'image'"
-            :src="data.media.src"
-            :alt="data.media.alt || ''"
-            class="w-full h-full object-cover"
-          />
-          <video
-            v-else-if="data.media.type === 'video'"
-            :src="data.media.src"
-            class="w-full h-full object-cover"
-            autoplay
-            muted
-            loop
-            playsinline
-          />
-        </template>
+        <img
+          v-if="data.media?.src && data.media.type === 'image'"
+          :src="data.media.src"
+          :alt="data.media.alt || ''"
+          class="w-full h-full object-cover"
+        />
+        <video
+          v-else-if="data.media?.src && data.media.type === 'video'"
+          :src="data.media.src"
+          class="w-full h-full object-cover"
+          autoplay
+          muted
+          loop
+          playsinline
+        />
         <MediaPlaceholder v-else :show="true" class="w-full h-full" />
       </div>
 

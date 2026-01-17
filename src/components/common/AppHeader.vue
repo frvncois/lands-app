@@ -203,83 +203,79 @@ async function signOut() {
       </router-link>
 
       <!-- Project Dropdown (when on project route) -->
-      <template v-if="isProjectRoute && currentProject">
-        <Dropdown ref="projectDropdownRef" align="left" width="min-w-80">
-          <template #trigger="{ toggle }">
-            <Button variant="secondary" size="sm" class="min-w-[250px] !justify-between" @click="toggle">
-              <span class="truncate text-left flex-1">{{ currentProject.title }}</span>
-              <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0 ml-2" />
-            </Button>
-          </template>
+      <Dropdown v-if="isProjectRoute && currentProject" ref="projectDropdownRef" align="left" width="min-w-80">
+        <template #trigger="{ toggle }">
+          <Button variant="secondary" size="sm" class="min-w-[250px] !justify-between" @click="toggle">
+            <span class="truncate text-left flex-1">{{ currentProject.title }}</span>
+            <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0 ml-2" />
+          </Button>
+        </template>
 
-          <!-- Project Card -->
-          <div class="p-4">
-            <!-- Project Icon + Title -->
-            <div class="flex items-center gap-3 mb-3">
-              <div
-                v-if="currentProject.thumbnail"
-                class="w-10 h-10 rounded bg-cover bg-center shrink-0 border border-border"
-                :style="{ backgroundImage: `url(${currentProject.thumbnail})` }"
-              />
-              <div
-                v-else
-                class="w-10 h-10 rounded bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground shrink-0"
-              >
-                {{ getProjectInitial(currentProject.title) }}
-              </div>
-              <p class="text-sm font-semibold text-foreground truncate flex-1">{{ currentProject.title }}</p>
+        <!-- Project Card -->
+        <div class="p-4">
+          <!-- Project Icon + Title -->
+          <div class="flex items-center gap-3 mb-3">
+            <div
+              v-if="currentProject.thumbnail"
+              class="w-10 h-10 rounded bg-cover bg-center shrink-0 border border-border"
+              :style="{ backgroundImage: `url(${currentProject.thumbnail})` }"
+            />
+            <div
+              v-else
+              class="w-10 h-10 rounded bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground shrink-0"
+            >
+              {{ getProjectInitial(currentProject.title) }}
             </div>
-
-            <!-- Project Status -->
-            <div class="mb-3">
-              <Badge :variant="currentProject.isPublished ? 'success' : 'secondary'" size="sm" dot>
-                {{ currentProject.isPublished ? 'Published' : 'Draft' }}
-              </Badge>
-            </div>
-
-            <!-- Project URL -->
-            <div class="mb-4">
-              <a
-                :href="`https://${currentProject.slug}.lands.app`"
-                target="_blank"
-                class="text-xs text-primary hover:underline truncate block"
-              >
-                {{ currentProject.slug }}.lands.app
-              </a>
-            </div>
-
-            <!-- Navigation Buttons -->
-            <div class="flex gap-2">
-              <Button
-                :variant="route.name === 'designer' ? 'default' : 'outline'"
-                size="sm"
-                class="flex-1"
-                @click="projectDropdownRef?.close(); navigateToProjectRoute('designer')"
-              >
-                <Icon name="app-designer" :size="14" />
-                Editor
-              </Button>
-              <Button
-                :variant="route.name === 'settings' ? 'default' : 'outline'"
-                size="sm"
-                class="flex-1"
-                :data-tour="'settings'"
-                @click="projectDropdownRef?.close(); navigateToProjectRoute('settings')"
-              >
-                <Icon name="app-settings" :size="14" />
-                Settings
-              </Button>
-            </div>
+            <p class="text-sm font-semibold text-foreground truncate flex-1">{{ currentProject.title }}</p>
           </div>
-        </Dropdown>
-      </template>
+
+          <!-- Project Status -->
+          <div class="mb-3">
+            <Badge :variant="currentProject.isPublished ? 'success' : 'secondary'" size="sm" dot>
+              {{ currentProject.isPublished ? 'Published' : 'Draft' }}
+            </Badge>
+          </div>
+
+          <!-- Project URL -->
+          <div class="mb-4">
+            <a
+              :href="`https://${currentProject.slug}.lands.app`"
+              target="_blank"
+              class="text-xs text-primary hover:underline truncate block"
+            >
+              {{ currentProject.slug }}.lands.app
+            </a>
+          </div>
+
+          <!-- Navigation Buttons -->
+          <div class="flex gap-2">
+            <Button
+              :variant="route.name === 'designer' ? 'default' : 'outline'"
+              size="sm"
+              class="flex-1"
+              @click="projectDropdownRef?.close(); navigateToProjectRoute('designer')"
+            >
+              <Icon name="app-designer" :size="14" />
+              Editor
+            </Button>
+            <Button
+              :variant="route.name === 'settings' ? 'default' : 'outline'"
+              size="sm"
+              class="flex-1"
+              :data-tour="'settings'"
+              @click="projectDropdownRef?.close(); navigateToProjectRoute('settings')"
+            >
+              <Icon name="app-settings" :size="14" />
+              Settings
+            </Button>
+          </div>
+        </div>
+      </Dropdown>
 
       <!-- Dashboard/Account label (when not on project route) -->
-      <template v-else>
-        <span class="text-sm font-medium text-foreground">
-          {{ route.name === 'account' ? 'Account' : 'Dashboard' }}
-        </span>
-      </template>
+      <span v-else class="text-sm font-medium text-foreground">
+        {{ route.name === 'account' ? 'Account' : 'Dashboard' }}
+      </span>
     </div>
 
     <!-- Center: Editor Controls (project routes only) -->
@@ -350,7 +346,7 @@ async function signOut() {
         </template>
 
         <!-- No translations configured -->
-        <template v-if="!editor.hasTranslations">
+        <div v-show="!editor.hasTranslations">
           <div class="px-3 py-2 text-xs text-muted-foreground">
             No translations added yet
           </div>
@@ -358,10 +354,10 @@ async function signOut() {
           <Dropdown.Item icon="plus" @click="openTranslationModal">
             Add Translation
           </Dropdown.Item>
-        </template>
+        </div>
 
         <!-- Translations configured - show language list -->
-        <template v-else>
+        <div v-show="editor.hasTranslations">
           <!-- Default language -->
           <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
             Default
@@ -376,7 +372,7 @@ async function signOut() {
           </button>
 
           <!-- Other languages -->
-          <template v-if="editor.translationSettings?.languages.length">
+          <div v-show="editor.translationSettings?.languages.length">
             <Dropdown.Divider />
             <div class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
               Translations
@@ -391,13 +387,13 @@ async function signOut() {
               <span class="flex-1 text-left">{{ getLanguageLabel(lang) }}</span>
               <Icon v-if="editor.currentLanguage === lang" name="checkmark" :size="14" class="text-primary" />
             </button>
-          </template>
+          </div>
 
           <Dropdown.Divider />
           <Dropdown.Item icon="plus" @click="openTranslationModal">
             Manage Translations
           </Dropdown.Item>
-        </template>
+        </div>
       </Dropdown>
     </div>
 
@@ -419,7 +415,7 @@ async function signOut() {
       </button>
 
       <!-- Project Route: Save + Publish -->
-      <template v-if="isProjectRoute && currentProject">
+      <div v-show="isProjectRoute && currentProject" class="flex items-center gap-3">
         <!-- Save indicator -->
         <div
           :class="[
@@ -453,7 +449,7 @@ async function signOut() {
         <Button size="sm" :loading="isPublishing" data-tour="publish" @click="handlePublish">
           {{ isPublishing ? 'Publishing...' : (currentProject?.isPublished ? 'Update' : 'Publish') }}
         </Button>
-      </template>
+      </div>
 
       <!-- User Avatar Dropdown -->
       <Dropdown ref="userDropdownRef" align="right" width="min-w-48">

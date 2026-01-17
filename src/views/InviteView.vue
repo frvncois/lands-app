@@ -178,7 +178,7 @@ function goToDashboard() {
 
         <!-- Actions -->
         <div class="p-6 pt-0 space-y-3">
-          <template v-if="isAuthenticated">
+          <div v-show="isAuthenticated">
             <button
               class="w-full py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
               :disabled="isAccepting || emailMismatch"
@@ -192,8 +192,8 @@ function goToDashboard() {
             >
               Decline
             </button>
-          </template>
-          <template v-else>
+          </div>
+          <div v-show="!isAuthenticated">
             <p class="text-sm text-center text-muted-foreground mb-4">
               Sign in or create an account to accept this invitation.
             </p>
@@ -203,7 +203,7 @@ function goToDashboard() {
             >
               Sign in to Accept
             </button>
-          </template>
+          </div>
         </div>
       </div>
     </div>

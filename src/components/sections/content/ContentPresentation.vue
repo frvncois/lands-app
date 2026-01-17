@@ -100,14 +100,12 @@ function isFieldHidden(fieldKey: string): boolean {
         ]"
         @click.stop="isEditing && handleSelectField('media')"
       >
-        <template v-if="data.media?.src">
-          <img
-            v-if="data.media.type === 'image'"
-            :src="data.media.src"
-            :alt="data.media.alt || ''"
-            class="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover"
-          />
-        </template>
+        <img
+          v-if="data.media?.src && data.media.type === 'image'"
+          :src="data.media.src"
+          :alt="data.media.alt || ''"
+          class="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover"
+        />
         <div
           v-else
           class="w-24 h-24 md:w-32 md:h-32 rounded-full bg-[var(--color-secondary)] flex items-center justify-center"
@@ -211,14 +209,12 @@ function isFieldHidden(fieldKey: string): boolean {
         ]"
         @click.stop="isEditing && handleSelectField('media')"
       >
-        <template v-if="data.media?.src">
-          <img
-            v-if="data.media.type === 'image'"
-            :src="data.media.src"
-            :alt="data.media.alt || ''"
-            class="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover"
-          />
-        </template>
+        <img
+          v-if="data.media?.src && data.media.type === 'image'"
+          :src="data.media.src"
+          :alt="data.media.alt || ''"
+          class="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover"
+        />
         <div
           v-else
           class="w-32 h-32 md:w-40 md:h-40 rounded-full bg-[var(--color-secondary)] flex items-center justify-center"

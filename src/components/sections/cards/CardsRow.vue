@@ -160,36 +160,35 @@ function isMediaLeft(index: number): boolean {
         >
         <!-- Media Column -->
         <div :class="[{ 'md:order-2': !isMediaLeft(index) }, editable && 'pointer-events-none select-none']">
-          <template v-if="card.media?.src">
-            <div
-              class="w-full overflow-hidden rounded-[var(--radius-lg)]"
-              :style="sharedMediaStyle"
-            >
-              <img
-                v-if="card.media.type === 'image'"
-                :src="card.media.src"
-                :alt="card.media.alt || ''"
-                :class="[
-                  'w-full h-full object-cover',
-                  editable && 'pointer-events-none select-none',
-                ]"
-                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
-              />
-              <video
-                v-else-if="card.media.type === 'video'"
-                :src="card.media.src"
-                :class="[
-                  'w-full h-full object-cover',
-                  editable && 'pointer-events-none select-none',
-                ]"
-                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
-                autoplay
-                muted
-                loop
-                playsinline
-              />
-            </div>
-          </template>
+          <div
+            v-if="card.media?.src"
+            class="w-full overflow-hidden rounded-[var(--radius-lg)]"
+            :style="sharedMediaStyle"
+          >
+            <img
+              v-if="card.media.type === 'image'"
+              :src="card.media.src"
+              :alt="card.media.alt || ''"
+              :class="[
+                'w-full h-full object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
+              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
+            />
+            <video
+              v-else-if="card.media.type === 'video'"
+              :src="card.media.src"
+              :class="[
+                'w-full h-full object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
+              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
+              autoplay
+              muted
+              loop
+              playsinline
+            />
+          </div>
 
           <!-- Placeholder when no media -->
           <div

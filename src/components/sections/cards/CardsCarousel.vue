@@ -221,7 +221,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
       />
       <div class="relative w-full">
         <!-- Navigation Arrows -->
-        <template v-if="showArrows && data.items.length > 1">
+        <div v-show="showArrows && data.items.length > 1">
           <button
             class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
             @click="scrollPrev"
@@ -234,7 +234,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
           >
             <i class="lni lni-chevron-right text-lg" />
           </button>
-        </template>
+        </div>
 
         <!-- Carousel Container -->
         <div
@@ -255,36 +255,35 @@ function handleUpdate(fieldKey: string, value: unknown) {
           @click="handleItemClick($event, card, index)"
         >
           <!-- Media (Image or Video) -->
-          <template v-if="card.media?.src">
-            <div
-              class="w-full overflow-hidden"
-              :style="sharedMediaStyle"
-            >
-              <img
-                v-if="card.media.type === 'image'"
-                :src="card.media.src"
-                :alt="card.media.alt || ''"
-                :class="[
-                  'w-full h-full object-cover',
-                  editable && 'pointer-events-none select-none',
-                ]"
-                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
-              />
-              <video
-                v-else-if="card.media.type === 'video'"
-                :src="card.media.src"
-                :class="[
-                  'w-full h-full object-cover',
-                  editable && 'pointer-events-none select-none',
-                ]"
-                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
-                autoplay
-                muted
-                loop
-                playsinline
-              />
-            </div>
-          </template>
+          <div
+            v-if="card.media?.src"
+            class="w-full overflow-hidden"
+            :style="sharedMediaStyle"
+          >
+            <img
+              v-if="card.media.type === 'image'"
+              :src="card.media.src"
+              :alt="card.media.alt || ''"
+              :class="[
+                'w-full h-full object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
+              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
+            />
+            <video
+              v-else-if="card.media.type === 'video'"
+              :src="card.media.src"
+              :class="[
+                'w-full h-full object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
+              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
+              autoplay
+              muted
+              loop
+              playsinline
+            />
+          </div>
 
           <!-- Content (non-editable inline - edit via inspector) -->
           <div

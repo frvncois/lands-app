@@ -188,22 +188,21 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
           @click="handleItemClick($event, product, index)"
         >
           <!-- Product Image -->
-          <template v-if="product.image?.src">
-            <div
-              class="w-full overflow-hidden"
-              :style="sharedMediaStyle"
-            >
-              <img
-                :src="product.image.src"
-                :alt="product.image.alt || product.heading"
-                :class="[
-                  'w-full h-full object-cover',
-                  editable && 'pointer-events-none select-none',
-                ]"
-                :style="{ aspectRatio: mediaAspectRatio }"
-              />
-            </div>
-          </template>
+          <div
+            v-if="product.image?.src"
+            class="w-full overflow-hidden"
+            :style="sharedMediaStyle"
+          >
+            <img
+              :src="product.image.src"
+              :alt="product.image.alt || product.heading"
+              :class="[
+                'w-full h-full object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
+              :style="{ aspectRatio: mediaAspectRatio }"
+            />
+          </div>
           <div
             v-else
             class="w-full bg-[var(--color-secondary)] flex items-center justify-center"
@@ -256,19 +255,17 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
 
             <!-- Price -->
             <div class="mt-auto pt-[var(--spacing-sm)]">
-              <template v-if="getActiveVariant(product, index)">
-                <div class="flex items-baseline gap-[var(--spacing-xs)]">
-                  <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
-                    {{ formatPrice(getActiveVariant(product, index)!.price) }}
-                  </span>
-                  <span
-                    v-if="getActiveVariant(product, index)!.compareAtPrice"
-                    class="text-[length:var(--text-sm)] text-[var(--color-muted)] line-through"
-                  >
-                    {{ formatPrice(getActiveVariant(product, index)!.compareAtPrice!) }}
-                  </span>
-                </div>
-              </template>
+              <div v-if="getActiveVariant(product, index)" class="flex items-baseline gap-[var(--spacing-xs)]">
+                <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
+                  {{ formatPrice(getActiveVariant(product, index)!.price) }}
+                </span>
+                <span
+                  v-if="getActiveVariant(product, index)!.compareAtPrice"
+                  class="text-[length:var(--text-sm)] text-[var(--color-muted)] line-through"
+                >
+                  {{ formatPrice(getActiveVariant(product, index)!.compareAtPrice!) }}
+                </span>
+              </div>
             </div>
 
             <!-- Buy Button -->

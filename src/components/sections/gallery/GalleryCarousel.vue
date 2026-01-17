@@ -211,7 +211,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
       </div>
       <div class="relative">
         <!-- Navigation Arrows -->
-        <template v-if="showArrows() && data.items.length > 1">
+        <div v-show="showArrows() && data.items.length > 1">
           <button
             class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
             @click="scrollPrev"
@@ -224,7 +224,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
         >
           <i class="lni lni-chevron-right text-lg" />
         </button>
-        </template>
+        </div>
 
         <!-- Carousel Container -->
         <div

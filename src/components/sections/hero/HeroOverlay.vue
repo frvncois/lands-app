@@ -159,23 +159,21 @@ function isFieldHidden(fieldKey: string): boolean {
     :class="heightClass"
   >
     <!-- Background Media -->
-    <template v-if="data.media?.src">
-      <img
-        v-if="data.media.type === 'image'"
-        :src="data.media.src"
-        :alt="data.media.alt || ''"
-        class="absolute inset-0 w-full h-full object-cover"
-      />
-      <video
-        v-else-if="data.media.type === 'video'"
-        :src="data.media.src"
-        class="absolute inset-0 w-full h-full object-cover"
-        autoplay
-        muted
-        loop
-        playsinline
-      />
-    </template>
+    <img
+      v-if="data.media?.src && data.media.type === 'image'"
+      :src="data.media.src"
+      :alt="data.media.alt || ''"
+      class="absolute inset-0 w-full h-full object-cover"
+    />
+    <video
+      v-else-if="data.media?.src && data.media.type === 'video'"
+      :src="data.media.src"
+      class="absolute inset-0 w-full h-full object-cover"
+      autoplay
+      muted
+      loop
+      playsinline
+    />
 
     <!-- Fallback background if no media -->
     <div

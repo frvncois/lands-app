@@ -270,97 +270,94 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
             :class="editable && 'pointer-events-none select-none'"
           >
             <!-- FAQ Content -->
-            <template v-if="isFAQ(item)">
-              <div
-                class="text-[length:var(--text-base)] text-[var(--color-muted)] prose prose-sm max-w-none"
-                :class="editable && 'pointer-events-none select-none'"
-                :style="applyFontColor(getItemContentStyle())"
-                v-html="(item as AccordionItemFAQ).content || ''"
-              />
-            </template>
+            <div
+              v-if="isFAQ(item)"
+              class="text-[length:var(--text-base)] text-[var(--color-muted)] prose prose-sm max-w-none"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="applyFontColor(getItemContentStyle())"
+              v-html="(item as AccordionItemFAQ).content || ''"
+            />
 
             <!-- Menu Content -->
-            <template v-else-if="isMenu(item)">
+            <div
+              v-else-if="isMenu(item)"
+              class="flex flex-col gap-[var(--spacing-md)]"
+              :class="editable && 'pointer-events-none select-none'"
+            >
               <div
-                class="flex flex-col gap-[var(--spacing-md)]"
-                :class="editable && 'pointer-events-none select-none'"
-              >
-                <div
-                  v-for="(menuItem, menuIndex) in (item as AccordionItemMenu).items"
-                  :key="menuIndex"
-                  class="flex gap-[var(--spacing-md)] items-start"
-                >
-                  <img
-                    v-if="menuItem.image?.src"
-                    :src="menuItem.image.src"
-                    :alt="menuItem.image.alt || ''"
-                    :class="[
-                      'w-16 h-16 object-cover rounded-[var(--radius-sm)] flex-shrink-0',
-                      editable && 'pointer-events-none select-none',
-                    ]"
-                  />
-                  <div class="flex-1 min-w-0">
-                    <div class="flex justify-between gap-[var(--spacing-sm)]">
-                    <span
-                      class="font-medium text-[length:var(--text-base)]"
-                      :class="editable && 'pointer-events-none select-none'"
-                      :style="applyFontColor(getItemContentStyle())"
-                    >{{ menuItem.subheadline }}</span>
-                    <span
-                      v-if="menuItem.price"
-                      class="text-[length:var(--text-base)] text-[var(--color-muted)] flex-shrink-0"
-                      :class="editable && 'pointer-events-none select-none'"
-                      :style="applyFontColor(getItemContentStyle())"
-                    >{{ menuItem.price }}</span>
-                  </div>
-                  <p
-                    v-if="menuItem.details"
-                    class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0 mt-1"
-                    :class="editable && 'pointer-events-none select-none'"
-                    :style="applyFontColor(getItemContentStyle())"
-                  >{{ menuItem.details }}</p>
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <!-- Event Content -->
-            <template v-else-if="isEvent(item)">
-              <div
-                class="flex flex-col gap-[var(--spacing-md)]"
-                :class="editable && 'pointer-events-none select-none'"
-                :style="applyFontColor(getItemContentStyle())"
+                v-for="(menuItem, menuIndex) in (item as AccordionItemMenu).items"
+                :key="menuIndex"
+                class="flex gap-[var(--spacing-md)] items-start"
               >
                 <img
-                  v-if="(item as AccordionItemEvent).image?.src"
-                  :src="(item as AccordionItemEvent).image!.src"
-                  :alt="(item as AccordionItemEvent).image?.alt || ''"
+                  v-if="menuItem.image?.src"
+                  :src="menuItem.image.src"
+                  :alt="menuItem.image.alt || ''"
                   :class="[
-                    'w-full aspect-video object-cover rounded-[var(--radius-md)]',
+                    'w-16 h-16 object-cover rounded-[var(--radius-sm)] flex-shrink-0',
                     editable && 'pointer-events-none select-none',
                   ]"
                 />
-                <div
-                  v-if="(item as AccordionItemEvent).details"
-                  class="text-[length:var(--text-base)] text-[var(--color-muted)] prose prose-sm max-w-none"
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between gap-[var(--spacing-sm)]">
+                  <span
+                    class="font-medium text-[length:var(--text-base)]"
+                    :class="editable && 'pointer-events-none select-none'"
+                    :style="applyFontColor(getItemContentStyle())"
+                  >{{ menuItem.subheadline }}</span>
+                  <span
+                    v-if="menuItem.price"
+                    class="text-[length:var(--text-base)] text-[var(--color-muted)] flex-shrink-0"
+                    :class="editable && 'pointer-events-none select-none'"
+                    :style="applyFontColor(getItemContentStyle())"
+                  >{{ menuItem.price }}</span>
+                </div>
+                <p
+                  v-if="menuItem.details"
+                  class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0 mt-1"
                   :class="editable && 'pointer-events-none select-none'"
                   :style="applyFontColor(getItemContentStyle())"
-                  v-html="(item as AccordionItemEvent).details"
-                />
-                <div
-                  v-if="(item as AccordionItemEvent).price"
-                  class="text-[length:var(--text-lg)] font-medium"
-                  :class="editable && 'pointer-events-none select-none'"
-                  :style="applyFontColor(getItemHeadlineStyle())"
-                >{{ (item as AccordionItemEvent).price }}</div>
-                <a
-                  v-if="(item as AccordionItemEvent).button?.label"
-                  :href="editable ? '#' : ((item as AccordionItemEvent).button?.url || '#')"
-                  class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-sm)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity self-start"
-                  :class="editable && 'pointer-events-none select-none'"
-                >{{ (item as AccordionItemEvent).button!.label }}</a>
+                >{{ menuItem.details }}</p>
+                </div>
               </div>
-            </template>
+            </div>
+
+            <!-- Event Content -->
+            <div
+              v-else-if="isEvent(item)"
+              class="flex flex-col gap-[var(--spacing-md)]"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="applyFontColor(getItemContentStyle())"
+            >
+              <img
+                v-if="(item as AccordionItemEvent).image?.src"
+                :src="(item as AccordionItemEvent).image!.src"
+                :alt="(item as AccordionItemEvent).image?.alt || ''"
+                :class="[
+                  'w-full aspect-video object-cover rounded-[var(--radius-md)]',
+                  editable && 'pointer-events-none select-none',
+                ]"
+              />
+              <div
+                v-if="(item as AccordionItemEvent).details"
+                class="text-[length:var(--text-base)] text-[var(--color-muted)] prose prose-sm max-w-none"
+                :class="editable && 'pointer-events-none select-none'"
+                :style="applyFontColor(getItemContentStyle())"
+                v-html="(item as AccordionItemEvent).details"
+              />
+              <div
+                v-if="(item as AccordionItemEvent).price"
+                class="text-[length:var(--text-lg)] font-medium"
+                :class="editable && 'pointer-events-none select-none'"
+                :style="applyFontColor(getItemHeadlineStyle())"
+              >{{ (item as AccordionItemEvent).price }}</div>
+              <a
+                v-if="(item as AccordionItemEvent).button?.label"
+                :href="editable ? '#' : ((item as AccordionItemEvent).button?.url || '#')"
+                class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-sm)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity self-start"
+                :class="editable && 'pointer-events-none select-none'"
+              >{{ (item as AccordionItemEvent).button!.label }}</a>
+            </div>
 
           </div>
         </div>

@@ -73,7 +73,7 @@ function goToIntegrations() {
   <div class="min-h-screen bg-background flex items-center justify-center p-4">
     <div class="max-w-md w-full text-center">
       <!-- Processing -->
-      <template v-if="status === 'processing'">
+      <div v-show="status === 'processing'">
         <div class="w-16 h-16 mx-auto mb-6">
           <div class="w-full h-full border-4 border-primary/20 border-t-primary rounded-full animate-spin"/>
         </div>
@@ -81,10 +81,10 @@ function goToIntegrations() {
         <p class="text-sm text-muted-foreground">
           Please wait while we complete the connection.
         </p>
-      </template>
+      </div>
 
       <!-- Success -->
-      <template v-else-if="status === 'success'">
+      <div v-show="status === 'success'">
         <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
           <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -94,10 +94,10 @@ function goToIntegrations() {
         <p class="text-sm text-muted-foreground">
           Integration connected successfully. Redirecting...
         </p>
-      </template>
+      </div>
 
       <!-- Error -->
-      <template v-else-if="status === 'error'">
+      <div v-show="status === 'error'">
         <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-red-100 flex items-center justify-center">
           <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -113,7 +113,7 @@ function goToIntegrations() {
         >
           Back to Integrations
         </button>
-      </template>
+      </div>
     </div>
   </div>
 </template>

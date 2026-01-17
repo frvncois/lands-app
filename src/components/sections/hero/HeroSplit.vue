@@ -134,23 +134,21 @@ function isFieldHidden(fieldKey: string): boolean {
         ]"
         @click.stop="isEditing && handleSelectField('media')"
       >
-        <template v-if="data.media?.src">
-          <img
-            v-if="data.media.type === 'image'"
-            :src="data.media.src"
-            :alt="data.media.alt || ''"
-            class="w-full h-full rounded-[var(--radius-lg)] object-cover"
-          />
-          <video
-            v-else-if="data.media.type === 'video'"
-            :src="data.media.src"
-            class="w-full h-full rounded-[var(--radius-lg)] object-cover"
-            autoplay
-            muted
-            loop
-            playsinline
-          />
-        </template>
+        <img
+          v-if="data.media?.src && data.media.type === 'image'"
+          :src="data.media.src"
+          :alt="data.media.alt || ''"
+          class="w-full h-full rounded-[var(--radius-lg)] object-cover"
+        />
+        <video
+          v-else-if="data.media?.src && data.media.type === 'video'"
+          :src="data.media.src"
+          class="w-full h-full rounded-[var(--radius-lg)] object-cover"
+          autoplay
+          muted
+          loop
+          playsinline
+        />
 
         <!-- Placeholder when no media -->
         <MediaPlaceholder

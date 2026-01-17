@@ -41,7 +41,7 @@ const features = [
           <p class="text-lg font-semibold text-foreground">
             {{ currentPlan.price === 0 ? 'Free' : `$${currentPlan.price}` }}
           </p>
-          <p v-if="currentPlan.price > 0" class="text-xs text-muted-foreground">/month</p>
+          <p v-show="currentPlan.price > 0" class="text-xs text-muted-foreground">/month</p>
         </div>
       </div>
 
@@ -69,14 +69,14 @@ const features = [
       </div>
 
       <!-- Upgrade Button (only for free plan) -->
-      <div v-if="settings.plan === 'free'" class="pt-2">
+      <div v-show="settings.plan === 'free'" class="pt-2">
         <Button class="w-full" @click="showUpgradeModal = true">
           Upgrade to Pro - $6/month
         </Button>
       </div>
 
       <!-- Manage Subscription (for pro plan) -->
-      <div v-else class="pt-2">
+      <div v-show="settings.plan !== 'free'" class="pt-2">
         <Button variant="outline" class="w-full">
           Manage Subscription
         </Button>

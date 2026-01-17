@@ -236,7 +236,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
       />
       <div class="relative w-full">
         <!-- Navigation Arrows -->
-        <template v-if="showArrows() && data.items.length > 1">
+        <div v-show="showArrows() && data.items.length > 1">
           <button
             class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
             @click="scrollPrev"
@@ -249,7 +249,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
           >
             <i class="lni lni-chevron-right text-lg" />
           </button>
-        </template>
+        </div>
 
         <!-- Carousel Container -->
         <div
@@ -271,20 +271,19 @@ function handleUpdate(fieldKey: string, value: unknown) {
           @click="handleItemClick($event, product, index)"
         >
           <!-- Product Image -->
-          <template v-if="product.image?.src">
-            <div
-              class="w-full overflow-hidden"
-              :style="sharedMediaStyle"
-              :class="editable && 'pointer-events-none select-none'"
-            >
-              <img
-                :src="product.image.src"
-                :alt="product.image.alt || product.heading"
-                class="w-full h-full object-cover"
-                :style="{ aspectRatio: mediaAspectRatio }"
-              />
-            </div>
-          </template>
+          <div
+            v-if="product.image?.src"
+            class="w-full overflow-hidden"
+            :style="sharedMediaStyle"
+            :class="editable && 'pointer-events-none select-none'"
+          >
+            <img
+              :src="product.image.src"
+              :alt="product.image.alt || product.heading"
+              class="w-full h-full object-cover"
+              :style="{ aspectRatio: mediaAspectRatio }"
+            />
+          </div>
           <div
             v-else
             class="w-full bg-[var(--color-secondary)] flex items-center justify-center"
@@ -337,19 +336,17 @@ function handleUpdate(fieldKey: string, value: unknown) {
 
             <!-- Price -->
             <div class="mt-auto pt-[var(--spacing-sm)]">
-              <template v-if="getActiveVariant(product, index)">
-                <div class="flex items-baseline gap-[var(--spacing-xs)]">
-                  <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
-                    {{ formatPrice(getActiveVariant(product, index)!.price) }}
-                  </span>
-                  <span
-                    v-if="getActiveVariant(product, index)!.compareAtPrice"
-                    class="text-[length:var(--text-sm)] text-[var(--color-muted)] line-through"
-                  >
-                    {{ formatPrice(getActiveVariant(product, index)!.compareAtPrice!) }}
-                  </span>
-                </div>
-              </template>
+              <div v-if="getActiveVariant(product, index)" class="flex items-baseline gap-[var(--spacing-xs)]">
+                <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
+                  {{ formatPrice(getActiveVariant(product, index)!.price) }}
+                </span>
+                <span
+                  v-if="getActiveVariant(product, index)!.compareAtPrice"
+                  class="text-[length:var(--text-sm)] text-[var(--color-muted)] line-through"
+                >
+                  {{ formatPrice(getActiveVariant(product, index)!.compareAtPrice!) }}
+                </span>
+              </div>
             </div>
 
             <!-- Buy Button -->
