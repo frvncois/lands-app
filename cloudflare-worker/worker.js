@@ -19,11 +19,11 @@ export default {
       'X-XSS-Protection': '1; mode=block',
       'Content-Security-Policy': [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' https://cloud.umami.is",
-        "style-src 'self' 'unsafe-inline' https://api.fontshare.com https://fonts.googleapis.com",
-        "font-src 'self' https://api.fontshare.com https://fonts.gstatic.com",
+        "script-src 'self' 'unsafe-inline' https://cloud.umami.is https://static.cloudflareinsights.com",
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self' https://cdn.fontshare.com https://fonts.gstatic.com",
         "img-src 'self' data: https: blob:",
-        "connect-src 'self' https://cloud.umami.is",
+        "connect-src 'self' https://cloud.umami.is https://static.cloudflareinsights.com",
         "frame-ancestors 'none'",
       ].join('; '),
     }

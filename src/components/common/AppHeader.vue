@@ -206,7 +206,7 @@ async function signOut() {
       <template v-if="isProjectRoute && currentProject">
         <Dropdown ref="projectDropdownRef" align="left" width="min-w-80">
           <template #trigger="{ toggle }">
-            <Button variant="outline" size="sm" class="min-w-[250px] !justify-between" @click="toggle">
+            <Button variant="secondary" size="sm" class="min-w-[250px] !justify-between" @click="toggle">
               <span class="truncate text-left flex-1">{{ currentProject.title }}</span>
               <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0 ml-2" />
             </Button>

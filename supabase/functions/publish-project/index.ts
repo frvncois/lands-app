@@ -10,6 +10,36 @@ const CLOUDFLARE_ACCOUNT_ID = Deno.env.get('CLOUDFLARE_ACCOUNT_ID')
 const CLOUDFLARE_KV_NAMESPACE_ID = Deno.env.get('CLOUDFLARE_KV_NAMESPACE_ID')
 const UMAMI_API_URL = Deno.env.get('UMAMI_API_URL') || 'https://cloud.umami.is'
 
+// Font registry with CDN URLs (using Fontshare for free fonts)
+const FONT_REGISTRY: Record<string, string> = {
+  'Satoshi': 'https://api.fontshare.com/v2/css?f[]=satoshi@1,2&display=swap',
+  'Clash Grotesk': 'https://api.fontshare.com/v2/css?f[]=clash-grotesk@1,2&display=swap',
+  'Cabinet Grotesk': 'https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@1,2&display=swap',
+  'Switzer': 'https://api.fontshare.com/v2/css?f[]=switzer@1,2&display=swap',
+  'Supreme': 'https://api.fontshare.com/v2/css?f[]=supreme@1,2&display=swap',
+  'Public Sans': 'https://fonts.googleapis.com/css2?family=Public+Sans:wght@100..900&display=swap',
+  'Familjen Grotesk': 'https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400..700&display=swap',
+  'Ranade': 'https://api.fontshare.com/v2/css?f[]=ranade@1,2&display=swap',
+  'Author': 'https://api.fontshare.com/v2/css?f[]=author@1,2&display=swap',
+  'Boska': 'https://api.fontshare.com/v2/css?f[]=boska@1,2&display=swap',
+  'Instrument Serif': 'https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap',
+  'Rowan': 'https://api.fontshare.com/v2/css?f[]=rowan@1,2&display=swap',
+  'Quilon': 'https://api.fontshare.com/v2/css?f[]=quilon@1,2&display=swap',
+  'Melodrama': 'https://api.fontshare.com/v2/css?f[]=melodrama@1,2&display=swap',
+  'Telma': 'https://api.fontshare.com/v2/css?f[]=telma@1,2&display=swap',
+  'Pramukh Rounded': 'https://api.fontshare.com/v2/css?f[]=pramukh-rounded@1,2&display=swap',
+  'Hoover': 'https://api.fontshare.com/v2/css?f[]=hoover@1,2&display=swap',
+  'Sharpie': 'https://api.fontshare.com/v2/css?f[]=sharpie@1,2&display=swap',
+  'Styro': 'https://api.fontshare.com/v2/css?f[]=styro@1,2&display=swap',
+  'New Title': 'https://api.fontshare.com/v2/css?f[]=new-title@1,2&display=swap',
+  'Aktura': 'https://api.fontshare.com/v2/css?f[]=aktura@1&display=swap',
+  'Boxing': 'https://api.fontshare.com/v2/css?f[]=boxing@1&display=swap',
+  'Kihim': 'https://api.fontshare.com/v2/css?f[]=kihim@1&display=swap',
+  'Rosaline': 'https://api.fontshare.com/v2/css?f[]=rosaline@1&display=swap',
+  'Stardom': 'https://api.fontshare.com/v2/css?f[]=stardom@1&display=swap',
+  'Pencerio': 'https://api.fontshare.com/v2/css?f[]=pencerio@1&display=swap',
+}
+
 interface RequestBody {
   projectId: string
   action: 'publish' | 'unpublish'
@@ -100,8 +130,8 @@ const THEMES: Record<string, ThemeTokens> = {
       border: '#e4e4e7',
     },
     fonts: {
-      heading: 'Satoshi, sans-serif',
-      body: 'Satoshi, sans-serif',
+      heading: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     },
   },
   midnight: {
@@ -118,8 +148,8 @@ const THEMES: Record<string, ThemeTokens> = {
       border: '#27272a',
     },
     fonts: {
-      heading: 'Satoshi, sans-serif',
-      body: 'Satoshi, sans-serif',
+      heading: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     },
   },
   forest: {
@@ -136,8 +166,8 @@ const THEMES: Record<string, ThemeTokens> = {
       border: '#e7e5e4',
     },
     fonts: {
-      heading: 'Instrument Serif, serif',
-      body: 'Satoshi, sans-serif',
+      heading: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif',
+      body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     },
   },
   ocean: {
@@ -154,8 +184,8 @@ const THEMES: Record<string, ThemeTokens> = {
       border: '#e2e8f0',
     },
     fonts: {
-      heading: 'Clash Grotesk, sans-serif',
-      body: 'Switzer, sans-serif',
+      heading: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     },
   },
   sunset: {
@@ -172,8 +202,8 @@ const THEMES: Record<string, ThemeTokens> = {
       border: '#fde68a',
     },
     fonts: {
-      heading: 'Cabinet Grotesk, sans-serif',
-      body: 'Ranade, sans-serif',
+      heading: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      body: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     },
   },
 }
@@ -225,6 +255,7 @@ function generateSectionHTML(section: SectionInstance, theme: ThemeTokens): stri
 
   switch (type) {
     case 'hero':
+    case 'content':
       return generateHeroHTML(section, theme, sectionStyle)
     case 'cards':
       return generateCardsHTML(section, theme, sectionStyle)
@@ -4319,6 +4350,56 @@ function generateLanguageSwitcher(translation: TranslationSettings): string {
 // CSS GENERATION
 // ============================================
 
+/**
+ * Extract font family name from font stack (e.g., "Satoshi, sans-serif" => "Satoshi")
+ */
+function extractFontFamily(fontStack: string): string | null {
+  const firstFont = fontStack.split(',')[0].trim().replace(/['"]/g, '')
+  // Skip generic font families
+  if (['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'system-ui'].includes(firstFont)) {
+    return null
+  }
+  return firstFont
+}
+
+/**
+ * Fetch and inline font CSS from CDN
+ */
+async function fetchFontCSS(fontFamily: string): Promise<string> {
+  const url = FONT_REGISTRY[fontFamily]
+  if (!url) return ''
+
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return ''
+    return await response.text()
+  } catch (error) {
+    console.error(`Failed to fetch font ${fontFamily}:`, error)
+    return ''
+  }
+}
+
+/**
+ * Collect unique fonts used in theme and fetch their CSS
+ */
+async function generateFontFaces(theme: ThemeTokens): Promise<string> {
+  const fontFamilies = new Set<string>()
+
+  // Extract heading font
+  const headingFont = extractFontFamily(theme.fonts.heading)
+  if (headingFont) fontFamilies.add(headingFont)
+
+  // Extract body font
+  const bodyFont = extractFontFamily(theme.fonts.body)
+  if (bodyFont) fontFamilies.add(bodyFont)
+
+  // Fetch CSS for all unique fonts
+  const fontCSSPromises = Array.from(fontFamilies).map(font => fetchFontCSS(font))
+  const fontCSSResults = await Promise.all(fontCSSPromises)
+
+  return fontCSSResults.filter(css => css.length > 0).join('\n\n')
+}
+
 function generateCSS(theme: ThemeTokens): string {
   return `
 /* CSS Reset */
@@ -4340,22 +4421,6 @@ h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
 h2 { font-size: clamp(2rem, 4vw, 3rem); }
 h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
 
-/* Button */
-.ld-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.875rem 2rem;
-  font-weight: 500;
-  border-radius: 0.5rem;
-  background-color: ${theme.colors.primary};
-  color: ${theme.colors.primaryForeground};
-  transition: opacity 0.2s;
-  cursor: pointer;
-  border: none;
-}
-.ld-btn:hover { opacity: 0.9; }
-
 /* Language Switcher */
 .ld-lang-switcher {
   position: fixed;
@@ -4371,489 +4436,6 @@ h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
   color: ${theme.colors.foreground};
   cursor: pointer;
   font-size: 0.875rem;
-}
-
-/* Hero Section */
-.ld-hero {
-  padding: 4rem 1.5rem;
-  min-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.ld-hero--full {
-  position: relative;
-  min-height: 100vh;
-  text-align: center;
-}
-.ld-hero--full .ld-hero__bg {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-}
-.ld-hero--full .ld-hero__bg img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.ld-hero--centered {
-  text-align: center;
-}
-.ld-hero--split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-@media (max-width: 768px) {
-  .ld-hero--split { grid-template-columns: 1fr; }
-}
-.ld-hero__content {
-  max-width: 800px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.ld-hero--centered .ld-hero__content { align-items: center; }
-.ld-hero__headline { margin-bottom: 0; }
-.ld-hero__subheadline { color: ${theme.colors.mutedForeground}; font-size: 1.25rem; }
-.ld-hero__media img { border-radius: 0.75rem; }
-
-/* Cards Section */
-.ld-cards {
-  padding: 4rem 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.ld-cards__header {
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto 3rem;
-}
-.ld-cards__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 1rem;
-}
-.ld-cards__grid {
-  display: grid;
-  gap: 1.5rem;
-}
-.ld-cards__grid--2 { grid-template-columns: repeat(2, 1fr); }
-.ld-cards__grid--3 { grid-template-columns: repeat(3, 1fr); }
-.ld-cards__grid--4 { grid-template-columns: repeat(4, 1fr); }
-@media (max-width: 768px) {
-  .ld-cards__grid--2,
-  .ld-cards__grid--3,
-  .ld-cards__grid--4 { grid-template-columns: 1fr; }
-}
-.ld-card {
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  background: ${theme.colors.secondary};
-}
-.ld-card__image {
-  width: 100%;
-  aspect-ratio: 16/9;
-  object-fit: cover;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-}
-.ld-card__title { margin-bottom: 0.5rem; }
-.ld-card__desc { color: ${theme.colors.mutedForeground}; font-size: 0.875rem; }
-
-/* CTA Section */
-.ld-cta {
-  padding: 4rem 1.5rem;
-  text-align: center;
-}
-.ld-cta__content {
-  max-width: 600px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-}
-.ld-cta__paragraph { color: ${theme.colors.mutedForeground}; }
-
-/* Links Section */
-.ld-links {
-  padding: 4rem 1.5rem;
-  max-width: 600px;
-  margin: 0 auto;
-}
-.ld-links__header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-.ld-links__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 0.5rem;
-}
-.ld-links__list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.ld-link-item {
-  display: flex;
-  flex-direction: column;
-  padding: 1rem 1.5rem;
-  background: ${theme.colors.secondary};
-  border-radius: 0.5rem;
-  transition: background 0.2s;
-}
-.ld-link-item:hover { background: ${theme.colors.muted}; }
-.ld-link-item__label { font-weight: 500; }
-.ld-link-item__desc { font-size: 0.875rem; color: ${theme.colors.mutedForeground}; }
-
-/* Accordion Section */
-.ld-accordion {
-  padding: 4rem 1.5rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-.ld-accordion__header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-.ld-accordion__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 0.5rem;
-}
-.ld-accordion__list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.ld-accordion-item {
-  border: 1px solid ${theme.colors.border};
-  border-radius: 0.5rem;
-  overflow: hidden;
-}
-.ld-accordion-item__question {
-  padding: 1rem 1.5rem;
-  cursor: pointer;
-  font-weight: 500;
-  list-style: none;
-}
-.ld-accordion-item__question::-webkit-details-marker { display: none; }
-.ld-accordion-item__answer {
-  padding: 0 1.5rem 1rem;
-  color: ${theme.colors.mutedForeground};
-}
-
-/* Header Section */
-.ld-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.ld-header__brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.ld-header__logo { height: 2rem; width: auto; }
-.ld-header__title { font-weight: 600; }
-.ld-header__nav {
-  display: flex;
-  gap: 1.5rem;
-}
-.ld-header__link { font-size: 0.875rem; transition: opacity 0.2s; }
-.ld-header__link:hover { opacity: 0.7; }
-
-/* Footer Section */
-.ld-footer {
-  padding: 2rem 1.5rem;
-  text-align: center;
-}
-.ld-footer__nav {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
-}
-.ld-footer__link { font-size: 0.875rem; transition: opacity 0.2s; }
-.ld-footer__link:hover { opacity: 0.7; }
-.ld-footer__copyright { font-size: 0.75rem; color: ${theme.colors.mutedForeground}; }
-
-/* Gallery Section */
-.ld-gallery {
-  padding: 4rem 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.ld-gallery__header {
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto 3rem;
-}
-.ld-gallery__subheadline {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 0.5rem;
-}
-.ld-gallery__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 1rem;
-}
-.ld-gallery__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-}
-@media (max-width: 768px) {
-  .ld-gallery__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 480px) {
-  .ld-gallery__grid {
-    grid-template-columns: 1fr;
-  }
-}
-.ld-gallery__item {
-  position: relative;
-  overflow: hidden;
-  border-radius: 0.5rem;
-}
-.ld-gallery__image,
-.ld-gallery__video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  aspect-ratio: 1;
-  display: block;
-}
-
-/* Products Section */
-.ld-products {
-  padding: 4rem 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.ld-products__header {
-  text-align: center;
-  max-width: 600px;
-  margin: 0 auto 3rem;
-}
-.ld-products__subheadline {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 0.5rem;
-}
-.ld-products__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 1rem;
-}
-.ld-products__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.5rem;
-}
-@media (max-width: 768px) {
-  .ld-products__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 480px) {
-  .ld-products__grid {
-    grid-template-columns: 1fr;
-  }
-}
-.ld-product-card {
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  background: ${theme.colors.secondary};
-  display: flex;
-  flex-direction: column;
-}
-.ld-product-card__image {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-}
-.ld-product-card__content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-}
-.ld-product-card__heading {
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-.ld-product-card__subheading {
-  color: ${theme.colors.mutedForeground};
-  font-size: 0.875rem;
-}
-.ld-product-card__desc {
-  color: ${theme.colors.mutedForeground};
-  font-size: 0.875rem;
-  flex: 1;
-}
-.ld-product-card__price {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: ${theme.colors.primary};
-  margin-top: 0.5rem;
-}
-.ld-product-card__btn {
-  margin-top: 1rem;
-}
-
-/* Events Section */
-.ld-events {
-  padding: 4rem 1.5rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-.ld-events__header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-.ld-events__paragraph {
-  color: ${theme.colors.mutedForeground};
-  margin-top: 0.5rem;
-}
-.ld-events__list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.ld-event-item {
-  border: 1px solid ${theme.colors.border};
-  border-radius: 0.75rem;
-  overflow: hidden;
-}
-.ld-event-item__summary {
-  padding: 1.5rem;
-  cursor: pointer;
-  list-style: none;
-  background: ${theme.colors.secondary};
-  transition: background 0.2s;
-}
-.ld-event-item__summary:hover {
-  background: ${theme.colors.muted};
-}
-.ld-event-item__summary::-webkit-details-marker {
-  display: none;
-}
-.ld-event-item__header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.ld-event-item__title {
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-.ld-event-item__datetime,
-.ld-event-item__location {
-  font-size: 0.875rem;
-  color: ${theme.colors.mutedForeground};
-}
-.ld-event-item__details {
-  padding: 1.5rem;
-  border-top: 1px solid ${theme.colors.border};
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.ld-event-item__image {
-  width: 100%;
-  aspect-ratio: 16/9;
-  object-fit: cover;
-  border-radius: 0.5rem;
-}
-.ld-event-item__desc {
-  color: ${theme.colors.foreground};
-  line-height: 1.6;
-}
-.ld-event-item__price {
-  font-weight: 600;
-  color: ${theme.colors.primary};
-}
-
-/* Contact Section */
-.ld-contact {
-  padding: 4rem 1.5rem;
-  max-width: 800px;
-  margin: 0 auto;
-  display: grid;
-  gap: 3rem;
-}
-@media (min-width: 768px) {
-  .ld-contact {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-.ld-contact__content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.ld-contact__subheadline {
-  color: ${theme.colors.mutedForeground};
-  font-size: 1.125rem;
-}
-.ld-contact__paragraph {
-  color: ${theme.colors.mutedForeground};
-  font-size: 0.875rem;
-}
-.ld-contact__form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-.ld-contact__field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.ld-contact__field label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: ${theme.colors.foreground};
-}
-.ld-contact__field input,
-.ld-contact__field textarea {
-  padding: 0.75rem;
-  border: 1px solid ${theme.colors.border};
-  border-radius: 0.5rem;
-  background: ${theme.colors.background};
-  color: ${theme.colors.foreground};
-  font-size: 0.875rem;
-}
-.ld-contact__field textarea {
-  min-height: 120px;
-  resize: vertical;
-}
-.ld-contact__field input:focus,
-.ld-contact__field textarea:focus {
-  outline: none;
-  border-color: ${theme.colors.primary};
-}
-
-/* Text Section */
-.ld-text {
-  padding: 4rem 1.5rem;
-  max-width: 800px;
-  margin: 0 auto;
-}
-.ld-text__content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.ld-text__paragraph {
-  color: ${theme.colors.foreground};
-  line-height: 1.8;
 }
 
 /* Watermark */
@@ -4960,7 +4542,7 @@ function generateTranslationJS(content: PageContent): string {
 // HTML GENERATION
 // ============================================
 
-function generateHTML(project: any, content: PageContent, settings: any, umamiSiteId?: string): { html: string; css: string } {
+async function generateHTML(project: any, content: PageContent, settings: any, umamiSiteId?: string): Promise<{ html: string; css: string }> {
   // Get base theme and merge with overrides
   const baseTheme = getTheme(content.themeId)
   const theme: ThemeTokens = {
@@ -4994,37 +4576,14 @@ function generateHTML(project: any, content: PageContent, settings: any, umamiSi
   // Get generated CSS from styleExtractor
   const generatedCSS = styleExtractor.getCSS()
 
+  // Generate font faces for used fonts
+  const fontFaces = await generateFontFaces(theme)
+
   // Generate base CSS (theme variables, resets, etc.)
   const baseCSS = generateCSS(theme)
 
-  // Font collection - collect ALL fonts used (theme + fieldStyles) BEFORE generating imports
-  const fonts = new Set([theme.fonts.heading, theme.fonts.body])
-
-  // Scan all sections for custom fonts in fieldStyles
-  content.sections.forEach(section => {
-    if (section.fieldStyles) {
-      Object.values(section.fieldStyles).forEach(fieldStyle => {
-        if (fieldStyle.fontFamily && typeof fieldStyle.fontFamily === 'string') {
-          fonts.add(fieldStyle.fontFamily)
-        }
-      })
-    }
-  })
-
-  // Generate font imports for CSS file
-  const fontImports = Array.from(fonts)
-    .filter(f => f && !f.includes('system'))
-    .map(f => {
-      const fontName = f.split(',')[0].replace(/'/g, '').trim()
-      return `@import url('https://api.fontshare.com/v2/css?f[]=${encodeURIComponent(fontName.toLowerCase().replace(/\s+/g, '-'))}@400,500,600,700&display=swap');`
-    })
-    .join('\n')
-
-  // Combine font imports, base CSS, and generated component CSS
-  const css = `/* Font Imports */
-${fontImports}
-
-${baseCSS}
+  // Combine font faces, base CSS, and generated component CSS
+  const css = `${fontFaces ? `/* Custom Fonts */\n${fontFaces}\n\n` : ''}${baseCSS}
 
 /* Generated Component Styles */
 ${generatedCSS}`
@@ -5041,14 +4600,6 @@ ${generatedCSS}`
   const umamiScript = umamiSiteId
     ? `<script defer src="${UMAMI_API_URL}/script.js" data-website-id="${umamiSiteId}"></script>`
     : ''
-
-  const fontLinks = Array.from(fonts)
-    .filter(f => f && !f.includes('system'))
-    .map(f => {
-      const fontName = f.split(',')[0].replace(/'/g, '').trim()
-      return `<link href="https://api.fontshare.com/v2/css?f[]=${encodeURIComponent(fontName.toLowerCase().replace(/\s+/g, '-'))}@400,500,600,700&display=swap" rel="stylesheet">`
-    })
-    .join('\n  ')
 
   const html = `<!DOCTYPE html>
 <html lang="${content.translation?.defaultLanguage || 'en'}">
@@ -5075,13 +4626,7 @@ ${generatedCSS}`
   ${favicon ? `<link rel="icon" href="${escapeHtml(favicon)}">` : ''}
   ${umamiScript}
 
-  <!-- Preconnect for performance -->
-  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-  ${umamiSiteId ? '<link rel="preconnect" href="https://cloud.umami.is" crossorigin>' : ''}
-  <link rel="dns-prefetch" href="https://api.fontshare.com">
-
-  <!-- Fonts -->
-  ${fontLinks}
+  ${umamiSiteId ? '<!-- Preconnect for analytics -->\n  <link rel="preconnect" href="https://cloud.umami.is" crossorigin>' : ''}
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="/style.css">
@@ -5271,7 +4816,7 @@ serve(async (req) => {
         : undefined
 
       // Generate static HTML and CSS
-      const { html, css } = generateHTML(project, hydratedContent, settings, umamiSiteId)
+      const { html, css } = await generateHTML(project, hydratedContent, settings, umamiSiteId)
 
       // Store in Cloudflare KV using slug as key
       const visibility = (settings?.visibility as 'public' | 'private' | 'password') || 'public'
