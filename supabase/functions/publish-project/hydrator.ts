@@ -16,6 +16,12 @@ const SECTION_DEFAULTS: Record<string, () => Record<string, unknown>> = {
     paragraph: 'Add more details about your product, service, or message here.',
     primaryCTA: { label: 'Get Started', url: '#' },
   }),
+  content: () => ({
+    headline: 'Section Headline',
+    subheadline: 'A supporting subheadline',
+    paragraph: 'Add your content here. This section is perfect for explanatory text, about sections, or any text-heavy content.',
+    primaryCTA: { label: 'Learn More', url: '#' },
+  }),
   cards: () => ({
     headline: 'Section headline',
     subheadline: 'Optional subheadline',

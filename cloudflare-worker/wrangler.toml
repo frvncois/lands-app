@@ -7,8 +7,9 @@ compatibility_date = "2024-01-01"
 binding = "LANDS_SITES"
 id = "b252e0bab2cd443a9a90c9d839a9edda"
 
-# Routes - serve all *.lands.app subdomains
+# Routes - serve all *.lands.app subdomains and naked domain
 routes = [
+  { pattern = "lands.app/*", zone_name = "lands.app" },
   { pattern = "*.lands.app/*", zone_name = "lands.app" }
 ]
 
