@@ -4997,6 +4997,20 @@ function generateHTML(project: any, content: PageContent, settings: any, umamiSi
   // Generate base CSS (theme variables, resets, etc.)
   const baseCSS = generateCSS(theme)
 
+  // Font collection - collect ALL fonts used (theme + fieldStyles) BEFORE generating imports
+  const fonts = new Set([theme.fonts.heading, theme.fonts.body])
+
+  // Scan all sections for custom fonts in fieldStyles
+  content.sections.forEach(section => {
+    if (section.fieldStyles) {
+      Object.values(section.fieldStyles).forEach(fieldStyle => {
+        if (fieldStyle.fontFamily && typeof fieldStyle.fontFamily === 'string') {
+          fonts.add(fieldStyle.fontFamily)
+        }
+      })
+    }
+  })
+
   // Generate font imports for CSS file
   const fontImports = Array.from(fonts)
     .filter(f => f && !f.includes('system'))
@@ -5027,20 +5041,6 @@ ${generatedCSS}`
   const umamiScript = umamiSiteId
     ? `<script defer src="${UMAMI_API_URL}/script.js" data-website-id="${umamiSiteId}"></script>`
     : ''
-
-  // Font preload - collect ALL fonts used (theme + fieldStyles)
-  const fonts = new Set([theme.fonts.heading, theme.fonts.body])
-
-  // Scan all sections for custom fonts in fieldStyles
-  content.sections.forEach(section => {
-    if (section.fieldStyles) {
-      Object.values(section.fieldStyles).forEach(fieldStyle => {
-        if (fieldStyle.fontFamily && typeof fieldStyle.fontFamily === 'string') {
-          fonts.add(fieldStyle.fontFamily)
-        }
-      })
-    }
-  })
 
   const fontLinks = Array.from(fonts)
     .filter(f => f && !f.includes('system'))

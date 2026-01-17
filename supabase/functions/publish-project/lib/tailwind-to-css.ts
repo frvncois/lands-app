@@ -55,6 +55,10 @@ const STATIC_MAP: Record<string, Record<string, string>> = {
 
   // Margin
   'mx-auto': { marginLeft: 'auto', marginRight: 'auto' },
+  'ml-auto': { marginLeft: 'auto' },
+  'mr-auto': { marginRight: 'auto' },
+  'mt-auto': { marginTop: 'auto' },
+  'mb-auto': { marginBottom: 'auto' },
   'm-0': { margin: '0' },
 
   // Text
