@@ -7,7 +7,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed, shallowRef, watch, nextTick, toRaw } from 'vue'
+import { ref, computed, shallowRef, watch, nextTick } from 'vue'
 import type {
   SectionInstance,
   Theme,
@@ -235,8 +235,8 @@ export const useEditorStore = defineStore('editor', () => {
       history.value = history.value.slice(0, historyIndex.value + 1)
     }
 
-    // Add current state
-    history.value.push(structuredClone(toRaw(sections.value)))
+    // Add current state - use JSON serialization to strip all reactivity
+    history.value.push(JSON.parse(JSON.stringify(sections.value)))
     historyIndex.value = history.value.length - 1
 
     // Limit history size
@@ -251,15 +251,21 @@ export const useEditorStore = defineStore('editor', () => {
   function undo() {
     if (!canUndo.value) return
     historyIndex.value--
-    sections.value = structuredClone(history.value[historyIndex.value])
-    isDirty.value = true
+    const historyState = history.value[historyIndex.value]
+    if (historyState) {
+      sections.value = JSON.parse(JSON.stringify(historyState))
+      isDirty.value = true
+    }
   }
 
   function redo() {
     if (!canRedo.value) return
     historyIndex.value++
-    sections.value = structuredClone(history.value[historyIndex.value])
-    isDirty.value = true
+    const historyState = history.value[historyIndex.value]
+    if (historyState) {
+      sections.value = JSON.parse(JSON.stringify(historyState))
+      isDirty.value = true
+    }
   }
 
   // ============================================
@@ -285,8 +291,8 @@ export const useEditorStore = defineStore('editor', () => {
     translations.value = content.translations || {}
     currentLanguage.value = null
 
-    // Initialize history
-    history.value = [structuredClone(toRaw(sections.value))]
+    // Initialize history - use JSON serialization to strip all reactivity
+    history.value = [JSON.parse(JSON.stringify(sections.value))]
     historyIndex.value = 0
     isDirty.value = false
     activeNode.value = null
@@ -452,11 +458,13 @@ export const useEditorStore = defineStore('editor', () => {
     const index = sections.value.findIndex(s => s.id === id)
     if (index === -1) return null
 
+    const original = sections.value[index]
+    if (!original) return null
+
     pushHistory()
 
-    const original = sections.value[index]
     const duplicate: SectionInstance = {
-      ...structuredClone(toRaw(original)),
+      ...JSON.parse(JSON.stringify(original)),
       id: generateId(),
     }
     ensureSectionItemIds(duplicate)
@@ -679,10 +687,8 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   function updateSectionStyle(id: string, styleKey: string, value: unknown) {
-    console.log('[STORE updateSectionStyle]', { id, styleKey, value })
     const section = sections.value.find(s => s.id === id)
     if (!section) {
-      console.log('[STORE] Section not found:', id)
       return false
     }
 
@@ -695,7 +701,6 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Update the specific style property
     ;(section.styles as Record<string, unknown>)[styleKey] = value
-    console.log('[STORE] Updated section.styles:', section.styles)
 
     return true
   }
@@ -807,7 +812,7 @@ export const useEditorStore = defineStore('editor', () => {
     pushHistory()
 
     // Deep clone the item
-    const duplicate = structuredClone(toRaw(items[index])) as Record<string, unknown>
+    const duplicate = JSON.parse(JSON.stringify(items[index])) as Record<string, unknown>
     duplicate.id = generateId()
     ensureNestedRepeaterIds(duplicate, repeaterField.itemSchema)
     items.splice(index + 1, 0, duplicate)

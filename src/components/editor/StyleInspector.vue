@@ -3,9 +3,10 @@
  * STYLE INSPECTOR
  *
  * Right sidebar with breadcrumb navigation:
- * - [Style] -> Theme selection + color/font customization
- * - [Style] > [Section] -> Section style settings
- * - [Style] > [Section] > [Item] -> Repeater item editing
+ * - [General] -> Global theme customization (colors, typography)
+ * - [Section] -> Section style settings
+ * - [Section] > [Field] -> Field-specific settings
+ * - [Section] > [Repeater] > [Item] -> Repeater item editing
  */
 
 import { computed, ref } from 'vue'
@@ -684,19 +685,15 @@ function deleteItem() {
     <div class="flex items-center gap-1.5 h-14 px-4 py-3 border-b border-border">
       <button
         class="text-sm font-semibold transition-colors"
-        :class="selectedSection ? 'text-muted-foreground hover:text-foreground' : 'text-foreground'"
-        @click="goToThemes"
+        :class="[
+          activeFieldPath ? 'text-muted-foreground hover:text-foreground' : 'text-foreground',
+          activeFieldPath ? 'cursor-pointer' : 'cursor-default'
+        ]"
+        @click="activeFieldPath ? goToSection() : undefined"
       >
-        Style
+        {{ selectedSection && selectedDefinition ? selectedDefinition.displayName : 'General' }}
       </button>
       <template v-if="selectedSection && selectedDefinition">
-        <button
-          class="flex items-center gap-1.5 text-xs transition-colors border py-1 px-2 rounded-md hover:bg-accent/50"
-          :class="activeFieldPath ? 'text-muted-foreground hover:text-foreground' : 'text-foreground'"
-          @click="goToSection"
-        >
-          {{ selectedDefinition.displayName }}
-        </button>
         <!-- Repeater breadcrumb (with or without item selected) -->
         <template v-if="activeRepeaterField">
           <button
@@ -2065,43 +2062,6 @@ function deleteItem() {
 
       <!-- No Section Selected: Show themes and customization -->
       <template v-else>
-        <!-- Theme Preset -->
-        <div class="px-4 py-4">
-          <div class="mb-4">
-            <span class="text-xs font-medium tracking-wide text-foreground">
-              Theme
-            </span>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <button
-              v-for="theme in themes"
-              :key="theme.id"
-              class="flex items-center gap-3 w-full p-2.5 rounded-lg text-left transition-colors"
-              :class="[
-                currentTheme.id === theme.id
-                  ? 'border-2 border-primary bg-muted'
-                  : 'border-2 border-transparent hover:bg-muted'
-              ]"
-              @click="selectTheme(theme.id)"
-            >
-              <div
-                class="w-10 h-7 rounded border flex items-end p-1 shrink-0"
-                :style="{
-                  backgroundColor: theme.tokens.colors.background,
-                  borderColor: theme.tokens.colors.border
-                }"
-              >
-                <div
-                  class="w-1/2 h-1.5 rounded-sm"
-                  :style="{ backgroundColor: theme.tokens.colors.primary }"
-                />
-              </div>
-              <span class="text-sm font-medium text-foreground">{{ theme.name }}</span>
-            </button>
-          </div>
-        </div>
-
         <!-- Color Palette -->
         <div class="px-4 py-4">
           <div class="mb-4">
@@ -2166,6 +2126,14 @@ function deleteItem() {
                 </template>
               </Popover>
             </div>
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <div class="px-4 py-4">
+          <div class="p-3 rounded-lg bg-muted/30 border border-border">
+            <p class="text-xs font-medium text-foreground mb-1">Did you know?</p>
+            <p class="text-xs text-muted-foreground leading-relaxed">Select an element to access its design options</p>
           </div>
         </div>
       </template>

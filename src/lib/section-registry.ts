@@ -69,7 +69,15 @@ export interface HeroData {
   media?: HeroMedia
 }
 
-
+// --- Content ---
+export interface ContentData {
+  headline?: string
+  subheadline?: string
+  paragraph?: string
+  primaryCTA?: CTAData
+  secondaryCTA?: CTAData
+  media?: HeroMedia
+}
 
 // --- Cards ---
 export interface CardItem {
@@ -303,6 +311,14 @@ const heroSchema: FieldSchema[] = [
   { type: 'media', key: 'media', label: 'Media', typeKey: 'media.type' },
 ]
 
+const contentSchema: FieldSchema[] = [
+  { type: 'text', key: 'headline', label: 'Headline', placeholder: 'Your headline' },
+  { type: 'text', key: 'subheadline', label: 'Subheadline', placeholder: 'Supporting text' },
+  { type: 'richText', key: 'paragraph', label: 'Paragraph' },
+  { type: 'link', key: 'primaryCTA', label: 'Primary Button' },
+  { type: 'link', key: 'secondaryCTA', label: 'Secondary Button' },
+  { type: 'media', key: 'media', label: 'Media', typeKey: 'media.type' },
+]
 
 const cardsSchema: FieldSchema[] = [
   { type: 'text', key: 'headline', label: 'Headline' },
@@ -577,6 +593,35 @@ const heroSection: SectionDefinition<HeroData> = {
   }),
 }
 
+const contentSection: SectionDefinition<ContentData> = {
+  type: 'content',
+  displayName: 'Content',
+  icon: 'section-text',
+  description: 'Content section with headline, media, and call-to-action',
+  useCase: 'About sections, explanatory text, editorial content',
+  previewImage: '/previews/content.png',
+  defaultVariant: 'stacked',
+  variants: [
+    { id: 'stacked', label: 'Stacked' },
+    { id: 'overlay', label: 'Overlay' },
+    { id: 'split', label: 'Split' },
+    { id: 'presentation', label: 'Presentation' },
+  ],
+  fieldOrder: {
+    stacked: ['headline', 'subheadline', 'media', 'paragraph', 'primaryCTA', 'secondaryCTA'],
+    overlay: ['media', 'headline', 'subheadline', 'paragraph', 'primaryCTA', 'secondaryCTA'],
+    split: ['media', 'headline', 'subheadline', 'paragraph', 'primaryCTA', 'secondaryCTA'],
+    presentation: ['media', 'headline', 'primaryCTA', 'secondaryCTA', 'subheadline', 'paragraph'],
+  },
+  schema: contentSchema,
+  component: defineAsyncComponent(() => import('@/components/sections/ContentSection.vue')),
+  createDefaultData: () => ({
+    headline: 'Section Headline',
+    subheadline: 'A supporting subheadline',
+    paragraph: 'Add your content here. This section is perfect for explanatory text, about sections, or any text-heavy content.',
+    primaryCTA: { label: 'Learn More', url: '#' },
+  }),
+}
 
 const cardsSection: SectionDefinition<CardsData> = {
   type: 'cards',
@@ -1018,6 +1063,7 @@ const productsSection: SectionDefinition<ProductsData> = {
 export const sectionRegistry = new Map<string, SectionDefinition>([
   ['header', headerSection as unknown as SectionDefinition],
   ['hero', heroSection as unknown as SectionDefinition],
+  ['content', contentSection as unknown as SectionDefinition],
   ['cards', cardsSection as unknown as SectionDefinition],
   ['products', productsSection as unknown as SectionDefinition],
   ['cta', ctaSection as unknown as SectionDefinition],

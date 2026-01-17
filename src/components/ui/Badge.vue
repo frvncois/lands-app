@@ -69,7 +69,7 @@ const shadowStyle = computed(() => ({
 
 <template>
   <span :class="classes" :style="shadowStyle">
-    <span v-if="dot" class="w-1 h-1 rounded-full" :class="dotColors[variant]"></span>
+    <span v-if="dot" class="w-1 h-1 rounded-full" :class="dotColors[variant]"/>
     <slot />
   </span>
 </template>

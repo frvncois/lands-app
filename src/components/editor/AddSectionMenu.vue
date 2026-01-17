@@ -25,6 +25,8 @@ const menuPosition = ref({ top: 0, left: 0 })
 const hoveredSection = ref<SectionDefinition | null>(null)
 const hoveredSectionElement = ref<HTMLElement | null>(null)
 const popoverPosition = ref({ top: 0, left: 0 })
+const popoverRef = ref<HTMLElement | null>(null)
+const hidePopoverTimeout = ref<number | null>(null)
 
 const showPopover = computed(() => hoveredSection.value !== null)
 
@@ -54,27 +56,65 @@ function toggle() {
 
 function close() {
   isOpen.value = false
+  // Clear any pending timeout
+  if (hidePopoverTimeout.value) {
+    clearTimeout(hidePopoverTimeout.value)
+    hidePopoverTimeout.value = null
+  }
   // Force close the section details popover
   hoveredSection.value = null
   hoveredSectionElement.value = null
 }
 
 function handleClickOutside(e: MouseEvent) {
-  if (isOpen.value && buttonRef.value && !buttonRef.value.contains(e.target as Node)) {
-    const menu = document.getElementById('add-section-menu')
-    if (menu && !menu.contains(e.target as Node)) {
-      close()
-    }
-  }
+  if (!isOpen.value) return
+
+  const target = e.target as Node
+
+  // Don't close if clicking the button
+  if (buttonRef.value?.contains(target)) return
+
+  // Don't close if clicking inside the menu
+  const menu = document.getElementById('add-section-menu')
+  if (menu?.contains(target)) return
+
+  // Don't close if clicking inside the popover
+  if (popoverRef.value?.contains(target)) return
+
+  // Close if clicking anywhere else (including canvas)
+  close()
 }
 
 function handleSectionHover(section: SectionDefinition, event: MouseEvent) {
+  // Clear any pending hide timeout
+  if (hidePopoverTimeout.value) {
+    clearTimeout(hidePopoverTimeout.value)
+    hidePopoverTimeout.value = null
+  }
+
   hoveredSection.value = section
   hoveredSectionElement.value = event.currentTarget as HTMLElement
   updatePopoverPosition()
 }
 
 function handleSectionLeave() {
+  // Delay hiding to allow moving mouse to the popover
+  hidePopoverTimeout.value = window.setTimeout(() => {
+    hoveredSection.value = null
+    hoveredSectionElement.value = null
+  }, 150)
+}
+
+function handlePopoverEnter() {
+  // Cancel hiding when mouse enters the popover
+  if (hidePopoverTimeout.value) {
+    clearTimeout(hidePopoverTimeout.value)
+    hidePopoverTimeout.value = null
+  }
+}
+
+function handlePopoverLeave() {
+  // Hide immediately when leaving the popover
   hoveredSection.value = null
   hoveredSectionElement.value = null
 }
@@ -104,11 +144,18 @@ watch(isOpen, (newValue) => {
 })
 
 onMounted(() => {
+  // Use capture phase to ensure we catch clicks even if something stops propagation
+  document.addEventListener('mousedown', handleClickOutside, true)
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
+  document.removeEventListener('mousedown', handleClickOutside, true)
   document.removeEventListener('click', handleClickOutside)
+  // Clear any pending timeout
+  if (hidePopoverTimeout.value) {
+    clearTimeout(hidePopoverTimeout.value)
+  }
 })
 </script>
 
@@ -167,8 +214,11 @@ onUnmounted(() => {
       >
         <div
           v-if="showPopover && hoveredSection"
+          ref="popoverRef"
           class="fixed w-64 bg-popover border border-border rounded-xl shadow-xl z-[101] p-4"
           :style="{ top: popoverPosition.top + 'px', left: popoverPosition.left + 'px' }"
+          @mouseenter="handlePopoverEnter"
+          @mouseleave="handlePopoverLeave"
         >
           <div class="space-y-3">
             <div>

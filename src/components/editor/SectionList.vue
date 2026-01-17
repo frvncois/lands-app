@@ -377,7 +377,7 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
     </div>
 
     <!-- Section List -->
-    <div v-else class="flex-1 overflow-y-auto borderp-2">
+    <div v-else class="flex-1 overflow-y-auto p-2">
       <div
         v-for="(section, index) in sections"
         :key="section.id"

@@ -129,10 +129,7 @@ function removeFile() {
 }
 
 async function uploadFile() {
-  console.log('uploadFile called', { selectedFile: selectedFile.value, projectId: props.projectId })
-
   if (!selectedFile.value || !props.projectId) {
-    console.log('Missing file or projectId', { file: !!selectedFile.value, projectId: props.projectId })
     return
   }
 
@@ -147,8 +144,6 @@ async function uploadFile() {
     const fileName = `${timestamp}-${Math.random().toString(36).substring(7)}.${extension}`
     const filePath = `${props.projectId}/${fileName}`
 
-    console.log('Uploading to path:', filePath)
-
     // Upload to Supabase Storage
     const { data, error: uploadError } = await supabase.storage
       .from('uploads')
@@ -157,16 +152,12 @@ async function uploadFile() {
         upsert: false,
       })
 
-    console.log('Upload result:', { data, error: uploadError })
-
     if (uploadError) throw uploadError
 
     // Get public URL
     const { data: urlData } = supabase.storage
       .from('uploads')
       .getPublicUrl(data.path)
-
-    console.log('Public URL:', urlData.publicUrl)
 
     uploadProgress.value = 100
 

@@ -37,7 +37,7 @@ function handleSelect(projectId: string) {
         v-if="project.thumbnail"
         class="w-10 h-10 rounded bg-cover bg-center shrink-0 border border-border"
         :style="{ backgroundImage: `url(${project.thumbnail})` }"
-      ></div>
+      />
       <div
         v-else
         class="w-10 h-10 rounded bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground shrink-0"

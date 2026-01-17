@@ -23,7 +23,7 @@ const {
       v-if="showConnect && selected"
       class="fixed inset-0 z-[9999] flex items-center justify-center"
     >
-      <div class="absolute inset-0 bg-black/50" @click="closeConnect"></div>
+      <div class="absolute inset-0 bg-black/50" @click="closeConnect"/>
       <div class="relative bg-card border border-border rounded-lg shadow-xl w-full max-w-md p-6">
         <div class="flex items-center gap-3 mb-4">
           <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">

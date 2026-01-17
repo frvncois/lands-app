@@ -163,14 +163,14 @@ const documentationSections = [
                   class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600 border border-green-500/20"
                   style="box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);"
                 >
-                  <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"/>
                   {{ chatStatus.message }}
                 </span>
                 <span
                   v-else
                   class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border"
                 >
-                  <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground"/>
                   Offline
                   <span class="text-foreground/70">· {{ chatStatus.message }}</span>
                 </span>

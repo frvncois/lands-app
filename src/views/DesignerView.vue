@@ -106,7 +106,6 @@ watch(
 
     // CRITICAL: Abort if user navigated away during fetch
     if (cancelled) {
-      console.log('[DesignerView] Navigation occurred during load, aborting')
       return
     }
 

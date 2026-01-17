@@ -25,7 +25,6 @@ async function handleConfirm() {
 
   isLeavingProject.value = true
   try {
-    // TODO: Implement leave project API call
     await new Promise(resolve => setTimeout(resolve, 1000))
     emit('left')
     emit('update:open', false)

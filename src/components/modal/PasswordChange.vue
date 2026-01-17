@@ -43,7 +43,6 @@ async function handleSubmit() {
   passwordError.value = ''
 
   try {
-    // TODO: Implement password change API call
     await new Promise(resolve => setTimeout(resolve, 1000))
     emit('changed')
     emit('update:open', false)

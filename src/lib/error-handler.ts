@@ -107,11 +107,6 @@ export function handleError(
     // In production, log minimal info
     console.error(`[${context}] ${userMessage}`)
   }
-
-  // TODO: Send to error tracking service in production
-  // if (import.meta.env.PROD) {
-  //   Sentry.captureException(error, { tags: { context } })
-  // }
 }
 
 /**

@@ -52,13 +52,20 @@ export default {
     let siteKey = null
     let isCustomDomain = false
 
+    // Check for naked domain (lands.app or lands-app.pages.dev)
+    if (hostname === 'lands.app' || hostname === 'www.lands.app' || hostname === 'lands-app.pages.dev') {
+      return new Response(getSplashPage('Welcome to Lands', 'Create beautiful landing pages in minutes.'), {
+        status: 200,
+        headers: { 'Content-Type': 'text/html;charset=UTF-8', ...securityHeaders }
+      })
+    }
     // Check if this is a lands.app subdomain
-    if (hostname.endsWith('.lands.app') || hostname.endsWith('.lands-app.pages.dev')) {
+    else if (hostname.endsWith('.lands.app') || hostname.endsWith('.lands-app.pages.dev')) {
       const parts = hostname.split('.')
       const subdomain = parts[0]
 
-      // Skip for www, naked domain, or preview URLs
-      if (subdomain === 'www' || subdomain === 'lands' || subdomain === 'lands-app') {
+      // Skip for www subdomain
+      if (subdomain === 'www') {
         return new Response(getSplashPage('Welcome to Lands', 'Create beautiful landing pages in minutes.'), {
           status: 200,
           headers: { 'Content-Type': 'text/html;charset=UTF-8', ...securityHeaders }

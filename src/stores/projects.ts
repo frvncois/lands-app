@@ -179,8 +179,6 @@ export const useProjectsStore = defineStore('projects', () => {
     defaultContent.meta.title = title
 
     try {
-      console.log('createProject: Inserting project for user', userStore.authUser.id)
-
       // Insert project
       const { data, error: insertError } = await supabase
         .from('projects')
@@ -198,8 +196,6 @@ export const useProjectsStore = defineStore('projects', () => {
         console.error('createProject: Insert error', insertError)
         throw insertError
       }
-
-      console.log('createProject: Project created', data)
 
       // Insert default content (storing sections in blocks column, meta in page_settings)
       const { error: contentError } = await supabase.from('project_content').insert({

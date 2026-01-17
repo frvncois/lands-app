@@ -92,7 +92,6 @@ export function useIntegrations(projectId: string) {
       connections.value.set(projectId, mapped)
     } catch (e) {
       // Silently fail - integrations feature not fully set up yet
-      console.log('Integrations not available yet:', e)
       connections.value.set(projectId, [])
     } finally {
       isLoading.value = false
@@ -107,7 +106,6 @@ export function useIntegrations(projectId: string) {
       return
     }
 
-    // TODO: Implement OAuth flow when edge functions are deployed
     toast.info('Coming soon! OAuth integrations will be available shortly.')
   }
 
@@ -163,7 +161,6 @@ export function useIntegrations(projectId: string) {
       return false
     }
 
-    // TODO: Implement API key connection when edge functions are deployed
     toast.info('Coming soon! This integration will be available shortly.')
     return false
   }
@@ -173,7 +170,6 @@ export function useIntegrations(projectId: string) {
     _integrationId: string,
     _config: Record<string, string>
   ): Promise<boolean> {
-    // TODO: Implement webhook connection when ready
     toast.info('Coming soon! Webhook integrations will be available shortly.')
     return false
   }

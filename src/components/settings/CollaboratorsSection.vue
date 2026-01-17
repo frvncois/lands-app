@@ -126,7 +126,7 @@ async function handleResendInvite(inviteId: string) {
               >
                 {{ info.label }}
               </button>
-              <div class="border-t border-border my-1"></div>
+              <div class="border-t border-border my-1"/>
               <button
                 class="w-full px-3 py-2 text-left text-xs rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
                 @click="handleRemoveCollaborator(collaborator.id)"

@@ -64,7 +64,6 @@ export function useSectionContextMenu() {
   }
 
   function autoTranslate(sectionId: string) {
-    // TODO: Implement auto-translate via AI
     const section = editor.sections.find(s => s.id === sectionId)
     if (!section) return
     assistant.open()

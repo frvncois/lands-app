@@ -47,7 +47,7 @@ function handleClick() {
       <span
         v-if="isSelected"
         class="h-2.5 w-2.5 rounded-full bg-primary"
-      ></span>
+      />
     </div>
 
     <!-- Label and description -->

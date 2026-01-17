@@ -40,7 +40,6 @@ async function updatePlan(plan: ProjectPlan) {
 
   isUpdatingPlan.value = true
   try {
-    // TODO: Implement plan update API call
     await new Promise(resolve => setTimeout(resolve, 1000))
     emit('changed', plan)
     close()

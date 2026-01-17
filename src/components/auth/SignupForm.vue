@@ -108,7 +108,7 @@ async function handleOAuth(provider: 'google' | 'github') {
     <!-- Divider -->
     <div class="relative">
       <div class="absolute inset-0 flex items-center">
-        <span class="w-full border-t border-border"></span>
+        <span class="w-full border-t border-border"/>
       </div>
       <div class="relative flex justify-center">
         <span class="bg-background px-2 text-xs text-muted-foreground">Or continue with</span>

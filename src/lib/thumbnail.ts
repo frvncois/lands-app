@@ -170,6 +170,5 @@ export async function generateAndUploadThumbnail(
     return null
   }
 
-  console.info('[Thumbnail] Generated and uploaded:', url)
   return url
 }

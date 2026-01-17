@@ -59,7 +59,7 @@ const categoryData = computed(() =>
             <div class="flex items-center justify-between">
               <p class="text-sm font-medium text-foreground">{{ integration.name }}</p>
               <span v-if="isConnected?.(integration.id)" class="flex items-center gap-1 text-xs text-green-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500"/>
                 Connected
               </span>
             </div>

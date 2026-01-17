@@ -158,13 +158,16 @@ watch(projectSlug, (slug) => {
   }
 })
 
-// Handle manual slug input
-function onSlugInput(event: Event) {
-  hasManuallyEditedSlug.value = true
-  const input = event.target as HTMLInputElement
-  // Auto-format: lowercase and replace spaces with hyphens
-  projectSlug.value = input.value.toLowerCase().replace(/\s+/g, '-')
-}
+// Computed slug with auto-formatting
+const formattedSlug = computed({
+  get: () => projectSlug.value,
+  set: (value: string) => {
+    // Mark as manually edited when user types
+    hasManuallyEditedSlug.value = true
+    // Auto-format: lowercase and replace spaces with hyphens
+    projectSlug.value = value.toLowerCase().replace(/\s+/g, '-')
+  }
+})
 
 // Preview URL
 const previewUrl = computed(() => {
@@ -251,14 +254,13 @@ async function createProject() {
       <FormField label="Project slug">
         <div class="relative">
           <Input
-            :value="projectSlug"
+            v-model="formattedSlug"
             type="text"
             placeholder="my-landing-page"
             :disabled="isCreating"
             :class="[
               slugError ? 'border-destructive' : slugAvailable === true ? 'border-green-500' : ''
             ]"
-            @input="onSlugInput"
             @keyup.enter="createProject"
           />
           <!-- Status indicator -->

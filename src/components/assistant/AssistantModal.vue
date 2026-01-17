@@ -146,7 +146,7 @@ const canGoBack = computed(() => {
           <div class="flex items-center gap-2">
             <h3 class="text-sm font-medium">Assistant</h3>
             <!-- Loading spinner -->
-            <div v-if="assistantStore.isProcessing" class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <div v-if="assistantStore.isProcessing" class="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"/>
             <!-- New Chat button (chat mode only) -->
             <button
               v-if="chatMode === 'chat' && !assistantStore.isMinimized"

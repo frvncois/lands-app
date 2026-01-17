@@ -150,7 +150,7 @@ function isFieldHidden(fieldKey: string): boolean {
           class="flex-1 px-[var(--spacing-md)] py-[var(--spacing-sm)] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-input)] text-[var(--color-fg)] text-[length:var(--text-base)] font-[var(--font-body)] outline-none focus:border-[var(--color-primary)] transition-colors"
           :style="getFormInputStyle()"
           :disabled="!editable"
-        >
+        />
 
         <!-- Submit Button -->
         <a

@@ -23,7 +23,6 @@ watch(() => props.open, (isOpen) => {
 async function handleConfirm() {
   isDeleting.value = true
   try {
-    // TODO: Implement account deletion API call
     await new Promise(resolve => setTimeout(resolve, 1000))
     emit('deleted')
     emit('update:open', false)

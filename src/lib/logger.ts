@@ -22,7 +22,7 @@ function createLogger(namespace: string, options: LoggerOptions = {}) {
     if (!enabled) return
 
     const prefix = `[${namespace}]`
-    const timestamp = new Date().toISOString().split('T')[1].slice(0, 12)
+    const timestamp = new Date().toISOString().split('T')[1]?.slice(0, 12) ?? ''
 
     switch (level) {
       case 'debug':

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { PickerModal } from '@/components/ui/Modal'
-import { Button, Icon, Input } from '@/components/ui'
+import { Icon, Input } from '@/components/ui'
 import {
   icons,
   allLucideIconNames,

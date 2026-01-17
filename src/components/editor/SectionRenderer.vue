@@ -24,12 +24,6 @@ const emit = defineEmits<{
 
 const editor = useEditorStore()
 
-// STEP 1 — RAW PROJECT DUMP (EDITOR)
-console.log(
-  '[EDITOR_RAW_PROJECT]',
-  JSON.stringify(editor.sections, null, 2)
-)
-
 const definition = computed(() => getSectionDefinition(props.section.type))
 
 const sectionComponent = computed(() => definition.value?.component)

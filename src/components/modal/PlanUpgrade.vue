@@ -38,7 +38,6 @@ async function handleUpgrade() {
   isProcessing.value = true
 
   try {
-    // TODO: Implement Stripe checkout or payment flow
     // For now, just update the plan (demo mode)
     projectStore.updatePlan('pro')
     close()

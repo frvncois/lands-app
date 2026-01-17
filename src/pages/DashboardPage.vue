@@ -5,7 +5,7 @@ import { useProjectsStore } from '@/stores/projects'
 import { useUserStore } from '@/stores/user'
 import type { Project } from '@/types/project'
 
-import { Header, Card, Button, Icon, Badge } from '@/components/ui'
+import { Header, Button, Icon, Badge } from '@/components/ui'
 import { ProjectsGrid, ProjectsEmpty, ProjectsSkeleton } from '@/features/projects'
 
 // Lazy load modals for better performance
@@ -95,136 +95,143 @@ function handleDeleted() {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto p-10">
-    <!-- Header (shown when loading or has projects) -->
-    <Header
-      v-if="isLoading || projects.length"
-      :title="`Welcome, ${userName}`"
-      description="Manage and create your landing pages."
-      button="New Project"
-      @button-click="handleCreate"
-    />
+  <div class="flex h-full">
+    <!-- Left Sidebar: Resources & Support -->
+    <aside class="w-[260px] bg-sidebar-background border-r border-border overflow-y-auto">
+      <div class="p-6 space-y-6">
+        <div>
+          <h2 class="text-sm font-semibold text-foreground mb-1">Resources & Support</h2>
+          <p class="text-xs text-muted-foreground">Learn, get help, and make the most of Lands.</p>
+        </div>
 
-    <!-- Loading State -->
-    <ProjectsSkeleton v-if="isLoading" />
-
-    <!-- Projects Grid -->
-    <ProjectsGrid
-      v-else-if="projects.length"
-      :projects="projects"
-      @delete="handleDelete"
-    />
-
-    <!-- Load More Button -->
-    <div
-      v-if="projectsStore.hasMoreProjects && !isLoading"
-      class="flex justify-center mt-8"
-    >
-      <Button
-        variant="outline"
-        :loading="projectsStore.isLoading"
-        @click="projectsStore.loadMoreProjects"
-      >
-        Load more projects
-      </Button>
-    </div>
-
-    <!-- Empty State -->
-    <ProjectsEmpty v-else-if="!projects.length && !isLoading" @create="handleCreate" />
-
-    <!-- Resources Section -->
-    <div v-if="!isLoading" class="mt-12 pt-10 border-t border-border">
-      <h2 class="text-lg font-semibold text-foreground mb-1">Resources & Support</h2>
-      <p class="text-sm text-muted-foreground mb-6">Learn, get help, and make the most of Lands.</p>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <!-- Learn Lands -->
-        <Card class="group hover:border-primary/30 transition-colors cursor-pointer" @click="router.push({ name: 'support', query: { tab: 'documentation' } })">
-          <Card.Content class="p-5">
-            <div class="flex items-start gap-4">
-              <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                <Icon name="lni-book-1" class="text-xl text-blue-500" />
-              </div>
-              <div>
-                <h3 class="font-medium text-foreground mb-1 group-hover:text-primary transition-colors">Learn how to use Lands</h3>
-                <p class="text-xs text-muted-foreground">Guides, tutorials, and tips to build beautiful landing pages.</p>
-              </div>
+        <button
+          class="w-full text-left group"
+          @click="router.push({ name: 'support', query: { tab: 'documentation' } })"
+        >
+          <div class="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+              <Icon name="lni-book-1" class="text-base text-blue-500" />
             </div>
-          </Card.Content>
-        </Card>
+            <div class="min-w-0">
+              <h3 class="text-xs font-medium text-foreground mb-0.5 group-hover:text-primary transition-colors">Learn Lands</h3>
+              <p class="text-[10px] text-muted-foreground leading-tight">Guides and tutorials</p>
+            </div>
+          </div>
+        </button>
 
         <!-- Chat with us -->
-        <Card class="group hover:border-primary/30 transition-colors cursor-pointer" @click="showChat = true">
-          <Card.Content class="p-5">
-            <div class="flex items-start gap-4">
-              <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Icon name="lni-comment-1-text" class="text-xl text-primary" />
-              </div>
-              <div>
-                <h3 class="font-medium text-foreground mb-1 group-hover:text-primary transition-colors">Chat with us</h3>
-                <p class="text-xs text-muted-foreground">Get quick answers from our support team.</p>
-              </div>
+        <button
+          class="w-full text-left group"
+          @click="showChat = true"
+        >
+          <div class="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Icon name="lni-comment-1-text" class="text-base text-primary" />
             </div>
-          </Card.Content>
-        </Card>
+            <div class="min-w-0">
+              <h3 class="text-xs font-medium text-foreground mb-0.5 group-hover:text-primary transition-colors">Chat with us</h3>
+              <p class="text-[10px] text-muted-foreground leading-tight">Quick support answers</p>
+            </div>
+          </div>
+        </button>
 
         <!-- Book a session -->
-        <Card class="group hover:border-primary/30 transition-colors cursor-pointer" @click="router.push({ name: 'support' })">
-          <Card.Content class="p-5">
-            <div class="flex items-start gap-4">
-              <div class="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                <Icon name="lni-video-1" class="text-xl text-green-500" />
-              </div>
-              <div>
-                <div class="flex items-center gap-2 mb-1">
-                  <h3 class="font-medium text-foreground group-hover:text-primary transition-colors">Book a free session</h3>
-                  <Badge variant="success" size="xs">Free</Badge>
-                </div>
-                <p class="text-xs text-muted-foreground">30-min training or 1-hour setup with our team.</p>
-              </div>
+        <button
+          class="w-full text-left group"
+          @click="router.push({ name: 'support' })"
+        >
+          <div class="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors">
+            <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+              <Icon name="lni-video-1" class="text-base text-green-500" />
             </div>
-          </Card.Content>
-        </Card>
-      </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <h3 class="text-xs font-medium text-foreground group-hover:text-primary transition-colors">Book a session</h3>
+                <Badge variant="success" size="xs">Free</Badge>
+              </div>
+              <p class="text-[10px] text-muted-foreground leading-tight">30-min training or setup</p>
+            </div>
+          </div>
+        </button>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Divider -->
+        <div class="border-t border-border" />
+
         <!-- Did you know -->
-        <Card class="bg-muted/30">
-          <Card.Content class="p-5">
-            <div class="flex items-start gap-3">
-              <div class="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-                <Icon name="lni-bulb-1" class="text-lg text-amber-500" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Did you know?</p>
-                <p class="text-sm text-foreground">{{ currentTip }}</p>
-              </div>
+        <div class="p-3 rounded-lg bg-muted/30">
+          <div class="flex items-start gap-2">
+            <div class="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+              <Icon name="lni-bulb-1" class="text-sm text-amber-500" />
             </div>
-          </Card.Content>
-        </Card>
+            <div class="min-w-0">
+              <p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Did you know?</p>
+              <p class="text-xs text-foreground leading-tight">{{ currentTip }}</p>
+            </div>
+          </div>
+        </div>
 
         <!-- Pro Plan CTA -->
-        <Card class="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-          <Card.Content class="p-5">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <div class="flex items-center gap-2 mb-1">
-                  <h3 class="font-medium text-foreground">Upgrade to Pro</h3>
-                  <Badge variant="default" size="xs">$6/mo per project</Badge>
-                </div>
-                <p class="text-xs text-muted-foreground mb-3">
-                  Plans are per-project, so you only pay for what you need. Get custom domains, remove watermarks, analytics, integrations, and more.
-                </p>
-                <Button size="sm" variant="outline" @click="router.push({ name: 'support' })">
-                  Learn more
-                </Button>
-              </div>
-              <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Icon name="lni-crown-1" class="text-xl text-primary" />
-              </div>
+        <div class="p-3 rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          <div class="flex items-start gap-2 mb-2">
+            <div class="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Icon name="lni-crown-1" class="text-sm text-primary" />
             </div>
-          </Card.Content>
-        </Card>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <h3 class="text-xs font-medium text-foreground">Upgrade to Pro</h3>
+                <Badge variant="default" size="xs">$6/mo</Badge>
+              </div>
+              <p class="text-[10px] text-muted-foreground leading-tight mb-2">
+                Per-project plans. Custom domains, analytics, and more.
+              </p>
+              <Button size="sm" variant="outline" class="w-full text-xs h-7" @click="router.push({ name: 'support' })">
+                Learn more
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="mx-auto py-10 px-40">
+        <!-- Header (shown when loading or has projects) -->
+        <Header
+          v-if="isLoading || projects.length"
+          :title="`Welcome, ${userName}`"
+          description="Manage and create your landing pages."
+          button="New Project"
+          @button-click="handleCreate"
+        />
+
+        <!-- Loading State -->
+        <ProjectsSkeleton v-if="isLoading" />
+
+        <!-- Projects Grid -->
+        <ProjectsGrid
+          v-else-if="projects.length"
+          :projects="projects"
+          @delete="handleDelete"
+        />
+
+        <!-- Load More Button -->
+        <div
+          v-if="projectsStore.hasMoreProjects && !isLoading"
+          class="flex justify-center mt-8"
+        >
+          <Button
+            variant="outline"
+            :loading="projectsStore.isLoading"
+            @click="projectsStore.loadMoreProjects"
+          >
+            Load more projects
+          </Button>
+        </div>
+
+        <!-- Empty State -->
+        <ProjectsEmpty v-else-if="!projects.length && !isLoading" @create="handleCreate" />
       </div>
     </div>
   </div>

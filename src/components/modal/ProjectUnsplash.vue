@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { PickerModal } from '@/components/ui/Modal'
 import { Button, Spinner, Icon, Input } from '@/components/ui'

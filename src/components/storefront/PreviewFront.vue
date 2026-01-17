@@ -3,7 +3,7 @@
 
 <template>
     <section>
-        <div class="preview"></div>
+        <div class="preview"/>
     </section>
 </template>
 

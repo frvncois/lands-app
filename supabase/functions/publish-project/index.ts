@@ -64,7 +64,10 @@ const ALLOWED_ORIGINS = [
   'https://lands.app',
   'https://app.lands.app',
   'https://www.lands.app',
-  Deno.env.get('ALLOWED_ORIGIN'), // For local dev
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  Deno.env.get('ALLOWED_ORIGIN'), // For additional custom origins
 ].filter(Boolean) as string[]
 
 function getCorsHeaders(request: Request) {

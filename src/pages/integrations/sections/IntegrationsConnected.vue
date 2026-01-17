@@ -37,7 +37,7 @@ const { connectedIntegrations, openDisconnect } = useIntegrationsState(projectId
               <div>
                 <p class="text-sm font-medium text-foreground">{{ definition.name }}</p>
                 <div class="flex items-center gap-1.5 mt-0.5">
-                  <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-green-500"/>
                   <span class="text-xs text-muted-foreground">
                     {{ connection.accountInfo?.email || connection.accountInfo?.name || 'Connected' }}
                   </span>

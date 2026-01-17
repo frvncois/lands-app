@@ -110,7 +110,7 @@ function goToDashboard() {
     <div class="w-full max-w-md">
       <!-- Loading State -->
       <div v-if="isLoading" class="bg-card border border-border rounded-lg p-8 text-center">
-        <div class="w-10 h-10 mx-auto mb-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+        <div class="w-10 h-10 mx-auto mb-4 rounded-full border-2 border-primary border-t-transparent animate-spin"/>
         <p class="text-sm text-muted-foreground">Loading invite...</p>
       </div>
 

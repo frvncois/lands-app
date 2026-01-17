@@ -3,7 +3,6 @@ import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Router } from 'vue-router'
 import type { FlowId } from '@/lib/assistant/types'
-import { MAIN_MENU_OPTIONS, PROJECT_CONTEXT_OPTIONS } from '@/lib/assistant/flows'
 import { PROJECT_CATEGORIES } from '@/lib/assistant/categories'
 import { createProjectFromAssistant } from '@/lib/assistant/actions'
 import { useProjectsStore } from '@/stores/projects'
@@ -89,7 +88,6 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   // Actions
   function open() {
-    console.log('[ASSISTANT] open() called')
     isOpen.value = true
     isMinimized.value = false
     // Reset processing states when opening
@@ -103,7 +101,6 @@ export const useAssistantStore = defineStore('assistant', () => {
     flowData.value = {}
     flowStep.value = 0
 
-    console.log('[ASSISTANT] About to call initializeAssistant()')
     initializeAssistant()
   }
 
@@ -193,13 +190,6 @@ export const useAssistantStore = defineStore('assistant', () => {
   }
 
   function initializeAssistant() {
-    console.log('[ASSISTANT] initializeAssistant called', {
-      currentProjectId: currentProjectId.value,
-      routeContext: routeContext.value,
-      currentProject: currentProject.value,
-      messagesLength: messages.value.length
-    })
-
     // ALWAYS use chat mode - simple chat interface
     chatMode.value = 'chat'
 
@@ -207,18 +197,13 @@ export const useAssistantStore = defineStore('assistant', () => {
     let welcomeMessage = 'Hi! I can help you create and edit your landing pages. What would you like to do?'
 
     if (currentProjectId.value && routeContext.value === 'project' && currentProject.value) {
-      console.log('[ASSISTANT] Adding project-specific welcome')
       welcomeMessage = `Working on ${currentProject.value.title}. I can help you edit your page - just ask!`
-    } else {
-      console.log('[ASSISTANT] Adding generic welcome')
     }
 
     addMessage({
       role: 'assistant',
       content: welcomeMessage,
     })
-
-    console.log('[ASSISTANT] After addMessage, messagesLength:', messages.value.length)
 
     // Fallback: if messages still empty after 100ms, add a simple message
     setTimeout(() => {
@@ -597,8 +582,6 @@ export const useAssistantStore = defineStore('assistant', () => {
   }
 
   async function sendChatMessage(userMessage: string) {
-    console.log('[ASSISTANT] sendChatMessage called', { userMessage, currentProjectId: currentProjectId.value })
-
     if (!currentProjectId.value) {
       console.error('[ASSISTANT] No currentProjectId, aborting')
       return
@@ -615,21 +598,15 @@ export const useAssistantStore = defineStore('assistant', () => {
 
     try {
       // Build context
-      console.log('[ASSISTANT] Building context...')
       const context = buildAIContext()
-      console.log('[ASSISTANT] Context built:', context)
 
       // Call AI
-      console.log('[ASSISTANT] Calling AI...')
       const response = await sendProjectEditMessage(userMessage, context, chatHistory.value)
-      console.log('[ASSISTANT] AI response:', response)
 
       // Execute actions
       let executionSummary = ''
       if (response.actions.length > 0) {
-        console.log('[ASSISTANT] Executing actions:', response.actions)
         const result = await executeActions(response.actions)
-        console.log('[ASSISTANT] Execution result:', result)
         if (result.failed > 0) {
           executionSummary = `\n\n(${result.executed} actions succeeded, ${result.failed} failed)`
         } else if (result.executed > 0) {

@@ -2,7 +2,7 @@
     <section>
         <div class="cta">
             <div>
-                <h2>Start building<br>for</h2>
+                <h2>Start building<br/>for</h2>
             </div>
         </div>
         <ul>

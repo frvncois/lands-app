@@ -29,7 +29,7 @@ function switchMode(newMode: AuthMode) {
     <SignupForm v-else @switch-mode="switchMode('login')" />
 
     <p class="text-xxs text-center text-muted-foreground/50 px-4">
-      By continuing, you agree to our<br>
+      By continuing, you agree to our<br/>
       <a href="#" class="underline underline-offset-4 hover:text-foreground">Terms of Service</a>
       and
       <a href="#" class="underline underline-offset-4 hover:text-foreground">Privacy Policy</a>.

@@ -9,10 +9,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useEditorStore } from '@/stores/editor'
 import { useUserStore } from '@/stores/user'
+import { useToast } from '@/stores/toast'
 import { Button, Command, Dropdown, Icon, Badge } from '@/components/ui'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import ProjectPublished from '@/components/modal/ProjectPublished.vue'
-import ProjectCreateWizard from '@/components/modal/ProjectCreateWizard.vue'
 import ProjectTranslation from '@/components/modal/ProjectTranslation.vue'
 
 const route = useRoute()
@@ -20,6 +20,7 @@ const router = useRouter()
 const projectsStore = useProjectsStore()
 const editor = useEditorStore()
 const userStore = useUserStore()
+const toast = useToast()
 
 // Fetch projects on mount if not already loaded
 onMounted(() => {
@@ -29,9 +30,9 @@ onMounted(() => {
 })
 
 const showCommand = ref(false)
+const isSaving = ref(false)
 const isPublishing = ref(false)
 const showPublishedModal = ref(false)
-const showNewProjectModal = ref(false)
 const showTranslationModal = ref(false)
 const projectDropdownRef = ref<{ close: () => void } | null>(null)
 const userDropdownRef = ref<{ close: () => void } | null>(null)
@@ -106,21 +107,10 @@ function getProjectInitial(title: string) {
   return title.charAt(0).toUpperCase()
 }
 
-// Project route tabs (simplified)
-const projectTabs = computed(() => [
-  { name: 'designer', label: 'Editor', icon: 'app-designer' },
-  { name: 'settings', label: 'Settings', icon: 'app-settings' },
-])
-
 function navigateToProjectRoute(routeName: string) {
   if (projectId.value) {
     router.push({ name: routeName, params: { projectId: projectId.value } })
   }
-}
-
-function switchToProject(newProjectId: string) {
-  projectDropdownRef.value?.close()
-  router.push({ name: 'designer', params: { projectId: newProjectId } })
 }
 
 // Command item type
@@ -155,6 +145,22 @@ const commandItems = computed(() => {
   return items
 })
 
+async function handleSave() {
+  if (!projectId.value || isSaving.value) return
+
+  isSaving.value = true
+  try {
+    const content = editor.getPageContent()
+    const success = await projectsStore.saveProjectContent(projectId.value, content)
+    if (success) {
+      editor.isDirty = false
+      toast.success('Saved', 'Project saved successfully')
+    }
+  } finally {
+    isSaving.value = false
+  }
+}
+
 async function handlePublish() {
   if (!projectId.value || isPublishing.value) return
 
@@ -185,10 +191,6 @@ async function signOut() {
   await userStore.signOut()
   router.push({ name: 'auth' })
 }
-
-function onProjectCreated(newProjectId: string) {
-  router.push({ name: 'designer', params: { projectId: newProjectId } })
-}
 </script>
 
 <template>
@@ -202,85 +204,74 @@ function onProjectCreated(newProjectId: string) {
 
       <!-- Project Dropdown (when on project route) -->
       <template v-if="isProjectRoute && currentProject">
-        <Dropdown ref="projectDropdownRef" align="left" width="min-w-64">
+        <Dropdown ref="projectDropdownRef" align="left" width="min-w-80">
           <template #trigger="{ toggle }">
-            <Button variant="outline" size="sm" class="max-w-48" @click="toggle">
-              <span class="truncate">{{ currentProject.title }}</span>
-              <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0" />
+            <Button variant="outline" size="sm" class="min-w-[250px] !justify-between" @click="toggle">
+              <span class="truncate text-left flex-1">{{ currentProject.title }}</span>
+              <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0 ml-2" />
             </Button>
           </template>
 
-          <!-- Current project info -->
-          <div class="px-3 py-2 border-b border-border">
-            <div class="flex items-center gap-2">
+          <!-- Project Card -->
+          <div class="p-4">
+            <!-- Project Icon + Title -->
+            <div class="flex items-center gap-3 mb-3">
               <div
                 v-if="currentProject.thumbnail"
-                class="w-8 h-8 rounded bg-cover bg-center shrink-0 border border-border"
+                class="w-10 h-10 rounded bg-cover bg-center shrink-0 border border-border"
                 :style="{ backgroundImage: `url(${currentProject.thumbnail})` }"
-              ></div>
+              />
               <div
                 v-else
-                class="w-8 h-8 rounded bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground shrink-0"
+                class="w-10 h-10 rounded bg-secondary flex items-center justify-center text-sm font-semibold text-muted-foreground shrink-0"
               >
                 {{ getProjectInitial(currentProject.title) }}
               </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-foreground truncate">{{ currentProject.title }}</p>
-                <div class="flex items-center gap-1.5">
-                  <Badge :variant="currentProject.isPublished ? 'success' : 'secondary'" size="xs" dot>
-                    {{ currentProject.isPublished ? 'Published' : 'Draft' }}
-                  </Badge>
-                </div>
-              </div>
+              <p class="text-sm font-semibold text-foreground truncate flex-1">{{ currentProject.title }}</p>
             </div>
-          </div>
 
-          <!-- Other projects -->
-          <div class="py-1">
-            <p class="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Switch Project</p>
-            <div class="max-h-48 overflow-y-auto">
-              <button
-                v-for="project in projects.filter((p: any) => p.id !== currentProject?.id)"
-                :key="project.id"
-                class="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent transition-colors"
-                @click="switchToProject(project.id)"
+            <!-- Project Status -->
+            <div class="mb-3">
+              <Badge :variant="currentProject.isPublished ? 'success' : 'secondary'" size="sm" dot>
+                {{ currentProject.isPublished ? 'Published' : 'Draft' }}
+              </Badge>
+            </div>
+
+            <!-- Project URL -->
+            <div class="mb-4">
+              <a
+                :href="`https://${currentProject.slug}.lands.app`"
+                target="_blank"
+                class="text-xs text-primary hover:underline truncate block"
               >
-                <div
-                  v-if="project.thumbnail"
-                  class="w-6 h-6 rounded bg-cover bg-center shrink-0 border border-border"
-                  :style="{ backgroundImage: `url(${project.thumbnail})` }"
-                ></div>
-                <div
-                  v-else
-                  class="w-6 h-6 rounded bg-secondary flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0"
-                >
-                  {{ getProjectInitial(project.title) }}
-                </div>
-                <span class="flex-1 text-left truncate text-foreground">{{ project.title }}</span>
-              </button>
+                {{ currentProject.slug }}.lands.app
+              </a>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="flex gap-2">
+              <Button
+                :variant="route.name === 'designer' ? 'default' : 'outline'"
+                size="sm"
+                class="flex-1"
+                @click="projectDropdownRef?.close(); navigateToProjectRoute('designer')"
+              >
+                <Icon name="app-designer" :size="14" />
+                Editor
+              </Button>
+              <Button
+                :variant="route.name === 'settings' ? 'default' : 'outline'"
+                size="sm"
+                class="flex-1"
+                :data-tour="'settings'"
+                @click="projectDropdownRef?.close(); navigateToProjectRoute('settings')"
+              >
+                <Icon name="app-settings" :size="14" />
+                Settings
+              </Button>
             </div>
           </div>
-
-          <Dropdown.Divider />
-          <Dropdown.Item icon="plus" @click="projectDropdownRef?.close(); showNewProjectModal = true">
-            New Project
-          </Dropdown.Item>
         </Dropdown>
-
-        <!-- Route Tabs -->
-        <div class="flex items-center gap-1">
-          <Button
-            v-for="tab in projectTabs"
-            :key="tab.name"
-            variant="ghost"
-            size="sm"
-            :class="route.name === tab.name ? 'bg-accent text-foreground' : ''"
-            :data-tour="tab.name === 'settings' ? 'settings' : undefined"
-            @click="navigateToProjectRoute(tab.name)"
-          >
-            {{ tab.label }}
-          </Button>
-        </div>
       </template>
 
       <!-- Dashboard/Account label (when not on project route) -->
@@ -291,23 +282,8 @@ function onProjectCreated(newProjectId: string) {
       </template>
     </div>
 
-    <!-- Center: Search (non-project) or Editor Controls (project) -->
-    <div v-if="!isProjectRoute" class="flex items-center justify-center">
-      <button
-        class="flex items-center justify-between gap-4 min-w-72 h-9 px-4 bg-background border border-border rounded-lg text-sm text-muted-foreground hover:bg-accent/50 hover:border-border/80 transition-colors"
-        @click="showCommand = true"
-      >
-        <div class="flex items-center gap-2">
-          <Icon name="search-1" class="text-sm" />
-          <span>Search...</span>
-        </div>
-        <kbd class="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-          <span>⌘</span><span>K</span>
-        </kbd>
-      </button>
-    </div>
-
-    <div v-else-if="isDesignerRoute" class="flex items-center gap-4">
+    <!-- Center: Editor Controls (project routes only) -->
+    <div v-if="isDesignerRoute" class="flex items-center gap-4">
       <!-- Undo/Redo Buttons -->
       <div class="flex items-center gap-1">
         <button
@@ -427,6 +403,21 @@ function onProjectCreated(newProjectId: string) {
 
     <!-- Right: Actions + User Menu -->
     <div class="flex items-center gap-3 flex-1 justify-end">
+      <!-- Search (non-project routes only) -->
+      <button
+        v-if="!isProjectRoute"
+        class="flex items-center justify-between gap-4 min-w-72 h-9 px-4 bg-background border border-border rounded-lg text-sm text-muted-foreground hover:bg-accent/50 hover:border-border/80 transition-colors"
+        @click="showCommand = true"
+      >
+        <div class="flex items-center gap-2">
+          <Icon name="search-1" class="text-sm" />
+          <span>Search...</span>
+        </div>
+        <kbd class="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
+          <span>⌘</span><span>K</span>
+        </kbd>
+      </button>
+
       <!-- Project Route: Save + Publish -->
       <template v-if="isProjectRoute && currentProject">
         <!-- Save indicator -->
@@ -441,11 +432,22 @@ function onProjectCreated(newProjectId: string) {
               'w-1.5 h-1.5 rounded-full',
               editor.isDirty ? 'bg-orange-500' : 'bg-green-500'
             ]"
-          ></span>
+          />
           <span :class="editor.isDirty ? 'text-orange-500' : 'text-green-500'">
             {{ editor.isDirty ? 'Unsaved' : 'Saved' }}
           </span>
         </div>
+
+        <!-- Save Button -->
+        <Button
+          size="sm"
+          variant="secondary"
+          :loading="isSaving"
+          :disabled="!editor.isDirty"
+          @click="handleSave"
+        >
+          {{ isSaving ? 'Saving...' : 'Save' }}
+        </Button>
 
         <!-- Publish Button -->
         <Button size="sm" :loading="isPublishing" data-tour="publish" @click="handlePublish">
@@ -507,12 +509,6 @@ function onProjectCreated(newProjectId: string) {
     :project-id="currentProject.id"
     :project-slug="currentProject.slug"
     :custom-domain="currentProject.customDomain"
-  />
-
-  <!-- New Project Modal -->
-  <ProjectCreateWizard
-    v-model:open="showNewProjectModal"
-    @created="onProjectCreated"
   />
 
   <!-- Translation Modal -->

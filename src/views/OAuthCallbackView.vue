@@ -75,7 +75,7 @@ function goToIntegrations() {
       <!-- Processing -->
       <template v-if="status === 'processing'">
         <div class="w-16 h-16 mx-auto mb-6">
-          <div class="w-full h-full border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+          <div class="w-full h-full border-4 border-primary/20 border-t-primary rounded-full animate-spin"/>
         </div>
         <h1 class="text-xl font-semibold text-foreground mb-2">Connecting...</h1>
         <p class="text-sm text-muted-foreground">

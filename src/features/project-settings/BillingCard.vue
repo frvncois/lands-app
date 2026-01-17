@@ -61,7 +61,7 @@ function formatDate(dateString: string) {
                 <th class="text-left px-3 py-2 font-medium">Date</th>
                 <th class="text-left px-3 py-2 font-medium">Amount</th>
                 <th class="text-left px-3 py-2 font-medium">Status</th>
-                <th class="text-right px-3 py-2 font-medium"></th>
+                <th class="text-right px-3 py-2 font-medium"/>
               </tr>
             </thead>
             <tbody class="divide-y divide-border">
