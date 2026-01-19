@@ -99,67 +99,131 @@ function getSectionWireframeType(sectionType: string, variant: string): string {
                 backgroundColor: `${previewColors.primary}10`
               }"
             >
-              <div class="h-12 rounded-lg mb-4 transition-all duration-500" :style="{ backgroundColor: previewColors.primary, maxWidth: '80%' }" />
-              <div class="h-6 rounded-lg mb-8 transition-all duration-500" :style="{ backgroundColor: previewColors.accent, maxWidth: '60%', opacity: 0.6 }" />
-              <div class="h-12 w-40 rounded-lg transition-all duration-500" :style="{ backgroundColor: previewColors.accent }" />
+              <div
+                class="h-12 rounded-lg mb-4 transition-all duration-500"
+                :style="{ backgroundColor: previewColors.primary, maxWidth: '80%' }"
+              />
+              <div
+                class="h-6 rounded-lg mb-8 transition-all duration-500"
+                :style="{ backgroundColor: previewColors.accent, maxWidth: '60%', opacity: 0.6 }"
+              />
+              <div
+                class="h-12 w-40 rounded-lg transition-all duration-500"
+                :style="{ backgroundColor: previewColors.accent }"
+              />
             </div>
 
             <!-- Cards Section Wireframes -->
-            <div v-else-if="section.type === 'cards'" class="grid grid-cols-3 gap-4">
+            <div
+              v-else-if="section.type === 'cards'"
+              class="grid grid-cols-3 gap-4"
+            >
               <div
                 v-for="i in 3"
                 :key="`card-${i}`"
                 class="rounded-lg p-6 border-2 border-dashed transition-all duration-500"
                 :style="{ borderColor: previewColors.primary }"
               >
-                <div class="w-12 h-12 rounded-lg mb-4 transition-all duration-500" :style="{ backgroundColor: previewColors.primary }" />
-                <div class="h-4 rounded mb-2 transition-all duration-500" :style="{ backgroundColor: previewColors.accent }" />
-                <div class="h-3 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.4, maxWidth: '90%' }" />
+                <div
+                  class="w-12 h-12 rounded-lg mb-4 transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary }"
+                />
+                <div
+                  class="h-4 rounded mb-2 transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.accent }"
+                />
+                <div
+                  class="h-3 rounded transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary, opacity: 0.4, maxWidth: '90%' }"
+                />
               </div>
             </div>
 
             <!-- Products Section Wireframes -->
-            <div v-else-if="section.type === 'products'" class="grid grid-cols-3 gap-4">
+            <div
+              v-else-if="section.type === 'products'"
+              class="grid grid-cols-3 gap-4"
+            >
               <div
                 v-for="i in 3"
                 :key="`product-${i}`"
                 class="rounded-lg border-2 border-dashed transition-all duration-500 overflow-hidden"
                 :style="{ borderColor: previewColors.primary }"
               >
-                <div class="aspect-square transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }" />
+                <div
+                  class="aspect-square transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }"
+                />
                 <div class="p-4 space-y-2">
-                  <div class="h-4 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.accent, maxWidth: '80%' }" />
-                  <div class="h-3 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.4, maxWidth: '50%' }" />
+                  <div
+                    class="h-4 rounded transition-all duration-500"
+                    :style="{ backgroundColor: previewColors.accent, maxWidth: '80%' }"
+                  />
+                  <div
+                    class="h-3 rounded transition-all duration-500"
+                    :style="{ backgroundColor: previewColors.primary, opacity: 0.4, maxWidth: '50%' }"
+                  />
                 </div>
               </div>
             </div>
 
             <!-- Links Section Wireframes -->
-            <div v-else-if="section.type === 'links'" class="space-y-3">
+            <div
+              v-else-if="section.type === 'links'"
+              class="space-y-3"
+            >
               <div
                 v-for="i in 4"
                 :key="`link-${i}`"
                 class="rounded-lg p-4 border-2 border-dashed transition-all duration-500 flex items-center justify-between"
                 :style="{ borderColor: previewColors.primary }"
               >
-                <div class="h-4 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.accent, width: '40%' }" />
-                <div class="w-4 h-4 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.primary }" />
+                <div
+                  class="h-4 rounded transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.accent, width: '40%' }"
+                />
+                <div
+                  class="w-4 h-4 rounded transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary }"
+                />
               </div>
             </div>
 
             <!-- Contact Section Wireframes -->
-            <div v-else-if="section.type === 'contact'" class="rounded-xl p-10 border-2 border-dashed transition-all duration-500" :style="{ borderColor: previewColors.primary }">
-              <div class="h-8 rounded-lg mb-6 transition-all duration-500" :style="{ backgroundColor: previewColors.accent, maxWidth: '50%' }" />
+            <div
+              v-else-if="section.type === 'contact'"
+              class="rounded-xl p-10 border-2 border-dashed transition-all duration-500"
+              :style="{ borderColor: previewColors.primary }"
+            >
+              <div
+                class="h-8 rounded-lg mb-6 transition-all duration-500"
+                :style="{ backgroundColor: previewColors.accent, maxWidth: '50%' }"
+              />
               <div class="space-y-4">
-                <div class="h-10 rounded-lg transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }" />
-                <div class="h-10 rounded-lg transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }" />
-                <div class="h-24 rounded-lg transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }" />
-                <div class="h-10 w-32 rounded-lg transition-all duration-500" :style="{ backgroundColor: previewColors.accent }" />
+                <div
+                  class="h-10 rounded-lg transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }"
+                />
+                <div
+                  class="h-10 rounded-lg transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }"
+                />
+                <div
+                  class="h-24 rounded-lg transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary, opacity: 0.2 }"
+                />
+                <div
+                  class="h-10 w-32 rounded-lg transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.accent }"
+                />
               </div>
             </div>
 
             <!-- Gallery Section Wireframes -->
-            <div v-else-if="section.type === 'gallery'" class="grid grid-cols-4 gap-3">
+            <div
+              v-else-if="section.type === 'gallery'"
+              class="grid grid-cols-4 gap-3"
+            >
               <div
                 v-for="i in 8"
                 :key="`gallery-${i}`"
@@ -169,22 +233,40 @@ function getSectionWireframeType(sectionType: string, variant: string): string {
             </div>
 
             <!-- Accordion Section Wireframes -->
-            <div v-else-if="['faq', 'menu', 'events', 'services'].includes(section.type)" class="space-y-3">
+            <div
+              v-else-if="['faq', 'menu', 'events', 'services'].includes(section.type)"
+              class="space-y-3"
+            >
               <div
                 v-for="i in 4"
                 :key="`accordion-${i}`"
                 class="rounded-lg p-4 border-2 border-dashed transition-all duration-500"
                 :style="{ borderColor: previewColors.primary }"
               >
-                <div class="h-4 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.accent, maxWidth: '60%' }" />
+                <div
+                  class="h-4 rounded transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.accent, maxWidth: '60%' }"
+                />
               </div>
             </div>
 
             <!-- Generic Section Fallback -->
-            <div v-else class="rounded-xl p-10 border-2 border-dashed transition-all duration-500" :style="{ borderColor: previewColors.primary }">
-              <div class="h-8 rounded-lg mb-6 transition-all duration-500" :style="{ backgroundColor: previewColors.accent, maxWidth: '50%' }" />
+            <div
+              v-else
+              class="rounded-xl p-10 border-2 border-dashed transition-all duration-500"
+              :style="{ borderColor: previewColors.primary }"
+            >
+              <div
+                class="h-8 rounded-lg mb-6 transition-all duration-500"
+                :style="{ backgroundColor: previewColors.accent, maxWidth: '50%' }"
+              />
               <div class="space-y-3">
-                <div v-for="i in 3" :key="`line-${i}`" class="h-4 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.3 }" />
+                <div
+                  v-for="i in 3"
+                  :key="`line-${i}`"
+                  class="h-4 rounded transition-all duration-500"
+                  :style="{ backgroundColor: previewColors.primary, opacity: 0.3 }"
+                />
               </div>
             </div>
           </div>
@@ -200,9 +282,18 @@ function getSectionWireframeType(sectionType: string, variant: string): string {
               backgroundColor: `${previewColors.primary}10`
             }"
           >
-            <div class="h-12 rounded-lg mb-4 transition-all duration-500" :style="{ backgroundColor: previewColors.primary, maxWidth: '80%' }" />
-            <div class="h-6 rounded-lg mb-8 transition-all duration-500" :style="{ backgroundColor: previewColors.accent, maxWidth: '60%', opacity: 0.6 }" />
-            <div class="h-12 w-40 rounded-lg transition-all duration-500" :style="{ backgroundColor: previewColors.accent }" />
+            <div
+              class="h-12 rounded-lg mb-4 transition-all duration-500"
+              :style="{ backgroundColor: previewColors.primary, maxWidth: '80%' }"
+            />
+            <div
+              class="h-6 rounded-lg mb-8 transition-all duration-500"
+              :style="{ backgroundColor: previewColors.accent, maxWidth: '60%', opacity: 0.6 }"
+            />
+            <div
+              class="h-12 w-40 rounded-lg transition-all duration-500"
+              :style="{ backgroundColor: previewColors.accent }"
+            />
           </div>
 
           <!-- Features wireframe (3 cards) -->
@@ -213,9 +304,18 @@ function getSectionWireframeType(sectionType: string, variant: string): string {
               class="rounded-lg p-6 border-2 border-dashed transition-all duration-500"
               :style="{ borderColor: previewColors.primary }"
             >
-              <div class="w-12 h-12 rounded-lg mb-4 transition-all duration-500" :style="{ backgroundColor: previewColors.primary }" />
-              <div class="h-4 rounded mb-2 transition-all duration-500" :style="{ backgroundColor: previewColors.accent }" />
-              <div class="h-3 rounded transition-all duration-500" :style="{ backgroundColor: previewColors.primary, opacity: 0.4, maxWidth: '90%' }" />
+              <div
+                class="w-12 h-12 rounded-lg mb-4 transition-all duration-500"
+                :style="{ backgroundColor: previewColors.primary }"
+              />
+              <div
+                class="h-4 rounded mb-2 transition-all duration-500"
+                :style="{ backgroundColor: previewColors.accent }"
+              />
+              <div
+                class="h-3 rounded transition-all duration-500"
+                :style="{ backgroundColor: previewColors.primary, opacity: 0.4, maxWidth: '90%' }"
+              />
             </div>
           </div>
         </template>

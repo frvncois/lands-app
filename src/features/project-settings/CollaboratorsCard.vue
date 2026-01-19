@@ -18,10 +18,19 @@ const showUpgradeModal = ref(false)
 
 <template>
   <Card>
-    <Card.Header title="Collaborators" icon="lni-user-multiple-4">
+    <Card.Header
+      title="Collaborators"
+      icon="lni-user-multiple-4"
+    >
       <template #action>
         <div class="flex items-center gap-2">
-          <Badge v-show="!canUseCollaborators" variant="secondary" size="xs">Pro</Badge>
+          <Badge
+            v-show="!canUseCollaborators"
+            variant="secondary"
+            size="xs"
+          >
+            Pro
+          </Badge>
           <Button
             v-show="canUseCollaborators"
             variant="outline"
@@ -33,10 +42,16 @@ const showUpgradeModal = ref(false)
         </div>
       </template>
     </Card.Header>
-    <Card.Content v-show="canUseCollaborators" :padded="false">
+    <Card.Content
+      v-show="canUseCollaborators"
+      :padded="false"
+    >
       <CollaboratorsSection :project-id="projectId" />
     </Card.Content>
-    <Card.Content v-show="!canUseCollaborators" class="space-y-3">
+    <Card.Content
+      v-show="!canUseCollaborators"
+      class="space-y-3"
+    >
       <p class="text-xs text-muted-foreground">
         Invite team members to collaborate on this project. Share editing access with colleagues and clients.
       </p>

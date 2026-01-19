@@ -198,16 +198,33 @@ async function signOut() {
     <!-- Left: Logo + Project/Page + Route Tabs -->
     <div class="flex items-center gap-3 flex-1">
       <!-- Logo -->
-      <router-link :to="{ name: 'dashboard' }" class="flex items-center p-1 shrink-0">
+      <router-link
+        :to="{ name: 'dashboard' }"
+        class="flex items-center p-1 shrink-0"
+      >
         <LandsLogo class="w-6 h-6" />
       </router-link>
 
       <!-- Project Dropdown (when on project route) -->
-      <Dropdown v-if="isProjectRoute && currentProject" ref="projectDropdownRef" align="left" width="min-w-80">
+      <Dropdown
+        v-if="isProjectRoute && currentProject"
+        ref="projectDropdownRef"
+        align="left"
+        width="min-w-80"
+      >
         <template #trigger="{ toggle }">
-          <Button variant="secondary" size="sm" class="min-w-[250px] !justify-between" @click="toggle">
+          <Button
+            variant="secondary"
+            size="sm"
+            class="min-w-[250px] !justify-between"
+            @click="toggle"
+          >
             <span class="truncate text-left flex-1">{{ currentProject.title }}</span>
-            <Icon name="chevron-down" :size="10" class="text-muted-foreground shrink-0 ml-2" />
+            <Icon
+              name="chevron-down"
+              :size="10"
+              class="text-muted-foreground shrink-0 ml-2"
+            />
           </Button>
         </template>
 
@@ -226,12 +243,18 @@ async function signOut() {
             >
               {{ getProjectInitial(currentProject.title) }}
             </div>
-            <p class="text-sm font-semibold text-foreground truncate flex-1">{{ currentProject.title }}</p>
+            <p class="text-sm font-semibold text-foreground truncate flex-1">
+              {{ currentProject.title }}
+            </p>
           </div>
 
           <!-- Project Status -->
           <div class="mb-3">
-            <Badge :variant="currentProject.isPublished ? 'success' : 'secondary'" size="sm" dot>
+            <Badge
+              :variant="currentProject.isPublished ? 'success' : 'secondary'"
+              size="sm"
+              dot
+            >
               {{ currentProject.isPublished ? 'Published' : 'Draft' }}
             </Badge>
           </div>
@@ -255,7 +278,10 @@ async function signOut() {
               class="flex-1"
               @click="projectDropdownRef?.close(); navigateToProjectRoute('designer')"
             >
-              <Icon name="app-designer" :size="14" />
+              <Icon
+                name="app-designer"
+                :size="14"
+              />
               Editor
             </Button>
             <Button
@@ -265,7 +291,10 @@ async function signOut() {
               :data-tour="'settings'"
               @click="projectDropdownRef?.close(); navigateToProjectRoute('settings')"
             >
-              <Icon name="app-settings" :size="14" />
+              <Icon
+                name="app-settings"
+                :size="14"
+              />
               Settings
             </Button>
           </div>
@@ -273,13 +302,19 @@ async function signOut() {
       </Dropdown>
 
       <!-- Dashboard/Account label (when not on project route) -->
-      <span v-else class="text-sm font-medium text-foreground">
+      <span
+        v-else
+        class="text-sm font-medium text-foreground"
+      >
         {{ route.name === 'account' ? 'Account' : 'Dashboard' }}
       </span>
     </div>
 
     <!-- Center: Editor Controls (project routes only) -->
-    <div v-if="isDesignerRoute" class="flex items-center gap-4">
+    <div
+      v-if="isDesignerRoute"
+      class="flex items-center gap-4"
+    >
       <!-- Undo/Redo Buttons -->
       <div class="flex items-center gap-1">
         <button
@@ -289,7 +324,10 @@ async function signOut() {
           title="Undo (⌘Z)"
           @click="editor.undo()"
         >
-          <Icon name="app-undo" class="text-sm" />
+          <Icon
+            name="app-undo"
+            class="text-sm"
+          />
         </button>
         <button
           class="p-1.5 rounded-md transition-colors"
@@ -298,7 +336,10 @@ async function signOut() {
           title="Redo (⌘⇧Z)"
           @click="editor.redo()"
         >
-          <Icon name="app-redo" class="text-sm" />
+          <Icon
+            name="app-redo"
+            class="text-sm"
+          />
         </button>
       </div>
 
@@ -312,7 +353,10 @@ async function signOut() {
           title="Desktop view"
           @click="editor.setPreviewMode('desktop')"
         >
-          <Icon name="device-desktop" :size="14" />
+          <Icon
+            name="device-desktop"
+            :size="14"
+          />
           <span>Desktop</span>
         </button>
         <button
@@ -323,13 +367,20 @@ async function signOut() {
           title="Mobile view"
           @click="editor.setPreviewMode('mobile')"
         >
-          <Icon name="device-mobile" :size="14" />
+          <Icon
+            name="device-mobile"
+            :size="14"
+          />
           <span>Mobile</span>
         </button>
       </div>
 
       <!-- Language Selector -->
-      <Dropdown ref="languageDropdownRef" align="left" width="min-w-48">
+      <Dropdown
+        ref="languageDropdownRef"
+        align="left"
+        width="min-w-48"
+      >
         <template #trigger="{ toggle }">
           <button
             data-tour="translations"
@@ -339,9 +390,16 @@ async function signOut() {
               : 'bg-secondary text-foreground hover:text-foreground hover:bg-secondary'"
             @click="toggle"
           >
-            <Icon name="app-language" :size="14" />
+            <Icon
+              name="app-language"
+              :size="14"
+            />
             <span>{{ getCurrentLanguageLabel() }}</span>
-            <Icon name="chevron-down" :size="14" class="text-foreground" />
+            <Icon
+              name="chevron-down"
+              :size="14"
+              class="text-foreground"
+            />
           </button>
         </template>
 
@@ -351,7 +409,10 @@ async function signOut() {
             No translations added yet
           </div>
           <Dropdown.Divider />
-          <Dropdown.Item icon="plus" @click="openTranslationModal">
+          <Dropdown.Item
+            icon="plus"
+            @click="openTranslationModal"
+          >
             Add Translation
           </Dropdown.Item>
         </div>
@@ -368,7 +429,12 @@ async function signOut() {
             @click="switchLanguage(editor.defaultLanguage)"
           >
             <span class="flex-1 text-left">{{ getLanguageLabel(editor.defaultLanguage) }}</span>
-            <Icon v-if="!editor.currentLanguage" name="checkmark" :size="14" class="text-primary" />
+            <Icon
+              v-if="!editor.currentLanguage"
+              name="checkmark"
+              :size="14"
+              class="text-primary"
+            />
           </button>
 
           <!-- Other languages -->
@@ -385,12 +451,20 @@ async function signOut() {
               @click="switchLanguage(lang)"
             >
               <span class="flex-1 text-left">{{ getLanguageLabel(lang) }}</span>
-              <Icon v-if="editor.currentLanguage === lang" name="checkmark" :size="14" class="text-primary" />
+              <Icon
+                v-if="editor.currentLanguage === lang"
+                name="checkmark"
+                :size="14"
+                class="text-primary"
+              />
             </button>
           </div>
 
           <Dropdown.Divider />
-          <Dropdown.Item icon="plus" @click="openTranslationModal">
+          <Dropdown.Item
+            icon="plus"
+            @click="openTranslationModal"
+          >
             Manage Translations
           </Dropdown.Item>
         </div>
@@ -406,7 +480,10 @@ async function signOut() {
         @click="showCommand = true"
       >
         <div class="flex items-center gap-2">
-          <Icon name="search-1" class="text-sm" />
+          <Icon
+            name="search-1"
+            class="text-sm"
+          />
           <span>Search...</span>
         </div>
         <kbd class="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
@@ -415,7 +492,10 @@ async function signOut() {
       </button>
 
       <!-- Project Route: Save + Publish -->
-      <div v-show="isProjectRoute && currentProject" class="flex items-center gap-3">
+      <div
+        v-show="isProjectRoute && currentProject"
+        class="flex items-center gap-3"
+      >
         <!-- Save indicator -->
         <div
           :class="[
@@ -446,13 +526,22 @@ async function signOut() {
         </Button>
 
         <!-- Publish Button -->
-        <Button size="sm" :loading="isPublishing" data-tour="publish" @click="handlePublish">
+        <Button
+          size="sm"
+          :loading="isPublishing"
+          data-tour="publish"
+          @click="handlePublish"
+        >
           {{ isPublishing ? 'Publishing...' : (currentProject?.isPublished ? 'Update' : 'Publish') }}
         </Button>
       </div>
 
       <!-- User Avatar Dropdown -->
-      <Dropdown ref="userDropdownRef" align="right" width="min-w-48">
+      <Dropdown
+        ref="userDropdownRef"
+        align="right"
+        width="min-w-48"
+      >
         <template #trigger="{ toggle }">
           <button
             class="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
@@ -467,22 +556,39 @@ async function signOut() {
           <p class="text-sm font-medium text-foreground truncate">
             {{ user?.name || userEmail }}
           </p>
-          <p v-if="user?.name" class="text-xs text-muted-foreground truncate">{{ userEmail }}</p>
+          <p
+            v-if="user?.name"
+            class="text-xs text-muted-foreground truncate"
+          >
+            {{ userEmail }}
+          </p>
         </div>
 
-        <Dropdown.Item icon="app-dashboard" @click="userDropdownRef?.close(); router.push({ name: 'dashboard' })">
+        <Dropdown.Item
+          icon="app-dashboard"
+          @click="userDropdownRef?.close(); router.push({ name: 'dashboard' })"
+        >
           Dashboard
         </Dropdown.Item>
-        <Dropdown.Item icon="app-user" @click="userDropdownRef?.close(); router.push({ name: 'account' })">
+        <Dropdown.Item
+          icon="app-user"
+          @click="userDropdownRef?.close(); router.push({ name: 'account' })"
+        >
           Account Settings
         </Dropdown.Item>
-        <Dropdown.Item icon="lni-comment-1-text" @click="userDropdownRef?.close(); router.push({ name: 'support' })">
+        <Dropdown.Item
+          icon="lni-comment-1-text"
+          @click="userDropdownRef?.close(); router.push({ name: 'support' })"
+        >
           Support
         </Dropdown.Item>
 
         <Dropdown.Divider />
 
-        <Dropdown.Item icon="app-logout" @click="signOut">
+        <Dropdown.Item
+          icon="app-logout"
+          @click="signOut"
+        >
           Sign Out
         </Dropdown.Item>
       </Dropdown>

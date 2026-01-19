@@ -140,7 +140,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-md)]"
           :style="getHeaderFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -154,13 +154,16 @@ function handleUpdate(fieldKey: string, value: unknown) {
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px] mx-auto"
           :style="getHeaderFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
 
       <!-- Links Grid (item-only selection - edit via inspector) -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-md)]" :style="repeaterGapStyle">
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-md)]"
+        :style="repeaterGapStyle"
+      >
         <a
           v-for="(link, index) in data.items"
           :key="link.id || index"

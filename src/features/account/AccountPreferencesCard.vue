@@ -13,7 +13,10 @@ const themeOptions = [
 
 <template>
   <Card>
-    <Card.Header title="System theme" icon="lni-sun-1" />
+    <Card.Header
+      title="System theme"
+      icon="lni-sun-1"
+    />
     <Card.Content>
       <RadioGroup
         :model-value="settings.preferences.theme"

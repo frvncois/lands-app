@@ -19,20 +19,26 @@ const marqueeStyles = computed(() => ({
 </script>
 
 <template>
-    <section>
-        <div class="container">
-            <div>
-                <h2>Build better</h2>
-                <div class="marquee-window">
-                    <ul class="marquee-track" :style="marqueeStyles">
-                        <li v-for="(title, index) in marqueeItems" :key="`${title}-${index}`">
-                            <p>{{ title }}</p>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+  <section>
+    <div class="container">
+      <div>
+        <h2>Build better</h2>
+        <div class="marquee-window">
+          <ul
+            class="marquee-track"
+            :style="marqueeStyles"
+          >
+            <li
+              v-for="(title, index) in marqueeItems"
+              :key="`${title}-${index}`"
+            >
+              <p>{{ title }}</p>
+            </li>
+          </ul>
         </div>
-    </section>
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped>

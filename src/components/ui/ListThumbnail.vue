@@ -21,7 +21,10 @@ defineProps<Props>()
       v-else-if="icon"
       :class="['lni', icon, 'text-lg text-accent']"
     />
-    <span v-else-if="initial" class="text-accent">
+    <span
+      v-else-if="initial"
+      class="text-accent"
+    >
       {{ initial }}
     </span>
     <slot v-else />

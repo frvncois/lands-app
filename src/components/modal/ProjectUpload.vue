@@ -204,8 +204,18 @@ async function uploadFile() {
       @dragleave="handleDragLeave"
     >
       <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-        <svg class="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <svg
+          class="w-6 h-6 text-muted-foreground"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
         </svg>
       </div>
       <p class="text-sm font-medium text-foreground mb-1">
@@ -217,7 +227,10 @@ async function uploadFile() {
     </div>
 
     <!-- File preview -->
-    <div v-else class="space-y-4">
+    <div
+      v-else
+      class="space-y-4"
+    >
       <div class="relative rounded-lg overflow-hidden bg-muted aspect-video flex items-center justify-center">
         <img
           v-if="previewUrl && !selectedFile.type.includes('svg')"
@@ -225,11 +238,26 @@ async function uploadFile() {
           :alt="selectedFile.name"
           class="max-w-full max-h-full object-contain"
         />
-        <div v-else class="text-center p-4">
-          <svg class="w-12 h-12 mx-auto text-muted-foreground mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <div
+          v-else
+          class="text-center p-4"
+        >
+          <svg
+            class="w-12 h-12 mx-auto text-muted-foreground mb-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
           </svg>
-          <p class="text-sm text-muted-foreground">{{ selectedFile.name }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ selectedFile.name }}
+          </p>
         </div>
         <!-- Remove button -->
         <button
@@ -238,8 +266,18 @@ async function uploadFile() {
           :disabled="isUploading"
           @click="removeFile"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>
@@ -251,24 +289,37 @@ async function uploadFile() {
       </div>
 
       <!-- Upload progress -->
-      <div v-if="isUploading" class="space-y-2">
+      <div
+        v-if="isUploading"
+        class="space-y-2"
+      >
         <div class="h-2 bg-muted rounded-full overflow-hidden">
           <div
             class="h-full bg-primary transition-all duration-300"
             :style="{ width: `${uploadProgress}%` }"
           />
         </div>
-        <p class="text-xs text-center text-muted-foreground">Uploading...</p>
+        <p class="text-xs text-center text-muted-foreground">
+          Uploading...
+        </p>
       </div>
     </div>
 
     <!-- Error message -->
-    <Alert v-if="error" variant="error" class="mt-4">
+    <Alert
+      v-if="error"
+      variant="error"
+      class="mt-4"
+    >
       {{ error }}
     </Alert>
 
     <template #footer>
-      <Button variant="ghost" :disabled="isUploading" @click="close">
+      <Button
+        variant="ghost"
+        :disabled="isUploading"
+        @click="close"
+      >
         Cancel
       </Button>
       <Button

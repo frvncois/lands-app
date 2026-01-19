@@ -115,7 +115,10 @@ async function handleSubmit() {
       </FormField>
 
       <!-- Error message -->
-      <Alert v-if="errorMessage" variant="error">
+      <Alert
+        v-if="errorMessage"
+        variant="error"
+      >
         {{ errorMessage }}
       </Alert>
     </div>

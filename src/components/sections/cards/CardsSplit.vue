@@ -119,7 +119,10 @@ function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index:
       :style="{ gap: `${sectionSpaceBetween}px` }"
     >
       <!-- Header Column -->
-      <div v-if="hasHeaderContent" class="md:w-1/3 md:flex-shrink-0">
+      <div
+        v-if="hasHeaderContent"
+        class="md:w-1/3 md:flex-shrink-0"
+      >
         <SectionHeaderBlock
           :headline="data.headline"
           :subheadline="data.subheadline"
@@ -128,7 +131,7 @@ function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index:
           :editable="editable"
           :active-field="activeFieldKey"
           :hidden-fields="hiddenFields"
-          @selectField="handleHeaderSelect"
+          @select-field="handleHeaderSelect"
           @update="handleUpdate"
         />
       </div>
@@ -194,12 +197,16 @@ function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index:
               v-if="card.headline"
               class="text-[length:var(--text-xl)] font-semibold m-0"
               :style="sharedHeadlineStyle"
-            >{{ card.headline }}</h3>
+            >
+              {{ card.headline }}
+            </h3>
             <p
               v-if="card.subheadline"
               class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
               :style="sharedSubheadlineStyle"
-            >{{ card.subheadline }}</p>
+            >
+              {{ card.subheadline }}
+            </p>
             <div
               v-if="card.paragraph"
               class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"

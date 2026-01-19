@@ -32,11 +32,19 @@ function handleClick() {
     :disabled="disabled"
     @click="handleClick"
   >
-    <Icon v-if="icon" :name="icon" :size="16" class="text-muted-foreground" />
+    <Icon
+      v-if="icon"
+      :name="icon"
+      :size="16"
+      class="text-muted-foreground"
+    />
     <span class="flex-1">
       <slot />
     </span>
-    <span v-if="shortcut" class="flex items-center gap-0.5">
+    <span
+      v-if="shortcut"
+      class="flex items-center gap-0.5"
+    >
       <kbd
         v-for="key in shortcut"
         :key="key"

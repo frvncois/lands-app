@@ -76,7 +76,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :active-field-key="activeFieldKey"
     :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <GalleryCarousel
@@ -91,7 +91,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :active-field-key="activeFieldKey"
     :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <GalleryGrid
@@ -106,7 +106,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :active-field-key="activeFieldKey"
     :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
 </template>

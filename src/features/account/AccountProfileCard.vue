@@ -10,7 +10,10 @@ const showPasswordModal = ref(false)
 
 <template>
   <Card>
-    <Card.Header title="Profile" icon="lni-user-4" />
+    <Card.Header
+      title="Profile"
+      icon="lni-user-4"
+    />
     <Card.Content class="space-y-5">
       <div class="space-y-3">
         <FormField label="Full Name">
@@ -31,7 +34,12 @@ const showPasswordModal = ref(false)
         </FormField>
       </div>
 
-      <Button variant="default" size="sm" class="h-auto p-0" @click="showPasswordModal = true">
+      <Button
+        variant="default"
+        size="sm"
+        class="h-auto p-0"
+        @click="showPasswordModal = true"
+      >
         Change password
       </Button>
     </Card.Content>

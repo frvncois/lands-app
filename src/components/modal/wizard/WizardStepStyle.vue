@@ -139,7 +139,9 @@ const fontPairings = computed<FontPairing[]>(() => [
     <!-- Color Palette Selection -->
     <div class="space-y-4">
       <div>
-        <h3 class="font-semibold text-foreground mb-1">Color Palette</h3>
+        <h3 class="font-semibold text-foreground mb-1">
+          Color Palette
+        </h3>
         <p class="text-sm text-muted-foreground">
           Choose a color scheme for your landing page
         </p>
@@ -162,8 +164,18 @@ const fontPairings = computed<FontPairing[]>(() => [
             v-if="selectedPaletteId === palette.id"
             class="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
           >
-            <svg class="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <svg
+              class="w-4 h-4 text-primary-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
 
@@ -187,7 +199,9 @@ const fontPairings = computed<FontPairing[]>(() => [
 
           <!-- Palette info -->
           <div>
-            <div class="font-semibold text-foreground mb-1">{{ palette.name }}</div>
+            <div class="font-semibold text-foreground mb-1">
+              {{ palette.name }}
+            </div>
             <div class="text-sm text-muted-foreground leading-relaxed">
               {{ palette.description }}
             </div>
@@ -199,7 +213,9 @@ const fontPairings = computed<FontPairing[]>(() => [
     <!-- Font Pairing Selection -->
     <div class="space-y-4">
       <div>
-        <h3 class="font-semibold text-foreground mb-1">Font Pairing</h3>
+        <h3 class="font-semibold text-foreground mb-1">
+          Font Pairing
+        </h3>
         <p class="text-sm text-muted-foreground">
           Choose typography that matches your brand
         </p>
@@ -222,8 +238,18 @@ const fontPairings = computed<FontPairing[]>(() => [
             v-if="selectedFontPairingId === pairing.id"
             class="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center"
           >
-            <svg class="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <svg
+              class="w-4 h-4 text-primary-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
 
@@ -245,7 +271,9 @@ const fontPairings = computed<FontPairing[]>(() => [
 
           <!-- Pairing info -->
           <div>
-            <div class="font-semibold text-foreground mb-1">{{ pairing.name }}</div>
+            <div class="font-semibold text-foreground mb-1">
+              {{ pairing.name }}
+            </div>
             <div class="text-sm text-muted-foreground leading-relaxed">
               {{ pairing.description }}
             </div>

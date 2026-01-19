@@ -98,7 +98,10 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
     class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)] px-[var(--spacing-container)]"
     :style="getSectionStyle()"
   >
-    <div class="max-w-[1200px] mx-auto w-full flex flex-col" :style="{ gap: `${contentSpacing}px` }">
+    <div
+      class="max-w-[1200px] mx-auto w-full flex flex-col"
+      :style="{ gap: `${contentSpacing}px` }"
+    >
       <div
         v-if="data.headline || data.subheadline || data.paragraph"
         class="text-center flex flex-col gap-[var(--spacing-sm)]"
@@ -113,7 +116,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="emit('selectField', 'headline')"
+          @select-field="emit('selectField', 'headline')"
           @update="emit('update', 'headline', $event)"
         />
         <EditableText
@@ -126,7 +129,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="emit('selectField', 'subheadline')"
+          @select-field="emit('selectField', 'subheadline')"
           @update="emit('update', 'subheadline', $event)"
         />
         <EditableText
@@ -140,47 +143,53 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="emit('selectField', 'paragraph')"
+          @select-field="emit('selectField', 'paragraph')"
           @update="emit('update', 'paragraph', $event)"
         />
       </div>
-      <div class="columns-1 sm:columns-2 lg:columns-3 gap-[var(--spacing-md)]" :style="repeaterGapStyle">
-        <template v-for="(item, index) in data.items" :key="item.id || index">
+      <div
+        class="columns-1 sm:columns-2 lg:columns-3 gap-[var(--spacing-md)]"
+        :style="repeaterGapStyle"
+      >
+        <template
+          v-for="(item, index) in data.items"
+          :key="item.id || index"
+        >
           <component
             :is="item.link?.url && !editable ? 'a' : 'div'"
-          :href="item.link?.url && !editable ? item.link.url : undefined"
-          :target="item.link?.url && !editable ? '_blank' : undefined"
-          class="block mb-[var(--spacing-md)] break-inside-avoid rounded-[var(--radius-md)] overflow-hidden"
-          :class="[
-            editable && 'cursor-pointer transition-all duration-150 select-none',
-            editable && !isItemActive(item, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-            editable && isItemActive(item, index) && 'outline outline-2 outline-primary -outline-offset-2',
-          ]"
-          :style="getItemContainerStyle()"
-          @click="handleItemClick($event, item, index)"
-        >
-          <img
-            v-if="item.media.type === 'image'"
-            :src="item.media.src || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22%3E%3Crect fill=%22%23374151%22 width=%22400%22 height=%22300%22/%3E%3Ctext fill=%22%239CA3AF%22 font-family=%22system-ui%22 font-size=%2216%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo image%3C/text%3E%3C/svg%3E'"
-            :alt="item.media.alt || ''"
+            :href="item.link?.url && !editable ? item.link.url : undefined"
+            :target="item.link?.url && !editable ? '_blank' : undefined"
+            class="block mb-[var(--spacing-md)] break-inside-avoid rounded-[var(--radius-md)] overflow-hidden"
             :class="[
-              'w-full h-auto object-cover',
-              editable && 'pointer-events-none select-none',
+              editable && 'cursor-pointer transition-all duration-150 select-none',
+              editable && !isItemActive(item, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+              editable && isItemActive(item, index) && 'outline outline-2 outline-primary -outline-offset-2',
             ]"
-          />
-          <video
-            v-else-if="item.media.type === 'video'"
-            :src="item.media.src"
-            :class="[
-              'w-full h-auto object-cover',
-              editable && 'pointer-events-none select-none',
-            ]"
-            autoplay
-            muted
-            loop
-            playsinline
-          />
-        </component>
+            :style="getItemContainerStyle()"
+            @click="handleItemClick($event, item, index)"
+          >
+            <img
+              v-if="item.media.type === 'image'"
+              :src="item.media.src || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22%3E%3Crect fill=%22%23374151%22 width=%22400%22 height=%22300%22/%3E%3Ctext fill=%22%239CA3AF%22 font-family=%22system-ui%22 font-size=%2216%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo image%3C/text%3E%3C/svg%3E'"
+              :alt="item.media.alt || ''"
+              :class="[
+                'w-full h-auto object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
+            />
+            <video
+              v-else-if="item.media.type === 'video'"
+              :src="item.media.src"
+              :class="[
+                'w-full h-auto object-cover',
+                editable && 'pointer-events-none select-none',
+              ]"
+              autoplay
+              muted
+              loop
+              playsinline
+            />
+          </component>
         </template>
       </div>
     </div>

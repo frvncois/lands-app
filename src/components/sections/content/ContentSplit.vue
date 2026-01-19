@@ -175,7 +175,7 @@ function isFieldHidden(fieldKey: string): boolean {
             :hidden-fields="hiddenFields"
             class="text-[length:var(--text-5xl)] font-bold leading-tight m-0"
             :style="getFieldStyle('headline', '--font-heading')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
           <EditableText
@@ -188,26 +188,26 @@ function isFieldHidden(fieldKey: string): boolean {
             :hidden-fields="hiddenFields"
             class="text-[length:var(--text-xl)] text-[var(--color-muted)] m-0"
             :style="getFieldStyle('subheadline', '--font-body')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
         </div>
 
         <div class="flex flex-col gap-[var(--spacing-md)]">
-        <EditableText
-          v-if="data.paragraph"
-          tag="div"
-          :value="data.paragraph"
-          field-key="paragraph"
-          :editable="editable"
-          :active-field="activeField"
-          :hidden-fields="hiddenFields"
-          :html="true"
-          class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
-          :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
-          @update="handleUpdate"
-        />
+          <EditableText
+            v-if="data.paragraph"
+            tag="div"
+            :value="data.paragraph"
+            field-key="paragraph"
+            :editable="editable"
+            :active-field="activeField"
+            :hidden-fields="hiddenFields"
+            :html="true"
+            class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
+            :style="getFieldStyle('paragraph', '--font-body')"
+            @select-field="handleSelectField"
+            @update="handleUpdate"
+          />
           <div class="flex gap-[var(--spacing-md)]">
             <a
               v-if="data.primaryCTA?.label && !isFieldHidden('primaryCTA')"
@@ -234,8 +234,8 @@ function isFieldHidden(fieldKey: string): boolean {
               :style="getButtonStyle('secondaryCTA')"
               @click="handleButtonClick($event, 'secondaryCTA')"
             >{{ data.secondaryCTA.label }}</a>
-            </div>
           </div>
+        </div>
       </div>
     </div>
   </section>

@@ -185,7 +185,10 @@ provide('contentContextMenu', handleContentContextMenu)
     @contextmenu="handleSectionContextMenu"
   >
     <!-- Section wrapper for editor interactions -->
-    <div v-if="isEditing" class="flex absolute top-0 left-0 right-0 pointer-events-none z-10">
+    <div
+      v-if="isEditing"
+      class="flex absolute top-0 left-0 right-0 pointer-events-none z-10"
+    >
       <div
         class="inline-block px-3 py-0.5 bg-primary text-foreground text-xs font-medium rounded-br-md font-sans transition-opacity"
         :class="[
@@ -198,8 +201,8 @@ provide('contentContextMenu', handleContentContextMenu)
 
     <!-- Render the actual section component -->
     <component
-      v-if="sectionComponent"
       :is="sectionComponent"
+      v-if="sectionComponent"
       :data="sectionData"
       :variant="section.variant"
       :theme="editor.theme.tokens"
@@ -216,7 +219,10 @@ provide('contentContextMenu', handleContentContextMenu)
     />
 
     <!-- Fallback if component not found -->
-    <div v-else class="p-8 text-center bg-destructive/10 text-destructive font-sans">
+    <div
+      v-else
+      class="p-8 text-center bg-destructive/10 text-destructive font-sans"
+    >
       Unknown section type: {{ section.type }}
     </div>
 

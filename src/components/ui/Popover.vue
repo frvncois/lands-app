@@ -192,8 +192,17 @@ defineExpose({ open, close, toggle, isOpen })
 </script>
 
 <template>
-  <div ref="triggerRef" class="block">
-    <slot name="trigger" :toggle="toggle" :is-open="isOpen" :open="open" :close="close" />
+  <div
+    ref="triggerRef"
+    class="block"
+  >
+    <slot
+      name="trigger"
+      :toggle="toggle"
+      :is-open="isOpen"
+      :open="open"
+      :close="close"
+    />
 
     <Teleport to="body">
       <Transition

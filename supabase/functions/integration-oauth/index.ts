@@ -80,8 +80,9 @@ function generateState(): string {
   return Array.from(array, b => b.toString(16).padStart(2, '0')).join('')
 }
 
-// Derive encryption key from service role key using PBKDF2
-async function deriveKey(secret: string): Promise<CryptoKey> {
+// ✅ SECURITY FIX (H-4): Derive encryption key with unique salt per credential
+// Use user_id + integration_type to ensure different keys for different credentials
+async function deriveKey(secret: string, userId: string, integrationType: string): Promise<CryptoKey> {
   const encoder = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -90,11 +91,15 @@ async function deriveKey(secret: string): Promise<CryptoKey> {
     false,
     ['deriveKey']
   )
+
+  // Create unique salt per credential using user_id and integration type
+  const salt = encoder.encode(`lands-integration-${userId}-${integrationType}`)
+
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: encoder.encode('lands-integration-salt'),
-      iterations: 100000,
+      salt,
+      iterations: 600000, // ✅ Increased from 100,000 to 600,000
       hash: 'SHA-256',
     },
     keyMaterial,
@@ -105,8 +110,8 @@ async function deriveKey(secret: string): Promise<CryptoKey> {
 }
 
 // Encrypt token data using AES-GCM
-async function encryptToken(data: string, secret: string): Promise<string> {
-  const key = await deriveKey(secret)
+async function encryptToken(data: string, secret: string, userId: string, integrationType: string): Promise<string> {
+  const key = await deriveKey(secret, userId, integrationType)
   const encoder = new TextEncoder()
   const iv = crypto.getRandomValues(new Uint8Array(12)) // 96-bit IV for AES-GCM
 
@@ -125,8 +130,8 @@ async function encryptToken(data: string, secret: string): Promise<string> {
 }
 
 // Decrypt token data using AES-GCM
-async function decryptToken(encrypted: string, secret: string): Promise<string> {
-  const key = await deriveKey(secret)
+async function decryptToken(encrypted: string, secret: string, userId: string, integrationType: string): Promise<string> {
+  const key = await deriveKey(secret, userId, integrationType)
   const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0))
 
   const iv = combined.slice(0, 12)
@@ -374,7 +379,7 @@ serve(async (req) => {
           // Provider-specific data
           ...(integrationId === 'mailchimp' && { dc: tokens.dc }), // Mailchimp datacenter
           ...(integrationId === 'stripe' && { stripeUserId: tokens.stripe_user_id }),
-        }), SUPABASE_SERVICE_ROLE_KEY)
+        }), SUPABASE_SERVICE_ROLE_KEY, user.id, integrationId!)
 
         // Store connection
         const { error: upsertError } = await supabase

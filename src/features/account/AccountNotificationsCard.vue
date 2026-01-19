@@ -7,7 +7,10 @@ const { settings, updatePreferences } = useAccountActions()
 
 <template>
   <Card>
-    <Card.Header title="Notifications" icon="lni-bell-1" />
+    <Card.Header
+      title="Notifications"
+      icon="lni-bell-1"
+    />
     <Card.Content class="space-y-4">
       <ToggleItem
         :model-value="settings.preferences.emailNotifications"

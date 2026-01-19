@@ -17,9 +17,15 @@ const showDeleteModal = ref(false)
       <template #icon>
         <i class="lni lni-xmark-circle text-sm" />
       </template>
-      <h2 class="text-xs font-medium text-destructive">Danger Zone</h2>
+      <h2 class="text-xs font-medium text-destructive">
+        Danger Zone
+      </h2>
       <template #action>
-        <Button variant="destructive" size="sm" @click="showDeleteModal = true">
+        <Button
+          variant="destructive"
+          size="sm"
+          @click="showDeleteModal = true"
+        >
           Delete Project
         </Button>
       </template>

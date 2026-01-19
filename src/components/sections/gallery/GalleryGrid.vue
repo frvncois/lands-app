@@ -98,7 +98,10 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
     class="bg-[var(--color-bg)] text-[var(--color-fg)] py-[var(--spacing-section)] px-[var(--spacing-container)]"
     :style="getSectionStyle()"
   >
-    <div class="max-w-[1200px] mx-auto w-full flex flex-col" :style="{ gap: `${contentSpacing}px` }">
+    <div
+      class="max-w-[1200px] mx-auto w-full flex flex-col"
+      :style="{ gap: `${contentSpacing}px` }"
+    >
       <div
         v-if="data.headline || data.subheadline || data.paragraph"
         class="text-center flex flex-col gap-[var(--spacing-sm)]"
@@ -113,7 +116,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="emit('selectField', 'headline')"
+          @select-field="emit('selectField', 'headline')"
           @update="emit('update', 'headline', $event)"
         />
         <EditableText
@@ -126,7 +129,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="emit('selectField', 'subheadline')"
+          @select-field="emit('selectField', 'subheadline')"
           @update="emit('update', 'subheadline', $event)"
         />
         <EditableText
@@ -140,12 +143,18 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="emit('selectField', 'paragraph')"
+          @select-field="emit('selectField', 'paragraph')"
           @update="emit('update', 'paragraph', $event)"
         />
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-md)]" :style="repeaterGapStyle">
-        <template v-for="(item, index) in data.items" :key="item.id || index">
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--spacing-md)]"
+        :style="repeaterGapStyle"
+      >
+        <template
+          v-for="(item, index) in data.items"
+          :key="item.id || index"
+        >
           <component
             :is="item.link?.url && !editable ? 'a' : 'div'"
             :href="item.link?.url && !editable ? item.link.url : undefined"

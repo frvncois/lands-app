@@ -13,8 +13,15 @@ function requestIntegration() {
     <div class="text-xs text-muted-foreground">
       Need a different integration?
     </div>
-    <Button variant="ghost" size="sm" @click="requestIntegration">
-      <Icon name="message-dots" :size="12" />
+    <Button
+      variant="ghost"
+      size="sm"
+      @click="requestIntegration"
+    >
+      <Icon
+        name="message-dots"
+        :size="12"
+      />
       Request
     </Button>
   </div>

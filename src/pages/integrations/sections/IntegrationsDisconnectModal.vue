@@ -21,9 +21,14 @@ const {
       v-if="showDisconnect && selected"
       class="fixed inset-0 z-[9999] flex items-center justify-center"
     >
-      <div class="absolute inset-0 bg-black/50" @click="closeDisconnect"/>
+      <div
+        class="absolute inset-0 bg-black/50"
+        @click="closeDisconnect"
+      />
       <div class="relative bg-card border border-border rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 class="text-lg font-semibold text-foreground mb-2">Disconnect {{ selected.name }}</h2>
+        <h2 class="text-lg font-semibold text-foreground mb-2">
+          Disconnect {{ selected.name }}
+        </h2>
         <p class="text-sm text-muted-foreground mb-4">
           Are you sure you want to disconnect {{ selected.name }}? This will remove the integration from your project.
         </p>

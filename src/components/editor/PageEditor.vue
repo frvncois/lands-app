@@ -187,13 +187,32 @@ function handleCanvasClick() {
     </aside>
 
     <!-- Canvas -->
-    <main ref="canvasRef" data-canvas-root class="overflow-y-auto" @click="handleCanvasClick">
+    <main
+      ref="canvasRef"
+      data-canvas-root
+      class="overflow-y-auto"
+      @click="handleCanvasClick"
+    >
       <div class="p-6">
-        <div class="page-editor__preview w-full mx-auto rounded-lg shadow-lg min-h-[calc(100vh-theme(spacing.32))]" :class="canvasClasses" :style="previewStyle">
-          <div v-if="sections.length === 0" class="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.32))] text-muted-foreground text-center p-12 font-sans">
-            <Icon name="layout-container" :size="48" />
-            <h3 class="text-lg font-semibold text-background mt-6">Start building your page</h3>
-            <p class="text-sm mb-6">Add sections to create your landing page</p>
+        <div
+          class="page-editor__preview w-full mx-auto rounded-lg shadow-lg min-h-[calc(100vh-theme(spacing.32))]"
+          :class="canvasClasses"
+          :style="previewStyle"
+        >
+          <div
+            v-if="sections.length === 0"
+            class="flex flex-col items-center justify-center min-h-[calc(100vh-theme(spacing.32))] text-muted-foreground text-center p-12 font-sans"
+          >
+            <Icon
+              name="layout-container"
+              :size="48"
+            />
+            <h3 class="text-lg font-semibold text-background mt-6">
+              Start building your page
+            </h3>
+            <p class="text-sm mb-6">
+              Add sections to create your landing page
+            </p>
             <AddSectionMenu />
           </div>
 

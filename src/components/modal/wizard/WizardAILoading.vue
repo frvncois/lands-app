@@ -86,7 +86,10 @@ onUnmounted(cleanup)
     </h3>
 
     <!-- Progressive message with fade transition -->
-    <Transition name="fade" mode="out-in">
+    <Transition
+      name="fade"
+      mode="out-in"
+    >
       <p
         :key="currentMessage"
         class="text-sm text-muted-foreground text-center max-w-md"

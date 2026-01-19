@@ -189,7 +189,10 @@ export default {
           >
             <!-- Search Input -->
             <div class="flex items-center gap-3 px-4 border-b border-border">
-              <Icon name="search-1" class="text-muted-foreground" />
+              <Icon
+                name="search-1"
+                class="text-muted-foreground"
+              />
               <input
                 ref="inputRef"
                 v-model="searchQuery"
@@ -212,8 +215,13 @@ export default {
               >
                 <!-- Auto-generated groups if items prop is used -->
                 <template v-if="items.length > 0">
-                  <div v-if="filteredItems.length === 0" class="py-6 text-center">
-                    <p class="text-sm text-muted-foreground">{{ emptyText }}</p>
+                  <div
+                    v-if="filteredItems.length === 0"
+                    class="py-6 text-center"
+                  >
+                    <p class="text-sm text-muted-foreground">
+                      {{ emptyText }}
+                    </p>
                   </div>
 
                   <template v-else>
@@ -236,9 +244,17 @@ export default {
                           @click="handleSelect(item)"
                           @mouseenter="selectedIndex = flatItems.indexOf(item)"
                         >
-                          <Icon v-if="item.icon" :name="item.icon" :size="16" class="text-muted-foreground" />
+                          <Icon
+                            v-if="item.icon"
+                            :name="item.icon"
+                            :size="16"
+                            class="text-muted-foreground"
+                          />
                           <span class="flex-1">{{ item.label }}</span>
-                          <span v-if="item.shortcut" class="flex items-center gap-0.5">
+                          <span
+                            v-if="item.shortcut"
+                            class="flex items-center gap-0.5"
+                          >
                             <kbd
                               v-for="key in item.shortcut"
                               :key="key"
@@ -259,10 +275,16 @@ export default {
             <div class="flex items-center gap-4 px-4 py-2 border-t border-border bg-muted/30">
               <div class="flex items-center gap-1 text-xs text-muted-foreground">
                 <kbd class="px-1 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-                  <Icon name="arrow-up" class="text-[8px]" />
+                  <Icon
+                    name="arrow-up"
+                    class="text-[8px]"
+                  />
                 </kbd>
                 <kbd class="px-1 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">
-                  <Icon name="arrow-down" class="text-[8px]" />
+                  <Icon
+                    name="arrow-down"
+                    class="text-[8px]"
+                  />
                 </kbd>
                 <span>Navigate</span>
               </div>

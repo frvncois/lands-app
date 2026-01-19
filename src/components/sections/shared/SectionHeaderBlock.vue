@@ -39,7 +39,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
 </script>
 
 <template>
-  <div v-if="hasContent" class="flex flex-col gap-[var(--spacing-sm)]">
+  <div
+    v-if="hasContent"
+    class="flex flex-col gap-[var(--spacing-sm)]"
+  >
     <EditableText
       v-if="headline"
       tag="h2"
@@ -50,7 +53,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
       :hidden-fields="hiddenFields"
       class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
       :style="getFieldStyle('headline', '--font-heading')"
-      @selectField="handleSelect"
+      @select-field="handleSelect"
       @update="handleUpdate"
     />
     <EditableText
@@ -63,7 +66,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
       :hidden-fields="hiddenFields"
       class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
       :style="getFieldStyle('subheadline', '--font-heading')"
-      @selectField="handleSelect"
+      @select-field="handleSelect"
       @update="handleUpdate"
     />
     <EditableText
@@ -77,7 +80,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
       :html="true"
       class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
       :style="getFieldStyle('paragraph', '--font-body')"
-      @selectField="handleSelect"
+      @select-field="handleSelect"
       @update="handleUpdate"
     />
   </div>

@@ -57,7 +57,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <ContentOverlay
@@ -69,7 +69,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <ContentSplit
@@ -81,7 +81,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <ContentPresentation
@@ -93,7 +93,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
 </template>

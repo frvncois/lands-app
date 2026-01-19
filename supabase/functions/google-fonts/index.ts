@@ -15,10 +15,23 @@ interface GoogleFontsResponse {
   items: GoogleFont[]
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// ✅ SECURITY FIX: Restrict CORS to allowed origins only
+const ALLOWED_ORIGINS = [
+  'https://lands.app',
+  'https://app.lands.app',
+  'https://www.lands.app',
+  Deno.env.get('ALLOWED_ORIGIN'),
+].filter(Boolean) as string[]
+
+function getCorsHeaders(request: Request) {
+  const origin = request.headers.get('Origin') || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 // Cache fonts in memory for 1 hour to reduce API calls
@@ -50,6 +63,8 @@ async function fetchGoogleFonts(): Promise<GoogleFont[]> {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req)
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

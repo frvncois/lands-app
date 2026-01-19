@@ -25,14 +25,26 @@ function switchMode(newMode: AuthMode) {
       </p>
     </div>
 
-    <LoginForm v-if="mode === 'login'" @switch-mode="switchMode('signup')" />
-    <SignupForm v-else @switch-mode="switchMode('login')" />
+    <LoginForm
+      v-if="mode === 'login'"
+      @switch-mode="switchMode('signup')"
+    />
+    <SignupForm
+      v-else
+      @switch-mode="switchMode('login')"
+    />
 
     <p class="text-xxs text-center text-muted-foreground/50 px-4">
-      By continuing, you agree to our<br/>
-      <a href="#" class="underline underline-offset-4 hover:text-foreground">Terms of Service</a>
+      By continuing, you agree to our<br />
+      <a
+        href="#"
+        class="underline underline-offset-4 hover:text-foreground"
+      >Terms of Service</a>
       and
-      <a href="#" class="underline underline-offset-4 hover:text-foreground">Privacy Policy</a>.
+      <a
+        href="#"
+        class="underline underline-offset-4 hover:text-foreground"
+      >Privacy Policy</a>.
     </p>
   </div>
 </template>

@@ -8,7 +8,6 @@
  * - Email input + Submit button
  */
 
-import { computed } from 'vue'
 import type { SubscribeData } from '@/lib/section-registry'
 import type {
   SectionStyleProperties,
@@ -101,7 +100,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-sm)]"
           :style="getHeaderFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -114,7 +113,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
           :style="getHeaderFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -133,7 +132,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
           :style="getHeaderFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>

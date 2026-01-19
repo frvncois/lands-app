@@ -26,28 +26,46 @@ const features = [
 
 <template>
   <Card>
-    <Card.Header title="Plan" icon="lni-credit-card-multiple" />
+    <Card.Header
+      title="Plan"
+      icon="lni-credit-card-multiple"
+    />
     <Card.Content class="space-y-4">
       <!-- Current Plan Display -->
       <div class="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
         <div>
           <div class="flex items-center gap-2">
             <span class="text-sm font-medium text-foreground">{{ currentPlan.name }}</span>
-            <Badge v-if="settings.plan === 'pro'" variant="success" size="xs">Active</Badge>
+            <Badge
+              v-if="settings.plan === 'pro'"
+              variant="success"
+              size="xs"
+            >
+              Active
+            </Badge>
           </div>
-          <p class="text-xs text-muted-foreground mt-0.5">{{ currentPlan.description }}</p>
+          <p class="text-xs text-muted-foreground mt-0.5">
+            {{ currentPlan.description }}
+          </p>
         </div>
         <div class="text-right">
           <p class="text-lg font-semibold text-foreground">
             {{ currentPlan.price === 0 ? 'Free' : `$${currentPlan.price}` }}
           </p>
-          <p v-show="currentPlan.price > 0" class="text-xs text-muted-foreground">/month</p>
+          <p
+            v-show="currentPlan.price > 0"
+            class="text-xs text-muted-foreground"
+          >
+            /month
+          </p>
         </div>
       </div>
 
       <!-- Plan Features -->
       <div class="space-y-2">
-        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">Plan includes</p>
+        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          Plan includes
+        </p>
         <div class="grid grid-cols-1 gap-2">
           <div
             v-for="feature in features"
@@ -59,8 +77,19 @@ const features = [
               class="rounded-full p-1"
               :class="feature.always || planHasFeature(settings.plan, feature.key) ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-muted border border-border'"
             >
-              <svg class="w-4 h-4" :class="feature.always || planHasFeature(settings.plan, feature.key) ? 'text-green-500' : 'text-muted-foreground'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              <svg
+                class="w-4 h-4"
+                :class="feature.always || planHasFeature(settings.plan, feature.key) ? 'text-green-500' : 'text-muted-foreground'"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
             </div>
             {{ feature.label }}
@@ -69,15 +98,27 @@ const features = [
       </div>
 
       <!-- Upgrade Button (only for free plan) -->
-      <div v-show="settings.plan === 'free'" class="pt-2">
-        <Button class="w-full" @click="showUpgradeModal = true">
+      <div
+        v-show="settings.plan === 'free'"
+        class="pt-2"
+      >
+        <Button
+          class="w-full"
+          @click="showUpgradeModal = true"
+        >
           Upgrade to Pro - $6/month
         </Button>
       </div>
 
       <!-- Manage Subscription (for pro plan) -->
-      <div v-show="settings.plan !== 'free'" class="pt-2">
-        <Button variant="outline" class="w-full">
+      <div
+        v-show="settings.plan !== 'free'"
+        class="pt-2"
+      >
+        <Button
+          variant="outline"
+          class="w-full"
+        >
           Manage Subscription
         </Button>
       </div>

@@ -76,14 +76,21 @@ function handleAction() {
     <div class="p-2">
       <div class="flex items-start gap-3">
         <!-- Icon -->
-        <div class="shrink-0" :class="iconColor" v-html="iconMap[toast.type]" />
+        <div
+          class="shrink-0"
+          :class="iconColor"
+          v-html="iconMap[toast.type]"
+        />
 
         <!-- Content -->
         <div class="flex-1 min-w-0">
           <p class="text-sm text-foreground">
             {{ toast.title }}
           </p>
-          <p v-if="toast.description" class="mt-1 text-sm text-muted-foreground">
+          <p
+            v-if="toast.description"
+            class="mt-1 text-sm text-muted-foreground"
+          >
             {{ toast.description }}
           </p>
           <!-- Action button -->
@@ -102,8 +109,18 @@ function handleAction() {
           class="shrink-0 p-1 -m-1 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-secondary/50"
           @click="handleDismiss"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
       </div>

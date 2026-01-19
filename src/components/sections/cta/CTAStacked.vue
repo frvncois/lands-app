@@ -126,7 +126,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
         :hidden-fields="hiddenFields"
         class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
         :style="getFieldStyle('headline', '--font-heading')"
-        @selectField="handleSelectField"
+        @select-field="handleSelectField"
         @update="handleUpdate"
       />
 
@@ -141,7 +141,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
         :html="true"
         class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px]"
         :style="getFieldStyle('paragraph', '--font-body')"
-        @selectField="handleSelectField"
+        @select-field="handleSelectField"
         @update="handleUpdate"
       />
 
@@ -191,7 +191,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
         :hidden-fields="hiddenFields"
         class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
         :style="getFieldStyle('headline', '--font-heading')"
-        @selectField="handleSelectField"
+        @select-field="handleSelectField"
         @update="handleUpdate"
       />
 
@@ -206,7 +206,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
         :html="true"
         class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px]"
         :style="getFieldStyle('paragraph', '--font-body')"
-        @selectField="handleSelectField"
+        @select-field="handleSelectField"
         @update="handleUpdate"
       />
 
@@ -247,7 +247,10 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
       class="max-w-[1200px] mx-auto w-full flex flex-col gap-[var(--spacing-md)]"
       :class="ctaHeight !== 1 && 'justify-center h-full'"
     >
-      <div class="flex flex-wrap items-center" :style="{ gap: `${wrapGap}px` }">
+      <div
+        class="flex flex-wrap items-center"
+        :style="{ gap: `${wrapGap}px` }"
+      >
         <EditableText
           tag="h2"
           :value="data.headline"
@@ -257,11 +260,14 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
 
-        <div class="flex flex-wrap items-center" :style="{ gap: `${wrapGap}px` }">
+        <div
+          class="flex flex-wrap items-center"
+          :style="{ gap: `${wrapGap}px` }"
+        >
           <a
             :href="editable ? '#' : (data.primaryCTA.url || '#')"
             class="inline-flex items-center justify-center py-[var(--btn-py)] px-[var(--btn-px)] bg-[var(--color-primary)] text-[var(--color-primary-fg)] text-[length:var(--text-base)] font-[var(--btn-weight)] rounded-[var(--btn-radius)] hover:opacity-90 transition-opacity"
@@ -300,7 +306,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
         :html="true"
         class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px]"
         :style="getFieldStyle('paragraph', '--font-body')"
-        @selectField="handleSelectField"
+        @select-field="handleSelectField"
         @update="handleUpdate"
       />
     </div>

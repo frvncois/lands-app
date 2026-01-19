@@ -71,7 +71,10 @@ function handlePasswordInput(value: string) {
 
 <template>
   <Card>
-    <Card.Header title="Publishing" icon="lni-globe-1" />
+    <Card.Header
+      title="Publishing"
+      icon="lni-globe-1"
+    />
     <Card.Content class="space-y-4">
       <ToggleItem
         :model-value="settings.publish.isPublished"
@@ -89,7 +92,10 @@ function handlePasswordInput(value: string) {
         @update:model-value="handlePasswordProtectionToggle"
       />
 
-      <div v-if="settings.publish.visibility === 'password'" class="space-y-3">
+      <div
+        v-if="settings.publish.visibility === 'password'"
+        class="space-y-3"
+      >
         <FormField label="Password">
           <Input
             :model-value="settings.publish.password"
@@ -98,17 +104,27 @@ function handlePasswordInput(value: string) {
           />
         </FormField>
 
-        <Alert v-if="passwordChanged && settings.publish.isPublished" variant="warning">
+        <Alert
+          v-if="passwordChanged && settings.publish.isPublished"
+          variant="warning"
+        >
           <div class="flex items-center justify-between">
             <span>Update your site to apply password protection</span>
-            <Button size="xs" :loading="publishing.isPublishing.value" @click="doPublish">
+            <Button
+              size="xs"
+              :loading="publishing.isPublishing.value"
+              @click="doPublish"
+            >
               {{ publishing.isPublishing.value ? 'Updating...' : 'Update' }}
             </Button>
           </div>
         </Alert>
       </div>
 
-      <div v-if="settings.publish.publishedAt" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div
+        v-if="settings.publish.publishedAt"
+        class="flex items-center gap-1.5 text-xs text-muted-foreground"
+      >
         <i class="lni lni-calendar-5 text-xs" />
         Last published: {{ new Date(settings.publish.publishedAt).toLocaleDateString() }}
       </div>

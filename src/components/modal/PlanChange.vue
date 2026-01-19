@@ -58,7 +58,9 @@ async function updatePlan(plan: ProjectPlan) {
   >
     <template #header>
       <div>
-        <h2 class="text-lg font-semibold text-foreground">Change Plan</h2>
+        <h2 class="text-lg font-semibold text-foreground">
+          Change Plan
+        </h2>
         <p class="text-sm text-muted-foreground mt-1">
           Select a plan for <span class="font-medium text-foreground">{{ project?.title }}</span>
         </p>
@@ -76,14 +78,31 @@ async function updatePlan(plan: ProjectPlan) {
         :disabled="isUpdatingPlan"
         @click="updatePlan(plan.value)"
       >
-        <div v-if="project?.plan === plan.value" class="absolute top-2 right-2">
-          <Icon name="checkmark-circle" class="text-lg text-primary" />
+        <div
+          v-if="project?.plan === plan.value"
+          class="absolute top-2 right-2"
+        >
+          <Icon
+            name="checkmark-circle"
+            class="text-lg text-primary"
+          />
         </div>
-        <p class="text-sm font-semibold text-foreground">{{ plan.label }}</p>
-        <p class="text-lg font-bold text-foreground mt-1">{{ plan.price }}</p>
+        <p class="text-sm font-semibold text-foreground">
+          {{ plan.label }}
+        </p>
+        <p class="text-lg font-bold text-foreground mt-1">
+          {{ plan.price }}
+        </p>
         <ul class="mt-3 space-y-1.5">
-          <li v-for="feature in plan.features" :key="feature" class="flex items-center gap-2 text-xs text-muted-foreground">
-            <Icon name="checkmark" class="text-xs text-primary shrink-0" />
+          <li
+            v-for="feature in plan.features"
+            :key="feature"
+            class="flex items-center gap-2 text-xs text-muted-foreground"
+          >
+            <Icon
+              name="checkmark"
+              class="text-xs text-primary shrink-0"
+            />
             {{ feature }}
           </li>
         </ul>
@@ -91,7 +110,11 @@ async function updatePlan(plan: ProjectPlan) {
     </div>
 
     <template #footer>
-      <Button variant="ghost" :disabled="isUpdatingPlan" @click="close">
+      <Button
+        variant="ghost"
+        :disabled="isUpdatingPlan"
+        @click="close"
+      >
         Cancel
       </Button>
     </template>

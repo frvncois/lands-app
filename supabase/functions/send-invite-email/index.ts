@@ -6,6 +6,25 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const SITE_URL = Deno.env.get('SITE_URL') || 'https://lands.app'
 
+// ✅ SECURITY FIX: Restrict CORS to allowed origins only
+const ALLOWED_ORIGINS = [
+  'https://lands.app',
+  'https://app.lands.app',
+  'https://www.lands.app',
+  Deno.env.get('ALLOWED_ORIGIN'),
+].filter(Boolean) as string[]
+
+function getCorsHeaders(request: Request) {
+  const origin = request.headers.get('Origin') || ''
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
+}
+
 interface CollaboratorInvite {
   id: string
   projectId: string
@@ -21,37 +40,69 @@ interface RequestBody {
   projectTitle?: string
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
 serve(async (req) => {
-  // Handle CORS preflight
+  const corsHeaders = getCorsHeaders(req)
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { invite, projectTitle: providedTitle } = await req.json() as RequestBody
-
-    // Get project title from database if not provided
-    let projectTitle = providedTitle
-    if (!projectTitle) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-      const { data: project } = await supabase
-        .from('projects')
-        .select('title')
-        .eq('id', invite.projectId)
-        .single()
-      projectTitle = project?.title || 'a project'
+    // ✅ SECURITY FIX: Require and validate auth token
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
     }
 
-    // Use token for invite URL (more secure than exposing ID)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
+
+    const { invite, projectTitle: providedTitle } = await req.json() as RequestBody
+
+    // ✅ SECURITY FIX: Validate invite token exists in database
+    const { data: dbInvite, error: inviteError } = await supabase
+      .from('collaborator_invites')
+      .select('id, project_id, email, token, status')
+      .eq('token', invite.token)
+      .eq('status', 'pending')
+      .single()
+
+    if (inviteError || !dbInvite) {
+      return new Response(JSON.stringify({ error: 'Invalid or expired invite' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
+
+    // ✅ SECURITY FIX: Verify user owns the project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id, user_id, title')
+      .eq('id', dbInvite.project_id)
+      .single()
+
+    if (projectError || !project || project.user_id !== user.id) {
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+    }
+
+    const projectTitle = providedTitle || project.title || 'a project'
     const inviteUrl = `${SITE_URL}/invite/${invite.token}`
 
-    // Send email via Resend
     if (RESEND_API_KEY) {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -60,8 +111,8 @@ serve(async (req) => {
           'Authorization': `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: Deno.env.get('RESEND_FROM_EMAIL') || 'Lands <onboarding@resend.dev>',
-          to: [invite.email],
+          from: Deno.env.get('RESEND_FROM_EMAIL') || 'Lands <noreply@lands.app>',
+          to: [dbInvite.email], // ✅ Use email from DB, not request
           subject: `${invite.invitedByName || 'Someone'} invited you to collaborate on "${projectTitle}"`,
           html: `
             <!DOCTYPE html>
@@ -111,10 +162,6 @@ serve(async (req) => {
         console.error('Resend error:', error)
         throw new Error(`Failed to send email: ${error}`)
       }
-
-      const result = await res.json()
-    } else {
-      // RESEND_API_KEY not set, email sending skipped in development
     }
 
     return new Response(JSON.stringify({ success: true }), {

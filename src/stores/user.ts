@@ -91,17 +91,10 @@ export const useUserStore = defineStore('user', () => {
   function rehydrateFromSupabase(): void {
     // Prevent concurrent hydration
     if (isHydrating.value) {
-      if (DEBUG_AUTH) {
-        console.log('[Auth Rehydrate] Already hydrating, skipping...')
-      }
       return
     }
 
     isHydrating.value = true
-
-    if (DEBUG_AUTH) {
-      console.log('[Auth Rehydrate] Starting session rehydration...')
-    }
 
     // Timeout protection: if hydration takes >5s, force completion
     const timeoutId = setTimeout(() => {
@@ -126,22 +119,11 @@ export const useUserStore = defineStore('user', () => {
           authStatus.value = 'authenticated'
           authUser.value = session.user
 
-          if (DEBUG_AUTH) {
-            console.log('[Auth Rehydrate] Session found:', {
-              userId: session.user.id,
-              expiresAt: session.expires_at,
-            })
-          }
-
           // Fetch user profile (non-blocking)
           fetchUserProfile(session.user.id).catch(err => {
             console.error('[Auth Rehydrate] Failed to fetch user profile:', err)
           })
         } else {
-          if (DEBUG_AUTH) {
-            console.log('[Auth Rehydrate] No session found')
-          }
-
           authStatus.value = 'unauthenticated'
           authUser.value = null
         }
@@ -183,15 +165,6 @@ export const useUserStore = defineStore('user', () => {
    */
   function startAuthListener() {
     supabase.auth.onAuthStateChange((event, session) => {
-      if (DEBUG_AUTH) {
-        console.log('[Auth State Change]', {
-          event,
-          userId: session?.user?.id,
-          expiresAt: session?.expires_at,
-          currentStatus: authStatus.value,
-        })
-      }
-
       if (event === 'INITIAL_SESSION') {
         // Handle initial session on page load
         if (session?.user) {
@@ -221,10 +194,6 @@ export const useUserStore = defineStore('user', () => {
         if (session?.user) {
           authStatus.value = 'authenticated'
           authUser.value = session.user
-
-          if (DEBUG_AUTH) {
-            console.log('[Auth State Change] Token refreshed successfully')
-          }
         } else {
           // Token refresh failed - no session returned
           console.error('[Auth State Change] Token refresh returned no session')

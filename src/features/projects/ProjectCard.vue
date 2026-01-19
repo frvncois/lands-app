@@ -64,7 +64,10 @@ function handleDelete() {
             size="sm"
             @click.stop="actions.edit(project.id)"
           >
-            <Icon name="app-editor" class="text-xs" />
+            <Icon
+              name="app-editor"
+              class="text-xs"
+            />
             Editor
           </Button>
           <Button
@@ -72,7 +75,10 @@ function handleDelete() {
             size="sm"
             @click.stop="actions.settings(project.id)"
           >
-            <Icon name="app-settings" class="text-xs" />
+            <Icon
+              name="app-settings"
+              class="text-xs"
+            />
             Settings
           </Button>
         </div>
@@ -82,17 +88,30 @@ function handleDelete() {
     <Card.Content>
       <div class="flex items-start justify-between">
         <div class="flex-1 min-w-0">
-          <h3 class="text-md font-medium text-foreground truncate">{{ project.title }}</h3>
-          <p class="text-[10px] font-mono uppercase text-muted-foreground">{{ project.slug }}.lands.app</p>
+          <h3 class="text-md font-medium text-foreground truncate">
+            {{ project.title }}
+          </h3>
+          <p class="text-[10px] font-mono uppercase text-muted-foreground">
+            {{ project.slug }}.lands.app
+          </p>
         </div>
         <Dropdown icon="app-more">
-          <Dropdown.Item icon="app-editor" @click="actions.edit(project.id)">
+          <Dropdown.Item
+            icon="app-editor"
+            @click="actions.edit(project.id)"
+          >
             Editor
           </Dropdown.Item>
-          <Dropdown.Item icon="app-settings" @click="actions.settings(project.id)">
+          <Dropdown.Item
+            icon="app-settings"
+            @click="actions.settings(project.id)"
+          >
             Settings
           </Dropdown.Item>
-          <Dropdown.Item icon="app-duplicate" @click="actions.duplicate(project.id)">
+          <Dropdown.Item
+            icon="app-duplicate"
+            @click="actions.duplicate(project.id)"
+          >
             Duplicate
           </Dropdown.Item>
           <Dropdown.Divider />
@@ -104,7 +123,11 @@ function handleDelete() {
           >
             {{ isPublishing ? 'Publishing...' : 'Publish' }}
           </Dropdown.Item>
-          <Dropdown.Item v-if="project.isPublished" icon="app-show" @click="handleOpenSite">
+          <Dropdown.Item
+            v-if="project.isPublished"
+            icon="app-show"
+            @click="handleOpenSite"
+          >
             View Site
           </Dropdown.Item>
           <Dropdown.Item
@@ -116,7 +139,11 @@ function handleDelete() {
             {{ isPublishing ? 'Unpublishing...' : 'Unpublish' }}
           </Dropdown.Item>
           <Dropdown.Divider />
-          <Dropdown.Item icon="app-delete" destructive @click="handleDelete">
+          <Dropdown.Item
+            icon="app-delete"
+            destructive
+            @click="handleDelete"
+          >
             Delete
           </Dropdown.Item>
         </Dropdown>
@@ -125,7 +152,11 @@ function handleDelete() {
 
     <Card.Footer>
       <div class="flex items-center justify-between">
-        <Badge v-if="isPublishing" variant="secondary" size="xs">
+        <Badge
+          v-if="isPublishing"
+          variant="secondary"
+          size="xs"
+        >
           <Spinner size="xs" />
           Updating ...
         </Badge>
@@ -139,7 +170,12 @@ function handleDelete() {
         >
           Published
         </Badge>
-        <Badge v-else variant="draft" size="xs" dot>
+        <Badge
+          v-else
+          variant="draft"
+          size="xs"
+          dot
+        >
           Draft
         </Badge>
         <span class="text-[10px] text-muted-foreground">Updated {{ formatDate(project.updatedAt) }}</span>

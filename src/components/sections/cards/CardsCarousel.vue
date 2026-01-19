@@ -216,7 +216,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
         :editable="editable"
         :active-field="activeFieldKey"
         :hidden-fields="hiddenFields"
-        @selectField="handleHeaderSelect"
+        @select-field="handleHeaderSelect"
         @update="handleUpdate"
       />
       <div class="relative w-full">
@@ -242,85 +242,89 @@ function handleUpdate(fieldKey: string, value: unknown) {
           class="flex overflow-x-auto pb-[var(--spacing-md)] snap-x snap-mandatory scrollbar-hide"
           :style="{ gap: `${cardsListSpaceBetween}px` }"
         >
-        <div
-          v-for="(card, index) in data.items"
-          :key="card.id || index"
-          class="flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden snap-start"
-          :class="[
-            editable && 'cursor-pointer transition-all duration-150 select-none',
-            editable && !isCardActive(card, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-            editable && isCardActive(card, index) && 'outline outline-2 outline-primary -outline-offset-2',
-          ]"
-          :style="{ ...sharedContainerStyle, ...cardWidthStyle }"
-          @click="handleItemClick($event, card, index)"
-        >
-          <!-- Media (Image or Video) -->
           <div
-            v-if="card.media?.src"
-            class="w-full overflow-hidden"
-            :style="sharedMediaStyle"
+            v-for="(card, index) in data.items"
+            :key="card.id || index"
+            class="flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden snap-start"
+            :class="[
+              editable && 'cursor-pointer transition-all duration-150 select-none',
+              editable && !isCardActive(card, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+              editable && isCardActive(card, index) && 'outline outline-2 outline-primary -outline-offset-2',
+            ]"
+            :style="{ ...sharedContainerStyle, ...cardWidthStyle }"
+            @click="handleItemClick($event, card, index)"
           >
-            <img
-              v-if="card.media.type === 'image'"
-              :src="card.media.src"
-              :alt="card.media.alt || ''"
-              :class="[
-                'w-full h-full object-cover',
-                editable && 'pointer-events-none select-none',
-              ]"
-              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
-            />
-            <video
-              v-else-if="card.media.type === 'video'"
-              :src="card.media.src"
-              :class="[
-                'w-full h-full object-cover',
-                editable && 'pointer-events-none select-none',
-              ]"
-              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
-              autoplay
-              muted
-              loop
-              playsinline
-            />
-          </div>
-
-          <!-- Content (non-editable inline - edit via inspector) -->
-          <div
-            class="p-[var(--spacing-md)] flex flex-col"
-            :class="editable && 'pointer-events-none select-none'"
-            :style="{ gap: sharedInnerGap }"
-          >
-            <h3
-              v-if="card.headline"
-              class="text-[length:var(--text-xl)] font-semibold m-0"
-              :style="sharedHeadlineStyle"
-            >{{ card.headline }}</h3>
-            <p
-              v-if="card.subheadline"
-              class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
-              :style="sharedSubheadlineStyle"
-            >{{ card.subheadline }}</p>
+            <!-- Media (Image or Video) -->
             <div
-              v-if="card.paragraph"
-              class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
-              :style="sharedParagraphStyle"
-              v-html="card.paragraph"
-            />
-            <a
-              v-if="card.buttonLabel && card.buttonUrl"
-              :href="card.buttonUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium hover:opacity-90 transition-opacity no-underline"
-              :style="sharedButtonStyle"
+              v-if="card.media?.src"
+              class="w-full overflow-hidden"
+              :style="sharedMediaStyle"
             >
-              {{ card.buttonLabel }}
-            </a>
+              <img
+                v-if="card.media.type === 'image'"
+                :src="card.media.src"
+                :alt="card.media.alt || ''"
+                :class="[
+                  'w-full h-full object-cover',
+                  editable && 'pointer-events-none select-none',
+                ]"
+                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
+              />
+              <video
+                v-else-if="card.media.type === 'video'"
+                :src="card.media.src"
+                :class="[
+                  'w-full h-full object-cover',
+                  editable && 'pointer-events-none select-none',
+                ]"
+                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '16 / 9' }"
+                autoplay
+                muted
+                loop
+                playsinline
+              />
+            </div>
+
+            <!-- Content (non-editable inline - edit via inspector) -->
+            <div
+              class="p-[var(--spacing-md)] flex flex-col"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="{ gap: sharedInnerGap }"
+            >
+              <h3
+                v-if="card.headline"
+                class="text-[length:var(--text-xl)] font-semibold m-0"
+                :style="sharedHeadlineStyle"
+              >
+                {{ card.headline }}
+              </h3>
+              <p
+                v-if="card.subheadline"
+                class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
+                :style="sharedSubheadlineStyle"
+              >
+                {{ card.subheadline }}
+              </p>
+              <div
+                v-if="card.paragraph"
+                class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
+                :style="sharedParagraphStyle"
+                v-html="card.paragraph"
+              />
+              <a
+                v-if="card.buttonLabel && card.buttonUrl"
+                :href="card.buttonUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium hover:opacity-90 transition-opacity no-underline"
+                :style="sharedButtonStyle"
+              >
+                {{ card.buttonLabel }}
+              </a>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   </component>
 </template>

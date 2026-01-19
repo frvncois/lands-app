@@ -680,7 +680,10 @@ function deleteItem() {
 </script>
 
 <template>
-  <div class="flex flex-col h-full select-none" data-tour="inspector">
+  <div
+    class="flex flex-col h-full select-none"
+    data-tour="inspector"
+  >
     <!-- Breadcrumb Header -->
     <div class="flex items-center gap-1.5 h-14 px-4 py-3 border-b border-border">
       <button
@@ -697,7 +700,7 @@ function deleteItem() {
         <!-- Repeater breadcrumb (with or without item selected) -->
         <template v-if="activeRepeaterField">
           <button
-          class="flex items-center gap-1.5 text-xs transition-colors border py-1 px-2 rounded-md hover:bg-accent/50"
+            class="flex items-center gap-1.5 text-xs transition-colors border py-1 px-2 rounded-md hover:bg-accent/50"
             :class="isEditingItem ? 'text-muted-foreground hover:text-foreground' : 'text-foreground'"
             @click="goToRepeater"
           >
@@ -722,7 +725,6 @@ function deleteItem() {
     <div class="flex-1 overflow-y-auto">
       <!-- Section Selected: Show section styles -->
       <template v-if="selectedSection && selectedDefinition">
-
         <!-- Repeater Item Editor -->
         <template v-if="isEditingItem && activeRepeaterDef && activeItemData">
           <!-- Item Content -->
@@ -733,13 +735,19 @@ function deleteItem() {
               </span>
             </div>
             <div class="flex flex-col gap-4">
-              <div v-for="field in activeItemSchemaWithLabels" :key="field.key">
+              <div
+                v-for="field in activeItemSchemaWithLabels"
+                :key="field.key"
+              >
                 <label class="block text-xs text-foreground mb-1.5">{{ field.label }}</label>
 
                 <!-- Image field - use Upload UI -->
                 <template v-if="field.type === 'image'">
                   <!-- Image Preview (when image exists) -->
-                  <div v-if="activeItemData[field.key]" class="space-y-2">
+                  <div
+                    v-if="activeItemData[field.key]"
+                    class="space-y-2"
+                  >
                     <div class="relative rounded-lg overflow-hidden bg-muted aspect-video">
                       <img
                         :src="activeItemData[field.key] as string"
@@ -750,7 +758,10 @@ function deleteItem() {
                         class="absolute top-2 right-2 w-6 h-6 bg-background/80 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
                         @click="removeItemImage(field.key)"
                       >
-                        <Icon name="app-delete" :size="12" />
+                        <Icon
+                          name="app-delete"
+                          :size="12"
+                        />
                       </button>
                     </div>
                     <div class="flex gap-2">
@@ -774,12 +785,19 @@ function deleteItem() {
                   </div>
 
                   <!-- Upload buttons (when no image) -->
-                  <div v-else class="space-y-2">
+                  <div
+                    v-else
+                    class="space-y-2"
+                  >
                     <button
                       class="flex flex-col items-center justify-center w-full p-4 border-1 border-dotted border-border bg-red-100 rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
                       @click="openUploadForItemField(field.key)"
                     >
-                      <Icon name="app-upload" :size="18" class="text-muted-foreground mb-1" />
+                      <Icon
+                        name="app-upload"
+                        :size="18"
+                        class="text-muted-foreground mb-1"
+                      />
                       <span class="text-xs font-medium text-foreground">Upload</span>
                     </button>
                     <Button
@@ -788,7 +806,10 @@ function deleteItem() {
                       full-width
                       @click="openUnsplashForItemField(field.key)"
                     >
-                      <Icon name="photos" :size="12" />
+                      <Icon
+                        name="photos"
+                        :size="12"
+                      />
                       Unsplash
                     </Button>
                   </div>
@@ -797,7 +818,10 @@ function deleteItem() {
                 <!-- Media field (image or video) - use Upload UI -->
                 <template v-else-if="field.type === 'media'">
                   <!-- Media Preview (when media exists) -->
-                  <div v-if="(activeItemData[field.key] as { src?: string })?.src" class="space-y-2">
+                  <div
+                    v-if="(activeItemData[field.key] as { src?: string })?.src"
+                    class="space-y-2"
+                  >
                     <div class="relative rounded-lg overflow-hidden bg-muted aspect-video">
                       <video
                         v-if="(activeItemData[field.key] as { type?: string })?.type === 'video'"
@@ -815,7 +839,10 @@ function deleteItem() {
                         class="absolute top-2 right-2 w-6 h-6 bg-background/80 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
                         @click="updateItemField(field.key, { ...((activeItemData[field.key] as object) || {}), src: '' })"
                       >
-                        <Icon name="app-delete" :size="12" />
+                        <Icon
+                          name="app-delete"
+                          :size="12"
+                        />
                       </button>
                     </div>
                     <div class="flex gap-2">
@@ -840,12 +867,19 @@ function deleteItem() {
                   </div>
 
                   <!-- Upload buttons (when no media) -->
-                  <div v-else class="space-y-2">
+                  <div
+                    v-else
+                    class="space-y-2"
+                  >
                     <button
                       class="flex flex-col items-center justify-center w-full p-4 border-1 border-dotted border-border bg-red-100 rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
                       @click="openUploadForItemMediaField(field.key)"
                     >
-                      <Icon name="app-upload" :size="18" class="text-muted-foreground mb-1" />
+                      <Icon
+                        name="app-upload"
+                        :size="18"
+                        class="text-muted-foreground mb-1"
+                      />
                       <span class="text-xs font-medium text-foreground">Upload</span>
                     </button>
                     <Button
@@ -854,7 +888,10 @@ function deleteItem() {
                       full-width
                       @click="openUnsplashForItemMediaField(field.key)"
                     >
-                      <Icon name="photos" :size="12" />
+                      <Icon
+                        name="photos"
+                        :size="12"
+                      />
                       Unsplash
                     </Button>
                   </div>
@@ -873,7 +910,10 @@ function deleteItem() {
 
           <!-- Item Style (shared) - NOT shown for shared-style sections (Cards, Products, Accordion, Links) -->
           <!-- These sections use shared section-level styles instead of per-item styles -->
-          <div v-if="!isEditingSharedStyleItem" class="border-b border-border">
+          <div
+            v-if="!isEditingSharedStyleItem"
+            class="border-b border-border"
+          >
             <div class="mb-4">
               <span class="text-xs font-medium tracking-wide text-foreground">
                 Style
@@ -884,7 +924,10 @@ function deleteItem() {
             <!-- Default item styles for sections that still use per-item styling -->
             <div class="flex flex-col gap-4">
               <!-- Font Size -->
-              <div v-if="showItemFontSizeControl" class="flex items-center justify-between gap-3">
+              <div
+                v-if="showItemFontSizeControl"
+                class="flex items-center justify-between gap-3"
+              >
                 <label class="text-xs text-foreground whitespace-nowrap">Font Size</label>
                 <Slider
                   :model-value="itemStyles.fontSize ?? styleDefaults.fontSize.default"
@@ -952,7 +995,10 @@ function deleteItem() {
               class="hover:!bg-destructive/10 hover:!text-destructive"
               @click="deleteItem"
             >
-              <Icon name="app-delete" :size="14" />
+              <Icon
+                name="app-delete"
+                :size="14"
+              />
               Delete {{ activeRepeaterLabel.replace(/s$/, '') }}
             </Button>
           </div>
@@ -990,9 +1036,17 @@ function deleteItem() {
                 @drop="onItemDrop($event, index)"
                 @dragend="onItemDragEnd"
               >
-                <Icon name="grip-dots-vertical" :size="12" class="text-muted-foreground shrink-0" />
+                <Icon
+                  name="grip-dots-vertical"
+                  :size="12"
+                  class="text-muted-foreground shrink-0"
+                />
                 <span class="flex-1 text-sm truncate">{{ getRepeaterItemLabel(item, index) }}</span>
-                <Icon name="chevron-right" :size="12" class="text-muted-foreground shrink-0" />
+                <Icon
+                  name="chevron-right"
+                  :size="12"
+                  class="text-muted-foreground shrink-0"
+                />
               </div>
             </div>
 
@@ -1003,7 +1057,10 @@ function deleteItem() {
               class="w-full mt-2 justify-start text-muted-foreground hover:text-foreground"
               @click="addRepeaterItem"
             >
-              <Icon name="plus" :size="14" />
+              <Icon
+                name="plus"
+                :size="14"
+              />
               Add {{ singularItemLabel }}
             </Button>
           </div>
@@ -1017,344 +1074,343 @@ function deleteItem() {
             </div>
 
 
-          <!-- Cards Shared Style Controls (applies to ALL cards) -->
-          <template v-if="isCardsSection && activeRepeaterField?.key === 'items' && !isEditingItem">
-            <!-- Spacing Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.spacing.icon"
-              :title="cardsStyleConfig.spacing.title"
-              :controls="cardsStyleConfig.spacing.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.spacing.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-
-            <!-- Borders Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.borders.icon"
-              :title="cardsStyleConfig.borders.title"
-              :controls="cardsStyleConfig.borders.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.borders.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-
-            <!-- Background Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.background.icon"
-              :title="cardsStyleConfig.background.title"
-              :controls="cardsStyleConfig.background.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.background.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-
-            <!-- Media Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.media.icon"
-              :title="cardsStyleConfig.media.title"
-              :controls="cardsStyleConfig.media.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.media.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-
-            <!-- Headline Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.headline.icon"
-              :title="cardsStyleConfig.headline.title"
-              :controls="cardsStyleConfig.headline.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.headline.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-
-            <!-- Subheadline Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.subheadline.icon"
-              :title="cardsStyleConfig.subheadline.title"
-              :controls="cardsStyleConfig.subheadline.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.subheadline.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-
-            <!-- Paragraph Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.paragraph.icon"
-              :title="cardsStyleConfig.paragraph.title"
-              :controls="cardsStyleConfig.paragraph.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.paragraph.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-
-            <!-- Button Group -->
-            <StylePopoverGroup
-              :icon="cardsStyleConfig.button.icon"
-              :title="cardsStyleConfig.button.title"
-              :controls="cardsStyleConfig.button.controls"
-              :styles="cardsGroupStyles"
-              :defaults="cardsStyleConfig.button.defaults"
-              @update="(key, value) => updateCardsGroupStyle(key, value)"
-            />
-          </template>
-
-          <!-- Products Split variant: Section Space Between only (no Content Layout - split always uses row) -->
-          <div
-            v-if="isProductsRepeaterGroupSelected"
-            class="flex flex-col gap-4 mb-4"
-          >
-            <div class="flex items-center justify-between gap-3">
-              <label class="text-xs text-foreground whitespace-nowrap">Section Space Between</label>
-              <Slider
-                :model-value="sectionSpaceBetweenValue"
-                :min="0"
-                :max="96"
-                unit="px"
-                @update:model-value="value => updateSectionStyle('spaceBetween', value)"
+            <!-- Cards Shared Style Controls (applies to ALL cards) -->
+            <template v-if="isCardsSection && activeRepeaterField?.key === 'items' && !isEditingItem">
+              <!-- Spacing Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.spacing.icon"
+                :title="cardsStyleConfig.spacing.title"
+                :controls="cardsStyleConfig.spacing.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.spacing.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
               />
+
+              <!-- Borders Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.borders.icon"
+                :title="cardsStyleConfig.borders.title"
+                :controls="cardsStyleConfig.borders.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.borders.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
+              />
+
+              <!-- Background Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.background.icon"
+                :title="cardsStyleConfig.background.title"
+                :controls="cardsStyleConfig.background.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.background.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
+              />
+
+              <!-- Media Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.media.icon"
+                :title="cardsStyleConfig.media.title"
+                :controls="cardsStyleConfig.media.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.media.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
+              />
+
+              <!-- Headline Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.headline.icon"
+                :title="cardsStyleConfig.headline.title"
+                :controls="cardsStyleConfig.headline.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.headline.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
+              />
+
+              <!-- Subheadline Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.subheadline.icon"
+                :title="cardsStyleConfig.subheadline.title"
+                :controls="cardsStyleConfig.subheadline.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.subheadline.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
+              />
+
+              <!-- Paragraph Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.paragraph.icon"
+                :title="cardsStyleConfig.paragraph.title"
+                :controls="cardsStyleConfig.paragraph.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.paragraph.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
+              />
+
+              <!-- Button Group -->
+              <StylePopoverGroup
+                :icon="cardsStyleConfig.button.icon"
+                :title="cardsStyleConfig.button.title"
+                :controls="cardsStyleConfig.button.controls"
+                :styles="cardsGroupStyles"
+                :defaults="cardsStyleConfig.button.defaults"
+                @update="(key, value) => updateCardsGroupStyle(key, value)"
+              />
+            </template>
+
+            <!-- Products Split variant: Section Space Between only (no Content Layout - split always uses row) -->
+            <div
+              v-if="isProductsRepeaterGroupSelected"
+              class="flex flex-col gap-4 mb-4"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-xs text-foreground whitespace-nowrap">Section Space Between</label>
+                <Slider
+                  :model-value="sectionSpaceBetweenValue"
+                  :min="0"
+                  :max="96"
+                  unit="px"
+                  @update:model-value="value => updateSectionStyle('spaceBetween', value)"
+                />
+              </div>
             </div>
-          </div>
 
-          <!-- Products Shared Style Controls -->
-          <template v-if="isProductsSection && activeRepeaterField?.key === 'items' && !isEditingItem">
-            <StylePopoverGroup
-              :icon="productsStyleConfig.spacing.icon"
-              :title="productsStyleConfig.spacing.title"
-              :controls="productsStyleConfig.spacing.controls"
-              :styles="productsGroupStyles"
-              :defaults="productsStyleConfig.spacing.defaults"
-              @update="(key, value) => updateProductsGroupStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="productsStyleConfig.borders.icon"
-              :title="productsStyleConfig.borders.title"
-              :controls="productsStyleConfig.borders.controls"
-              :styles="sectionStyles"
-              :defaults="productsStyleConfig.borders.defaults"
-              @update="(key, value) => updateSharedProductStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="productsStyleConfig.background.icon"
-              :title="productsStyleConfig.background.title"
-              :controls="productsStyleConfig.background.controls"
-              :styles="sectionStyles"
-              :defaults="productsStyleConfig.background.defaults"
-              @update="(key, value) => updateSharedProductStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="productsStyleConfig.media.icon"
-              :title="productsStyleConfig.media.title"
-              :controls="productsStyleConfig.media.controls"
-              :styles="sectionStyles"
-              :defaults="productsStyleConfig.media.defaults"
-              @update="(key, value) => updateSharedProductStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="productsStyleConfig.headline.icon"
-              :title="productsStyleConfig.headline.title"
-              :controls="productsStyleConfig.headline.controls"
-              :styles="sectionStyles"
-              :defaults="productsStyleConfig.headline.defaults"
-              @update="(key, value) => updateSharedProductStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="productsStyleConfig.subheadline.icon"
-              :title="productsStyleConfig.subheadline.title"
-              :controls="productsStyleConfig.subheadline.controls"
-              :styles="sectionStyles"
-              :defaults="productsStyleConfig.subheadline.defaults"
-              @update="(key, value) => updateSharedProductStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="productsStyleConfig.paragraph.icon"
-              :title="productsStyleConfig.paragraph.title"
-              :controls="productsStyleConfig.paragraph.controls"
-              :styles="sectionStyles"
-              :defaults="productsStyleConfig.paragraph.defaults"
-              @update="(key, value) => updateSharedProductStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="productsStyleConfig.button.icon"
-              :title="productsStyleConfig.button.title"
-              :controls="productsStyleConfig.button.controls"
-              :styles="sectionStyles"
-              :defaults="productsStyleConfig.button.defaults"
-              @update="(key, value) => updateSharedProductStyle(key, value)"
-            />
-          </template>
+            <!-- Products Shared Style Controls -->
+            <template v-if="isProductsSection && activeRepeaterField?.key === 'items' && !isEditingItem">
+              <StylePopoverGroup
+                :icon="productsStyleConfig.spacing.icon"
+                :title="productsStyleConfig.spacing.title"
+                :controls="productsStyleConfig.spacing.controls"
+                :styles="productsGroupStyles"
+                :defaults="productsStyleConfig.spacing.defaults"
+                @update="(key, value) => updateProductsGroupStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="productsStyleConfig.borders.icon"
+                :title="productsStyleConfig.borders.title"
+                :controls="productsStyleConfig.borders.controls"
+                :styles="sectionStyles"
+                :defaults="productsStyleConfig.borders.defaults"
+                @update="(key, value) => updateSharedProductStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="productsStyleConfig.background.icon"
+                :title="productsStyleConfig.background.title"
+                :controls="productsStyleConfig.background.controls"
+                :styles="sectionStyles"
+                :defaults="productsStyleConfig.background.defaults"
+                @update="(key, value) => updateSharedProductStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="productsStyleConfig.media.icon"
+                :title="productsStyleConfig.media.title"
+                :controls="productsStyleConfig.media.controls"
+                :styles="sectionStyles"
+                :defaults="productsStyleConfig.media.defaults"
+                @update="(key, value) => updateSharedProductStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="productsStyleConfig.headline.icon"
+                :title="productsStyleConfig.headline.title"
+                :controls="productsStyleConfig.headline.controls"
+                :styles="sectionStyles"
+                :defaults="productsStyleConfig.headline.defaults"
+                @update="(key, value) => updateSharedProductStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="productsStyleConfig.subheadline.icon"
+                :title="productsStyleConfig.subheadline.title"
+                :controls="productsStyleConfig.subheadline.controls"
+                :styles="sectionStyles"
+                :defaults="productsStyleConfig.subheadline.defaults"
+                @update="(key, value) => updateSharedProductStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="productsStyleConfig.paragraph.icon"
+                :title="productsStyleConfig.paragraph.title"
+                :controls="productsStyleConfig.paragraph.controls"
+                :styles="sectionStyles"
+                :defaults="productsStyleConfig.paragraph.defaults"
+                @update="(key, value) => updateSharedProductStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="productsStyleConfig.button.icon"
+                :title="productsStyleConfig.button.title"
+                :controls="productsStyleConfig.button.controls"
+                :styles="sectionStyles"
+                :defaults="productsStyleConfig.button.defaults"
+                @update="(key, value) => updateSharedProductStyle(key, value)"
+              />
+            </template>
 
-          <!-- Accordion Shared Style Controls -->
-          <template v-if="isAccordionSection && activeRepeaterField?.key === 'items' && !isEditingItem">
-            <StylePopoverGroup
-              :icon="accordionStyleConfig.spacing.icon"
-              :title="accordionStyleConfig.spacing.title"
-              :controls="accordionStyleConfig.spacing.controls"
-              :styles="accordionGroupStyles"
-              :defaults="accordionStyleConfig.spacing.defaults"
-              @update="(key, value) => updateAccordionGroupStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="accordionStyleConfig.borders.icon"
-              :title="accordionStyleConfig.borders.title"
-              :controls="accordionStyleConfig.borders.controls"
-              :styles="sectionStyles"
-              :defaults="accordionStyleConfig.borders.defaults"
-              @update="(key, value) => updateSharedAccordionStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="accordionStyleConfig.background.icon"
-              :title="accordionStyleConfig.background.title"
-              :controls="accordionStyleConfig.background.controls"
-              :styles="sectionStyles"
-              :defaults="accordionStyleConfig.background.defaults"
-              @update="(key, value) => updateSharedAccordionStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="accordionStyleConfig.headline.icon"
-              :title="accordionStyleConfig.headline.title"
-              :controls="accordionStyleConfig.headline.controls"
-              :styles="sectionStyles"
-              :defaults="accordionStyleConfig.headline.defaults"
-              @update="(key, value) => updateSharedAccordionStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="accordionStyleConfig.paragraph.icon"
-              :title="accordionStyleConfig.paragraph.title"
-              :controls="accordionStyleConfig.paragraph.controls"
-              :styles="sectionStyles"
-              :defaults="accordionStyleConfig.paragraph.defaults"
-              @update="(key, value) => updateSharedAccordionStyle(key, value)"
-            />
-          </template>
+            <!-- Accordion Shared Style Controls -->
+            <template v-if="isAccordionSection && activeRepeaterField?.key === 'items' && !isEditingItem">
+              <StylePopoverGroup
+                :icon="accordionStyleConfig.spacing.icon"
+                :title="accordionStyleConfig.spacing.title"
+                :controls="accordionStyleConfig.spacing.controls"
+                :styles="accordionGroupStyles"
+                :defaults="accordionStyleConfig.spacing.defaults"
+                @update="(key, value) => updateAccordionGroupStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="accordionStyleConfig.borders.icon"
+                :title="accordionStyleConfig.borders.title"
+                :controls="accordionStyleConfig.borders.controls"
+                :styles="sectionStyles"
+                :defaults="accordionStyleConfig.borders.defaults"
+                @update="(key, value) => updateSharedAccordionStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="accordionStyleConfig.background.icon"
+                :title="accordionStyleConfig.background.title"
+                :controls="accordionStyleConfig.background.controls"
+                :styles="sectionStyles"
+                :defaults="accordionStyleConfig.background.defaults"
+                @update="(key, value) => updateSharedAccordionStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="accordionStyleConfig.headline.icon"
+                :title="accordionStyleConfig.headline.title"
+                :controls="accordionStyleConfig.headline.controls"
+                :styles="sectionStyles"
+                :defaults="accordionStyleConfig.headline.defaults"
+                @update="(key, value) => updateSharedAccordionStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="accordionStyleConfig.paragraph.icon"
+                :title="accordionStyleConfig.paragraph.title"
+                :controls="accordionStyleConfig.paragraph.controls"
+                :styles="sectionStyles"
+                :defaults="accordionStyleConfig.paragraph.defaults"
+                @update="(key, value) => updateSharedAccordionStyle(key, value)"
+              />
+            </template>
 
-          <!-- Links Shared Style Controls -->
-          <template v-if="isLinksSection && activeRepeaterField?.key === 'items' && !isEditingItem">
-            <StylePopoverGroup
-              :icon="linksStyleConfig.spacing.icon"
-              :title="linksStyleConfig.spacing.title"
-              :controls="linksStyleConfig.spacing.controls"
-              :styles="linksGroupStyles"
-              :defaults="linksStyleConfig.spacing.defaults"
-              @update="(key, value) => updateLinksGroupStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="linksStyleConfig.borders.icon"
-              :title="linksStyleConfig.borders.title"
-              :controls="linksStyleConfig.borders.controls"
-              :styles="sectionStyles"
-              :defaults="linksStyleConfig.borders.defaults"
-              @update="(key, value) => updateSharedLinkStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="linksStyleConfig.background.icon"
-              :title="linksStyleConfig.background.title"
-              :controls="linksStyleConfig.background.controls"
-              :styles="sectionStyles"
-              :defaults="linksStyleConfig.background.defaults"
-              @update="(key, value) => updateSharedLinkStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="linksStyleConfig.headline.icon"
-              :title="linksStyleConfig.headline.title"
-              :controls="linksStyleConfig.headline.controls"
-              :styles="sectionStyles"
-              :defaults="linksStyleConfig.headline.defaults"
-              @update="(key, value) => updateSharedLinkStyle(key, value)"
-            />
-            <StylePopoverGroup
-              :icon="linksStyleConfig.paragraph.icon"
-              :title="linksStyleConfig.paragraph.title"
-              :controls="linksStyleConfig.paragraph.controls"
-              :styles="sectionStyles"
-              :defaults="linksStyleConfig.paragraph.defaults"
-              @update="(key, value) => updateSharedLinkStyle(key, value)"
-            />
-          </template>
+            <!-- Links Shared Style Controls -->
+            <template v-if="isLinksSection && activeRepeaterField?.key === 'items' && !isEditingItem">
+              <StylePopoverGroup
+                :icon="linksStyleConfig.spacing.icon"
+                :title="linksStyleConfig.spacing.title"
+                :controls="linksStyleConfig.spacing.controls"
+                :styles="linksGroupStyles"
+                :defaults="linksStyleConfig.spacing.defaults"
+                @update="(key, value) => updateLinksGroupStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="linksStyleConfig.borders.icon"
+                :title="linksStyleConfig.borders.title"
+                :controls="linksStyleConfig.borders.controls"
+                :styles="sectionStyles"
+                :defaults="linksStyleConfig.borders.defaults"
+                @update="(key, value) => updateSharedLinkStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="linksStyleConfig.background.icon"
+                :title="linksStyleConfig.background.title"
+                :controls="linksStyleConfig.background.controls"
+                :styles="sectionStyles"
+                :defaults="linksStyleConfig.background.defaults"
+                @update="(key, value) => updateSharedLinkStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="linksStyleConfig.headline.icon"
+                :title="linksStyleConfig.headline.title"
+                :controls="linksStyleConfig.headline.controls"
+                :styles="sectionStyles"
+                :defaults="linksStyleConfig.headline.defaults"
+                @update="(key, value) => updateSharedLinkStyle(key, value)"
+              />
+              <StylePopoverGroup
+                :icon="linksStyleConfig.paragraph.icon"
+                :title="linksStyleConfig.paragraph.title"
+                :controls="linksStyleConfig.paragraph.controls"
+                :styles="sectionStyles"
+                :defaults="linksStyleConfig.paragraph.defaults"
+                @update="(key, value) => updateSharedLinkStyle(key, value)"
+              />
+            </template>
 
-          <!-- Contact Form Fields Shared Style Controls (applies to ALL form inputs) -->
-          <template v-if="isContactSection && activeRepeaterField?.key === 'formFields' && !isEditingItem">
-            <StylePopoverGroup
-              :icon="contactFormFieldsStyleConfig.spacing.icon"
-              :title="contactFormFieldsStyleConfig.spacing.title"
-              :controls="contactFormFieldsStyleConfig.spacing.controls"
-              :styles="contactFormFieldsGroupStyles"
-              :defaults="contactFormFieldsStyleConfig.spacing.defaults"
-              @update="updateContactFormFieldsGroupStyle"
-            />
-            <StylePopoverGroup
-              :icon="contactFormFieldsStyleConfig.borders.icon"
-              :title="contactFormFieldsStyleConfig.borders.title"
-              :controls="contactFormFieldsStyleConfig.borders.controls"
-              :styles="contactFormFieldsGroupStyles"
-              :defaults="contactFormFieldsStyleConfig.borders.defaults"
-              @update="updateContactFormFieldsGroupStyle"
-            />
-            <StylePopoverGroup
-              :icon="contactFormFieldsStyleConfig.background.icon"
-              :title="contactFormFieldsStyleConfig.background.title"
-              :controls="contactFormFieldsStyleConfig.background.controls"
-              :styles="contactFormFieldsGroupStyles"
-              :defaults="contactFormFieldsStyleConfig.background.defaults"
-              @update="updateContactFormFieldsGroupStyle"
-            />
-            <StylePopoverGroup
-              :icon="contactFormFieldsStyleConfig.typography.icon"
-              :title="contactFormFieldsStyleConfig.typography.title"
-              :controls="contactFormFieldsStyleConfig.typography.controls"
-              :styles="contactFormFieldsGroupStyles"
-              :defaults="contactFormFieldsStyleConfig.typography.defaults"
-              @update="updateContactFormFieldsGroupStyle"
-            />
-          </template>
+            <!-- Contact Form Fields Shared Style Controls (applies to ALL form inputs) -->
+            <template v-if="isContactSection && activeRepeaterField?.key === 'formFields' && !isEditingItem">
+              <StylePopoverGroup
+                :icon="contactFormFieldsStyleConfig.spacing.icon"
+                :title="contactFormFieldsStyleConfig.spacing.title"
+                :controls="contactFormFieldsStyleConfig.spacing.controls"
+                :styles="contactFormFieldsGroupStyles"
+                :defaults="contactFormFieldsStyleConfig.spacing.defaults"
+                @update="updateContactFormFieldsGroupStyle"
+              />
+              <StylePopoverGroup
+                :icon="contactFormFieldsStyleConfig.borders.icon"
+                :title="contactFormFieldsStyleConfig.borders.title"
+                :controls="contactFormFieldsStyleConfig.borders.controls"
+                :styles="contactFormFieldsGroupStyles"
+                :defaults="contactFormFieldsStyleConfig.borders.defaults"
+                @update="updateContactFormFieldsGroupStyle"
+              />
+              <StylePopoverGroup
+                :icon="contactFormFieldsStyleConfig.background.icon"
+                :title="contactFormFieldsStyleConfig.background.title"
+                :controls="contactFormFieldsStyleConfig.background.controls"
+                :styles="contactFormFieldsGroupStyles"
+                :defaults="contactFormFieldsStyleConfig.background.defaults"
+                @update="updateContactFormFieldsGroupStyle"
+              />
+              <StylePopoverGroup
+                :icon="contactFormFieldsStyleConfig.typography.icon"
+                :title="contactFormFieldsStyleConfig.typography.title"
+                :controls="contactFormFieldsStyleConfig.typography.controls"
+                :styles="contactFormFieldsGroupStyles"
+                :defaults="contactFormFieldsStyleConfig.typography.defaults"
+                @update="updateContactFormFieldsGroupStyle"
+              />
+            </template>
 
-          <!-- Contact Social Links Shared Style Controls (applies to ALL social link items) -->
-          <template v-if="isContactSection && activeRepeaterField?.key === 'socialLinks' && !isEditingItem">
-            <StylePopoverGroup
-              :icon="contactSocialLinksStyleConfig.spacing.icon"
-              :title="contactSocialLinksStyleConfig.spacing.title"
-              :controls="contactSocialLinksStyleConfig.spacing.controls"
-              :styles="contactSocialLinksGroupStyles"
-              :defaults="contactSocialLinksStyleConfig.spacing.defaults"
-              @update="updateContactSocialLinksGroupStyle"
-            />
-            <StylePopoverGroup
-              :icon="contactSocialLinksStyleConfig.borders.icon"
-              :title="contactSocialLinksStyleConfig.borders.title"
-              :controls="contactSocialLinksStyleConfig.borders.controls"
-              :styles="contactSocialLinksGroupStyles"
-              :defaults="contactSocialLinksStyleConfig.borders.defaults"
-              @update="updateContactSocialLinksGroupStyle"
-            />
-            <StylePopoverGroup
-              :icon="contactSocialLinksStyleConfig.background.icon"
-              :title="contactSocialLinksStyleConfig.background.title"
-              :controls="contactSocialLinksStyleConfig.background.controls"
-              :styles="contactSocialLinksGroupStyles"
-              :defaults="contactSocialLinksStyleConfig.background.defaults"
-              @update="updateContactSocialLinksGroupStyle"
-            />
-            <StylePopoverGroup
-              :icon="contactSocialLinksStyleConfig.label.icon"
-              :title="contactSocialLinksStyleConfig.label.title"
-              :controls="contactSocialLinksStyleConfig.label.controls"
-              :styles="contactSocialLinksGroupStyles"
-              :defaults="contactSocialLinksStyleConfig.label.defaults"
-              @update="updateContactSocialLinksGroupStyle"
-            />
-            <StylePopoverGroup
-              :icon="contactSocialLinksStyleConfig.description.icon"
-              :title="contactSocialLinksStyleConfig.description.title"
-              :controls="contactSocialLinksStyleConfig.description.controls"
-              :styles="contactSocialLinksGroupStyles"
-              :defaults="contactSocialLinksStyleConfig.description.defaults"
-              @update="updateContactSocialLinksGroupStyle"
-            />
-          </template>
+            <!-- Contact Social Links Shared Style Controls (applies to ALL social link items) -->
+            <template v-if="isContactSection && activeRepeaterField?.key === 'socialLinks' && !isEditingItem">
+              <StylePopoverGroup
+                :icon="contactSocialLinksStyleConfig.spacing.icon"
+                :title="contactSocialLinksStyleConfig.spacing.title"
+                :controls="contactSocialLinksStyleConfig.spacing.controls"
+                :styles="contactSocialLinksGroupStyles"
+                :defaults="contactSocialLinksStyleConfig.spacing.defaults"
+                @update="updateContactSocialLinksGroupStyle"
+              />
+              <StylePopoverGroup
+                :icon="contactSocialLinksStyleConfig.borders.icon"
+                :title="contactSocialLinksStyleConfig.borders.title"
+                :controls="contactSocialLinksStyleConfig.borders.controls"
+                :styles="contactSocialLinksGroupStyles"
+                :defaults="contactSocialLinksStyleConfig.borders.defaults"
+                @update="updateContactSocialLinksGroupStyle"
+              />
+              <StylePopoverGroup
+                :icon="contactSocialLinksStyleConfig.background.icon"
+                :title="contactSocialLinksStyleConfig.background.title"
+                :controls="contactSocialLinksStyleConfig.background.controls"
+                :styles="contactSocialLinksGroupStyles"
+                :defaults="contactSocialLinksStyleConfig.background.defaults"
+                @update="updateContactSocialLinksGroupStyle"
+              />
+              <StylePopoverGroup
+                :icon="contactSocialLinksStyleConfig.label.icon"
+                :title="contactSocialLinksStyleConfig.label.title"
+                :controls="contactSocialLinksStyleConfig.label.controls"
+                :styles="contactSocialLinksGroupStyles"
+                :defaults="contactSocialLinksStyleConfig.label.defaults"
+                @update="updateContactSocialLinksGroupStyle"
+              />
+              <StylePopoverGroup
+                :icon="contactSocialLinksStyleConfig.description.icon"
+                :title="contactSocialLinksStyleConfig.description.title"
+                :controls="contactSocialLinksStyleConfig.description.controls"
+                :styles="contactSocialLinksGroupStyles"
+                :defaults="contactSocialLinksStyleConfig.description.defaults"
+                @update="updateContactSocialLinksGroupStyle"
+              />
+            </template>
 
           <!-- Non-shared-style repeater group styles (not Cards/Products/Accordion/Links) -->
-
           </div>
         </div>
 
@@ -1369,7 +1425,10 @@ function deleteItem() {
             </div>
 
             <!-- Image Preview (when image exists) -->
-            <div v-if="activeFieldValue" class="space-y-3">
+            <div
+              v-if="activeFieldValue"
+              class="space-y-3"
+            >
               <div class="relative rounded-lg overflow-hidden bg-muted aspect-video">
                 <img
                   :src="activeFieldValue as string"
@@ -1380,7 +1439,10 @@ function deleteItem() {
                   class="absolute top-2 right-2 w-7 h-7 bg-background/80 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
                   @click="removeImage"
                 >
-                  <Icon name="app-delete" :size="14" />
+                  <Icon
+                    name="app-delete"
+                    :size="14"
+                  />
                 </button>
               </div>
               <div class="flex gap-2">
@@ -1390,20 +1452,30 @@ function deleteItem() {
                   class="flex-1"
                   @click="showUploadModal = true"
                 >
-                  <Icon name="app-upload" :size="14" />
+                  <Icon
+                    name="app-upload"
+                    :size="14"
+                  />
                   Replace
                 </Button>
               </div>
             </div>
 
             <!-- Upload buttons (when no image) -->
-            <div v-else class="space-y-2">
+            <div
+              v-else
+              class="space-y-2"
+            >
               <button
                 class="flex flex-col items-center justify-center w-full p-6 border-1 border-dotted border-border bg-muted rounded-lg hover:border-primary/50 hover:bg-muted/50 transition-colors"
                 @click="showUploadModal = true"
               >
                 <div class="w-10 h-10 mb-2 rounded-full bg-input flex items-center justify-center">
-                  <Icon name="app-upload" :size="20" class="text-muted-foreground" />
+                  <Icon
+                    name="app-upload"
+                    :size="20"
+                    class="text-muted-foreground"
+                  />
                 </div>
                 <span class="text-sm font-medium text-foreground">Upload Image</span>
                 <span class="text-xs text-foreground mt-0.5">JPEG, PNG, WebP - Max 4MB</span>
@@ -1412,83 +1484,82 @@ function deleteItem() {
           </div>
 
           <!-- Image Styles -->
-            <!-- Promo section: ONLY show rounded corners -->
-            <template v-if="selectedSection?.type === 'promo'">
-              <div class="px-4 pb-4">
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-foreground whitespace-nowrap">Rounded</label>
-                  <Slider
-                    :model-value="activeFieldStyles.borderRadius ?? 8"
-                    :min="0"
-                    :max="32"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
-                  />
-                </div>
+          <!-- Promo section: ONLY show rounded corners -->
+          <template v-if="selectedSection?.type === 'promo'">
+            <div class="px-4 pb-4">
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-xs text-foreground whitespace-nowrap">Rounded</label>
+                <Slider
+                  :model-value="activeFieldStyles.borderRadius ?? 8"
+                  :min="0"
+                  :max="32"
+                  unit="px"
+                  @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
+                />
               </div>
-            </template>
+            </div>
+          </template>
 
-            <!-- Header section: grouped Size and Spacing -->
-            <template v-else-if="selectedSection?.type === 'header'">
-              <StylePopoverGroup
-                :icon="imageFieldStyleConfig.size.icon"
-                :title="imageFieldStyleConfig.size.title"
-                :controls="imageFieldStyleConfig.size.controls"
-                :styles="activeFieldStyles"
-                :defaults="imageFieldStyleConfig.size.defaults"
-                @update="updateActiveFieldStyle"
-              />
-              <StylePopoverGroup
-                :icon="imageFieldStyleConfig.spacing.icon"
-                :title="imageFieldStyleConfig.spacing.title"
-                :controls="imageFieldStyleConfig.spacing.controls"
-                :styles="activeFieldStyles"
-                :defaults="imageFieldStyleConfig.spacing.defaults"
-                @update="updateActiveFieldStyle"
-              />
-            </template>
+          <!-- Header section: grouped Size and Spacing -->
+          <template v-else-if="selectedSection?.type === 'header'">
+            <StylePopoverGroup
+              :icon="imageFieldStyleConfig.size.icon"
+              :title="imageFieldStyleConfig.size.title"
+              :controls="imageFieldStyleConfig.size.controls"
+              :styles="activeFieldStyles"
+              :defaults="imageFieldStyleConfig.size.defaults"
+              @update="updateActiveFieldStyle"
+            />
+            <StylePopoverGroup
+              :icon="imageFieldStyleConfig.spacing.icon"
+              :title="imageFieldStyleConfig.spacing.title"
+              :controls="imageFieldStyleConfig.spacing.controls"
+              :styles="activeFieldStyles"
+              :defaults="imageFieldStyleConfig.spacing.defaults"
+              @update="updateActiveFieldStyle"
+            />
+          </template>
 
-            <!-- Other sections: show full image styles inline -->
-            <template v-else>
-              <div class="px-4 pb-4 flex flex-col gap-4">
-                <!-- Width -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-foreground whitespace-nowrap">Width</label>
-                  <Slider
-                    :model-value="activeFieldStyles.width ?? 120"
-                    :min="24"
-                    :max="300"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('width', $event)"
-                  />
-                </div>
-
-                <!-- Spacing Y -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-foreground whitespace-nowrap">Spacing Y</label>
-                  <Slider
-                    :model-value="activeFieldStyles.spacingY ?? styleDefaults.spacingY.default"
-                    :min="styleDefaults.spacingY.min"
-                    :max="styleDefaults.spacingY.max"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('spacingY', $event)"
-                  />
-                </div>
-
-                <!-- Spacing X -->
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-foreground whitespace-nowrap">Spacing X</label>
-                  <Slider
-                    :model-value="activeFieldStyles.spacingX ?? styleDefaults.spacingX.default"
-                    :min="styleDefaults.spacingX.min"
-                    :max="styleDefaults.spacingX.max"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('spacingX', $event)"
-                  />
-                </div>
+          <!-- Other sections: show full image styles inline -->
+          <template v-else>
+            <div class="px-4 pb-4 flex flex-col gap-4">
+              <!-- Width -->
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-xs text-foreground whitespace-nowrap">Width</label>
+                <Slider
+                  :model-value="activeFieldStyles.width ?? 120"
+                  :min="24"
+                  :max="300"
+                  unit="px"
+                  @update:model-value="updateActiveFieldStyle('width', $event)"
+                />
               </div>
-            </template>
 
+              <!-- Spacing Y -->
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-xs text-foreground whitespace-nowrap">Spacing Y</label>
+                <Slider
+                  :model-value="activeFieldStyles.spacingY ?? styleDefaults.spacingY.default"
+                  :min="styleDefaults.spacingY.min"
+                  :max="styleDefaults.spacingY.max"
+                  unit="px"
+                  @update:model-value="updateActiveFieldStyle('spacingY', $event)"
+                />
+              </div>
+
+              <!-- Spacing X -->
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-xs text-foreground whitespace-nowrap">Spacing X</label>
+                <Slider
+                  :model-value="activeFieldStyles.spacingX ?? styleDefaults.spacingX.default"
+                  :min="styleDefaults.spacingX.min"
+                  :max="styleDefaults.spacingX.max"
+                  unit="px"
+                  @update:model-value="updateActiveFieldStyle('spacingX', $event)"
+                />
+              </div>
+            </div>
+          </template>
         </template>
 
         <!-- Media Field Editor (image or video with type selector) -->
@@ -1535,7 +1606,10 @@ function deleteItem() {
             </div>
 
             <!-- Media Preview (when media exists) -->
-            <div v-if="getMediaSrc()" class="space-y-3">
+            <div
+              v-if="getMediaSrc()"
+              class="space-y-3"
+            >
               <div class="relative rounded-lg overflow-hidden bg-muted aspect-video">
                 <!-- Video preview -->
                 <video
@@ -1555,7 +1629,10 @@ function deleteItem() {
                   class="absolute top-2 right-2 w-7 h-7 bg-background/80 backdrop-blur-sm border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
                   @click="removeImage"
                 >
-                  <Icon name="app-delete" :size="14" />
+                  <Icon
+                    name="app-delete"
+                    :size="14"
+                  />
                 </button>
               </div>
               <div class="flex gap-2">
@@ -1565,7 +1642,10 @@ function deleteItem() {
                   class="flex-1"
                   @click="showUploadModal = true"
                 >
-                  <Icon name="app-upload" :size="14" />
+                  <Icon
+                    name="app-upload"
+                    :size="14"
+                  />
                   Replace
                 </Button>
                 <Button
@@ -1575,20 +1655,30 @@ function deleteItem() {
                   class="flex-1"
                   @click="showUnsplashModal = true"
                 >
-                  <Icon name="photos" :size="14" />
+                  <Icon
+                    name="photos"
+                    :size="14"
+                  />
                   Unsplash
                 </Button>
               </div>
             </div>
 
             <!-- Upload buttons (when no media) -->
-            <div v-else class="space-y-2">
+            <div
+              v-else
+              class="space-y-2"
+            >
               <button
                 class="flex flex-col items-center justify-center w-full p-6 border-1 border-dotted border-border rounded-lg bg-red-100 hover:border-primary/50 hover:bg-muted/50 transition-colors"
                 @click="showUploadModal = true"
               >
                 <div class="w-10 h-10 mb-2 rounded-full bg-muted flex items-center justify-center">
-                  <Icon name="app-upload" :size="20" class="text-muted-foreground" />
+                  <Icon
+                    name="app-upload"
+                    :size="20"
+                    class="text-muted-foreground"
+                  />
                 </div>
                 <span class="text-sm font-medium text-foreground">
                   Upload {{ getMediaType() === 'video' ? 'Video' : 'Image' }}
@@ -1604,99 +1694,102 @@ function deleteItem() {
                 full-width
                 @click="showUnsplashModal = true"
               >
-                <Icon name="photos" :size="14" />
+                <Icon
+                  name="photos"
+                  :size="14"
+                />
                 Browse Unsplash
               </Button>
             </div>
           </div>
 
           <!-- Media Styles -->
-            <!-- Promo section: ONLY show rounded corners -->
-            <template v-if="selectedSection?.type === 'promo'">
-              <div class="px-4 py-3 border-t border-border/50">
-                <div class="flex items-center justify-between gap-3">
-                  <label class="text-xs text-foreground whitespace-nowrap">Rounded</label>
-                  <Slider
-                    :model-value="activeFieldStyles.borderRadius ?? 8"
-                    :min="0"
-                    :max="32"
-                    unit="px"
-                    @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
-                  />
-                </div>
+          <!-- Promo section: ONLY show rounded corners -->
+          <template v-if="selectedSection?.type === 'promo'">
+            <div class="px-4 py-3 border-t border-border/50">
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-xs text-foreground whitespace-nowrap">Rounded</label>
+                <Slider
+                  :model-value="activeFieldStyles.borderRadius ?? 8"
+                  :min="0"
+                  :max="32"
+                  unit="px"
+                  @update:model-value="updateActiveFieldStyle('borderRadius', $event)"
+                />
               </div>
-            </template>
+            </div>
+          </template>
 
-            <!-- Hero Split: ONLY show spacing (no rounded) -->
-            <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'split'">
-              <!-- Spacing Group -->
-              <StylePopoverGroup
-                :icon="mediaFieldStyleConfig.spacing.icon"
-                :title="mediaFieldStyleConfig.spacing.title"
-                :controls="mediaFieldStyleConfig.spacing.controls"
-                :styles="activeFieldStyles"
-                :defaults="mediaFieldStyleConfig.spacing.defaults"
-                @update="(key, value) => updateActiveFieldStyle(key, value)"
-              />
-            </template>
+          <!-- Hero Split: ONLY show spacing (no rounded) -->
+          <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'split'">
+            <!-- Spacing Group -->
+            <StylePopoverGroup
+              :icon="mediaFieldStyleConfig.spacing.icon"
+              :title="mediaFieldStyleConfig.spacing.title"
+              :controls="mediaFieldStyleConfig.spacing.controls"
+              :styles="activeFieldStyles"
+              :defaults="mediaFieldStyleConfig.spacing.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
+          </template>
 
-            <!-- Hero Stacked: Grouped media controls (Size + Borders) -->
-            <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'stacked'">
-              <!-- Size Group -->
-              <StylePopoverGroup
-                :icon="heroStackedMediaStyleConfig.size.icon"
-                :title="heroStackedMediaStyleConfig.size.title"
-                :controls="heroStackedMediaStyleConfig.size.controls"
-                :styles="activeFieldStyles"
-                :defaults="heroStackedMediaStyleConfig.size.defaults"
-                @update="(key, value) => updateActiveFieldStyle(key, value)"
-              />
+          <!-- Hero Stacked: Grouped media controls (Size + Borders) -->
+          <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'stacked'">
+            <!-- Size Group -->
+            <StylePopoverGroup
+              :icon="heroStackedMediaStyleConfig.size.icon"
+              :title="heroStackedMediaStyleConfig.size.title"
+              :controls="heroStackedMediaStyleConfig.size.controls"
+              :styles="activeFieldStyles"
+              :defaults="heroStackedMediaStyleConfig.size.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
 
-              <!-- Borders Group -->
-              <StylePopoverGroup
-                :icon="heroStackedMediaStyleConfig.borders.icon"
-                :title="heroStackedMediaStyleConfig.borders.title"
-                :controls="heroStackedMediaStyleConfig.borders.controls"
-                :styles="activeFieldStyles"
-                :defaults="heroStackedMediaStyleConfig.borders.defaults"
-                @update="(key, value) => updateActiveFieldStyle(key, value)"
-              />
-            </template>
+            <!-- Borders Group -->
+            <StylePopoverGroup
+              :icon="heroStackedMediaStyleConfig.borders.icon"
+              :title="heroStackedMediaStyleConfig.borders.title"
+              :controls="heroStackedMediaStyleConfig.borders.controls"
+              :styles="activeFieldStyles"
+              :defaults="heroStackedMediaStyleConfig.borders.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
+          </template>
 
-            <!-- Hero Overlay: Show overlay controls in grouped popover -->
-            <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'">
-              <StylePopoverGroup
-                :icon="heroOverlayMediaStyleConfig.overlay.icon"
-                :title="heroOverlayMediaStyleConfig.overlay.title"
-                :controls="heroOverlayMediaStyleConfig.overlay.controls"
-                :styles="sectionStyles"
-                :defaults="heroOverlayMediaStyleConfig.overlay.defaults"
-                @update="(key, value) => updateSectionStyle(key, value)"
-              />
-            </template>
+          <!-- Hero Overlay: Show overlay controls in grouped popover -->
+          <template v-else-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'">
+            <StylePopoverGroup
+              :icon="heroOverlayMediaStyleConfig.overlay.icon"
+              :title="heroOverlayMediaStyleConfig.overlay.title"
+              :controls="heroOverlayMediaStyleConfig.overlay.controls"
+              :styles="sectionStyles"
+              :defaults="heroOverlayMediaStyleConfig.overlay.defaults"
+              @update="(key, value) => updateSectionStyle(key, value)"
+            />
+          </template>
 
-            <!-- Other sections: show full media styles (grouped) -->
-            <template v-else>
-              <!-- Spacing Group -->
-              <StylePopoverGroup
-                :icon="mediaFieldStyleConfig.spacing.icon"
-                :title="mediaFieldStyleConfig.spacing.title"
-                :controls="mediaFieldStyleConfig.spacing.controls"
-                :styles="activeFieldStyles"
-                :defaults="mediaFieldStyleConfig.spacing.defaults"
-                @update="(key, value) => updateActiveFieldStyle(key, value)"
-              />
+          <!-- Other sections: show full media styles (grouped) -->
+          <template v-else>
+            <!-- Spacing Group -->
+            <StylePopoverGroup
+              :icon="mediaFieldStyleConfig.spacing.icon"
+              :title="mediaFieldStyleConfig.spacing.title"
+              :controls="mediaFieldStyleConfig.spacing.controls"
+              :styles="activeFieldStyles"
+              :defaults="mediaFieldStyleConfig.spacing.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
 
-              <!-- Borders Group -->
-              <StylePopoverGroup
-                :icon="mediaFieldStyleConfig.borders.icon"
-                :title="mediaFieldStyleConfig.borders.title"
-                :controls="mediaFieldStyleConfig.borders.controls"
-                :styles="activeFieldStyles"
-                :defaults="mediaFieldStyleConfig.borders.defaults"
-                @update="(key, value) => updateActiveFieldStyle(key, value)"
-              />
-            </template>
+            <!-- Borders Group -->
+            <StylePopoverGroup
+              :icon="mediaFieldStyleConfig.borders.icon"
+              :title="mediaFieldStyleConfig.borders.title"
+              :controls="mediaFieldStyleConfig.borders.controls"
+              :styles="activeFieldStyles"
+              :defaults="mediaFieldStyleConfig.borders.defaults"
+              @update="(key, value) => updateActiveFieldStyle(key, value)"
+            />
+          </template>
         </template>
 
         <!-- Link Field Editor -->
@@ -1735,45 +1828,45 @@ function deleteItem() {
           </div>
 
           <!-- Link Styles -->
-            <!-- Font Group -->
-            <StylePopoverGroup
-              :icon="textFieldStyleConfig.font.icon"
-              :title="textFieldStyleConfig.font.title"
-              :controls="textFieldStyleConfig.font.controls"
-              :styles="activeFieldStyles"
-              :defaults="textFieldStyleConfig.font.defaults"
-              @update="(key, value) => updateActiveFieldStyle(key, value)"
-            />
+          <!-- Font Group -->
+          <StylePopoverGroup
+            :icon="textFieldStyleConfig.font.icon"
+            :title="textFieldStyleConfig.font.title"
+            :controls="textFieldStyleConfig.font.controls"
+            :styles="activeFieldStyles"
+            :defaults="textFieldStyleConfig.font.defaults"
+            @update="(key, value) => updateActiveFieldStyle(key, value)"
+          />
 
-            <!-- Spacing Group -->
-            <StylePopoverGroup
-              :icon="textFieldStyleConfig.spacing.icon"
-              :title="textFieldStyleConfig.spacing.title"
-              :controls="textFieldStyleConfig.spacing.controls"
-              :styles="activeFieldStyles"
-              :defaults="textFieldStyleConfig.spacing.defaults"
-              @update="(key, value) => updateActiveFieldStyle(key, value)"
-            />
+          <!-- Spacing Group -->
+          <StylePopoverGroup
+            :icon="textFieldStyleConfig.spacing.icon"
+            :title="textFieldStyleConfig.spacing.title"
+            :controls="textFieldStyleConfig.spacing.controls"
+            :styles="activeFieldStyles"
+            :defaults="textFieldStyleConfig.spacing.defaults"
+            @update="(key, value) => updateActiveFieldStyle(key, value)"
+          />
 
-            <!-- Background Group -->
-            <StylePopoverGroup
-              :icon="buttonFieldStyleConfig.background.icon"
-              :title="buttonFieldStyleConfig.background.title"
-              :controls="buttonFieldStyleConfig.background.controls"
-              :styles="activeFieldStyles"
-              :defaults="buttonFieldStyleConfig.background.defaults"
-              @update="(key, value) => updateActiveFieldStyle(key, value)"
-            />
+          <!-- Background Group -->
+          <StylePopoverGroup
+            :icon="buttonFieldStyleConfig.background.icon"
+            :title="buttonFieldStyleConfig.background.title"
+            :controls="buttonFieldStyleConfig.background.controls"
+            :styles="activeFieldStyles"
+            :defaults="buttonFieldStyleConfig.background.defaults"
+            @update="(key, value) => updateActiveFieldStyle(key, value)"
+          />
 
-            <!-- Borders Group -->
-            <StylePopoverGroup
-              :icon="buttonFieldStyleConfig.borders.icon"
-              :title="buttonFieldStyleConfig.borders.title"
-              :controls="buttonFieldStyleConfig.borders.controls"
-              :styles="activeFieldStyles"
-              :defaults="buttonFieldStyleConfig.borders.defaults"
-              @update="(key, value) => updateActiveFieldStyle(key, value)"
-            />
+          <!-- Borders Group -->
+          <StylePopoverGroup
+            :icon="buttonFieldStyleConfig.borders.icon"
+            :title="buttonFieldStyleConfig.borders.title"
+            :controls="buttonFieldStyleConfig.borders.controls"
+            :styles="activeFieldStyles"
+            :defaults="buttonFieldStyleConfig.borders.defaults"
+            @update="(key, value) => updateActiveFieldStyle(key, value)"
+          />
         </template>
 
         <!-- Active Field Editor (non-repeater, non-image, non-link) -->
@@ -1822,57 +1915,57 @@ function deleteItem() {
 
           <!-- Field Styles -->
           
-            <!-- Font Group -->
+          <!-- Font Group -->
+          <StylePopoverGroup
+            :icon="textFieldStyleConfig.font.icon"
+            :title="textFieldStyleConfig.font.title"
+            :controls="textFieldStyleConfig.font.controls"
+            :styles="activeFieldStyles"
+            :defaults="textFieldStyleConfig.font.defaults"
+            @update="(key, value) => updateActiveFieldStyle(key, value)"
+          />
+
+          <!-- Spacing Group -->
+          <StylePopoverGroup
+            :icon="textFieldStyleConfig.spacing.icon"
+            :title="textFieldStyleConfig.spacing.title"
+            :controls="textFieldStyleConfig.spacing.controls"
+            :styles="activeFieldStyles"
+            :defaults="textFieldStyleConfig.spacing.defaults"
+            @update="(key, value) => updateActiveFieldStyle(key, value)"
+          />
+
+          <!-- Button-only styles -->
+          <template v-if="activeFieldPath === 'buttonText'">
+            <!-- Background Group -->
             <StylePopoverGroup
-              :icon="textFieldStyleConfig.font.icon"
-              :title="textFieldStyleConfig.font.title"
-              :controls="textFieldStyleConfig.font.controls"
+              :icon="buttonFieldStyleConfig.background.icon"
+              :title="buttonFieldStyleConfig.background.title"
+              :controls="buttonFieldStyleConfig.background.controls"
               :styles="activeFieldStyles"
-              :defaults="textFieldStyleConfig.font.defaults"
+              :defaults="buttonFieldStyleConfig.background.defaults"
               @update="(key, value) => updateActiveFieldStyle(key, value)"
             />
 
-            <!-- Spacing Group -->
+            <!-- Borders Group -->
             <StylePopoverGroup
-              :icon="textFieldStyleConfig.spacing.icon"
-              :title="textFieldStyleConfig.spacing.title"
-              :controls="textFieldStyleConfig.spacing.controls"
+              :icon="buttonFieldStyleConfig.borders.icon"
+              :title="buttonFieldStyleConfig.borders.title"
+              :controls="buttonFieldStyleConfig.borders.controls"
               :styles="activeFieldStyles"
-              :defaults="textFieldStyleConfig.spacing.defaults"
+              :defaults="buttonFieldStyleConfig.borders.defaults"
               @update="(key, value) => updateActiveFieldStyle(key, value)"
             />
-
-            <!-- Button-only styles -->
-            <template v-if="activeFieldPath === 'buttonText'">
-              <!-- Background Group -->
-              <StylePopoverGroup
-                :icon="buttonFieldStyleConfig.background.icon"
-                :title="buttonFieldStyleConfig.background.title"
-                :controls="buttonFieldStyleConfig.background.controls"
-                :styles="activeFieldStyles"
-                :defaults="buttonFieldStyleConfig.background.defaults"
-                @update="(key, value) => updateActiveFieldStyle(key, value)"
-              />
-
-              <!-- Borders Group -->
-              <StylePopoverGroup
-                :icon="buttonFieldStyleConfig.borders.icon"
-                :title="buttonFieldStyleConfig.borders.title"
-                :controls="buttonFieldStyleConfig.borders.controls"
-                :styles="activeFieldStyles"
-                :defaults="buttonFieldStyleConfig.borders.defaults"
-                @update="(key, value) => updateActiveFieldStyle(key, value)"
-              />
-            </template>
+          </template>
         </template>
 
         <!-- Section-level controls (only shown when no field is active) -->
         <template v-else-if="!activeFieldDef">
           <!-- Variant Selector -->
           <div class="flex flex-col px-4 py-5 gap-3">
-              <span class="text-xs font-medium tracking-wide text-foreground">
-                Layout Variant
-              </span>
+            <span class="text-xs font-medium tracking-wide text-foreground">
+              Layout Variant
+            </span>
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="variant in variants"
@@ -1891,14 +1984,20 @@ function deleteItem() {
           </div>
 
           <!-- Style Options (from section definition) -->
-          <div v-if="styleOptions.length > 0" class="px-4 py-4">
+          <div
+            v-if="styleOptions.length > 0"
+            class="px-4 py-4"
+          >
             <div class="mb-4">
               <span class="text-xs font-medium tracking-wide text-foreground">
                 Options
               </span>
             </div>
             <div class="flex flex-col gap-4">
-              <div v-for="option in styleOptions" :key="option.key">
+              <div
+                v-for="option in styleOptions"
+                :key="option.key"
+              >
                 <div class="flex flex-col gap-1.5">
                   <label class="text-xs text-foreground">{{ option.label }}</label>
                   <template v-if="option.type === 'select' && option.options">
@@ -1938,115 +2037,121 @@ function deleteItem() {
           <!-- Section Style -->
           
 
-            <!-- General Section Spacing (if space between applies) -->
-            <StylePopoverGroup
-              v-if="selectedSection?.type === 'hero' || selectedSection?.type === 'promo' || selectedSection?.type === 'cards'"
-              :icon="sectionStyleConfig.spacing.icon"
-              :title="sectionStyleConfig.spacing.title"
-              :controls="sectionStyleConfig.spacing.controls"
-              :styles="sectionStyles"
-              :defaults="sectionStyleConfig.spacing.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- General Section Spacing (if space between applies) -->
+          <StylePopoverGroup
+            v-if="selectedSection?.type === 'hero' || selectedSection?.type === 'promo' || selectedSection?.type === 'cards'"
+            :icon="sectionStyleConfig.spacing.icon"
+            :title="sectionStyleConfig.spacing.title"
+            :controls="sectionStyleConfig.spacing.controls"
+            :styles="sectionStyles"
+            :defaults="sectionStyleConfig.spacing.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- General Section Spacing (without space between) -->
-            <StylePopoverGroup
-              v-else-if="!(selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay')"
-              :icon="sectionStyleConfig.spacing.icon"
-              :title="sectionStyleConfig.spacing.title"
-              :controls="sectionStyleConfig.spacing.controls.filter(c => c.key !== 'spaceBetween')"
-              :styles="sectionStyles"
-              :defaults="sectionStyleConfig.spacing.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- General Section Spacing (without space between) -->
+          <StylePopoverGroup
+            v-else-if="!(selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay')"
+            :icon="sectionStyleConfig.spacing.icon"
+            :title="sectionStyleConfig.spacing.title"
+            :controls="sectionStyleConfig.spacing.controls.filter(c => c.key !== 'spaceBetween')"
+            :styles="sectionStyles"
+            :defaults="sectionStyleConfig.spacing.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- Background (hide for Hero Overlay) -->
-            <StylePopoverGroup
-              v-if="!(selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay')"
-              :icon="sectionStyleConfig.background.icon"
-              :title="sectionStyleConfig.background.title"
-              :controls="sectionStyleConfig.background.controls"
-              :styles="sectionStyles"
-              :defaults="sectionStyleConfig.background.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- Background (hide for Hero Overlay) -->
+          <StylePopoverGroup
+            v-if="!(selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay')"
+            :icon="sectionStyleConfig.background.icon"
+            :title="sectionStyleConfig.background.title"
+            :controls="sectionStyleConfig.background.controls"
+            :styles="sectionStyles"
+            :defaults="sectionStyleConfig.background.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- Hero Overlay Height -->
-            <StylePopoverGroup
-              v-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'"
-              :icon="heroOverlayStyleConfig.height.icon"
-              :title="heroOverlayStyleConfig.height.title"
-              :controls="heroOverlayStyleConfig.height.controls"
-              :styles="sectionStyles"
-              :defaults="heroOverlayStyleConfig.height.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- Hero Overlay Height -->
+          <StylePopoverGroup
+            v-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'"
+            :icon="heroOverlayStyleConfig.height.icon"
+            :title="heroOverlayStyleConfig.height.title"
+            :controls="heroOverlayStyleConfig.height.controls"
+            :styles="sectionStyles"
+            :defaults="heroOverlayStyleConfig.height.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- Hero Overlay Position -->
-            <StylePopoverGroup
-              v-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'"
-              :icon="heroOverlayStyleConfig.position.icon"
-              :title="heroOverlayStyleConfig.position.title"
-              :controls="heroOverlayStyleConfig.position.controls"
-              :styles="sectionStyles"
-              :defaults="heroOverlayStyleConfig.position.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- Hero Overlay Position -->
+          <StylePopoverGroup
+            v-if="selectedSection?.type === 'hero' && selectedSection?.variant === 'overlay'"
+            :icon="heroOverlayStyleConfig.position.icon"
+            :title="heroOverlayStyleConfig.position.title"
+            :controls="heroOverlayStyleConfig.position.controls"
+            :styles="sectionStyles"
+            :defaults="heroOverlayStyleConfig.position.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- Cards Carousel Slider -->
-            <StylePopoverGroup
-              v-if="selectedSection?.type === 'cards' && selectedSection?.variant === 'carousel'"
-              :icon="carouselStyleConfig.slider.icon"
-              :title="carouselStyleConfig.slider.title"
-              :controls="carouselStyleConfig.slider.controls"
-              :styles="sectionStyles"
-              :defaults="carouselStyleConfig.slider.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- Cards Carousel Slider -->
+          <StylePopoverGroup
+            v-if="selectedSection?.type === 'cards' && selectedSection?.variant === 'carousel'"
+            :icon="carouselStyleConfig.slider.icon"
+            :title="carouselStyleConfig.slider.title"
+            :controls="carouselStyleConfig.slider.controls"
+            :styles="sectionStyles"
+            :defaults="carouselStyleConfig.slider.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- Products Carousel Slider -->
-            <StylePopoverGroup
-              v-if="selectedSection?.type === 'products' && selectedSection?.variant === 'carousel'"
-              :icon="productsCarouselStyleConfig.slider.icon"
-              :title="productsCarouselStyleConfig.slider.title"
-              :controls="productsCarouselStyleConfig.slider.controls"
-              :styles="sectionStyles"
-              :defaults="productsCarouselStyleConfig.slider.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- Products Carousel Slider -->
+          <StylePopoverGroup
+            v-if="selectedSection?.type === 'products' && selectedSection?.variant === 'carousel'"
+            :icon="productsCarouselStyleConfig.slider.icon"
+            :title="productsCarouselStyleConfig.slider.title"
+            :controls="productsCarouselStyleConfig.slider.controls"
+            :styles="sectionStyles"
+            :defaults="productsCarouselStyleConfig.slider.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- Gallery Slider -->
-            <StylePopoverGroup
-              v-if="selectedSection?.type === 'gallery' && selectedSection?.variant === 'slider'"
-              :icon="galleryCarouselStyleConfig.slider.icon"
-              :title="galleryCarouselStyleConfig.slider.title"
-              :controls="galleryCarouselStyleConfig.slider.controls"
-              :styles="sectionStyles"
-              :defaults="galleryCarouselStyleConfig.slider.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- Gallery Slider -->
+          <StylePopoverGroup
+            v-if="selectedSection?.type === 'gallery' && selectedSection?.variant === 'slider'"
+            :icon="galleryCarouselStyleConfig.slider.icon"
+            :title="galleryCarouselStyleConfig.slider.title"
+            :controls="galleryCarouselStyleConfig.slider.controls"
+            :styles="sectionStyles"
+            :defaults="galleryCarouselStyleConfig.slider.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
-            <!-- Header Position -->
-            <StylePopoverGroup
-              v-if="selectedSection?.type === 'header'"
-              :icon="headerStyleConfig.position.icon"
-              :title="headerStyleConfig.position.title"
-              :controls="headerStyleConfig.position.controls"
-              :styles="sectionStyles"
-              :defaults="headerStyleConfig.position.defaults"
-              @update="(key, value) => updateSectionStyle(key, value)"
-            />
+          <!-- Header Position -->
+          <StylePopoverGroup
+            v-if="selectedSection?.type === 'header'"
+            :icon="headerStyleConfig.position.icon"
+            :title="headerStyleConfig.position.title"
+            :controls="headerStyleConfig.position.controls"
+            :styles="sectionStyles"
+            :defaults="headerStyleConfig.position.defaults"
+            @update="(key, value) => updateSectionStyle(key, value)"
+          />
 
 
           <!-- Design Options -->
-          <div v-if="designFields.length > 0" class="px-4 py-4">
+          <div
+            v-if="designFields.length > 0"
+            class="px-4 py-4"
+          >
             <div class="mb-4">
               <span class="text-xs font-medium tracking-wide text-foreground">
                 Design Options
               </span>
             </div>
             <div class="flex flex-col gap-4">
-              <div v-for="field in designFields" :key="field.key">
+              <div
+                v-for="field in designFields"
+                :key="field.key"
+              >
                 <label class="block text-xs text-foreground mb-1.5">{{ field.label }}</label>
                 <FieldRenderer
                   :field="field"
@@ -2056,7 +2161,6 @@ function deleteItem() {
               </div>
             </div>
           </div>
-
         </template>
       </template>
 
@@ -2101,7 +2205,10 @@ function deleteItem() {
               class="flex flex-col gap-1.5"
             >
               <span class="text-xs text-foreground">{{ font.label }}</span>
-              <Popover align="left" width="w-56">
+              <Popover
+                align="left"
+                width="w-56"
+              >
                 <template #trigger="{ toggle }">
                   <button
                     class="flex items-center justify-between w-full h-8 px-3 text-sm bg-secondary border border-transparent rounded-lg text-foreground transition-colors hover:bg-accent/50"
@@ -2113,7 +2220,11 @@ function deleteItem() {
                     >
                       {{ getFontLabel(currentTheme.tokens.fonts[font.key] || '') }}
                     </span>
-                    <Icon name="chevron-down" :size="14" class="text-muted-foreground shrink-0" />
+                    <Icon
+                      name="chevron-down"
+                      :size="14"
+                      class="text-muted-foreground shrink-0"
+                    />
                   </button>
                 </template>
                 <template #default="{ close }">
@@ -2132,8 +2243,12 @@ function deleteItem() {
         <!-- CTA -->
         <div class="px-4 py-4">
           <div class="p-3 rounded-lg bg-muted/30 border border-border">
-            <p class="text-xs font-medium text-foreground mb-1">Did you know?</p>
-            <p class="text-xs text-muted-foreground leading-relaxed">Select an element to access its design options</p>
+            <p class="text-xs font-medium text-foreground mb-1">
+              Did you know?
+            </p>
+            <p class="text-xs text-muted-foreground leading-relaxed">
+              Select an element to access its design options
+            </p>
           </div>
         </div>
       </template>

@@ -75,9 +75,11 @@ function goToIntegrations() {
       <!-- Processing -->
       <div v-show="status === 'processing'">
         <div class="w-16 h-16 mx-auto mb-6">
-          <div class="w-full h-full border-4 border-primary/20 border-t-primary rounded-full animate-spin"/>
+          <div class="w-full h-full border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
         </div>
-        <h1 class="text-xl font-semibold text-foreground mb-2">Connecting...</h1>
+        <h1 class="text-xl font-semibold text-foreground mb-2">
+          Connecting...
+        </h1>
         <p class="text-sm text-muted-foreground">
           Please wait while we complete the connection.
         </p>
@@ -86,11 +88,23 @@ function goToIntegrations() {
       <!-- Success -->
       <div v-show="status === 'success'">
         <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
-          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          <svg
+            class="w-8 h-8 text-green-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M5 13l4 4L19 7"
+            />
           </svg>
         </div>
-        <h1 class="text-xl font-semibold text-foreground mb-2">Connected!</h1>
+        <h1 class="text-xl font-semibold text-foreground mb-2">
+          Connected!
+        </h1>
         <p class="text-sm text-muted-foreground">
           Integration connected successfully. Redirecting...
         </p>
@@ -99,11 +113,23 @@ function goToIntegrations() {
       <!-- Error -->
       <div v-show="status === 'error'">
         <div class="w-16 h-16 mx-auto mb-6 rounded-full bg-red-100 flex items-center justify-center">
-          <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          <svg
+            class="w-8 h-8 text-red-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </div>
-        <h1 class="text-xl font-semibold text-foreground mb-2">Connection Failed</h1>
+        <h1 class="text-xl font-semibold text-foreground mb-2">
+          Connection Failed
+        </h1>
         <p class="text-sm text-muted-foreground mb-6">
           {{ errorMessage }}
         </p>

@@ -22,13 +22,10 @@ const props = defineProps<Props>()
 const contextMenuRef = ref<InstanceType<typeof ContextMenu> | null>(null)
 
 const {
-  showAutoTranslate,
   hasRepeatableItems,
   getRepeatableInfo,
   editSection,
   editContent,
-  aiContent,
-  autoTranslate,
   addItem,
   duplicateSection,
   deleteSection,
@@ -57,14 +54,6 @@ function handleEdit() {
   }
 }
 
-function handleAiContent() {
-  aiContent(props.section.id, props.section.type)
-}
-
-function handleAutoTranslate() {
-  autoTranslate(props.section.id)
-}
-
 function handleAddItem() {
   if (repeatableInfo.value) {
     addItem(props.section.id, repeatableInfo.value.key)
@@ -90,31 +79,27 @@ function handleHide() {
   <ContextMenu ref="contextMenuRef">
     <!-- Content-level menu -->
     <template v-if="isContentMenu">
-      <ContextMenu.Item icon="app-editor" @click="handleEdit">
+      <ContextMenu.Item
+        icon="app-editor"
+        @click="handleEdit"
+      >
         Edit content
       </ContextMenu.Item>
-      <ContextMenu.Item icon="app-ai" @click="handleAiContent">
-        AI content
-      </ContextMenu.Item>
-      <ContextMenu.Item icon="app-hide" @click="handleHide">
+      <ContextMenu.Item
+        icon="app-hide"
+        @click="handleHide"
+      >
         Hide
       </ContextMenu.Item>
     </template>
 
     <!-- Section-level menu -->
     <template v-else>
-      <ContextMenu.Item icon="app-editor" @click="handleEdit">
-        Edit section
-      </ContextMenu.Item>
-      <ContextMenu.Item icon="app-ai" @click="handleAiContent">
-        AI content
-      </ContextMenu.Item>
       <ContextMenu.Item
-        v-if="showAutoTranslate"
-        icon="app-language"
-        @click="handleAutoTranslate"
+        icon="app-editor"
+        @click="handleEdit"
       >
-        Auto-Translate
+        Edit section
       </ContextMenu.Item>
       <ContextMenu.Item
         v-if="repeatableInfo"
@@ -124,10 +109,17 @@ function handleHide() {
         Add {{ repeatableInfo.label }}
       </ContextMenu.Item>
       <ContextMenu.Divider />
-      <ContextMenu.Item icon="app-duplicate" @click="handleDuplicate">
+      <ContextMenu.Item
+        icon="app-duplicate"
+        @click="handleDuplicate"
+      >
         Duplicate section
       </ContextMenu.Item>
-      <ContextMenu.Item icon="app-delete" destructive @click="handleDelete">
+      <ContextMenu.Item
+        icon="app-delete"
+        destructive
+        @click="handleDelete"
+      >
         Delete section
       </ContextMenu.Item>
     </template>

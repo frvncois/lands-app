@@ -7,10 +7,10 @@
 
 -- Add token column if it doesn't exist
 ALTER TABLE collaborator_invites
-ADD COLUMN IF NOT EXISTS token UUID DEFAULT uuid_generate_v4() UNIQUE;
+ADD COLUMN IF NOT EXISTS token UUID DEFAULT gen_random_uuid() UNIQUE;
 
 -- Update existing rows to have tokens (if any exist without one)
-UPDATE collaborator_invites SET token = uuid_generate_v4() WHERE token IS NULL;
+UPDATE collaborator_invites SET token = gen_random_uuid() WHERE token IS NULL;
 
 -- Make token NOT NULL after populating existing rows
 ALTER TABLE collaborator_invites ALTER COLUMN token SET NOT NULL;

@@ -19,9 +19,9 @@ const visibleSections = computed(() =>
 <template>
   <div class="columns-2 gap-6">
     <component
+      :is="section.component"
       v-for="section in visibleSections"
       :key="section.id"
-      :is="section.component"
       :category="section.id"
       class="break-inside-avoid mb-6"
     />

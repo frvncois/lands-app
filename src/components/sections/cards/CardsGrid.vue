@@ -137,10 +137,13 @@ function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index:
         :editable="editable"
         :active-field="activeFieldKey"
         :hidden-fields="hiddenFields"
-        @selectField="handleHeaderSelect"
+        @select-field="handleHeaderSelect"
         @update="handleUpdate"
       />
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" :style="{ gap: `${cardsListSpaceBetween}px` }">
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        :style="{ gap: `${cardsListSpaceBetween}px` }"
+      >
         <div
           v-for="(card, index) in data.items"
           :key="card.id || index"
@@ -194,12 +197,16 @@ function handleItemClick(e: MouseEvent, card: CardsData['items'][number], index:
               v-if="card.headline"
               class="text-[length:var(--text-xl)] font-semibold m-0"
               :style="sharedHeadlineStyle"
-            >{{ card.headline }}</h3>
+            >
+              {{ card.headline }}
+            </h3>
             <p
               v-if="card.subheadline"
               class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
               :style="sharedSubheadlineStyle"
-            >{{ card.subheadline }}</p>
+            >
+              {{ card.subheadline }}
+            </p>
             <div
               v-if="card.paragraph"
               class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"

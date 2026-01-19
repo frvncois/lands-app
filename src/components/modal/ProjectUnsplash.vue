@@ -175,8 +175,14 @@ watch([selectedOrientation, selectedOrderBy], () => {
     <!-- Filters -->
     <template #filters>
       <!-- Search input -->
-      <form class="flex-1 relative" @submit.prevent="handleSearch">
-        <Icon name="search-1" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none" />
+      <form
+        class="flex-1 relative"
+        @submit.prevent="handleSearch"
+      >
+        <Icon
+          name="search-1"
+          class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none"
+        />
         <Input
           v-model="searchInput"
           type="text"
@@ -191,7 +197,11 @@ watch([selectedOrientation, selectedOrderBy], () => {
         v-model="selectedOrientation"
         class="h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       >
-        <option v-for="opt in orientations" :key="opt.value" :value="opt.value">
+        <option
+          v-for="opt in orientations"
+          :key="opt.value"
+          :value="opt.value"
+        >
           {{ opt.label }}
         </option>
       </select>
@@ -201,13 +211,20 @@ watch([selectedOrientation, selectedOrderBy], () => {
         v-model="selectedOrderBy"
         class="h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       >
-        <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+        <option
+          v-for="opt in sortOptions"
+          :key="opt.value"
+          :value="opt.value"
+        >
           {{ opt.label }}
         </option>
       </select>
 
       <!-- Search button -->
-      <Button @click="handleSearch" :disabled="!searchInput.trim() || isLoading">
+      <Button
+        :disabled="!searchInput.trim() || isLoading"
+        @click="handleSearch"
+      >
         Search
       </Button>
     </template>
@@ -215,35 +232,74 @@ watch([selectedOrientation, selectedOrderBy], () => {
     <!-- Photo grid -->
     <div class="min-h-[400px]">
       <!-- Initial state -->
-      <div v-if="!searchQuery && !isLoading" class="flex flex-col items-center justify-center py-16 text-center">
-        <Icon name="photos" class="text-4xl text-muted-foreground mb-3" />
-        <p class="text-muted-foreground">Search for beautiful free photos</p>
-        <p class="text-xs text-muted-foreground mt-1">Try "nature", "office", "technology", etc.</p>
+      <div
+        v-if="!searchQuery && !isLoading"
+        class="flex flex-col items-center justify-center py-16 text-center"
+      >
+        <Icon
+          name="photos"
+          class="text-4xl text-muted-foreground mb-3"
+        />
+        <p class="text-muted-foreground">
+          Search for beautiful free photos
+        </p>
+        <p class="text-xs text-muted-foreground mt-1">
+          Try "nature", "office", "technology", etc.
+        </p>
       </div>
 
       <!-- Loading -->
-      <div v-else-if="isLoading" class="flex items-center justify-center py-16">
+      <div
+        v-else-if="isLoading"
+        class="flex items-center justify-center py-16"
+      >
         <Spinner size="lg" />
       </div>
 
       <!-- Error -->
-      <div v-else-if="error" class="flex flex-col items-center justify-center py-16 text-center">
-        <Icon name="warning" class="text-3xl text-destructive mb-2" />
-        <p class="text-sm text-muted-foreground">{{ error }}</p>
-        <Button variant="outline" size="sm" class="mt-4" @click="handleSearch">
+      <div
+        v-else-if="error"
+        class="flex flex-col items-center justify-center py-16 text-center"
+      >
+        <Icon
+          name="warning"
+          class="text-3xl text-destructive mb-2"
+        />
+        <p class="text-sm text-muted-foreground">
+          {{ error }}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          class="mt-4"
+          @click="handleSearch"
+        >
           Try again
         </Button>
       </div>
 
       <!-- No results -->
-      <div v-else-if="photos.length === 0 && searchQuery" class="flex flex-col items-center justify-center py-16 text-center">
-        <Icon name="search-1" class="text-3xl text-muted-foreground mb-2" />
-        <p class="text-sm text-muted-foreground">No images found for "{{ searchQuery }}"</p>
-        <p class="text-xs text-muted-foreground mt-1">Try a different search term</p>
+      <div
+        v-else-if="photos.length === 0 && searchQuery"
+        class="flex flex-col items-center justify-center py-16 text-center"
+      >
+        <Icon
+          name="search-1"
+          class="text-3xl text-muted-foreground mb-2"
+        />
+        <p class="text-sm text-muted-foreground">
+          No images found for "{{ searchQuery }}"
+        </p>
+        <p class="text-xs text-muted-foreground mt-1">
+          Try a different search term
+        </p>
       </div>
 
       <!-- Photo grid -->
-      <div v-else class="space-y-4">
+      <div
+        v-else
+        class="space-y-4"
+      >
         <div class="grid grid-cols-3 gap-3">
           <button
             v-for="photo in photos"
@@ -271,21 +327,38 @@ watch([selectedOrientation, selectedOrderBy], () => {
               v-if="selectedPhoto?.id === photo.id"
               class="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center"
             >
-              <svg class="w-4 h-4 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+              <svg
+                class="w-4 h-4 text-primary-foreground"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="3"
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
             </div>
           </button>
         </div>
 
         <!-- Load more button -->
-        <div v-if="currentPage < totalPages" class="flex justify-center pt-2">
+        <div
+          v-if="currentPage < totalPages"
+          class="flex justify-center pt-2"
+        >
           <Button
             variant="outline"
             :disabled="isLoadingMore"
             @click="loadMore"
           >
-            <Spinner v-if="isLoadingMore" size="sm" class="mr-2" />
+            <Spinner
+              v-if="isLoadingMore"
+              size="sm"
+              class="mr-2"
+            />
             Load more
           </Button>
         </div>
@@ -295,7 +368,12 @@ watch([selectedOrientation, selectedOrderBy], () => {
     <!-- Footer info -->
     <template #footer-info>
       <p class="text-xs text-muted-foreground">
-        Photos provided by <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" class="underline hover:text-foreground">Unsplash</a>
+        Photos provided by <a
+          href="https://unsplash.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline hover:text-foreground"
+        >Unsplash</a>
       </p>
     </template>
   </PickerModal>

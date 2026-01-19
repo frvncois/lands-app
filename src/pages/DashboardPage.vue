@@ -100,8 +100,12 @@ function handleDeleted() {
     <aside class="w-[260px] bg-sidebar-background border-r border-border overflow-y-auto">
       <div class="p-6 space-y-6">
         <div>
-          <h2 class="text-sm font-semibold text-foreground mb-1">Resources & Support</h2>
-          <p class="text-xs text-muted-foreground">Learn, get help, and make the most of Lands.</p>
+          <h2 class="text-sm font-semibold text-foreground mb-1">
+            Resources & Support
+          </h2>
+          <p class="text-xs text-muted-foreground">
+            Learn, get help, and make the most of Lands.
+          </p>
         </div>
 
         <!-- Learn Lands -->
@@ -111,11 +115,18 @@ function handleDeleted() {
         >
           <div class="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors">
             <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-              <Icon name="lni-book-1" class="text-base text-blue-500" />
+              <Icon
+                name="lni-book-1"
+                class="text-base text-blue-500"
+              />
             </div>
             <div class="min-w-0">
-              <h3 class="text-xs font-medium text-foreground mb-0.5 group-hover:text-primary transition-colors">Learn Lands</h3>
-              <p class="text-[10px] text-muted-foreground leading-tight">Guides and tutorials</p>
+              <h3 class="text-xs font-medium text-foreground mb-0.5 group-hover:text-primary transition-colors">
+                Learn Lands
+              </h3>
+              <p class="text-[10px] text-muted-foreground leading-tight">
+                Guides and tutorials
+              </p>
             </div>
           </div>
         </button>
@@ -127,11 +138,18 @@ function handleDeleted() {
         >
           <div class="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors">
             <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Icon name="lni-comment-1-text" class="text-base text-primary" />
+              <Icon
+                name="lni-comment-1-text"
+                class="text-base text-primary"
+              />
             </div>
             <div class="min-w-0">
-              <h3 class="text-xs font-medium text-foreground mb-0.5 group-hover:text-primary transition-colors">Chat with us</h3>
-              <p class="text-[10px] text-muted-foreground leading-tight">Quick support answers</p>
+              <h3 class="text-xs font-medium text-foreground mb-0.5 group-hover:text-primary transition-colors">
+                Chat with us
+              </h3>
+              <p class="text-[10px] text-muted-foreground leading-tight">
+                Quick support answers
+              </p>
             </div>
           </div>
         </button>
@@ -143,14 +161,26 @@ function handleDeleted() {
         >
           <div class="flex items-start gap-3 p-3 rounded-lg hover:bg-accent transition-colors">
             <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-              <Icon name="lni-video-1" class="text-base text-green-500" />
+              <Icon
+                name="lni-video-1"
+                class="text-base text-green-500"
+              />
             </div>
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 mb-0.5">
-                <h3 class="text-xs font-medium text-foreground group-hover:text-primary transition-colors">Book a session</h3>
-                <Badge variant="success" size="xs">Free</Badge>
+                <h3 class="text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                  Book a session
+                </h3>
+                <Badge
+                  variant="success"
+                  size="xs"
+                >
+                  Free
+                </Badge>
               </div>
-              <p class="text-[10px] text-muted-foreground leading-tight">30-min training or setup</p>
+              <p class="text-[10px] text-muted-foreground leading-tight">
+                30-min training or setup
+              </p>
             </div>
           </div>
         </button>
@@ -162,11 +192,18 @@ function handleDeleted() {
         <div class="p-3 rounded-lg bg-muted/30">
           <div class="flex items-start gap-2">
             <div class="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
-              <Icon name="lni-bulb-1" class="text-sm text-amber-500" />
+              <Icon
+                name="lni-bulb-1"
+                class="text-sm text-amber-500"
+              />
             </div>
             <div class="min-w-0">
-              <p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Did you know?</p>
-              <p class="text-xs text-foreground leading-tight">{{ currentTip }}</p>
+              <p class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                Did you know?
+              </p>
+              <p class="text-xs text-foreground leading-tight">
+                {{ currentTip }}
+              </p>
             </div>
           </div>
         </div>
@@ -175,17 +212,32 @@ function handleDeleted() {
         <div class="p-3 rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
           <div class="flex items-start gap-2 mb-2">
             <div class="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Icon name="lni-crown-1" class="text-sm text-primary" />
+              <Icon
+                name="lni-crown-1"
+                class="text-sm text-primary"
+              />
             </div>
             <div class="min-w-0">
               <div class="flex items-center gap-1.5 mb-0.5">
-                <h3 class="text-xs font-medium text-foreground">Upgrade to Pro</h3>
-                <Badge variant="default" size="xs">$6/mo</Badge>
+                <h3 class="text-xs font-medium text-foreground">
+                  Upgrade to Pro
+                </h3>
+                <Badge
+                  variant="default"
+                  size="xs"
+                >
+                  $6/mo
+                </Badge>
               </div>
               <p class="text-[10px] text-muted-foreground leading-tight mb-2">
                 Per-project plans. Custom domains, analytics, and more.
               </p>
-              <Button size="sm" variant="outline" class="w-full text-xs h-7" @click="router.push({ name: 'support' })">
+              <Button
+                size="sm"
+                variant="outline"
+                class="w-full text-xs h-7"
+                @click="router.push({ name: 'support' })"
+              >
                 Learn more
               </Button>
             </div>
@@ -231,7 +283,10 @@ function handleDeleted() {
         </div>
 
         <!-- Empty State -->
-        <ProjectsEmpty v-else-if="!projects.length && !isLoading" @create="handleCreate" />
+        <ProjectsEmpty
+          v-else-if="!projects.length && !isLoading"
+          @create="handleCreate"
+        />
       </div>
     </div>
   </div>

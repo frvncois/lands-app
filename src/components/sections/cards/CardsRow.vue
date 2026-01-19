@@ -142,10 +142,13 @@ function isMediaLeft(index: number): boolean {
         :editable="editable"
         :active-field="activeFieldKey"
         :hidden-fields="hiddenFields"
-        @selectField="handleHeaderSelect"
+        @select-field="handleHeaderSelect"
         @update="handleUpdate"
       />
-      <div class="flex flex-col w-full" :style="{ gap: `${cardsListSpaceBetween}px` }">
+      <div
+        class="flex flex-col w-full"
+        :style="{ gap: `${cardsListSpaceBetween}px` }"
+      >
         <div
           v-for="(card, index) in data.items"
           :key="card.id || index"
@@ -158,82 +161,86 @@ function isMediaLeft(index: number): boolean {
           :style="{ ...sharedContainerStyle, gap: 'var(--spacing-xl)' }"
           @click="handleItemClick($event, card, index)"
         >
-        <!-- Media Column -->
-        <div :class="[{ 'md:order-2': !isMediaLeft(index) }, editable && 'pointer-events-none select-none']">
-          <div
-            v-if="card.media?.src"
-            class="w-full overflow-hidden rounded-[var(--radius-lg)]"
-            :style="sharedMediaStyle"
-          >
-            <img
-              v-if="card.media.type === 'image'"
-              :src="card.media.src"
-              :alt="card.media.alt || ''"
-              :class="[
-                'w-full h-full object-cover',
-                editable && 'pointer-events-none select-none',
-              ]"
-              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
-            />
-            <video
-              v-else-if="card.media.type === 'video'"
-              :src="card.media.src"
-              :class="[
-                'w-full h-full object-cover',
-                editable && 'pointer-events-none select-none',
-              ]"
-              :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
-              autoplay
-              muted
-              loop
-              playsinline
-            />
+          <!-- Media Column -->
+          <div :class="[{ 'md:order-2': !isMediaLeft(index) }, editable && 'pointer-events-none select-none']">
+            <div
+              v-if="card.media?.src"
+              class="w-full overflow-hidden rounded-[var(--radius-lg)]"
+              :style="sharedMediaStyle"
+            >
+              <img
+                v-if="card.media.type === 'image'"
+                :src="card.media.src"
+                :alt="card.media.alt || ''"
+                :class="[
+                  'w-full h-full object-cover',
+                  editable && 'pointer-events-none select-none',
+                ]"
+                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
+              />
+              <video
+                v-else-if="card.media.type === 'video'"
+                :src="card.media.src"
+                :class="[
+                  'w-full h-full object-cover',
+                  editable && 'pointer-events-none select-none',
+                ]"
+                :style="{ aspectRatio: sharedMediaStyle.aspectRatio || '4 / 3' }"
+                autoplay
+                muted
+                loop
+                playsinline
+              />
+            </div>
+
+            <!-- Placeholder when no media -->
+            <div
+              v-else
+              class="w-full aspect-[4/3] rounded-[var(--radius-lg)] bg-[var(--color-surface)] flex items-center justify-center"
+            >
+              <span class="text-[var(--color-muted)]">Add media</span>
+            </div>
           </div>
 
-          <!-- Placeholder when no media -->
+          <!-- Content Column (non-editable inline - edit via inspector) -->
           <div
-            v-else
-            class="w-full aspect-[4/3] rounded-[var(--radius-lg)] bg-[var(--color-surface)] flex items-center justify-center"
+            class="flex flex-col"
+            :class="[{ 'md:order-1': !isMediaLeft(index) }, editable && 'pointer-events-none select-none']"
+            :style="{ gap: sharedInnerGap }"
           >
-            <span class="text-[var(--color-muted)]">Add media</span>
+            <h3
+              v-if="card.headline"
+              class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
+              :style="sharedHeadlineStyle"
+            >
+              {{ card.headline }}
+            </h3>
+            <p
+              v-if="card.subheadline"
+              class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
+              :style="sharedSubheadlineStyle"
+            >
+              {{ card.subheadline }}
+            </p>
+            <div
+              v-if="card.paragraph"
+              class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
+              :style="sharedParagraphStyle"
+              v-html="card.paragraph"
+            />
+            <a
+              v-if="card.buttonLabel && card.buttonUrl"
+              :href="card.buttonUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium hover:opacity-90 transition-opacity no-underline"
+              :style="sharedButtonStyle"
+            >
+              {{ card.buttonLabel }}
+            </a>
           </div>
-        </div>
-
-        <!-- Content Column (non-editable inline - edit via inspector) -->
-        <div
-          class="flex flex-col"
-          :class="[{ 'md:order-1': !isMediaLeft(index) }, editable && 'pointer-events-none select-none']"
-          :style="{ gap: sharedInnerGap }"
-        >
-          <h3
-            v-if="card.headline"
-            class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
-            :style="sharedHeadlineStyle"
-          >{{ card.headline }}</h3>
-          <p
-            v-if="card.subheadline"
-            class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
-            :style="sharedSubheadlineStyle"
-          >{{ card.subheadline }}</p>
-          <div
-            v-if="card.paragraph"
-            class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
-            :style="sharedParagraphStyle"
-            v-html="card.paragraph"
-          />
-          <a
-            v-if="card.buttonLabel && card.buttonUrl"
-            :href="card.buttonUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium hover:opacity-90 transition-opacity no-underline"
-            :style="sharedButtonStyle"
-          >
-            {{ card.buttonLabel }}
-          </a>
         </div>
       </div>
-    </div>
     </div>
   </component>
 </template>

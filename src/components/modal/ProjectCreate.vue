@@ -232,8 +232,12 @@ async function createProject() {
   >
     <template #header>
       <div>
-        <h2 class="text-xl font-semibold text-foreground">Create new project</h2>
-        <p class="text-sm text-muted-foreground mt-0.5">Choose how you want to start</p>
+        <h2 class="text-xl font-semibold text-foreground">
+          Create new project
+        </h2>
+        <p class="text-sm text-muted-foreground mt-0.5">
+          Choose how you want to start
+        </p>
       </div>
     </template>
 
@@ -265,19 +269,52 @@ async function createProject() {
           />
           <!-- Status indicator -->
           <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            <Spinner v-if="isCheckingSlug" class="w-4 h-4" />
-            <svg v-else-if="slugAvailable === true" class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <Spinner
+              v-if="isCheckingSlug"
+              class="w-4 h-4"
+            />
+            <svg
+              v-else-if="slugAvailable === true"
+              class="w-4 h-4 text-green-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
-            <svg v-else-if="slugAvailable === false || slugError" class="w-4 h-4 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              v-else-if="slugAvailable === false || slugError"
+              class="w-4 h-4 text-destructive"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </div>
         </div>
         <!-- Error message -->
-        <p v-if="slugError" class="text-xs text-destructive mt-1">{{ slugError }}</p>
+        <p
+          v-if="slugError"
+          class="text-xs text-destructive mt-1"
+        >
+          {{ slugError }}
+        </p>
         <!-- URL Preview -->
-        <p v-else class="text-xs text-muted-foreground mt-1">
+        <p
+          v-else
+          class="text-xs text-muted-foreground mt-1"
+        >
           Your page will be published at <span class="font-medium text-foreground">{{ previewUrl }}</span>
         </p>
       </FormField>
@@ -291,8 +328,18 @@ async function createProject() {
           :disabled="!canCreate"
           @click="emit('openWizard', { name: projectTitle, slug: projectSlug })"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
           </svg>
           Setup wizard
         </Button>
@@ -304,13 +351,29 @@ async function createProject() {
           :loading="isCreating"
           @click="createProject"
         >
-          <svg v-if="!isCreating" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          <svg
+            v-if="!isCreating"
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           {{ isCreating ? 'Creating...' : 'Start with blank template' }}
         </Button>
 
-        <Button variant="ghost" class="w-full" :disabled="isCreating" @click="close">
+        <Button
+          variant="ghost"
+          class="w-full"
+          :disabled="isCreating"
+          @click="close"
+        >
           Cancel
         </Button>
       </div>

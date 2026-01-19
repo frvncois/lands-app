@@ -19,13 +19,31 @@ const emit = defineEmits<{
 <template>
   <div class="flex items-center justify-between mb-10">
     <div>
-      <h1 class="text-2xl text-foreground">{{ title }}</h1>
-      <p v-if="description" class="text-xxs font-mono uppercase text-muted-foreground tracking-wide">{{ description }}</p>
+      <h1 class="text-2xl text-foreground">
+        {{ title }}
+      </h1>
+      <p
+        v-if="description"
+        class="text-xxs font-mono uppercase text-muted-foreground tracking-wide"
+      >
+        {{ description }}
+      </p>
     </div>
-    <div v-if="$slots.actions || button" class="flex items-center gap-3">
+    <div
+      v-if="$slots.actions || button"
+      class="flex items-center gap-3"
+    >
       <slot name="actions">
-        <Button v-if="button" size="md" @click="emit('buttonClick')">
-          <Icon v-if="buttonIcon" :name="buttonIcon" :size="14" />
+        <Button
+          v-if="button"
+          size="md"
+          @click="emit('buttonClick')"
+        >
+          <Icon
+            v-if="buttonIcon"
+            :name="buttonIcon"
+            :size="14"
+          />
           {{ button }}
         </Button>
       </slot>

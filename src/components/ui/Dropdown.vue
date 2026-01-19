@@ -60,14 +60,24 @@ export default {
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative">
-    <slot name="trigger" :toggle="toggle" :is-open="isOpen">
+  <div
+    ref="dropdownRef"
+    class="relative"
+  >
+    <slot
+      name="trigger"
+      :toggle="toggle"
+      :is-open="isOpen"
+    >
       <Button
         variant="outline"
         size="icon"
         @click="toggle"
       >
-        <Icon :name="icon" :size="18" />
+        <Icon
+          :name="icon"
+          :size="18"
+        />
       </Button>
     </slot>
 

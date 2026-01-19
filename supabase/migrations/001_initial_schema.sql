@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 -- Create user_preferences table
 CREATE TABLE IF NOT EXISTS user_preferences (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   theme TEXT DEFAULT 'system' CHECK (theme IN ('light', 'dark', 'system')),
   email_notifications BOOLEAN DEFAULT true,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 
 -- Create projects table
 CREATE TABLE IF NOT EXISTS projects (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   slug TEXT NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS projects (
 
 -- Create project_content table
 CREATE TABLE IF NOT EXISTS project_content (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   blocks JSONB DEFAULT '[]'::jsonb,
   page_settings JSONB DEFAULT '{}'::jsonb,
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS project_content (
 
 -- Create project_integrations table
 CREATE TABLE IF NOT EXISTS project_integrations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   provider TEXT NOT NULL,
   config JSONB DEFAULT '{}'::jsonb,
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS project_integrations (
 
 -- Create collaborators table
 CREATE TABLE IF NOT EXISTS collaborators (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS collaborators (
 
 -- Create collaborator_invites table
 CREATE TABLE IF NOT EXISTS collaborator_invites (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   role TEXT DEFAULT 'editor' CHECK (role IN ('admin', 'editor')),

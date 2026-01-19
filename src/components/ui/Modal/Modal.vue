@@ -96,19 +96,39 @@ const modalClasses = computed(() => {
               aria-label="Close modal"
               @click="close"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
 
             <!-- Header -->
-            <div v-if="$slots.header || title" class="px-6 pt-6 pb-0 shrink-0">
+            <div
+              v-if="$slots.header || title"
+              class="px-6 pt-6 pb-0 shrink-0"
+            >
               <slot name="header">
                 <div v-if="title">
-                  <h2 id="modal-title" class="text-lg font-semibold text-foreground pr-8">
+                  <h2
+                    id="modal-title"
+                    class="text-lg font-semibold text-foreground pr-8"
+                  >
                     {{ title }}
                   </h2>
-                  <p v-if="description" id="modal-description" class="text-sm text-muted-foreground mt-1">
+                  <p
+                    v-if="description"
+                    id="modal-description"
+                    class="text-sm text-muted-foreground mt-1"
+                  >
                     {{ description }}
                   </p>
                 </div>
@@ -124,7 +144,10 @@ const modalClasses = computed(() => {
             </div>
 
             <!-- Footer -->
-            <div v-if="$slots.footer" class="px-6 pb-6 pt-0 flex items-center justify-end gap-3 shrink-0">
+            <div
+              v-if="$slots.footer"
+              class="px-6 pb-6 pt-0 flex items-center justify-end gap-3 shrink-0"
+            >
               <slot name="footer" />
             </div>
           </div>

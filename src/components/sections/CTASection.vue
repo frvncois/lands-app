@@ -50,7 +50,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <CTASplit
@@ -61,7 +61,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :editable="editable"
     :active-field="activeField"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
 </template>

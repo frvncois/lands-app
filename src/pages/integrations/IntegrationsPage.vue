@@ -37,8 +37,11 @@ const { isLoading } = useIntegrationsState()
 
       <template v-else>
         <!-- Loading State -->
-        <div v-if="isLoading" class="flex items-center justify-center py-20">
-          <div class="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"/>
+        <div
+          v-if="isLoading"
+          class="flex items-center justify-center py-20"
+        >
+          <div class="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
         </div>
 
         <SettingsRenderer

@@ -111,11 +111,18 @@ defineExpose({ focusSearch })
 </script>
 
 <template>
-  <div class="w-full min-w-56 overflow-hidden" @click.stop @keydown="handleKeydown">
+  <div
+    class="w-full min-w-56 overflow-hidden"
+    @click.stop
+    @keydown="handleKeydown"
+  >
     <!-- Search Input -->
     <div class="p-2 border-b border-border">
       <div class="relative">
-        <Icon name="search-1" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none" />
+        <Icon
+          name="search-1"
+          class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none"
+        />
         <input
           ref="searchInputRef"
           v-model="search"
@@ -129,8 +136,13 @@ defineExpose({ focusSearch })
     <!-- Items List -->
     <div class="max-h-64 overflow-y-auto p-1">
       <!-- Empty State -->
-      <div v-if="!hasResults" class="px-3 py-6 text-center">
-        <p class="text-xs text-muted-foreground">{{ emptyText }}</p>
+      <div
+        v-if="!hasResults"
+        class="px-3 py-6 text-center"
+      >
+        <p class="text-xs text-muted-foreground">
+          {{ emptyText }}
+        </p>
       </div>
 
       <!-- Grouped Items -->
@@ -155,8 +167,14 @@ defineExpose({ focusSearch })
             @click.stop="selectItem(item)"
             @mouseenter="highlightedIndex = flatFilteredItems.indexOf(item)"
           >
-            <div v-if="item.icon" class="w-4 h-4 flex items-center justify-center shrink-0">
-              <Icon :name="item.icon" class="text-muted-foreground" />
+            <div
+              v-if="item.icon"
+              class="w-4 h-4 flex items-center justify-center shrink-0"
+            >
+              <Icon
+                :name="item.icon"
+                class="text-muted-foreground"
+              />
             </div>
             <span class="flex-1 text-left truncate">{{ item.label }}</span>
           </button>
@@ -176,8 +194,14 @@ defineExpose({ focusSearch })
             @click.stop="selectItem(item)"
             @mouseenter="highlightedIndex = flatFilteredItems.indexOf(item)"
           >
-            <div v-if="item.icon" class="w-4 h-4 flex items-center justify-center shrink-0">
-              <Icon :name="item.icon" class="text-muted-foreground" />
+            <div
+              v-if="item.icon"
+              class="w-4 h-4 flex items-center justify-center shrink-0"
+            >
+              <Icon
+                :name="item.icon"
+                class="text-muted-foreground"
+              />
             </div>
             <span class="flex-1 text-left truncate">{{ item.label }}</span>
           </button>

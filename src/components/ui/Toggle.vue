@@ -47,8 +47,14 @@ function toggle() {
 </script>
 
 <template>
-  <label class="flex items-center justify-between cursor-pointer" :class="disabled ? 'opacity-50 cursor-not-allowed' : ''">
-    <span v-if="label" class="text-sm text-foreground">{{ label }}</span>
+  <label
+    class="flex items-center justify-between cursor-pointer"
+    :class="disabled ? 'opacity-50 cursor-not-allowed' : ''"
+  >
+    <span
+      v-if="label"
+      class="text-sm text-foreground"
+    >{{ label }}</span>
     <button
       type="button"
       role="switch"

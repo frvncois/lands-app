@@ -94,15 +94,6 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
 
-  if (DEBUG_AUTH) {
-    console.log('[Router Guard]', {
-      to: to.name,
-      from: from.name,
-      authStatus: userStore.authStatus,
-      isAuthenticated: userStore.isAuthenticated,
-    })
-  }
-
   // FIRE-AND-FORGET: Start hydration if not started (non-blocking)
   userStore.ensureHydrationStarted()
 
@@ -111,27 +102,18 @@ router.beforeEach((to, from, next) => {
     // If auth status is unknown, allow navigation (UI will self-correct)
     // If explicitly unauthenticated, redirect to login
     if (userStore.authStatus === 'unauthenticated') {
-      if (DEBUG_AUTH) {
-        console.log('[Router Guard] Auth required but unauthenticated, redirecting to auth')
-      }
       next({ name: 'auth' })
       return
     }
 
     // authStatus is 'unknown' or 'authenticated' → allow
     // If 'unknown', protected page will handle showing skeleton
-    if (DEBUG_AUTH && userStore.authStatus === 'unknown') {
-      console.log('[Router Guard] Auth status unknown, allowing navigation (UI will self-correct)')
-    }
   }
 
   // Check if route requires guest (not authenticated)
   if (to.matched.some(record => record.meta.requiresGuest)) {
     // Only redirect if explicitly authenticated
     if (userStore.authStatus === 'authenticated') {
-      if (DEBUG_AUTH) {
-        console.log('[Router Guard] Guest route but authenticated, redirecting to dashboard')
-      }
       next({ name: 'dashboard' })
       return
     }
@@ -144,9 +126,6 @@ router.beforeEach((to, from, next) => {
   if (to.matched.some(record => record.meta.requiresProject)) {
     const projectId = to.params.projectId as string
     if (!projectId) {
-      if (DEBUG_AUTH) {
-        console.log('[Router Guard] Project route but no projectId, redirecting to dashboard')
-      }
       next({ name: 'dashboard' })
       return
     }

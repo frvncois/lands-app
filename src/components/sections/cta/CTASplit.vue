@@ -134,7 +134,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
 
@@ -149,7 +149,7 @@ function handleButtonClick(e: MouseEvent, fieldKey: string) {
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>

@@ -82,17 +82,26 @@ function getIconName(icon: string): string {
       @click="emit('select', preset)"
     >
       <div class="w-10 h-10 rounded-lg bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-        <Icon :name="getIconName(preset.icon)" class="text-primary" :size="20" />
+        <Icon
+          :name="getIconName(preset.icon)"
+          class="text-primary"
+          :size="20"
+        />
       </div>
       <div class="flex-1">
-        <div class="font-semibold text-sm text-foreground mb-1">{{ preset.name }}</div>
+        <div class="font-semibold text-sm text-foreground mb-1">
+          {{ preset.name }}
+        </div>
         <div class="text-xs text-muted-foreground leading-relaxed line-clamp-2">
           {{ preset.description }}
         </div>
       </div>
 
       <!-- Tags if available -->
-      <div v-if="preset.tags && preset.tags.length > 0" class="flex flex-wrap gap-1">
+      <div
+        v-if="preset.tags && preset.tags.length > 0"
+        class="flex flex-wrap gap-1"
+      >
         <span
           v-for="tag in preset.tags.slice(0, 3)"
           :key="tag"

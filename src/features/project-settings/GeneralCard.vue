@@ -9,7 +9,10 @@ const settings = computed(() => projectStore.settings)
 
 <template>
   <Card>
-    <Card.Header title="General" icon="lni-gear-1" />
+    <Card.Header
+      title="General"
+      icon="lni-gear-1"
+    />
     <Card.Content class="space-y-4">
       <FormField label="Project Title">
         <Input

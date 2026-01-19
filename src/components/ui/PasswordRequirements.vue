@@ -39,7 +39,9 @@ defineExpose({
     class="p-3 rounded-lg border transition-colors"
     :class="allMet ? 'bg-success/5 border-success/30' : 'bg-muted/50 border-border'"
   >
-    <p class="text-xs font-medium text-muted-foreground mb-2">Password requirements</p>
+    <p class="text-xs font-medium text-muted-foreground mb-2">
+      Password requirements
+    </p>
     <ul class="space-y-1.5">
       <li
         v-for="req in requirements"
@@ -54,7 +56,12 @@ defineExpose({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
         </svg>
         <svg
           v-else
@@ -63,7 +70,12 @@ defineExpose({
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <circle cx="12" cy="12" r="9" stroke-width="2" />
+          <circle
+            cx="12"
+            cy="12"
+            r="9"
+            stroke-width="2"
+          />
         </svg>
         {{ req.label }}
       </li>

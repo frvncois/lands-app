@@ -197,8 +197,9 @@ interface RequestBody {
   config: Record<string, string>
 }
 
-// Derive encryption key from service role key using PBKDF2
-async function deriveKey(secret: string): Promise<CryptoKey> {
+// ✅ SECURITY FIX (H-4): Derive encryption key with unique salt per credential
+// Use user_id + integration_type to ensure different keys for different credentials
+async function deriveKey(secret: string, userId: string, integrationType: string): Promise<CryptoKey> {
   const encoder = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -207,11 +208,15 @@ async function deriveKey(secret: string): Promise<CryptoKey> {
     false,
     ['deriveKey']
   )
+
+  // Create unique salt per credential using user_id and integration type
+  const salt = encoder.encode(`lands-integration-${userId}-${integrationType}`)
+
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: encoder.encode('lands-integration-salt'),
-      iterations: 100000,
+      salt,
+      iterations: 600000, // ✅ Increased from 100,000 to 600,000
       hash: 'SHA-256',
     },
     keyMaterial,
@@ -222,8 +227,8 @@ async function deriveKey(secret: string): Promise<CryptoKey> {
 }
 
 // Encrypt credentials using AES-GCM
-async function encryptCredentials(data: string): Promise<string> {
-  const key = await deriveKey(SUPABASE_SERVICE_ROLE_KEY)
+async function encryptCredentials(data: string, userId: string, integrationType: string): Promise<string> {
+  const key = await deriveKey(SUPABASE_SERVICE_ROLE_KEY, userId, integrationType)
   const encoder = new TextEncoder()
   const iv = crypto.getRandomValues(new Uint8Array(12)) // 96-bit IV for AES-GCM
 
@@ -242,8 +247,8 @@ async function encryptCredentials(data: string): Promise<string> {
 }
 
 // Decrypt credentials using AES-GCM
-async function decryptCredentials(encrypted: string): Promise<string> {
-  const key = await deriveKey(SUPABASE_SERVICE_ROLE_KEY)
+async function decryptCredentials(encrypted: string, userId: string, integrationType: string): Promise<string> {
+  const key = await deriveKey(SUPABASE_SERVICE_ROLE_KEY, userId, integrationType)
   const combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0))
 
   const iv = combined.slice(0, 12)
@@ -339,7 +344,7 @@ serve(async (req) => {
         }
 
         // Encrypt and store credentials
-        const encryptedCredentials = await encryptCredentials(JSON.stringify(config))
+        const encryptedCredentials = await encryptCredentials(JSON.stringify(config), user.id, integrationId)
 
         // Store connection
         const { error: upsertError } = await supabase
@@ -405,7 +410,7 @@ serve(async (req) => {
         }
 
         // Decrypt and validate
-        const storedConfig = JSON.parse(await decryptCredentials(connection.encrypted_credentials))
+        const storedConfig = JSON.parse(await decryptCredentials(connection.encrypted_credentials, user.id, integrationId))
         const result = await validator.validate(storedConfig)
 
         return new Response(JSON.stringify({

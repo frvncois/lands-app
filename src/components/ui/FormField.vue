@@ -11,15 +11,27 @@ defineProps<Props>()
 
 <template>
   <div class="space-y-1.5">
-    <label v-if="label" class="flex items-center gap-1 text-xs text-muted-foreground tracking-wide">
+    <label
+      v-if="label"
+      class="flex items-center gap-1 text-xs text-muted-foreground tracking-wide"
+    >
       {{ label }}
-      <span v-if="required" class="text-destructive">*</span>
+      <span
+        v-if="required"
+        class="text-destructive"
+      >*</span>
     </label>
     <slot />
-    <p v-if="hint && !error" class="text-xs text-muted-foreground">
+    <p
+      v-if="hint && !error"
+      class="text-xs text-muted-foreground"
+    >
       {{ hint }}
     </p>
-    <p v-if="error" class="text-xs text-destructive">
+    <p
+      v-if="error"
+      class="text-xs text-destructive"
+    >
       {{ error }}
     </p>
   </div>

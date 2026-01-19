@@ -64,20 +64,31 @@ function handleCancel() {
           class="w-10 h-10 rounded-full flex items-center justify-center"
           :class="variantConfig.iconBg"
         >
-          <Icon :name="variantConfig.icon" class="text-lg" :class="variantConfig.iconColor" />
+          <Icon
+            :name="variantConfig.icon"
+            class="text-lg"
+            :class="variantConfig.iconColor"
+          />
         </div>
         <div>
-          <h2 class="text-lg font-semibold text-foreground">{{ title }}</h2>
+          <h2 class="text-lg font-semibold text-foreground">
+            {{ title }}
+          </h2>
         </div>
       </div>
     </template>
 
     <div class="space-y-4">
       <Alert :variant="variant === 'danger' ? 'error' : variant">
-        <p class="text-sm">{{ message }}</p>
+        <p class="text-sm">
+          {{ message }}
+        </p>
       </Alert>
 
-      <div v-if="confirmInput" class="space-y-2">
+      <div
+        v-if="confirmInput"
+        class="space-y-2"
+      >
         <label class="text-sm font-medium text-foreground block">
           Type <span class="font-semibold text-destructive">{{ confirmInput }}</span> to confirm
         </label>
@@ -91,7 +102,11 @@ function handleCancel() {
     </div>
 
     <template #footer>
-      <Button variant="ghost" :disabled="loading" @click="handleCancel">
+      <Button
+        variant="ghost"
+        :disabled="loading"
+        @click="handleCancel"
+      >
         {{ cancelText }}
       </Button>
       <Button

@@ -42,16 +42,39 @@ watch(() => route.params.projectId, fetchSources)
   <div class="grid grid-cols-2 gap-6">
     <!-- Top Pages -->
     <div class="bg-card border border-border rounded-lg p-5">
-      <h2 class="text-sm font-medium text-foreground mb-4">Top Pages</h2>
+      <h2 class="text-sm font-medium text-foreground mb-4">
+        Top Pages
+      </h2>
 
-      <div v-if="isLoading" class="flex items-center justify-center py-8">
-        <svg class="w-6 h-6 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+      <div
+        v-if="isLoading"
+        class="flex items-center justify-center py-8"
+      >
+        <svg
+          class="w-6 h-6 text-primary animate-spin"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
         </svg>
       </div>
 
-      <div v-else-if="topPages.length" class="space-y-3">
+      <div
+        v-else-if="topPages.length"
+        class="space-y-3"
+      >
         <div
           v-for="page in topPages"
           :key="page.path"
@@ -70,21 +93,49 @@ watch(() => route.params.projectId, fetchSources)
         </div>
       </div>
 
-      <p v-else class="text-sm text-muted-foreground">No page data yet</p>
+      <p
+        v-else
+        class="text-sm text-muted-foreground"
+      >
+        No page data yet
+      </p>
     </div>
 
     <!-- Top Referrers -->
     <div class="bg-card border border-border rounded-lg p-5">
-      <h2 class="text-sm font-medium text-foreground mb-4">Top Referrers</h2>
+      <h2 class="text-sm font-medium text-foreground mb-4">
+        Top Referrers
+      </h2>
 
-      <div v-if="isLoading" class="flex items-center justify-center py-8">
-        <svg class="w-6 h-6 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+      <div
+        v-if="isLoading"
+        class="flex items-center justify-center py-8"
+      >
+        <svg
+          class="w-6 h-6 text-primary animate-spin"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
         </svg>
       </div>
 
-      <div v-else-if="topReferrers.length" class="space-y-3">
+      <div
+        v-else-if="topReferrers.length"
+        class="space-y-3"
+      >
         <div
           v-for="referrer in topReferrers"
           :key="referrer.source"
@@ -103,7 +154,12 @@ watch(() => route.params.projectId, fetchSources)
         </div>
       </div>
 
-      <p v-else class="text-sm text-muted-foreground">No referrer data yet</p>
+      <p
+        v-else
+        class="text-sm text-muted-foreground"
+      >
+        No referrer data yet
+      </p>
     </div>
   </div>
 </template>

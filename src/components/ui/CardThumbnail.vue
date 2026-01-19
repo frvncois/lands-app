@@ -35,9 +35,15 @@ const aspectRatioClasses = {
       :alt="alt || ''"
       class="w-full h-full object-cover"
     />
-    <slot v-else name="placeholder">
+    <slot
+      v-else
+      name="placeholder"
+    >
       <div class="flex flex-col items-center gap-2 text-muted-foreground">
-        <Icon name="content-image" class="text-3xl" />
+        <Icon
+          name="content-image"
+          class="text-3xl"
+        />
         <span class="text-xs">No preview</span>
       </div>
     </slot>

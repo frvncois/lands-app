@@ -61,7 +61,10 @@ async function handleUpdate() {
 
 <template>
   <Card>
-    <Card.Header title="Domain" icon="lni-globe-1" />
+    <Card.Header
+      title="Domain"
+      icon="lni-globe-1"
+    />
     <Card.Content class="space-y-4">
       <FormField label="Subdomain">
         <Input
@@ -75,7 +78,13 @@ async function handleUpdate() {
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
           <label class="text-xs font-medium text-muted-foreground">Custom Domain</label>
-          <Badge v-if="!canUseCustomDomain" variant="secondary" size="xs">Pro</Badge>
+          <Badge
+            v-if="!canUseCustomDomain"
+            variant="secondary"
+            size="xs"
+          >
+            Pro
+          </Badge>
         </div>
         <Input
           :model-value="settings.domain.customDomain"
@@ -92,8 +101,14 @@ async function handleUpdate() {
         </button>
       </div>
 
-      <div v-if="settings.domain.customDomain && canUseCustomDomain" class="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-        <Badge :variant="settings.domain.customDomainVerified ? 'success' : 'warning'" size="sm">
+      <div
+        v-if="settings.domain.customDomain && canUseCustomDomain"
+        class="flex items-center gap-2 p-2 bg-muted/50 rounded-md"
+      >
+        <Badge
+          :variant="settings.domain.customDomainVerified ? 'success' : 'warning'"
+          size="sm"
+        >
           {{ settings.domain.customDomainVerified ? 'Verified' : 'Pending' }}
         </Badge>
         <Button
@@ -106,10 +121,17 @@ async function handleUpdate() {
         </Button>
       </div>
 
-      <Alert v-if="domainChanged && settings.publish.isPublished" variant="warning">
+      <Alert
+        v-if="domainChanged && settings.publish.isPublished"
+        variant="warning"
+      >
         <div class="flex items-center justify-between">
           <span>Update your site to apply domain changes</span>
-          <Button size="xs" :loading="publishing.isPublishing.value" @click="handleUpdate">
+          <Button
+            size="xs"
+            :loading="publishing.isPublishing.value"
+            @click="handleUpdate"
+          >
             {{ publishing.isPublishing.value ? 'Updating...' : 'Update' }}
           </Button>
         </div>

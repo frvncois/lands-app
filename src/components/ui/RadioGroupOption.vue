@@ -52,8 +52,15 @@ function handleClick() {
 
     <!-- Label and description -->
     <div class="flex-1 min-w-0">
-      <p class="text-xxs font-mono uppercase text-accent-foreground">{{ label }}</p>
-      <p v-if="description" class="text-xs text-muted-foreground">{{ description }}</p>
+      <p class="text-xxs font-mono uppercase text-accent-foreground">
+        {{ label }}
+      </p>
+      <p
+        v-if="description"
+        class="text-xs text-muted-foreground"
+      >
+        {{ description }}
+      </p>
     </div>
 
     <slot />

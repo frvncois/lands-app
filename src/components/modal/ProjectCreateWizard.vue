@@ -344,89 +344,112 @@ watch(() => props.open, (isOpen) => {
     >
       <!-- Full-page wizard -->
       <div class="h-full flex flex-col">
-          <!-- Header -->
-          <div class="flex items-center justify-between px-8 py-6 border-b border-border">
-            <div class="flex items-center gap-4">
-              <button
-                v-if="canGoBack"
-                class="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                @click="goBack"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-
-              <div>
-                <div class="flex items-center gap-3 mb-1">
-                  <h1 class="text-2xl font-semibold text-foreground">
-                    {{ stepTitle }}
-                  </h1>
-                  <span class="text-sm text-muted-foreground font-medium">
-                    {{ stepNumber }}/{{ totalSteps }}
-                  </span>
-                </div>
-                <div class="w-48 h-1 bg-muted rounded-full overflow-hidden">
-                  <div
-                    class="h-full bg-primary transition-all duration-300"
-                    :style="{ width: `${(stepNumber / totalSteps) * 100}%` }"
-                  />
-                </div>
-              </div>
-            </div>
-
+        <!-- Header -->
+        <div class="flex items-center justify-between px-8 py-6 border-b border-border">
+          <div class="flex items-center gap-4">
             <button
-              v-if="currentStep !== 'creating'"
+              v-if="canGoBack"
               class="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-              @click="close"
+              @click="goBack"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
+
+            <div>
+              <div class="flex items-center gap-3 mb-1">
+                <h1 class="text-2xl font-semibold text-foreground">
+                  {{ stepTitle }}
+                </h1>
+                <span class="text-sm text-muted-foreground font-medium">
+                  {{ stepNumber }}/{{ totalSteps }}
+                </span>
+              </div>
+              <div class="w-48 h-1 bg-muted rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-primary transition-all duration-300"
+                  :style="{ width: `${(stepNumber / totalSteps) * 100}%` }"
+                />
+              </div>
+            </div>
           </div>
+
+          <button
+            v-if="currentStep !== 'creating'"
+            class="w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            @click="close"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
 
         <!-- Step content -->
         <div class="flex-1 overflow-y-auto px-8 py-8">
           <div class="max-w-4xl mx-auto">
-              <!-- Step 1: Category -->
-              <WizardStepCategory
-                v-if="currentStep === 'category'"
-                @select="selectCategory"
-              />
+            <!-- Step 1: Category -->
+            <WizardStepCategory
+              v-if="currentStep === 'category'"
+              @select="selectCategory"
+            />
 
-              <!-- Step 2: Use Case -->
-              <WizardStepUseCase
-                v-else-if="currentStep === 'usecase'"
-                :category-id="selectedCategory?.id ?? ''"
-                @select="selectUseCase"
-              />
+            <!-- Step 2: Use Case -->
+            <WizardStepUseCase
+              v-else-if="currentStep === 'usecase'"
+              :category-id="selectedCategory?.id ?? ''"
+              @select="selectUseCase"
+            />
 
-              <!-- Step 3: Theme -->
-              <WizardStepTheme
-                v-else-if="currentStep === 'theme'"
-                :selected-theme-id="selectedThemeId"
-                @select="selectTheme"
-              />
+            <!-- Step 3: Theme -->
+            <WizardStepTheme
+              v-else-if="currentStep === 'theme'"
+              :selected-theme-id="selectedThemeId"
+              @select="selectTheme"
+            />
 
-              <!-- Step 4: Style (Color Palette + Font Pairing) -->
-              <WizardStepStyle
-                v-else-if="currentStep === 'style'"
-                :selected-palette-id="selectedPaletteId"
-                :selected-font-pairing-id="selectedFontPairingId"
-                @select-palette="selectPalette"
-                @select-font="selectFontPairing"
-              />
+            <!-- Step 4: Style (Color Palette + Font Pairing) -->
+            <WizardStepStyle
+              v-else-if="currentStep === 'style'"
+              :selected-palette-id="selectedPaletteId"
+              :selected-font-pairing-id="selectedFontPairingId"
+              @select-palette="selectPalette"
+              @select-font="selectFontPairing"
+            />
 
-              <!-- Step 5: Creating -->
-              <div v-else-if="currentStep === 'creating'" class="flex flex-col items-center justify-center py-20">
-                <Spinner class="w-12 h-12 text-primary" />
-                <p class="mt-6 text-lg font-medium text-foreground">
-                  Creating your project...
-                </p>
-                <p class="mt-2 text-sm text-muted-foreground">
-                  Setting up sections and applying your theme
-                </p>
+            <!-- Step 5: Creating -->
+            <div
+              v-else-if="currentStep === 'creating'"
+              class="flex flex-col items-center justify-center py-20"
+            >
+              <Spinner class="w-12 h-12 text-primary" />
+              <p class="mt-6 text-lg font-medium text-foreground">
+                Creating your project...
+              </p>
+              <p class="mt-2 text-sm text-muted-foreground">
+                Setting up sections and applying your theme
+              </p>
             </div>
           </div>
         </div>

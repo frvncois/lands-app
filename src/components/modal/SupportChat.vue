@@ -89,18 +89,28 @@ watch(() => props.open, (isOpen) => {
       <div class="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <Icon name="lni-comment-1-text" class="text-sm text-primary-foreground" />
+            <Icon
+              name="lni-comment-1-text"
+              class="text-sm text-primary-foreground"
+            />
           </div>
           <div>
-            <h3 class="text-sm font-semibold text-foreground">Lands Support</h3>
-            <p class="text-xs text-muted-foreground">We typically reply in a few hours</p>
+            <h3 class="text-sm font-semibold text-foreground">
+              Lands Support
+            </h3>
+            <p class="text-xs text-muted-foreground">
+              We typically reply in a few hours
+            </p>
           </div>
         </div>
         <button
           class="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
           @click="close"
         >
-          <Icon name="lni-xmark" class="text-sm" />
+          <Icon
+            name="lni-xmark"
+            class="text-sm"
+          />
         </button>
       </div>
 
@@ -143,7 +153,10 @@ watch(() => props.open, (isOpen) => {
             :disabled="!message.trim()"
             @click="sendMessage"
           >
-            <Icon name="lni-arrow-right" class="text-sm" />
+            <Icon
+              name="lni-arrow-right"
+              class="text-sm"
+            />
           </Button>
         </div>
         <p class="text-[10px] text-muted-foreground text-center mt-2">

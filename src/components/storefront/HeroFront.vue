@@ -1,20 +1,20 @@
 <template>
-    <section>
-        <ul>
-            <li><h1><span>Microsite Builder</span></h1></li>
-            <li>
-                <div>
-                    <h2>One page that</h2>
-                    <h3>Does everything</h3>
-                </div>
-            </li>
-            <li><p>Build a microsite for your brand, drop, event, service list, link-in-bio, presave, promo, or anything else — all in minutes, with a designer finish.</p></li>
-            <li>
-                <a href="#">Get Started for free</a>
-                <h4>Start for free. No credit card required.</h4>
-            </li>
-        </ul>
-    </section>
+  <section>
+    <ul>
+      <li><h1><span>Microsite Builder</span></h1></li>
+      <li>
+        <div>
+          <h2>One page that</h2>
+          <h3>Does everything</h3>
+        </div>
+      </li>
+      <li><p>Build a microsite for your brand, drop, event, service list, link-in-bio, presave, promo, or anything else — all in minutes, with a designer finish.</p></li>
+      <li>
+        <a href="#">Get Started for free</a>
+        <h4>Start for free. No credit card required.</h4>
+      </li>
+    </ul>
+  </section>
 </template>
 
 <style scoped>

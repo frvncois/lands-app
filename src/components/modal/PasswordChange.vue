@@ -80,7 +80,11 @@ async function handleSubmit() {
           placeholder="Enter new password"
           :disabled="isChangingPassword"
         />
-        <PasswordRequirements ref="passwordRequirementsRef" :password="newPassword" class="mt-2" />
+        <PasswordRequirements
+          ref="passwordRequirementsRef"
+          :password="newPassword"
+          class="mt-2"
+        />
       </FormField>
 
       <FormField label="Confirm New Password">
@@ -91,12 +95,20 @@ async function handleSubmit() {
           :disabled="isChangingPassword"
           :error="confirmPassword.length > 0 && confirmPassword !== newPassword"
         />
-        <p v-if="confirmPassword.length > 0 && confirmPassword !== newPassword" class="text-xs text-destructive mt-1">
+        <p
+          v-if="confirmPassword.length > 0 && confirmPassword !== newPassword"
+          class="text-xs text-destructive mt-1"
+        >
           Passwords do not match
         </p>
       </FormField>
 
-      <Alert v-if="passwordError" variant="error">{{ passwordError }}</Alert>
+      <Alert
+        v-if="passwordError"
+        variant="error"
+      >
+        {{ passwordError }}
+      </Alert>
     </div>
   </FormModal>
 </template>

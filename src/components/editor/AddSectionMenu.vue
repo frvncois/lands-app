@@ -161,8 +161,15 @@ onUnmounted(() => {
 
 <template>
   <div ref="buttonRef">
-    <Button size="icon" variant="outline" @click="toggle">
-      <Icon name="+" :size="14" />
+    <Button
+      size="icon"
+      variant="outline"
+      @click="toggle"
+    >
+      <Icon
+        name="+"
+        :size="14"
+      />
     </Button>
 
     <Teleport to="body">
@@ -182,8 +189,15 @@ onUnmounted(() => {
         >
           <div class="flex items-center justify-between px-4 py-3 border-b border-border">
             <span class="text-sm font-semibold text-foreground">Add Section</span>
-            <Button variant="ghost" size="icon-sm" @click="close">
-              <Icon name="app-remove" :size="14" />
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              @click="close"
+            >
+              <Icon
+                name="app-remove"
+                :size="14"
+              />
             </Button>
           </div>
 
@@ -196,7 +210,11 @@ onUnmounted(() => {
               @mouseenter="handleSectionHover(section, $event)"
               @mouseleave="handleSectionLeave"
             >
-              <Icon :name="section.icon" :size="20" class="text-muted-foreground group-hover:text-primary transition-colors" />
+              <Icon
+                :name="section.icon"
+                :size="20"
+                class="text-muted-foreground group-hover:text-primary transition-colors"
+              />
               <span class="text-xs font-medium text-foreground">{{ section.displayName }}</span>
             </button>
           </div>
@@ -222,14 +240,21 @@ onUnmounted(() => {
         >
           <div class="space-y-3">
             <div>
-              <h3 class="font-semibold text-sm text-foreground mb-1">{{ hoveredSection.displayName }}</h3>
-              <p v-if="hoveredSection.description" class="text-xs text-muted-foreground">
+              <h3 class="font-semibold text-sm text-foreground mb-1">
+                {{ hoveredSection.displayName }}
+              </h3>
+              <p
+                v-if="hoveredSection.description"
+                class="text-xs text-muted-foreground"
+              >
                 {{ hoveredSection.description }}
               </p>
             </div>
 
             <div v-if="hoveredSection.variants && hoveredSection.variants.length > 0">
-              <div class="text-xs font-medium text-foreground mb-1">Variants</div>
+              <div class="text-xs font-medium text-foreground mb-1">
+                Variants
+              </div>
               <div class="flex flex-wrap gap-1">
                 <span
                   v-for="variant in hoveredSection.variants"
@@ -241,7 +266,10 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div v-if="hoveredSection.useCase" class="text-xs text-muted-foreground border-t border-border pt-2">
+            <div
+              v-if="hoveredSection.useCase"
+              class="text-xs text-muted-foreground border-t border-border pt-2"
+            >
               <span class="font-medium text-foreground">Use case:</span> {{ hoveredSection.useCase }}
             </div>
           </div>

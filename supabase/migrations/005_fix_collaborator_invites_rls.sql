@@ -193,7 +193,7 @@ BEGIN
   SELECT raw_user_meta_data->>'name' INTO v_user_name FROM auth.users WHERE id = v_user_id;
 
   -- Generate token and expiry
-  v_token := uuid_generate_v4();
+  v_token := gen_random_uuid();
   v_expires_at := NOW() + INTERVAL '7 days';
 
   -- Create the invite

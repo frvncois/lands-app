@@ -156,8 +156,8 @@ export default {
       let isAuthenticated = false
 
       if (authCookie) {
-        // Verify the auth cookie matches the password hash
-        isAuthenticated = await verifyPassword(authCookie, passwordHash)
+        // ✅ SECURITY FIX: Verify the session token instead of plaintext password
+        isAuthenticated = await verifySessionToken(authCookie, siteKey, passwordHash)
       }
 
       if (!isAuthenticated && queryPassword) {
@@ -165,12 +165,15 @@ export default {
         isAuthenticated = await verifyPassword(queryPassword, passwordHash)
 
         if (isAuthenticated) {
-          // Set auth cookie and redirect to clean URL
+          // ✅ SECURITY FIX: Generate session token instead of storing plaintext password
+          const sessionToken = await generateSessionToken(siteKey, passwordHash)
+
+          // Set auth cookie with session token and redirect to clean URL
           const response = new Response(null, {
             status: 302,
             headers: {
               'Location': url.pathname,
-              'Set-Cookie': `lands_auth_${siteKey}=${queryPassword}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400`,
+              'Set-Cookie': `lands_auth_${siteKey}=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=86400`,
               ...securityHeaders
             }
           })
@@ -320,6 +323,26 @@ async function verifyPassword(password, storedHash) {
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   return hashHex === storedHash
+}
+
+/**
+ * ✅ SECURITY FIX: Generate session token from site key and password hash
+ * Instead of storing plaintext password in cookie, we derive a secure token
+ */
+async function generateSessionToken(siteKey, passwordHash) {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(`${siteKey}:${passwordHash}`)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * ✅ SECURITY FIX: Verify session token matches expected value
+ */
+async function verifySessionToken(token, siteKey, passwordHash) {
+  const expectedToken = await generateSessionToken(siteKey, passwordHash)
+  return token === expectedToken
 }
 
 /**

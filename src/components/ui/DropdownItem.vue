@@ -29,7 +29,11 @@ const emit = defineEmits<{
     :disabled="disabled"
     @click="emit('click')"
   >
-    <Icon v-if="icon" :name="icon" :size="14" />
+    <Icon
+      v-if="icon"
+      :name="icon"
+      :size="14"
+    />
     <slot />
   </button>
 </template>

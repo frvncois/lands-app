@@ -121,7 +121,7 @@ function handleLinkClick(e: MouseEvent) {
           :hidden-fields="hiddenFields"
           class="font-semibold text-[length:var(--text-lg)]"
           :style="getTitleStyle()"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -184,7 +184,7 @@ function handleLinkClick(e: MouseEvent) {
           :hidden-fields="hiddenFields"
           class="font-semibold text-[length:var(--text-lg)] text-center"
           :style="getTitleStyle()"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>

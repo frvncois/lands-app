@@ -216,7 +216,10 @@ onBeforeUnmount(() => {
         <div class="relative">
           <!-- Spinning ring -->
           <div class="absolute inset-0 -m-4">
-            <svg class="w-24 h-24 animate-spin" viewBox="0 0 100 100">
+            <svg
+              class="w-24 h-24 animate-spin"
+              viewBox="0 0 100 100"
+            >
               <circle
                 cx="50"
                 cy="50"

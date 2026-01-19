@@ -153,7 +153,10 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
       :style="{ gap: `${sectionSpaceBetween}px` }"
     >
       <!-- Header Column -->
-      <div v-if="hasHeaderContent" class="md:w-1/3 md:flex-shrink-0">
+      <div
+        v-if="hasHeaderContent"
+        class="md:w-1/3 md:flex-shrink-0"
+      >
         <SectionHeaderBlock
           :headline="data.headline"
           :subheadline="data.subheadline"
@@ -162,7 +165,7 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
           :editable="editable"
           :active-field="activeFieldKey"
           :hidden-fields="hiddenFields"
-          @selectField="handleHeaderSelect"
+          @select-field="handleHeaderSelect"
           @update="handleUpdate"
         />
       </div>
@@ -222,12 +225,16 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
               v-if="product.heading"
               class="text-[length:var(--text-xl)] font-semibold m-0"
               :style="sharedHeadlineStyle"
-            >{{ product.heading }}</h3>
+            >
+              {{ product.heading }}
+            </h3>
             <p
               v-if="product.subheading"
               class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
               :style="sharedSubheadlineStyle"
-            >{{ product.subheading }}</p>
+            >
+              {{ product.subheading }}
+            </p>
             <div
               v-if="product.description"
               class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
@@ -236,7 +243,10 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
             />
 
             <!-- Variant Selector -->
-            <div v-if="product.variants && product.variants.length > 1" class="mt-[var(--spacing-sm)]">
+            <div
+              v-if="product.variants && product.variants.length > 1"
+              class="mt-[var(--spacing-sm)]"
+            >
               <select
                 class="w-full px-[var(--spacing-sm)] py-[var(--spacing-xs)] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-fg)] text-[length:var(--text-sm)]"
                 :value="getSelectedVariantIndex(product, index)"
@@ -255,7 +265,10 @@ function handleItemClick(e: MouseEvent, product: ProductItem, index: number) {
 
             <!-- Price -->
             <div class="mt-auto pt-[var(--spacing-sm)]">
-              <div v-if="getActiveVariant(product, index)" class="flex items-baseline gap-[var(--spacing-xs)]">
+              <div
+                v-if="getActiveVariant(product, index)"
+                class="flex items-baseline gap-[var(--spacing-xs)]"
+              >
                 <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
                   {{ formatPrice(getActiveVariant(product, index)!.price) }}
                 </span>

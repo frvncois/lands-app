@@ -124,7 +124,7 @@ const heroViewportStyle = computed(() => ({
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-5xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -137,7 +137,7 @@ const heroViewportStyle = computed(() => ({
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-xl)] text-[var(--color-muted)] m-0 max-w-[600px]"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -168,7 +168,10 @@ const heroViewportStyle = computed(() => ({
           loop
           playsinline
         />
-        <MediaPlaceholder v-else :show="true" />
+        <MediaPlaceholder
+          v-else
+          :show="true"
+        />
       </div>
 
       <!-- BLOCK C: Paragraph + Buttons -->
@@ -184,7 +187,7 @@ const heroViewportStyle = computed(() => ({
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <div class="flex gap-[var(--spacing-md)]">
@@ -234,7 +237,7 @@ const heroViewportStyle = computed(() => ({
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-5xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -247,7 +250,7 @@ const heroViewportStyle = computed(() => ({
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-xl)] text-[var(--color-muted)] m-0 max-w-[600px]"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -265,7 +268,7 @@ const heroViewportStyle = computed(() => ({
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px] prose prose-sm"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <div class="flex gap-[var(--spacing-md)] justify-center">
@@ -322,7 +325,11 @@ const heroViewportStyle = computed(() => ({
           loop
           playsinline
         />
-        <MediaPlaceholder v-else :show="true" class="w-full h-full" />
+        <MediaPlaceholder
+          v-else
+          :show="true"
+          class="w-full h-full"
+        />
       </div>
     </div>
 
@@ -358,7 +365,11 @@ const heroViewportStyle = computed(() => ({
           loop
           playsinline
         />
-        <MediaPlaceholder v-else :show="true" class="w-full h-full" />
+        <MediaPlaceholder
+          v-else
+          :show="true"
+          class="w-full h-full"
+        />
       </div>
 
       <!-- BLOCK A: Headline + Subheadline -->
@@ -373,7 +384,7 @@ const heroViewportStyle = computed(() => ({
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-5xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -386,7 +397,7 @@ const heroViewportStyle = computed(() => ({
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-xl)] text-[var(--color-muted)] m-0 max-w-[600px]"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -404,7 +415,7 @@ const heroViewportStyle = computed(() => ({
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px] prose prose-sm"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <div class="flex gap-[var(--spacing-md)] justify-center">

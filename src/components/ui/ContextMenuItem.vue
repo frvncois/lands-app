@@ -34,8 +34,16 @@ function handleClick() {
     :disabled="disabled"
     @click="handleClick"
   >
-    <Icon v-if="icon" :name="icon" :size="14" class="w-4" />
+    <Icon
+      v-if="icon"
+      :name="icon"
+      :size="14"
+      class="w-4"
+    />
     <span class="flex-1 text-left"><slot /></span>
-    <span v-if="shortcut" class="text-[10px] text-muted-foreground font-mono">{{ shortcut }}</span>
+    <span
+      v-if="shortcut"
+      class="text-[10px] text-muted-foreground font-mono"
+    >{{ shortcut }}</span>
   </button>
 </template>

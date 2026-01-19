@@ -19,7 +19,6 @@ interface InviteInfo {
   role: string
   project_title: string
   inviter_name: string
-  expires_at: string
 }
 
 const inviteInfo = ref<InviteInfo | null>(null)
@@ -56,7 +55,6 @@ async function fetchInviteInfo() {
       role: data.role || '',
       project_title: data.project_title || '',
       inviter_name: data.inviter_name || '',
-      expires_at: data.expires_at || '',
     }
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Failed to load invite'
@@ -109,18 +107,33 @@ function goToDashboard() {
   <div class="min-h-screen bg-background flex items-center justify-center p-4">
     <div class="w-full max-w-md">
       <!-- Loading State -->
-      <div v-if="isLoading" class="bg-card border border-border rounded-lg p-8 text-center">
-        <div class="w-10 h-10 mx-auto mb-4 rounded-full border-2 border-primary border-t-transparent animate-spin"/>
-        <p class="text-sm text-muted-foreground">Loading invite...</p>
+      <div
+        v-if="isLoading"
+        class="bg-card border border-border rounded-lg p-8 text-center"
+      >
+        <div class="w-10 h-10 mx-auto mb-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p class="text-sm text-muted-foreground">
+          Loading invite...
+        </p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error && !inviteInfo" class="bg-card border border-border rounded-lg p-8 text-center">
+      <div
+        v-else-if="error && !inviteInfo"
+        class="bg-card border border-border rounded-lg p-8 text-center"
+      >
         <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
-          <Icon name="cross-circle" class="text-2xl text-destructive" />
+          <Icon
+            name="cross-circle"
+            class="text-2xl text-destructive"
+          />
         </div>
-        <h1 class="text-lg font-semibold text-foreground mb-2">Invalid Invite</h1>
-        <p class="text-sm text-muted-foreground mb-6">{{ error }}</p>
+        <h1 class="text-lg font-semibold text-foreground mb-2">
+          Invalid Invite
+        </h1>
+        <p class="text-sm text-muted-foreground mb-6">
+          {{ error }}
+        </p>
         <button
           class="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
           @click="goToDashboard"
@@ -130,13 +143,21 @@ function goToDashboard() {
       </div>
 
       <!-- Invite Info -->
-      <div v-else-if="inviteInfo" class="bg-card border border-border rounded-lg overflow-hidden">
+      <div
+        v-else-if="inviteInfo"
+        class="bg-card border border-border rounded-lg overflow-hidden"
+      >
         <!-- Header -->
         <div class="bg-muted/30 p-6 text-center border-b border-border">
           <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-            <Icon name="users" class="text-2xl text-primary" />
+            <Icon
+              name="users"
+              class="text-2xl text-primary"
+            />
           </div>
-          <h1 class="text-lg font-semibold text-foreground">You're invited!</h1>
+          <h1 class="text-lg font-semibold text-foreground">
+            You're invited!
+          </h1>
           <p class="text-sm text-muted-foreground mt-1">
             <span class="font-medium text-foreground">{{ inviteInfo.inviter_name }}</span> invited you to collaborate
           </p>
@@ -163,16 +184,27 @@ function goToDashboard() {
           </div>
 
           <!-- Email mismatch warning -->
-          <div v-if="isAuthenticated && emailMismatch" class="p-3 bg-amber-50 border border-amber-200 rounded-md">
+          <div
+            v-if="isAuthenticated && emailMismatch"
+            class="p-3 bg-amber-50 border border-amber-200 rounded-md"
+          >
             <p class="text-sm text-amber-800">
-              <Icon name="warning" class="mr-1" />
+              <Icon
+                name="warning"
+                class="mr-1"
+              />
               This invite was sent to <strong>{{ inviteInfo.email }}</strong>, but you're logged in as <strong>{{ currentUserEmail }}</strong>.
             </p>
           </div>
 
           <!-- Error message -->
-          <div v-if="error" class="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-            <p class="text-sm text-destructive">{{ error }}</p>
+          <div
+            v-if="error"
+            class="p-3 bg-destructive/10 border border-destructive/20 rounded-md"
+          >
+            <p class="text-sm text-destructive">
+              {{ error }}
+            </p>
           </div>
         </div>
 

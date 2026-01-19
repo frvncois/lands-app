@@ -42,12 +42,32 @@ watch(() => route.params.projectId, fetchDevices)
   <div class="grid grid-cols-2 gap-6">
     <!-- Devices -->
     <div class="bg-card border border-border rounded-lg p-5">
-      <h2 class="text-sm font-medium text-foreground mb-4">Devices</h2>
+      <h2 class="text-sm font-medium text-foreground mb-4">
+        Devices
+      </h2>
 
-      <div v-if="isLoading" class="flex items-center justify-center py-8">
-        <svg class="w-6 h-6 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+      <div
+        v-if="isLoading"
+        class="flex items-center justify-center py-8"
+      >
+        <svg
+          class="w-6 h-6 text-primary animate-spin"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
         </svg>
       </div>
 
@@ -67,27 +87,58 @@ watch(() => route.params.projectId, fetchDevices)
             :key="device.type"
             class="flex items-center gap-1.5"
           >
-            <span class="w-2 h-2 rounded-full" :class="device.color"/>
+            <span
+              class="w-2 h-2 rounded-full"
+              :class="device.color"
+            />
             <span class="text-muted-foreground">{{ device.type }} {{ device.percentage }}%</span>
           </div>
         </div>
       </template>
 
-      <p v-else class="text-sm text-muted-foreground">No device data yet</p>
+      <p
+        v-else
+        class="text-sm text-muted-foreground"
+      >
+        No device data yet
+      </p>
     </div>
 
     <!-- Countries -->
     <div class="bg-card border border-border rounded-lg p-5">
-      <h2 class="text-sm font-medium text-foreground mb-4">Countries</h2>
+      <h2 class="text-sm font-medium text-foreground mb-4">
+        Countries
+      </h2>
 
-      <div v-if="isLoading" class="flex items-center justify-center py-8">
-        <svg class="w-6 h-6 text-primary animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+      <div
+        v-if="isLoading"
+        class="flex items-center justify-center py-8"
+      >
+        <svg
+          class="w-6 h-6 text-primary animate-spin"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          />
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          />
         </svg>
       </div>
 
-      <div v-else-if="countries.length" class="space-y-2">
+      <div
+        v-else-if="countries.length"
+        class="space-y-2"
+      >
         <div
           v-for="country in countries.slice(0, 4)"
           :key="country.name"
@@ -98,7 +149,12 @@ watch(() => route.params.projectId, fetchDevices)
         </div>
       </div>
 
-      <p v-else class="text-sm text-muted-foreground">No country data yet</p>
+      <p
+        v-else
+        class="text-sm text-muted-foreground"
+      >
+        No country data yet
+      </p>
     </div>
   </div>
 </template>

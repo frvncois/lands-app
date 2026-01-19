@@ -29,7 +29,10 @@ const style = computed(() => ({
 </script>
 
 <template>
-  <div :class="classes" :style="style">
+  <div
+    :class="classes"
+    :style="style"
+  >
     <slot />
   </div>
 </template>

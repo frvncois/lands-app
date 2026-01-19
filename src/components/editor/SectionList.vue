@@ -372,12 +372,18 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
     </div>
 
     <!-- Empty State -->
-    <div v-if="sections.length === 0" class="px-4 py-6 text-center text-xs text-muted-foreground">
+    <div
+      v-if="sections.length === 0"
+      class="px-4 py-6 text-center text-xs text-muted-foreground"
+    >
       No sections yet. Add one to get started.
     </div>
 
     <!-- Section List -->
-    <div v-else class="flex-1 overflow-y-auto p-2">
+    <div
+      v-else
+      class="flex-1 overflow-y-auto p-2"
+    >
       <div
         v-for="(section, index) in sections"
         :key="section.id"
@@ -413,7 +419,10 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
             class="flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:bg-border hover:text-foreground transition-colors"
             @click.stop="toggleExpand(section.id)"
           >
-            <Icon :name="isExpanded(section.id) ? 'chevron-down' : 'chevron-right'" :size="16" />
+            <Icon
+              :name="isExpanded(section.id) ? 'chevron-down' : 'chevron-right'"
+              :size="16"
+            />
           </button>
 
           <!-- Section Icon & Name -->
@@ -428,14 +437,20 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
               title="Duplicate section"
               @click="duplicateSection($event, section.id)"
             >
-              <Icon name="app-duplicate" :size="12" />
+              <Icon
+                name="app-duplicate"
+                :size="12"
+              />
             </button>
             <button
               class="flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
               title="Delete section"
               @click="deleteSection($event, section.id)"
             >
-              <Icon name="app-delete" :size="12" />
+              <Icon
+                name="app-delete"
+                :size="12"
+              />
             </button>
           </div>
         </div>
@@ -490,7 +505,10 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
               :title="editor.isFieldHidden(section.id, field.key) ? 'Show field' : 'Hide field'"
               @click="toggleFieldVisibility($event, section.id, field.key)"
             >
-              <Icon :name="editor.isFieldHidden(section.id, field.key) ? 'app-hide' : 'eye'" :size="12" />
+              <Icon
+                :name="editor.isFieldHidden(section.id, field.key) ? 'app-hide' : 'eye'"
+                :size="12"
+              />
             </button>
           </div>
 
@@ -515,7 +533,10 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
                 ]"
                 @click.stop="toggleRepeater(section.id, repeater.key)"
               >
-                <Icon :name="isRepeaterExpanded(section.id, repeater.key) ? 'chevron-down' : 'chevron-right'" :size="16" />
+                <Icon
+                  :name="isRepeaterExpanded(section.id, repeater.key) ? 'chevron-down' : 'chevron-right'"
+                  :size="16"
+                />
               </button>
               <span
                 class="flex-1 text-xs truncate"
@@ -529,7 +550,10 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
               </span>
             </div>
 
-            <div v-if="isRepeaterExpanded(section.id, repeater.key)" class="ml-6 space-y-0.5">
+            <div
+              v-if="isRepeaterExpanded(section.id, repeater.key)"
+              class="ml-6 space-y-0.5"
+            >
               <div
                 v-for="(item, itemIndex) in getRepeaterItems(section, repeater.key)"
                 :key="`${repeater.key}-${getItemId(item, itemIndex)}`"
@@ -576,7 +600,10 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
                     title="Duplicate item"
                     @click="duplicateItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
                   >
-                    <Icon name="app-duplicate" :size="10" />
+                    <Icon
+                      name="app-duplicate"
+                      :size="10"
+                    />
                   </button>
                   <button
                     class="flex items-center justify-center w-4 h-4 rounded transition-colors"
@@ -588,7 +615,10 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
                     title="Delete item"
                     @click="deleteItem($event, section.id, repeater.key, getItemId(item, itemIndex))"
                   >
-                    <Icon name="app-delete" :size="10" />
+                    <Icon
+                      name="app-delete"
+                      :size="10"
+                    />
                   </button>
                 </div>
               </div>
@@ -599,7 +629,11 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
                 class="flex items-center gap-3 w-full px-2.5 py-1.5 rounded text-left transition-colors hover:bg-accent cursor-pointer"
                 @click="addItem(section.id, repeater.key)"
               >
-                <Icon name="plus" :size="12" class="text-muted-foreground" />
+                <Icon
+                  name="plus"
+                  :size="12"
+                  class="text-muted-foreground"
+                />
                 <span class="text-xs text-foreground">Add {{ repeater.label.replace(/s$/, '') }}</span>
               </button>
 
@@ -646,7 +680,10 @@ function handleFieldContextMenu(event: MouseEvent, section: SectionListEntry, fi
                   :title="editor.isFieldHidden(section.id, 'submitButton') ? 'Show field' : 'Hide field'"
                   @click="toggleFieldVisibility($event, section.id, 'submitButton')"
                 >
-                  <Icon :name="editor.isFieldHidden(section.id, 'submitButton') ? 'app-hide' : 'eye'" :size="12" />
+                  <Icon
+                    :name="editor.isFieldHidden(section.id, 'submitButton') ? 'app-hide' : 'eye'"
+                    :size="12"
+                  />
                 </button>
               </div>
             </div>

@@ -75,133 +75,181 @@ function upgradeToProForDomain() {
     @update:open="emit('update:open', $event)"
   >
     <div class="space-y-6">
-          <!-- Glowing Icon -->
-          <div class="flex justify-center">
-            <div class="relative">
-              <!-- Glow effect -->
-              <div class="absolute inset-0 bg-green-500/30 blur-2xl rounded-full animate-pulse" />
-              <!-- Icon container -->
-              <div class="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/50 animate-bounce-subtle">
-                <Icon name="app-publish" class="text-3xl text-white" />
-              </div>
-            </div>
+      <!-- Glowing Icon -->
+      <div class="flex justify-center">
+        <div class="relative">
+          <!-- Glow effect -->
+          <div class="absolute inset-0 bg-green-500/30 blur-2xl rounded-full animate-pulse" />
+          <!-- Icon container -->
+          <div class="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/50 animate-bounce-subtle">
+            <Icon
+              name="app-publish"
+              class="text-3xl text-white"
+            />
           </div>
+        </div>
+      </div>
 
-          <!-- Success message -->
-          <div class="text-center space-y-2">
-            <h2 class="text-2xl font-bold text-foreground animate-fadeInUp">
-              Project Published Successfully!
-            </h2>
-            <p class="text-sm text-muted-foreground animate-fadeInUp animation-delay-100">
-              Your site is now live and ready to share with the world
-            </p>
-          </div>
+      <!-- Success message -->
+      <div class="text-center space-y-2">
+        <h2 class="text-2xl font-bold text-foreground animate-fadeInUp">
+          Project Published Successfully!
+        </h2>
+        <p class="text-sm text-muted-foreground animate-fadeInUp animation-delay-100">
+          Your site is now live and ready to share with the world
+        </p>
+      </div>
 
-          <!-- Site URL -->
-          <div class="p-4 bg-muted/50 border border-border rounded-xl space-y-3 animate-fadeInUp animation-delay-200">
-            <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Your live site</p>
-            <div class="flex items-center gap-2 flex-wrap">
-              <a
-                :href="fullUrl"
-                target="_blank"
-                class="text-lg font-semibold text-foreground hover:text-primary transition-colors flex-1 min-w-0 truncate"
-              >
-                {{ siteUrl }}
-              </a>
-              <div class="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  class="p-2 text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
-                  title="Copy URL"
-                  @click="copyUrl"
-                >
-                  <Icon name="files-1" class="text-sm" />
-                </button>
-                <button
-                  type="button"
-                  class="p-2 text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
-                  title="Visit site"
-                  @click="visitSite"
-                >
-                  <Icon name="link-external" class="text-sm" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Pro upgrade CTA (if not on Pro and no custom domain) -->
-          <div
-            v-if="!customDomain && !isPro"
-            class="relative overflow-hidden p-5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 rounded-xl animate-fadeInUp animation-delay-300"
+      <!-- Site URL -->
+      <div class="p-4 bg-muted/50 border border-border rounded-xl space-y-3 animate-fadeInUp animation-delay-200">
+        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Your live site
+        </p>
+        <div class="flex items-center gap-2 flex-wrap">
+          <a
+            :href="fullUrl"
+            target="_blank"
+            class="text-lg font-semibold text-foreground hover:text-primary transition-colors flex-1 min-w-0 truncate"
           >
-            <!-- Decorative gradient -->
-            <div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
-
-            <div class="relative flex items-start gap-4">
-              <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Icon name="lni-crown-1" class="text-xl text-primary" />
-              </div>
-              <div class="flex-1 space-y-3">
-                <div>
-                  <div class="flex items-center gap-2 mb-1">
-                    <h3 class="font-semibold text-foreground">Want a custom domain?</h3>
-                    <Badge variant="default" size="xs">Pro</Badge>
-                  </div>
-                  <p class="text-sm text-muted-foreground">
-                    Upgrade to Pro for custom domains, remove watermarks, analytics, and more — just $6/mo per project.
-                  </p>
-                </div>
-                <Button size="sm" @click="upgradeToProForDomain">
-                  <Icon name="lni-crown-1" class="text-sm" />
-                  Upgrade to Pro
-                </Button>
-              </div>
-            </div>
+            {{ siteUrl }}
+          </a>
+          <div class="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              class="p-2 text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
+              title="Copy URL"
+              @click="copyUrl"
+            >
+              <Icon
+                name="files-1"
+                class="text-sm"
+              />
+            </button>
+            <button
+              type="button"
+              class="p-2 text-muted-foreground hover:text-foreground hover:bg-background rounded-lg transition-colors"
+              title="Visit site"
+              @click="visitSite"
+            >
+              <Icon
+                name="link-external"
+                class="text-sm"
+              />
+            </button>
           </div>
+        </div>
+      </div>
 
-          <!-- Share section -->
-          <div class="space-y-3 animate-fadeInUp animation-delay-400">
-            <div class="flex items-center gap-2">
-              <Icon name="lni-share-1" class="text-sm text-muted-foreground" />
-              <p class="text-sm font-medium text-foreground">Share your site</p>
-            </div>
-            <div class="grid grid-cols-3 gap-3">
-              <button
-                class="group flex flex-col items-center gap-2 p-4 bg-muted/50 hover:bg-muted border border-border hover:border-primary/30 rounded-xl transition-all hover:scale-105"
-                @click="shareTwitter"
-              >
-                <div class="w-10 h-10 rounded-full bg-[#1DA1F2]/10 group-hover:bg-[#1DA1F2]/20 flex items-center justify-center transition-colors">
-                  <Icon name="lni-twitter-x" class="text-lg text-[#1DA1F2]" />
-                </div>
-                <span class="text-xs font-medium text-foreground">Twitter</span>
-              </button>
+      <!-- Pro upgrade CTA (if not on Pro and no custom domain) -->
+      <div
+        v-if="!customDomain && !isPro"
+        class="relative overflow-hidden p-5 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 rounded-xl animate-fadeInUp animation-delay-300"
+      >
+        <!-- Decorative gradient -->
+        <div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
 
-              <button
-                class="group flex flex-col items-center gap-2 p-4 bg-muted/50 hover:bg-muted border border-border hover:border-primary/30 rounded-xl transition-all hover:scale-105"
-                @click="shareFacebook"
-              >
-                <div class="w-10 h-10 rounded-full bg-[#1877F2]/10 group-hover:bg-[#1877F2]/20 flex items-center justify-center transition-colors">
-                  <Icon name="lni-facebook" class="text-lg text-[#1877F2]" />
-                </div>
-                <span class="text-xs font-medium text-foreground">Facebook</span>
-              </button>
-
-              <button
-                class="group flex flex-col items-center gap-2 p-4 bg-muted/50 hover:bg-muted border border-border hover:border-primary/30 rounded-xl transition-all hover:scale-105"
-                @click="shareLinkedIn"
-              >
-                <div class="w-10 h-10 rounded-full bg-[#0A66C2]/10 group-hover:bg-[#0A66C2]/20 flex items-center justify-center transition-colors">
-                  <Icon name="lni-linkedin" class="text-lg text-[#0A66C2]" />
-                </div>
-                <span class="text-xs font-medium text-foreground">LinkedIn</span>
-              </button>
-            </div>
+        <div class="relative flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Icon
+              name="lni-crown-1"
+              class="text-xl text-primary"
+            />
           </div>
+          <div class="flex-1 space-y-3">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="font-semibold text-foreground">
+                  Want a custom domain?
+                </h3>
+                <Badge
+                  variant="default"
+                  size="xs"
+                >
+                  Pro
+                </Badge>
+              </div>
+              <p class="text-sm text-muted-foreground">
+                Upgrade to Pro for custom domains, remove watermarks, analytics, and more — just $6/mo per project.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              @click="upgradeToProForDomain"
+            >
+              <Icon
+                name="lni-crown-1"
+                class="text-sm"
+              />
+              Upgrade to Pro
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Share section -->
+      <div class="space-y-3 animate-fadeInUp animation-delay-400">
+        <div class="flex items-center gap-2">
+          <Icon
+            name="lni-share-1"
+            class="text-sm text-muted-foreground"
+          />
+          <p class="text-sm font-medium text-foreground">
+            Share your site
+          </p>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <button
+            class="group flex flex-col items-center gap-2 p-4 bg-muted/50 hover:bg-muted border border-border hover:border-primary/30 rounded-xl transition-all hover:scale-105"
+            @click="shareTwitter"
+          >
+            <div class="w-10 h-10 rounded-full bg-[#1DA1F2]/10 group-hover:bg-[#1DA1F2]/20 flex items-center justify-center transition-colors">
+              <Icon
+                name="lni-twitter-x"
+                class="text-lg text-[#1DA1F2]"
+              />
+            </div>
+            <span class="text-xs font-medium text-foreground">Twitter</span>
+          </button>
+
+          <button
+            class="group flex flex-col items-center gap-2 p-4 bg-muted/50 hover:bg-muted border border-border hover:border-primary/30 rounded-xl transition-all hover:scale-105"
+            @click="shareFacebook"
+          >
+            <div class="w-10 h-10 rounded-full bg-[#1877F2]/10 group-hover:bg-[#1877F2]/20 flex items-center justify-center transition-colors">
+              <Icon
+                name="lni-facebook"
+                class="text-lg text-[#1877F2]"
+              />
+            </div>
+            <span class="text-xs font-medium text-foreground">Facebook</span>
+          </button>
+
+          <button
+            class="group flex flex-col items-center gap-2 p-4 bg-muted/50 hover:bg-muted border border-border hover:border-primary/30 rounded-xl transition-all hover:scale-105"
+            @click="shareLinkedIn"
+          >
+            <div class="w-10 h-10 rounded-full bg-[#0A66C2]/10 group-hover:bg-[#0A66C2]/20 flex items-center justify-center transition-colors">
+              <Icon
+                name="lni-linkedin"
+                class="text-lg text-[#0A66C2]"
+              />
+            </div>
+            <span class="text-xs font-medium text-foreground">LinkedIn</span>
+          </button>
+        </div>
+      </div>
 
       <!-- Primary action -->
       <div class="pt-2 animate-fadeInUp animation-delay-500">
-        <Button class="w-full" size="lg" @click="visitSite">
-          <Icon name="link-external" class="text-sm" />
+        <Button
+          class="w-full"
+          size="lg"
+          @click="visitSite"
+        >
+          <Icon
+            name="link-external"
+            class="text-sm"
+          />
           Visit Your Live Site
         </Button>
       </div>

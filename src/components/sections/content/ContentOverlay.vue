@@ -182,7 +182,10 @@ function isFieldHidden(fieldKey: string): boolean {
     />
 
     <!-- Overlay with configurable opacity and blur -->
-    <div class="absolute inset-0" :style="getOverlayStyle()" />
+    <div
+      class="absolute inset-0"
+      :style="getOverlayStyle()"
+    />
 
     <!-- Content Overlay -->
     <div
@@ -195,7 +198,10 @@ function isFieldHidden(fieldKey: string): boolean {
         :style="contentGapStyle"
       >
         <!-- BLOCK A: Headline + Subheadline (Intro) -->
-        <div class="flex flex-col gap-[var(--spacing-sm)]" :class="textAlign">
+        <div
+          class="flex flex-col gap-[var(--spacing-sm)]"
+          :class="textAlign"
+        >
           <EditableText
             v-if="data.headline"
             tag="h1"
@@ -206,7 +212,7 @@ function isFieldHidden(fieldKey: string): boolean {
             :hidden-fields="hiddenFields"
             class="text-[length:var(--text-5xl)] font-bold leading-tight m-0 text-white"
             :style="getFieldStyle('headline', '--font-heading')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
 
@@ -220,7 +226,7 @@ function isFieldHidden(fieldKey: string): boolean {
             :hidden-fields="hiddenFields"
             class="text-[length:var(--text-xl)] text-white/80 m-0 max-w-[600px]"
             :style="getFieldStyle('subheadline', '--font-body')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
           <EditableText
@@ -234,13 +240,16 @@ function isFieldHidden(fieldKey: string): boolean {
             :html="true"
             class="text-[length:var(--text-base)] text-white/70 m-0 max-w-[600px] prose prose-sm prose-invert"
             :style="getFieldStyle('paragraph', '--font-body')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
         </div>
 
         <!-- BLOCK B: Buttons (Explanation) -->
-        <div class="flex flex-col gap-[var(--spacing-md)]" :class="textAlign">
+        <div
+          class="flex flex-col gap-[var(--spacing-md)]"
+          :class="textAlign"
+        >
           <!-- Buttons -->
           <div
             class="flex gap-[var(--spacing-md)]"

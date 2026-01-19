@@ -87,7 +87,10 @@ const urlError = computed(() => {
       </label>
 
       <!-- Slug preview -->
-      <div v-if="slugPreview" class="flex items-center gap-2 text-xs text-muted-foreground">
+      <div
+        v-if="slugPreview"
+        class="flex items-center gap-2 text-xs text-muted-foreground"
+      >
         <span>URL:</span>
         <code class="px-2 py-0.5 bg-muted rounded font-mono">
           lands.app/{{ slugPreview }}
@@ -131,12 +134,18 @@ const urlError = computed(() => {
       </label>
 
       <!-- URL validation error -->
-      <p v-if="urlError" class="text-xs text-destructive">
+      <p
+        v-if="urlError"
+        class="text-xs text-destructive"
+      >
         {{ urlError }}
       </p>
 
       <!-- Helper text -->
-      <p v-else class="text-xs text-muted-foreground">
+      <p
+        v-else
+        class="text-xs text-muted-foreground"
+      >
         Provide a website for inspiration. Our AI will analyze its content and style to create relevant sections.
       </p>
     </div>
@@ -145,12 +154,24 @@ const urlError = computed(() => {
     <div class="p-4 bg-muted/50 border border-border rounded-lg">
       <div class="flex gap-3">
         <div class="flex-shrink-0 mt-0.5">
-          <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            class="w-5 h-5 text-primary"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         </div>
         <div class="flex-1 space-y-1">
-          <p class="text-sm font-medium text-foreground">AI Content Generation</p>
+          <p class="text-sm font-medium text-foreground">
+            AI Content Generation
+          </p>
           <p class="text-xs text-muted-foreground leading-relaxed">
             Based on your inputs, our AI will generate relevant headlines, descriptions, and structure for your landing page. You can edit everything later.
           </p>

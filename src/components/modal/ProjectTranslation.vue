@@ -156,14 +156,21 @@ function save() {
         <p class="text-xs text-muted-foreground mb-3">
           This is the primary language of your content.
         </p>
-        <Popover align="left" width="w-64">
+        <Popover
+          align="left"
+          width="w-64"
+        >
           <template #trigger="{ toggle }">
             <button
               class="flex items-center justify-between w-full h-10 px-3 text-sm bg-secondary border border-transparent rounded-lg text-foreground transition-colors hover:bg-accent/50"
               @click="toggle"
             >
               <span>{{ getLanguageLabel(selectedDefaultLanguage) }}</span>
-              <Icon name="chevron-down" :size="14" class="text-muted-foreground" />
+              <Icon
+                name="chevron-down"
+                :size="14"
+                class="text-muted-foreground"
+              />
             </button>
           </template>
           <template #default="{ close }">
@@ -187,7 +194,10 @@ function save() {
         </p>
 
         <!-- List of added translations -->
-        <div v-if="selectedLanguages.length > 0" class="space-y-2 mb-4">
+        <div
+          v-if="selectedLanguages.length > 0"
+          class="space-y-2 mb-4"
+        >
           <div
             v-for="code in selectedLanguages"
             :key="code"
@@ -198,19 +208,29 @@ function save() {
               class="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
               @click="removeLanguage(code)"
             >
-              <Icon name="close" :size="14" />
+              <Icon
+                name="close"
+                :size="14"
+              />
             </button>
           </div>
         </div>
 
         <!-- Add language dropdown -->
-        <Popover v-if="availableLanguageItems.length > 0" align="left" width="w-64">
+        <Popover
+          v-if="availableLanguageItems.length > 0"
+          align="left"
+          width="w-64"
+        >
           <template #trigger="{ toggle }">
             <button
               class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-dashed border-border hover:border-primary/50 text-muted-foreground hover:text-foreground transition-colors"
               @click="toggle"
             >
-              <Icon name="plus" :size="14" />
+              <Icon
+                name="plus"
+                :size="14"
+              />
               <span>Add Language</span>
             </button>
           </template>
@@ -224,14 +244,19 @@ function save() {
           </template>
         </Popover>
 
-        <p v-else-if="selectedLanguages.length > 0" class="text-xs text-muted-foreground">
+        <p
+          v-else-if="selectedLanguages.length > 0"
+          class="text-xs text-muted-foreground"
+        >
           All available languages have been added.
         </p>
       </div>
 
       <!-- Info -->
       <div class="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-        <p class="font-medium text-foreground mb-1">How translations work:</p>
+        <p class="font-medium text-foreground mb-1">
+          How translations work:
+        </p>
         <ul class="space-y-1 list-disc list-inside">
           <li>Only text and image content is translated</li>
           <li>Layout, styles, and structure remain the same</li>
@@ -242,7 +267,10 @@ function save() {
 
     <template #footer>
       <div class="flex justify-end gap-3">
-        <Button variant="secondary" @click="emit('update:open', false)">
+        <Button
+          variant="secondary"
+          @click="emit('update:open', false)"
+        >
           Cancel
         </Button>
         <Button @click="save">

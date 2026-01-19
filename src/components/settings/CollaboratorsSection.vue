@@ -68,13 +68,23 @@ async function handleResendInvite(inviteId: string) {
         <p class="text-sm font-medium text-foreground truncate">
           {{ currentUser?.name || 'You' }}
         </p>
-        <p class="text-xs text-muted-foreground truncate">{{ currentUser?.email }}</p>
+        <p class="text-xs text-muted-foreground truncate">
+          {{ currentUser?.email }}
+        </p>
       </div>
-      <Badge variant="secondary" size="xs">Owner</Badge>
+      <Badge
+        variant="secondary"
+        size="xs"
+      >
+        Owner
+      </Badge>
     </div>
 
     <!-- Collaborators list -->
-    <div v-if="collaborators.length > 0" class="space-y-2">
+    <div
+      v-if="collaborators.length > 0"
+      class="space-y-2"
+    >
       <p class="text-xxs font-mono uppercase text-muted-foreground">
         Team Members ({{ collaborators.length }})
       </p>
@@ -107,8 +117,18 @@ async function handleResendInvite(inviteId: string) {
               @click="showRoleDropdown = showRoleDropdown === collaborator.id ? null : collaborator.id"
             >
               {{ COLLABORATOR_ROLE_INFO[collaborator.role].label }}
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              <svg
+                class="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </Button>
 
@@ -126,7 +146,7 @@ async function handleResendInvite(inviteId: string) {
               >
                 {{ info.label }}
               </button>
-              <div class="border-t border-border my-1"/>
+              <div class="border-t border-border my-1" />
               <button
                 class="w-full px-3 py-2 text-left text-xs rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
                 @click="handleRemoveCollaborator(collaborator.id)"
@@ -140,7 +160,10 @@ async function handleResendInvite(inviteId: string) {
     </div>
 
     <!-- Pending invites -->
-    <div v-if="pendingInvites.length > 0" class="space-y-2">
+    <div
+      v-if="pendingInvites.length > 0"
+      class="space-y-2"
+    >
       <p class="text-xxs font-mono uppercase text-muted-foreground">
         Pending Invites ({{ pendingInvites.length }})
       </p>
@@ -150,9 +173,14 @@ async function handleResendInvite(inviteId: string) {
           :key="invite.id"
           class="flex items-center gap-3 p-3 border border-dashed border-border rounded-xl"
         >
-          <Avatar :email="invite.email" size="md" />
+          <Avatar
+            :email="invite.email"
+            size="md"
+          />
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-foreground truncate">{{ invite.email }}</p>
+            <p class="text-sm font-medium text-foreground truncate">
+              {{ invite.email }}
+            </p>
             <p class="text-xs text-muted-foreground">
               Invited as {{ COLLABORATOR_ROLE_INFO[invite.role].label }} · Expires {{ formatDate(invite.expiresAt) }}
             </p>
@@ -164,8 +192,18 @@ async function handleResendInvite(inviteId: string) {
               title="Resend invite"
               @click="handleResendInvite(invite.id)"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
             </Button>
             <Button
@@ -175,8 +213,18 @@ async function handleResendInvite(inviteId: string) {
               title="Cancel invite"
               @click="handleCancelInvite(invite.id)"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </Button>
           </div>
@@ -189,7 +237,9 @@ async function handleResendInvite(inviteId: string) {
       v-if="collaborators.length === 0 && pendingInvites.length === 0"
       class="text-center py-4"
     >
-      <p class="text-xs text-muted-foreground">No collaborators yet</p>
+      <p class="text-xs text-muted-foreground">
+        No collaborators yet
+      </p>
     </div>
 
     <!-- Click outside to close dropdown -->

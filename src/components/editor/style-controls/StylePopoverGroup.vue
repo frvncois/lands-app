@@ -52,14 +52,22 @@ function handleApply() {
 
 <template>
   <div class="px-4 py-3 border-t border-border/50">
-    <Popover ref="popoverRef" side="left" width="w-80">
+    <Popover
+      ref="popoverRef"
+      side="left"
+      width="w-80"
+    >
       <template #trigger="{ toggle }">
         <button
-          @click="toggle"
           class="w-full flex items-center justify-between group hover:opacity-80 transition-opacity"
+          @click="toggle"
         >
           <div class="flex items-center gap-3">
-            <Icon :name="icon" :size="14" class="text-muted-foreground" />
+            <Icon
+              :name="icon"
+              :size="14"
+              class="text-muted-foreground"
+            />
             <span class="text-xs font-medium text-foreground">{{ title }}</span>
           </div>
           <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Edit</span>
@@ -69,19 +77,23 @@ function handleApply() {
         <!-- Header with icon, title, and action buttons -->
         <div class="px-4 py-3 flex items-center justify-between border-b border-border">
           <div class="flex items-center gap-3">
-            <Icon :name="icon" :size="14" class="text-muted-foreground" />
+            <Icon
+              :name="icon"
+              :size="14"
+              class="text-muted-foreground"
+            />
             <span class="text-xs font-medium text-foreground">{{ title }}</span>
           </div>
           <div class="flex items-center gap-1.5">
             <button
-              @click="handleReset"
               class="text-[10px] px-2 py-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              @click="handleReset"
             >
               Reset
             </button>
             <button
-              @click="handleApply"
               class="text-[10px] px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              @click="handleApply"
             >
               Apply
             </button>
@@ -90,7 +102,10 @@ function handleApply() {
 
         <!-- Controls -->
         <div class="p-4 flex flex-col gap-3">
-          <template v-for="control in controls" :key="control.key">
+          <template
+            v-for="control in controls"
+            :key="control.key"
+          >
             <SliderRow
               v-if="control.type === 'slider'"
               :label="control.label"

@@ -5,16 +5,18 @@ import LandsLogo from '@/assets/LandsLogo.vue';
 </script>
 
 <template>
-    <header>
-        <div><LandsLogo/>Lands</div>
-        <nav>
-            <a href="#features">Features</a>
-            <a href="#features">Templates</a>
-            <a href="#features">Pricing</a>
-            <a href="#features">About</a>
-        </nav>
-        <RouterLink to="/auth">Start now</RouterLink>
-    </header>
+  <header>
+    <div><LandsLogo />Lands</div>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#features">Templates</a>
+      <a href="#features">Pricing</a>
+      <a href="#features">About</a>
+    </nav>
+    <RouterLink to="/auth">
+      Start now
+    </RouterLink>
+  </header>
 </template>
 
 <style scoped>

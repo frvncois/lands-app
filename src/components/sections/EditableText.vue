@@ -119,8 +119,8 @@ import { computed } from 'vue'
 <template>
   <!-- HTML content -->
   <component
-    v-if="html && !isHidden"
     :is="tag || 'span'"
+    v-if="html && !isHidden"
     ref="elementRef"
     v-bind="attrs"
     :class="[
@@ -130,17 +130,17 @@ import { computed } from 'vue'
       isEditing && 'outline-primary',
     ]"
     :contenteditable="isEditing"
-    v-html="value || placeholder"
     @click="handleClick"
     @dblclick="handleDoubleClick"
     @blur="handleBlur"
     @keydown="handleKeydown"
+    v-html="value || placeholder"
   />
 
   <!-- Plain text content -->
   <component
-    v-else-if="!isHidden"
     :is="tag || 'span'"
+    v-else-if="!isHidden"
     ref="elementRef"
     v-bind="attrs"
     :class="[
@@ -154,5 +154,7 @@ import { computed } from 'vue'
     @dblclick="handleDoubleClick"
     @blur="handleBlur"
     @keydown="handleKeydown"
-  >{{ value || placeholder }}</component>
+  >
+    {{ value || placeholder }}
+  </component>
 </template>

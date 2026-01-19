@@ -38,7 +38,7 @@ function handleClick() {
       v-if="isSelected"
       class="flex items-center justify-center"
     >
-      <span class="h-2.5 w-2.5 rounded-full bg-current"/>
+      <span class="h-2.5 w-2.5 rounded-full bg-current" />
     </span>
   </button>
 </template>

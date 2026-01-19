@@ -2,12 +2,10 @@
  * Section Context Menu Composable
  *
  * Provides context menu actions for sections across canvas and sidebar.
- * Handles: Edit, AI content, Auto-translate, Add item, Duplicate, Delete
+ * Handles: Edit, Add item, Duplicate, Delete
  */
 
-import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
-import { useAssistantStore } from '@/stores/assistant'
 import { getSectionDefinition } from '@/lib/section-registry'
 import type { SectionInstance } from '@/types/sections'
 
@@ -18,7 +16,6 @@ export interface SectionMenuContext {
 
 export function useSectionContextMenu() {
   const editor = useEditorStore()
-  const assistant = useAssistantStore()
 
   // Check if section has repeatable items
   function hasRepeatableItems(section: SectionInstance): boolean {
@@ -39,13 +36,6 @@ export function useSectionContextMenu() {
     }
   }
 
-  // Check if auto-translate should show
-  const showAutoTranslate = computed(() => {
-    return editor.hasTranslations &&
-           editor.currentLanguage !== null &&
-           editor.currentLanguage !== editor.defaultLanguage
-  })
-
   // Actions
   function editSection(sectionId: string) {
     editor.selectSection(sectionId)
@@ -54,20 +44,6 @@ export function useSectionContextMenu() {
 
   function editContent(sectionId: string, fieldKey: string) {
     editor.selectFieldNode(sectionId, fieldKey)
-  }
-
-  function aiContent(sectionId: string, sectionType: string) {
-    const def = getSectionDefinition(sectionType)
-    const displayName = def?.displayName || sectionType
-    assistant.open()
-    assistant.prefillMessage(`Edit the content of ${displayName} section`)
-  }
-
-  function autoTranslate(sectionId: string) {
-    const section = editor.sections.find(s => s.id === sectionId)
-    if (!section) return
-    assistant.open()
-    assistant.prefillMessage(`Translate the ${section.type} section to ${editor.currentLanguage}`)
   }
 
   function addItem(sectionId: string, repeaterKey: string) {
@@ -87,9 +63,6 @@ export function useSectionContextMenu() {
   }
 
   return {
-    // State
-    showAutoTranslate,
-
     // Helpers
     hasRepeatableItems,
     getRepeatableInfo,
@@ -97,8 +70,6 @@ export function useSectionContextMenu() {
     // Actions
     editSection,
     editContent,
-    aiContent,
-    autoTranslate,
     addItem,
     duplicateSection,
     deleteSection,

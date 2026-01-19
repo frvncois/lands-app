@@ -57,9 +57,16 @@ function reload() {
 </script>
 
 <template>
-  <div v-if="error" class="flex flex-col items-center justify-center min-h-[300px] p-8 text-center">
+  <div
+    v-if="error"
+    class="flex flex-col items-center justify-center min-h-[300px] p-8 text-center"
+  >
     <div class="w-14 h-14 mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
-      <Icon name="alert-circle" :size="28" class="text-destructive" />
+      <Icon
+        name="alert-circle"
+        :size="28"
+        class="text-destructive"
+      />
     </div>
 
     <h3 class="text-lg font-semibold text-foreground mb-2">
@@ -71,22 +78,42 @@ function reload() {
     </p>
 
     <!-- Show error details in development -->
-    <details v-if="isDev" class="mb-6 text-left w-full max-w-lg">
+    <details
+      v-if="isDev"
+      class="mb-6 text-left w-full max-w-lg"
+    >
       <summary class="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
         Technical details
       </summary>
       <pre class="mt-2 p-3 bg-muted rounded-md text-xs overflow-auto max-h-40">{{ error.message }}
 
-{{ error.stack }}</pre>
+      {{ error.stack }}</pre>
     </details>
 
     <div class="flex items-center gap-3">
-      <Button v-if="showRetry" variant="secondary" size="sm" @click="retry">
-        <Icon name="refresh" :size="14" class="mr-2" />
+      <Button
+        v-if="showRetry"
+        variant="secondary"
+        size="sm"
+        @click="retry"
+      >
+        <Icon
+          name="refresh"
+          :size="14"
+          class="mr-2"
+        />
         Try again
       </Button>
-      <Button variant="outline" size="sm" @click="reload">
-        <Icon name="reload" :size="14" class="mr-2" />
+      <Button
+        variant="outline"
+        size="sm"
+        @click="reload"
+      >
+        <Icon
+          name="reload"
+          :size="14"
+          class="mr-2"
+        />
         Reload page
       </Button>
     </div>

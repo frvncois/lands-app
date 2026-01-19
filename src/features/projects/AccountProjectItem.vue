@@ -46,7 +46,11 @@ async function handleProjectLeft() {
       </ListItem.Title>
 
       <ListItem.Content>
-        <Badge :variant="project.isPublished ? 'success' : 'secondary'" size="xs" dot>
+        <Badge
+          :variant="project.isPublished ? 'success' : 'secondary'"
+          size="xs"
+          dot
+        >
           {{ project.isPublished ? 'Published' : 'Draft' }}
         </Badge>
         <Badge
@@ -56,7 +60,11 @@ async function handleProjectLeft() {
         >
           {{ project.plan === 'pro' ? 'Pro' : 'Free' }}
         </Badge>
-        <Badge v-if="!isOwner" variant="warning" size="xs">
+        <Badge
+          v-if="!isOwner"
+          variant="warning"
+          size="xs"
+        >
           Collaborator
         </Badge>
       </ListItem.Content>
@@ -64,26 +72,53 @@ async function handleProjectLeft() {
 
     <ListItem.Actions>
       <Dropdown>
-        <Dropdown.Item v-if="project.isPublished" icon="app-show" @click="actions.viewSite(project)">
+        <Dropdown.Item
+          v-if="project.isPublished"
+          icon="app-show"
+          @click="actions.viewSite(project)"
+        >
           View Site
         </Dropdown.Item>
-        <Dropdown.Item icon="lni-pencil-1" @click="actions.openDesigner(project.id)">
+        <Dropdown.Item
+          icon="lni-pencil-1"
+          @click="actions.openDesigner(project.id)"
+        >
           Open Designer
         </Dropdown.Item>
-        <Dropdown.Item icon="lni-bar-chart-4" @click="actions.openAnalytics(project.id)">
+        <Dropdown.Item
+          icon="lni-bar-chart-4"
+          @click="actions.openAnalytics(project.id)"
+        >
           Analytics
         </Dropdown.Item>
-        <Dropdown.Item icon="lni-gear-1" @click="actions.openSettings(project.id)">
+        <Dropdown.Item
+          icon="lni-gear-1"
+          @click="actions.openSettings(project.id)"
+        >
           Settings
         </Dropdown.Item>
-        <Dropdown.Item v-if="isOwner" icon="lni-credit-card-multiple" @click="showPlanModal = true">
+        <Dropdown.Item
+          v-if="isOwner"
+          icon="lni-credit-card-multiple"
+          @click="showPlanModal = true"
+        >
           Change Plan
         </Dropdown.Item>
         <Dropdown.Divider />
-        <Dropdown.Item v-if="isOwner" icon="lni-trash-3" destructive @click="showDeleteModal = true">
+        <Dropdown.Item
+          v-if="isOwner"
+          icon="lni-trash-3"
+          destructive
+          @click="showDeleteModal = true"
+        >
           Delete Project
         </Dropdown.Item>
-        <Dropdown.Item v-if="!isOwner" icon="app-logout" destructive @click="showLeaveModal = true">
+        <Dropdown.Item
+          v-if="!isOwner"
+          icon="app-logout"
+          destructive
+          @click="showLeaveModal = true"
+        >
           Leave Project
         </Dropdown.Item>
       </Dropdown>

@@ -145,7 +145,10 @@ function getItemValue(item: unknown, key: string): string {
   />
 
   <!-- Image Field -->
-  <div v-else-if="isImageField" class="flex flex-col gap-2">
+  <div
+    v-else-if="isImageField"
+    class="flex flex-col gap-2"
+  >
     <Input
       :model-value="stringValue"
       type="url"
@@ -154,8 +157,15 @@ function getItemValue(item: unknown, key: string): string {
       variant="filled"
       @update:model-value="emit('update', $event)"
     />
-    <div v-if="value" class="rounded-md overflow-hidden">
-      <img :src="stringValue" alt="Preview" class="w-full h-auto max-h-36 object-cover" />
+    <div
+      v-if="value"
+      class="rounded-md overflow-hidden"
+    >
+      <img
+        :src="stringValue"
+        alt="Preview"
+        class="w-full h-auto max-h-36 object-cover"
+      />
     </div>
   </div>
 
@@ -189,7 +199,10 @@ function getItemValue(item: unknown, key: string): string {
   />
 
   <!-- Repeater Field -->
-  <div v-else-if="isRepeaterField && field.type === 'repeater'" class="flex flex-col gap-2">
+  <div
+    v-else-if="isRepeaterField && field.type === 'repeater'"
+    class="flex flex-col gap-2"
+  >
     <div
       v-for="(item, index) in repeaterItems"
       :key="index"
@@ -216,7 +229,10 @@ function getItemValue(item: unknown, key: string): string {
         type="button"
         @click="removeRepeaterItem(index)"
       >
-        <Icon name="app-delete" :size="12" />
+        <Icon
+          name="app-delete"
+          :size="12"
+        />
       </button>
     </div>
 
@@ -226,7 +242,10 @@ function getItemValue(item: unknown, key: string): string {
       type="button"
       @click="addRepeaterItem"
     >
-      <Icon name="circle-plus" :size="14" />
+      <Icon
+        name="circle-plus"
+        :size="14"
+      />
       Add {{ field.label }}
     </button>
   </div>

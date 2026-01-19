@@ -231,7 +231,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
         :editable="editable"
         :active-field="activeFieldKey"
         :hidden-fields="hiddenFields"
-        @selectField="handleHeaderSelect"
+        @select-field="handleHeaderSelect"
         @update="handleUpdate"
       />
       <div class="relative w-full">
@@ -257,114 +257,124 @@ function handleUpdate(fieldKey: string, value: unknown) {
           class="flex overflow-x-auto pb-[var(--spacing-md)] snap-x snap-mandatory scrollbar-hide"
           :style="{ gap: `${spaceBetween}px` }"
         >
-        <div
-          v-for="(product, index) in data.items"
-          :key="product.id || index"
-          class="flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden snap-start"
-          :class="[
-            getCardWidthClass(),
-            editable && 'cursor-pointer transition-all duration-150 select-none',
-            editable && !isProductActive(product, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-            editable && isProductActive(product, index) && 'outline outline-2 outline-primary -outline-offset-2',
-          ]"
-          :style="sharedContainerStyle"
-          @click="handleItemClick($event, product, index)"
-        >
-          <!-- Product Image -->
           <div
-            v-if="product.image?.src"
-            class="w-full overflow-hidden"
-            :style="sharedMediaStyle"
-            :class="editable && 'pointer-events-none select-none'"
+            v-for="(product, index) in data.items"
+            :key="product.id || index"
+            class="flex-shrink-0 flex flex-col bg-[var(--color-surface)] rounded-[var(--radius-lg)] overflow-hidden snap-start"
+            :class="[
+              getCardWidthClass(),
+              editable && 'cursor-pointer transition-all duration-150 select-none',
+              editable && !isProductActive(product, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+              editable && isProductActive(product, index) && 'outline outline-2 outline-primary -outline-offset-2',
+            ]"
+            :style="sharedContainerStyle"
+            @click="handleItemClick($event, product, index)"
           >
-            <img
-              :src="product.image.src"
-              :alt="product.image.alt || product.heading"
-              class="w-full h-full object-cover"
-              :style="{ aspectRatio: mediaAspectRatio }"
-            />
-          </div>
-          <div
-            v-else
-            class="w-full bg-[var(--color-secondary)] flex items-center justify-center"
-            :class="editable && 'pointer-events-none select-none'"
-            :style="{ aspectRatio: mediaAspectRatio }"
-          >
-            <span class="text-[var(--color-muted)]">Add image</span>
-          </div>
-
-          <!-- Content -->
-          <div
-            class="p-[var(--spacing-md)] flex flex-col flex-1"
-            :class="editable && 'pointer-events-none select-none'"
-            :style="{ gap: sharedInnerGap }"
-          >
-            <h3
-              v-if="product.heading"
-              class="text-[length:var(--text-xl)] font-semibold m-0"
-              :style="sharedHeadlineStyle"
-            >{{ product.heading }}</h3>
-            <p
-              v-if="product.subheading"
-              class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
-              :style="sharedSubheadlineStyle"
-            >{{ product.subheading }}</p>
+            <!-- Product Image -->
             <div
-              v-if="product.description"
-              class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
-              :style="sharedParagraphStyle"
-              v-html="product.description"
-            />
+              v-if="product.image?.src"
+              class="w-full overflow-hidden"
+              :style="sharedMediaStyle"
+              :class="editable && 'pointer-events-none select-none'"
+            >
+              <img
+                :src="product.image.src"
+                :alt="product.image.alt || product.heading"
+                class="w-full h-full object-cover"
+                :style="{ aspectRatio: mediaAspectRatio }"
+              />
+            </div>
+            <div
+              v-else
+              class="w-full bg-[var(--color-secondary)] flex items-center justify-center"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="{ aspectRatio: mediaAspectRatio }"
+            >
+              <span class="text-[var(--color-muted)]">Add image</span>
+            </div>
 
-            <!-- Variant Selector -->
-            <div v-if="product.variants && product.variants.length > 1" class="mt-[var(--spacing-sm)]">
-              <select
-                class="w-full px-[var(--spacing-sm)] py-[var(--spacing-xs)] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-fg)] text-[length:var(--text-sm)]"
-                :value="getSelectedVariantIndex(product, index)"
-                @change="setSelectedVariant(product, index, Number(($event.target as HTMLSelectElement).value))"
+            <!-- Content -->
+            <div
+              class="p-[var(--spacing-md)] flex flex-col flex-1"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="{ gap: sharedInnerGap }"
+            >
+              <h3
+                v-if="product.heading"
+                class="text-[length:var(--text-xl)] font-semibold m-0"
+                :style="sharedHeadlineStyle"
+              >
+                {{ product.heading }}
+              </h3>
+              <p
+                v-if="product.subheading"
+                class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
+                :style="sharedSubheadlineStyle"
+              >
+                {{ product.subheading }}
+              </p>
+              <div
+                v-if="product.description"
+                class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
+                :style="sharedParagraphStyle"
+                v-html="product.description"
+              />
+
+              <!-- Variant Selector -->
+              <div
+                v-if="product.variants && product.variants.length > 1"
+                class="mt-[var(--spacing-sm)]"
+              >
+                <select
+                  class="w-full px-[var(--spacing-sm)] py-[var(--spacing-xs)] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-fg)] text-[length:var(--text-sm)]"
+                  :value="getSelectedVariantIndex(product, index)"
+                  @change="setSelectedVariant(product, index, Number(($event.target as HTMLSelectElement).value))"
+                  @click.stop
+                >
+                  <option
+                    v-for="(variant, vIndex) in product.variants"
+                    :key="variant.id || vIndex"
+                    :value="vIndex"
+                  >
+                    {{ variant.label }}
+                  </option>
+                </select>
+              </div>
+
+              <!-- Price -->
+              <div class="mt-auto pt-[var(--spacing-sm)]">
+                <div
+                  v-if="getActiveVariant(product, index)"
+                  class="flex items-baseline gap-[var(--spacing-xs)]"
+                >
+                  <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
+                    {{ formatPrice(getActiveVariant(product, index)!.price) }}
+                  </span>
+                  <span
+                    v-if="getActiveVariant(product, index)!.compareAtPrice"
+                    class="text-[length:var(--text-sm)] text-[var(--color-muted)] line-through"
+                  >
+                    {{ formatPrice(getActiveVariant(product, index)!.compareAtPrice!) }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Buy Button -->
+              <a
+                v-if="product.ctaLabel && product.ctaUrl"
+                :href="product.ctaUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium hover:opacity-90 transition-opacity no-underline"
+                :style="sharedButtonStyle"
                 @click.stop
               >
-                <option
-                  v-for="(variant, vIndex) in product.variants"
-                  :key="variant.id || vIndex"
-                  :value="vIndex"
-                >
-                  {{ variant.label }}
-                </option>
-              </select>
+                {{ product.ctaLabel }}
+              </a>
             </div>
-
-            <!-- Price -->
-            <div class="mt-auto pt-[var(--spacing-sm)]">
-              <div v-if="getActiveVariant(product, index)" class="flex items-baseline gap-[var(--spacing-xs)]">
-                <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
-                  {{ formatPrice(getActiveVariant(product, index)!.price) }}
-                </span>
-                <span
-                  v-if="getActiveVariant(product, index)!.compareAtPrice"
-                  class="text-[length:var(--text-sm)] text-[var(--color-muted)] line-through"
-                >
-                  {{ formatPrice(getActiveVariant(product, index)!.compareAtPrice!) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Buy Button -->
-            <a
-              v-if="product.ctaLabel && product.ctaUrl"
-              :href="product.ctaUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="mt-[var(--spacing-sm)] inline-flex items-center justify-center font-medium hover:opacity-90 transition-opacity no-underline"
-              :style="sharedButtonStyle"
-              @click.stop
-            >
-              {{ product.ctaLabel }}
-            </a>
           </div>
         </div>
       </div>
-    </div>
     </div>
   </component>
 </template>

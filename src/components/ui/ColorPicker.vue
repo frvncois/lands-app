@@ -406,7 +406,10 @@ function clearColor() {
 <template>
   <div class="relative">
     <!-- Inline mode - display picker UI directly -->
-    <div v-if="inline" class="space-y-3">
+    <div
+      v-if="inline"
+      class="space-y-3"
+    >
       <!-- Saturation/Brightness Gradient -->
       <div
         ref="gradientRef"
@@ -446,7 +449,9 @@ function clearColor() {
 
       <!-- Recent Colors -->
       <div v-if="recentColors.length > 0">
-        <p class="text-xs font-medium text-muted-foreground mb-2">Recent</p>
+        <p class="text-xs font-medium text-muted-foreground mb-2">
+          Recent
+        </p>
         <div class="flex flex-wrap gap-1.5">
           <button
             v-for="color in recentColors"
@@ -463,7 +468,9 @@ function clearColor() {
 
       <!-- Preset Colors -->
       <div>
-        <p class="text-xs font-medium text-muted-foreground mb-2">Presets</p>
+        <p class="text-xs font-medium text-muted-foreground mb-2">
+          Presets
+        </p>
         <div class="grid grid-cols-8 gap-1.5">
           <button
             v-for="color in presetColors"
@@ -495,8 +502,18 @@ function clearColor() {
           class="h-7 px-2 flex items-center justify-center gap-1 text-[10px] text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors whitespace-nowrap"
           @click="clearColor"
         >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          <svg
+            class="w-3 h-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+            />
           </svg>
           None
         </button>
@@ -504,7 +521,10 @@ function clearColor() {
     </div>
 
     <!-- Swatch-only with HEX input -->
-    <div v-else-if="swatchOnly" class="flex items-center">
+    <div
+      v-else-if="swatchOnly"
+      class="flex items-center"
+    >
       <!-- HEX value input -->
       <input
         type="text"
@@ -557,7 +577,10 @@ function clearColor() {
       </div>
 
       <!-- Value display -->
-      <span class="flex-1 text-left text-sm truncate" :class="hasValue ? 'text-foreground' : 'text-muted-foreground'">
+      <span
+        class="flex-1 text-left text-sm truncate"
+        :class="hasValue ? 'text-foreground' : 'text-muted-foreground'"
+      >
         {{ hasValue ? localValue.toUpperCase() : placeholder || 'Select color' }}
       </span>
 
@@ -569,14 +592,34 @@ function clearColor() {
         title="Clear"
         @click.stop="clearColor"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
 
       <!-- Dropdown arrow -->
-      <svg class="w-4 h-4 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      <svg
+        class="w-4 h-4 text-muted-foreground shrink-0"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M19 9l-7 7-7-7"
+        />
       </svg>
     </button>
 
@@ -633,7 +676,9 @@ function clearColor() {
 
         <!-- Recent Colors -->
         <div v-if="recentColors.length > 0">
-          <p class="text-xs font-medium text-muted-foreground mb-2">Recent</p>
+          <p class="text-xs font-medium text-muted-foreground mb-2">
+            Recent
+          </p>
           <div class="flex flex-wrap gap-1.5">
             <button
               v-for="color in recentColors"
@@ -650,7 +695,9 @@ function clearColor() {
 
         <!-- Preset Colors -->
         <div>
-          <p class="text-xs font-medium text-muted-foreground mb-2">Presets</p>
+          <p class="text-xs font-medium text-muted-foreground mb-2">
+            Presets
+          </p>
           <div class="grid grid-cols-8 gap-1.5">
             <button
               v-for="color in presetColors"
@@ -682,8 +729,18 @@ function clearColor() {
             class="h-8 px-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-md hover:bg-secondary/50 transition-colors whitespace-nowrap"
             @click="clearColor"
           >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            <svg
+              class="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+              />
             </svg>
             None
           </button>

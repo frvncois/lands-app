@@ -43,7 +43,11 @@ function handleCancel() {
     </form>
 
     <template #footer>
-      <Button variant="ghost" :disabled="loading" @click="handleCancel">
+      <Button
+        variant="ghost"
+        :disabled="loading"
+        @click="handleCancel"
+      >
         {{ cancelText }}
       </Button>
       <Button

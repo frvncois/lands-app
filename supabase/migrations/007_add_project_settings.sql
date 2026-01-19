@@ -1,6 +1,6 @@
 -- Create project_settings table for extended project configuration
 CREATE TABLE IF NOT EXISTS project_settings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   -- SEO settings
   meta_title TEXT,

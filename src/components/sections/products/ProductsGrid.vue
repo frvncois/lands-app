@@ -167,10 +167,13 @@ function handleUpdate(fieldKey: string, value: unknown) {
         :editable="editable"
         :active-field="activeFieldKey"
         :hidden-fields="hiddenFields"
-        @selectField="handleHeaderSelect"
+        @select-field="handleHeaderSelect"
         @update="handleUpdate"
       />
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" :style="{ gap: `${spaceBetween}px` }">
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        :style="{ gap: `${spaceBetween}px` }"
+      >
         <div
           v-for="(product, index) in data.items"
           :key="product.id || index"
@@ -216,12 +219,16 @@ function handleUpdate(fieldKey: string, value: unknown) {
               v-if="product.heading"
               class="text-[length:var(--text-xl)] font-semibold m-0"
               :style="sharedHeadlineStyle"
-            >{{ product.heading }}</h3>
+            >
+              {{ product.heading }}
+            </h3>
             <p
               v-if="product.subheading"
               class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
               :style="sharedSubheadlineStyle"
-            >{{ product.subheading }}</p>
+            >
+              {{ product.subheading }}
+            </p>
             <div
               v-if="product.description"
               class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
@@ -230,7 +237,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
             />
 
             <!-- Variant Selector -->
-            <div v-if="product.variants && product.variants.length > 1" class="mt-[var(--spacing-sm)]">
+            <div
+              v-if="product.variants && product.variants.length > 1"
+              class="mt-[var(--spacing-sm)]"
+            >
               <select
                 class="w-full px-[var(--spacing-sm)] py-[var(--spacing-xs)] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-md)] text-[var(--color-fg)] text-[length:var(--text-sm)]"
                 :value="getSelectedVariantIndex(product, index)"
@@ -249,7 +259,10 @@ function handleUpdate(fieldKey: string, value: unknown) {
 
             <!-- Price -->
             <div class="mt-auto pt-[var(--spacing-sm)]">
-              <div v-if="getActiveVariant(product, index)" class="flex items-baseline gap-[var(--spacing-xs)]">
+              <div
+                v-if="getActiveVariant(product, index)"
+                class="flex items-baseline gap-[var(--spacing-xs)]"
+              >
                 <span class="text-[length:var(--text-xl)] font-bold text-[var(--color-fg)]">
                   {{ formatPrice(getActiveVariant(product, index)!.price) }}
                 </span>

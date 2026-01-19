@@ -128,7 +128,7 @@ function isFieldHidden(fieldKey: string): boolean {
             :hidden-fields="hiddenFields"
             class="text-[length:var(--text-4xl)] font-bold leading-tight m-0"
             :style="getFieldStyle('headline', '--font-heading')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
 
@@ -172,7 +172,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
 
@@ -187,7 +187,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -235,7 +235,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-4xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
 
@@ -249,7 +249,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0 max-w-[600px]"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -267,7 +267,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 max-w-[600px] prose prose-sm"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
 

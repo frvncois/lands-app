@@ -33,10 +33,17 @@ function toggle() {
   >
     <div class="space-y-0.5">
       <slot name="label">
-        <p class="text-xxs font-mono uppercase text-foreground">{{ label }}</p>
+        <p class="text-xxs font-mono uppercase text-foreground">
+          {{ label }}
+        </p>
       </slot>
       <slot name="description">
-        <p v-if="description" class="text-xs text-muted-foreground">{{ description }}</p>
+        <p
+          v-if="description"
+          class="text-xs text-muted-foreground"
+        >
+          {{ description }}
+        </p>
       </slot>
     </div>
     <Toggle

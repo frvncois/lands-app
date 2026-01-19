@@ -8,6 +8,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const CLOUDFLARE_API_TOKEN = Deno.env.get('CLOUDFLARE_API_TOKEN')
 const CLOUDFLARE_ACCOUNT_ID = Deno.env.get('CLOUDFLARE_ACCOUNT_ID')
 const CLOUDFLARE_KV_NAMESPACE_ID = Deno.env.get('CLOUDFLARE_KV_NAMESPACE_ID')
+const CLOUDFLARE_ZONE_ID = Deno.env.get('CLOUDFLARE_ZONE_ID')
 const UMAMI_API_URL = Deno.env.get('UMAMI_API_URL') || 'https://cloud.umami.is'
 
 // Font registry with CDN URLs (using Fontshare for free fonts)
@@ -109,6 +110,51 @@ function getCorsHeaders(request: Request) {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   }
+}
+
+/**
+ * ✅ SECURITY FIX (H-1): Validate slug format and check against reserved slugs
+ * Prevents path traversal attacks and conflicts with system routes
+ */
+async function validateSlug(slug: string, supabase: ReturnType<typeof createClient>): Promise<{ valid: boolean; error?: string }> {
+  // Check if slug is null or empty
+  if (!slug || slug.trim() === '') {
+    return { valid: false, error: 'Slug cannot be empty' }
+  }
+
+  // Check if slug is reserved
+  const { data: reservedSlug } = await supabase
+    .from('reserved_slugs')
+    .select('reason')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (reservedSlug) {
+    return { valid: false, error: `Slug "${slug}" is reserved: ${reservedSlug.reason}` }
+  }
+
+  // Check slug format: lowercase alphanumeric and hyphens only, 3-63 chars
+  // Must start and end with alphanumeric, no consecutive hyphens
+  const slugPattern = /^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$/
+
+  if (!slugPattern.test(slug)) {
+    return {
+      valid: false,
+      error: 'Slug must be 3-63 characters, lowercase alphanumeric and hyphens only, and cannot start or end with a hyphen'
+    }
+  }
+
+  // Check for path traversal attempts
+  if (slug.includes('..') || slug.includes('/') || slug.includes('\\')) {
+    return { valid: false, error: 'Slug contains invalid characters (path traversal attempt detected)' }
+  }
+
+  // Check for consecutive hyphens
+  if (slug.includes('--')) {
+    return { valid: false, error: 'Slug cannot contain consecutive hyphens' }
+  }
+
+  return { valid: true }
 }
 
 // ============================================
@@ -4702,6 +4748,49 @@ async function deleteFromKV(key: string): Promise<void> {
   }
 }
 
+/**
+ * ✅ SECURITY FIX (H-6): Purge Cloudflare cache for unpublished sites
+ * Prevents stale content from being served after unpublishing
+ */
+async function purgeCloudflareCache(slug: string): Promise<void> {
+  if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ZONE_ID) {
+    console.warn('Cloudflare cache purge skipped: missing API token or zone ID')
+    return
+  }
+
+  // Purge both the subdomain and CSS file
+  const urls = [
+    `https://${slug}.lands.app/`,
+    `https://${slug}.lands.app/style.css`
+  ]
+
+  const url = `https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache`
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        files: urls
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error(`Failed to purge Cloudflare cache: ${error}`)
+      // Don't throw - cache purge is best-effort
+    } else {
+      console.log(`Successfully purged cache for ${slug}`)
+    }
+  } catch (error) {
+    console.error(`Error purging Cloudflare cache: ${error}`)
+    // Don't throw - cache purge is best-effort
+  }
+}
+
 // ============================================
 // MAIN SERVER
 // ============================================
@@ -4738,6 +4827,17 @@ serve(async (req) => {
         status: 404,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       })
+    }
+
+    // ✅ SECURITY FIX (H-1): Validate slug before publishing
+    if (action === 'publish') {
+      const slugValidation = await validateSlug(project.slug, supabase)
+      if (!slugValidation.valid) {
+        return new Response(JSON.stringify({ error: slugValidation.error }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        })
+      }
     }
 
     // Rate limiting: max 10 publishes per hour per user
@@ -4882,6 +4982,9 @@ serve(async (req) => {
     } else if (action === 'unpublish') {
       // Delete from Cloudflare KV
       await deleteFromKV(project.slug)
+
+      // ✅ SECURITY FIX (H-6): Purge CDN cache after unpublishing
+      await purgeCloudflareCache(project.slug)
 
       // Update project as unpublished
       const { error: updateError } = await supabase

@@ -132,7 +132,10 @@ function getIcon(name: string) {
     <template #filters>
       <!-- Search -->
       <div class="flex-1 relative">
-        <Icon name="search-1" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none" />
+        <Icon
+          name="search-1"
+          class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none"
+        />
         <Input
           v-model="searchQuery"
           type="text"
@@ -146,7 +149,11 @@ function getIcon(name: string) {
         v-model="selectedCategory"
         class="min-w-[140px] h-9 px-3 bg-background border border-border rounded-md text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       >
-        <option v-for="cat in categories" :key="cat.value" :value="cat.value">
+        <option
+          v-for="cat in categories"
+          :key="cat.value"
+          :value="cat.value"
+        >
           {{ cat.label }}
         </option>
       </select>
@@ -163,15 +170,29 @@ function getIcon(name: string) {
     </div>
 
     <!-- Icon grid -->
-    <div class="min-h-[400px]" @scroll="handleScroll">
+    <div
+      class="min-h-[400px]"
+      @scroll="handleScroll"
+    >
       <!-- No results -->
-      <div v-if="filteredIcons.length === 0" class="flex flex-col items-center justify-center py-12 text-center">
-        <Icon name="search-1" class="text-3xl text-muted-foreground mb-2" />
-        <p class="text-sm text-muted-foreground">No icons found</p>
+      <div
+        v-if="filteredIcons.length === 0"
+        class="flex flex-col items-center justify-center py-12 text-center"
+      >
+        <Icon
+          name="search-1"
+          class="text-3xl text-muted-foreground mb-2"
+        />
+        <p class="text-sm text-muted-foreground">
+          No icons found
+        </p>
       </div>
 
       <!-- Icon grid -->
-      <div v-else class="grid grid-cols-8 gap-2">
+      <div
+        v-else
+        class="grid grid-cols-8 gap-2"
+      >
         <button
           v-for="iconName in visibleIcons"
           :key="iconName"
@@ -183,7 +204,10 @@ function getIcon(name: string) {
           @dblclick="selectIcon(iconName); confirm()"
         >
           <!-- Icon -->
-          <component :is="getIcon(iconName)" class="w-6 h-6 text-foreground" />
+          <component
+            :is="getIcon(iconName)"
+            class="w-6 h-6 text-foreground"
+          />
 
           <!-- Name tooltip on hover -->
           <span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -195,15 +219,28 @@ function getIcon(name: string) {
             v-if="isIconSelected(iconName)"
             class="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center"
           >
-            <svg class="w-2.5 h-2.5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+            <svg
+              class="w-2.5 h-2.5 text-primary-foreground"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="3"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </div>
         </button>
       </div>
 
       <!-- Load more indicator -->
-      <div v-if="hasMore" class="flex items-center justify-center py-4 mt-4">
+      <div
+        v-if="hasMore"
+        class="flex items-center justify-center py-4 mt-4"
+      >
         <span class="text-xs text-muted-foreground">
           Showing {{ visibleIcons.length }} of {{ filteredIcons.length }} icons &middot; Scroll for more
         </span>

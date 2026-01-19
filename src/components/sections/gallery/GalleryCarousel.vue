@@ -163,7 +163,10 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
     @mouseenter="stopAutoplay"
     @mouseleave="autoplay() && startAutoplay()"
   >
-    <div class="max-w-[1200px] mx-auto w-full flex flex-col" :style="{ gap: `${contentSpacing}px` }">
+    <div
+      class="max-w-[1200px] mx-auto w-full flex flex-col"
+      :style="{ gap: `${contentSpacing}px` }"
+    >
       <div
         v-if="data.headline || data.subheadline || data.paragraph"
         class="text-center flex flex-col gap-[var(--spacing-sm)]"
@@ -178,7 +181,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
           :style="getFieldStyle('headline', '--font-heading')"
-          @selectField="emit('selectField', 'headline')"
+          @select-field="emit('selectField', 'headline')"
           @update="emit('update', 'headline', $event)"
         />
         <EditableText
@@ -191,7 +194,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
           :style="getFieldStyle('subheadline', '--font-body')"
-          @selectField="emit('selectField', 'subheadline')"
+          @select-field="emit('selectField', 'subheadline')"
           @update="emit('update', 'subheadline', $event)"
         />
         <EditableText
@@ -205,7 +208,7 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="emit('selectField', 'paragraph')"
+          @select-field="emit('selectField', 'paragraph')"
           @update="emit('update', 'paragraph', $event)"
         />
       </div>
@@ -215,15 +218,15 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           <button
             class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
             @click="scrollPrev"
-        >
-          <i class="lni lni-chevron-left text-lg" />
-        </button>
-        <button
-          class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
-          @click="scrollNext"
-        >
-          <i class="lni lni-chevron-right text-lg" />
-        </button>
+          >
+            <i class="lni lni-chevron-left text-lg" />
+          </button>
+          <button
+            class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 w-10 h-10 rounded-full bg-[var(--color-surface)] shadow-md flex items-center justify-center hover:bg-[var(--color-secondary)] transition-colors"
+            @click="scrollNext"
+          >
+            <i class="lni lni-chevron-right text-lg" />
+          </button>
         </div>
 
         <!-- Carousel Container -->
@@ -232,43 +235,46 @@ function handleItemClick(e: MouseEvent, item: GalleryData['items'][number], inde
           class="flex overflow-x-auto pb-[var(--spacing-md)] snap-x snap-mandatory scrollbar-hide"
           :style="[{ gap: `${contentSpacing}px` }, repeaterGapStyle]"
         >
-        <template v-for="(item, index) in data.items" :key="item.id || index">
-          <component
-            :is="item.link?.url && !editable ? 'a' : 'div'"
-            :href="item.link?.url && !editable ? item.link.url : undefined"
-            :target="item.link?.url && !editable ? '_blank' : undefined"
-            class="flex-shrink-0 aspect-square rounded-[var(--radius-md)] overflow-hidden snap-start"
-            :class="[
-              editable && 'cursor-pointer transition-all duration-150 select-none',
-              editable && !isItemActive(item, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
-              editable && isItemActive(item, index) && 'outline outline-2 outline-primary -outline-offset-2',
-            ]"
-            :style="{ ...getItemContainerStyle(), ...getItemWidthStyle() }"
-            @click="handleItemClick($event, item, index)"
+          <template
+            v-for="(item, index) in data.items"
+            :key="item.id || index"
           >
-            <img
-              v-if="item.media.type === 'image'"
-              :src="item.media.src || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 400%22%3E%3Crect fill=%22%23374151%22 width=%22400%22 height=%22400%22/%3E%3Ctext fill=%22%239CA3AF%22 font-family=%22system-ui%22 font-size=%2216%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo image%3C/text%3E%3C/svg%3E'"
-              :alt="item.media.alt || ''"
+            <component
+              :is="item.link?.url && !editable ? 'a' : 'div'"
+              :href="item.link?.url && !editable ? item.link.url : undefined"
+              :target="item.link?.url && !editable ? '_blank' : undefined"
+              class="flex-shrink-0 aspect-square rounded-[var(--radius-md)] overflow-hidden snap-start"
               :class="[
-                'w-full h-full object-cover',
-                editable && 'pointer-events-none select-none',
+                editable && 'cursor-pointer transition-all duration-150 select-none',
+                editable && !isItemActive(item, index) && 'hover:outline hover:outline-2 hover:outline-dashed hover:outline-primary/50 hover:-outline-offset-2',
+                editable && isItemActive(item, index) && 'outline outline-2 outline-primary -outline-offset-2',
               ]"
-            />
-            <video
-              v-else-if="item.media.type === 'video'"
-              :src="item.media.src"
-              :class="[
-                'w-full h-full object-cover',
-                editable && 'pointer-events-none select-none',
-              ]"
-              autoplay
-              muted
-              loop
-              playsinline
-            />
-          </component>
-        </template>
+              :style="{ ...getItemContainerStyle(), ...getItemWidthStyle() }"
+              @click="handleItemClick($event, item, index)"
+            >
+              <img
+                v-if="item.media.type === 'image'"
+                :src="item.media.src || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 400%22%3E%3Crect fill=%22%23374151%22 width=%22400%22 height=%22400%22/%3E%3Ctext fill=%22%239CA3AF%22 font-family=%22system-ui%22 font-size=%2216%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo image%3C/text%3E%3C/svg%3E'"
+                :alt="item.media.alt || ''"
+                :class="[
+                  'w-full h-full object-cover',
+                  editable && 'pointer-events-none select-none',
+                ]"
+              />
+              <video
+                v-else-if="item.media.type === 'video'"
+                :src="item.media.src"
+                :class="[
+                  'w-full h-full object-cover',
+                  editable && 'pointer-events-none select-none',
+                ]"
+                autoplay
+                muted
+                loop
+                playsinline
+              />
+            </component>
+          </template>
         </div>
       </div>
     </div>

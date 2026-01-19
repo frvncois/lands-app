@@ -38,15 +38,25 @@ function handleCancel() {
     <template #header>
       <div class="flex items-center justify-between w-full pr-8">
         <div>
-          <h2 class="text-xl font-semibold text-foreground">{{ title }}</h2>
-          <p v-if="subtitle" class="text-sm text-muted-foreground mt-1">{{ subtitle }}</p>
+          <h2 class="text-xl font-semibold text-foreground">
+            {{ title }}
+          </h2>
+          <p
+            v-if="subtitle"
+            class="text-sm text-muted-foreground mt-1"
+          >
+            {{ subtitle }}
+          </p>
         </div>
         <slot name="header-actions" />
       </div>
     </template>
 
     <!-- Filters slot -->
-    <div v-if="$slots.filters" class="flex items-center gap-3 pb-4 border-b border-border mb-4">
+    <div
+      v-if="$slots.filters"
+      class="flex items-center gap-3 pb-4 border-b border-border mb-4"
+    >
       <slot name="filters" />
     </div>
 
@@ -61,10 +71,18 @@ function handleCancel() {
           <span />
         </slot>
         <div class="flex items-center gap-3">
-          <Button variant="ghost" :disabled="loading" @click="handleCancel">
+          <Button
+            variant="ghost"
+            :disabled="loading"
+            @click="handleCancel"
+          >
             {{ cancelText }}
           </Button>
-          <Button :disabled="!hasSelection || loading" :loading="loading" @click="handleConfirm">
+          <Button
+            :disabled="!hasSelection || loading"
+            :loading="loading"
+            @click="handleConfirm"
+          >
             {{ confirmText }}
           </Button>
         </div>

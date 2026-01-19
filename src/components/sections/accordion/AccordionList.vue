@@ -195,7 +195,7 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0 mb-[var(--spacing-md)]"
           :style="applyFontColor(getHeaderFieldStyle('headline', '--font-heading'))"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -209,13 +209,16 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0"
           :style="applyFontColor(getHeaderFieldStyle('paragraph', '--font-body'))"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
 
       <!-- Accordion Items -->
-      <div class="flex flex-col gap-[var(--spacing-sm)]" :style="repeaterGapStyle">
+      <div
+        class="flex flex-col gap-[var(--spacing-sm)]"
+        :style="repeaterGapStyle"
+      >
         <div
           v-for="(item, index) in data.items"
           :key="item.id || index"
@@ -296,26 +299,28 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
                   ]"
                 />
                 <div class="flex-1 min-w-0">
-                <div class="flex justify-between gap-[var(--spacing-sm)]">
-                  <span
-                    class="font-medium text-[length:var(--text-base)]"
+                  <div class="flex justify-between gap-[var(--spacing-sm)]">
+                    <span
+                      class="font-medium text-[length:var(--text-base)]"
+                      :class="editable && 'pointer-events-none select-none'"
+                      :style="applyFontColor(getItemContentStyle())"
+                    >{{ menuItem.subheadline }}</span>
+                    <span
+                      v-if="menuItem.price"
+                      class="text-[length:var(--text-base)] text-[var(--color-muted)] flex-shrink-0"
+                      :class="editable && 'pointer-events-none select-none'"
+                      :style="applyFontColor(getItemContentStyle())"
+                    >{{ menuItem.price }}</span>
+                  </div>
+                  <p
+                    v-if="menuItem.details"
+                    class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0 mt-1"
                     :class="editable && 'pointer-events-none select-none'"
                     :style="applyFontColor(getItemContentStyle())"
-                  >{{ menuItem.subheadline }}</span>
-                  <span
-                    v-if="menuItem.price"
-                    class="text-[length:var(--text-base)] text-[var(--color-muted)] flex-shrink-0"
-                    :class="editable && 'pointer-events-none select-none'"
-                    :style="applyFontColor(getItemContentStyle())"
-                  >{{ menuItem.price }}</span>
+                  >
+                    {{ menuItem.details }}
+                  </p>
                 </div>
-                <p
-                  v-if="menuItem.details"
-                  class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0 mt-1"
-                  :class="editable && 'pointer-events-none select-none'"
-                  :style="applyFontColor(getItemContentStyle())"
-                >{{ menuItem.details }}</p>
-              </div>
               </div>
             </div>
 
@@ -347,7 +352,9 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
                 class="text-[length:var(--text-lg)] font-medium"
                 :class="editable && 'pointer-events-none select-none'"
                 :style="applyFontColor(getItemHeadlineStyle())"
-              >{{ (item as AccordionItemEvent).price }}</div>
+              >
+                {{ (item as AccordionItemEvent).price }}
+              </div>
               <a
                 v-if="(item as AccordionItemEvent).button?.label"
                 :href="editable ? '#' : ((item as AccordionItemEvent).button?.url || '#')"
@@ -355,7 +362,6 @@ function getHeaderMeta(item: AccordionItemEvent): string | undefined {
                 :class="editable && 'pointer-events-none select-none'"
               >{{ (item as AccordionItemEvent).button!.label }}</a>
             </div>
-
           </div>
         </div>
       </div>

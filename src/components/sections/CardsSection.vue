@@ -77,7 +77,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :active-field-key="activeFieldKey"
     :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <CardsCarousel
@@ -92,7 +92,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :active-field-key="activeFieldKey"
     :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <CardsRow
@@ -107,7 +107,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :active-field-key="activeFieldKey"
     :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
   <CardsSplit
@@ -122,7 +122,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
     :active-field-key="activeFieldKey"
     :active-item-id="activeItemId"
     :hidden-fields="hiddenFields"
-    @selectField="handleSelectField"
+    @select-field="handleSelectField"
     @update="handleUpdate"
   />
 </template>

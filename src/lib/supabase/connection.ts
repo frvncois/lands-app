@@ -62,10 +62,6 @@ export function registerVisibilityHandler(): void {
       const store = getAuthStore()
       if (!store) return
 
-      if (DEBUG_AUTH) {
-        console.log('[Tab Visibility] Tab became visible, starting rehydration...')
-      }
-
       state.value = 'recovering'
 
       // FIRE-AND-FORGET: Start hydration without blocking
@@ -85,10 +81,6 @@ export function registerVisibilityHandler(): void {
     const store = getAuthStore()
     if (!store) return
 
-    if (DEBUG_AUTH) {
-      console.log('[Window Focus] Window focused, starting rehydration...')
-    }
-
     state.value = 'recovering'
 
     // FIRE-AND-FORGET: Start hydration without blocking
@@ -106,10 +98,6 @@ export function registerVisibilityHandler(): void {
       const store = getAuthStore()
       if (!store) return
 
-      if (DEBUG_AUTH) {
-        console.log('[Page Show] Restored from bfcache, starting rehydration...')
-      }
-
       state.value = 'recovering'
 
       // FIRE-AND-FORGET: Start hydration without blocking
@@ -122,12 +110,7 @@ export function registerVisibilityHandler(): void {
   })
 
   // Handle page hide (log for debugging)
-  window.addEventListener('pagehide', (event) => {
-    if (DEBUG_AUTH) {
-      console.log('[Page Hide]', {
-        persisted: event.persisted,
-        timestamp: Date.now(),
-      })
-    }
+  window.addEventListener('pagehide', () => {
+    // No logging needed
   })
 }

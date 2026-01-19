@@ -10,15 +10,15 @@ import ShowcaseFront from '@/components/storefront/ShowcaseFront.vue';
 </script>
 
 <template>
-<main>
-    <HeaderFront/>
+  <main>
+    <HeaderFront />
     <HeroFront />
     <PreviewFront />
     <IntroFront />
     <FeaturesFront />
     <ShowcaseFront />
     <PricingFront />
-</main>
+  </main>
 </template>
 
 <style scoped>

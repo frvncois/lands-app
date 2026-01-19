@@ -111,7 +111,7 @@ function handleLogoClick(e: MouseEvent) {
             :hidden-fields="hiddenFields"
             class="font-semibold text-[length:var(--text-lg)]"
             :style="getFieldStyle('title', '--font-heading')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
         </div>
@@ -126,7 +126,7 @@ function handleLogoClick(e: MouseEvent) {
           :html="true"
           class="text-[length:var(--text-sm)] text-[var(--color-muted)] max-w-[300px]"
           :style="getFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>
@@ -143,7 +143,7 @@ function handleLogoClick(e: MouseEvent) {
         class="text-[length:var(--text-sm)] text-[var(--color-muted)] m-0"
         :class="{ 'mt-[var(--spacing-md)]': variant === 'centered' }"
         :style="getFieldStyle('secondaryText', '--font-body')"
-        @selectField="handleSelectField"
+        @select-field="handleSelectField"
         @update="handleUpdate"
       />
     </div>

@@ -165,10 +165,20 @@ function isFieldHidden(fieldKey: string): boolean {
   >
     <div class="max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-[var(--spacing-2xl)] items-start">
       <!-- Form + Social Links Column -->
-      <div class="flex flex-col gap-[var(--spacing-xl)] order-2" :class="contentOrder">
+      <div
+        class="flex flex-col gap-[var(--spacing-xl)] order-2"
+        :class="contentOrder"
+      >
         <!-- Form -->
-        <form class="flex flex-col" :style="formFieldsGapStyle" @submit.prevent>
-          <template v-for="(field, index) in data.formFields" :key="field.id || index">
+        <form
+          class="flex flex-col"
+          :style="formFieldsGapStyle"
+          @submit.prevent
+        >
+          <template
+            v-for="(field, index) in data.formFields"
+            :key="field.id || index"
+          >
             <!-- Text Input -->
             <input
               v-if="field.type === 'text'"
@@ -211,16 +221,27 @@ function isFieldHidden(fieldKey: string): boolean {
               class="w-full focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
               :style="getFormInputStyle()"
             >
-              <option value="" disabled selected>{{ field.label }}</option>
+              <option
+                value=""
+                disabled
+                selected
+              >
+                {{ field.label }}
+              </option>
               <option
                 v-for="(option, optIndex) in field.options"
                 :key="optIndex"
                 :value="option"
-              >{{ option }}</option>
+              >
+                {{ option }}
+              </option>
             </select>
 
             <!-- Checkbox Select -->
-            <div v-else-if="field.type === 'checkbox'" class="flex flex-col gap-[var(--spacing-xs)]">
+            <div
+              v-else-if="field.type === 'checkbox'"
+              class="flex flex-col gap-[var(--spacing-xs)]"
+            >
               <label
                 v-for="(option, optIndex) in field.options"
                 :key="optIndex"
@@ -236,7 +257,10 @@ function isFieldHidden(fieldKey: string): boolean {
             </div>
 
             <!-- Radio Input -->
-            <div v-else-if="field.type === 'radio'" class="flex flex-col gap-[var(--spacing-xs)]">
+            <div
+              v-else-if="field.type === 'radio'"
+              class="flex flex-col gap-[var(--spacing-xs)]"
+            >
               <label
                 v-for="(option, optIndex) in field.options"
                 :key="optIndex"
@@ -329,7 +353,10 @@ function isFieldHidden(fieldKey: string): boolean {
       </div>
 
       <!-- Title Column -->
-      <div class="flex flex-col gap-[var(--spacing-lg)] order-1" :class="titleOrder">
+      <div
+        class="flex flex-col gap-[var(--spacing-lg)] order-1"
+        :class="titleOrder"
+      >
         <EditableText
           v-if="data.headline"
           tag="h2"
@@ -340,7 +367,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
           :style="getHeaderFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -353,7 +380,7 @@ function isFieldHidden(fieldKey: string): boolean {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-lg)] text-[var(--color-muted)] m-0"
           :style="getHeaderFieldStyle('subheadline', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
 
@@ -373,7 +400,7 @@ function isFieldHidden(fieldKey: string): boolean {
             :hidden-fields="hiddenFields"
             class="text-[length:var(--text-base)] m-0"
             :style="getHeaderFieldStyle(`paragraphs.${index}`, '--font-body')"
-            @selectField="handleSelectField"
+            @select-field="handleSelectField"
             @update="handleUpdate"
           />
         </div>

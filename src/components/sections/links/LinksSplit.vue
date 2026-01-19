@@ -171,22 +171,22 @@ function handleUpdate(fieldKey: string, value: unknown) {
               editable && 'pointer-events-none select-none',
             ]"
           />
-        <div
-          class="flex flex-col gap-[var(--spacing-xs)] min-w-0 flex-1"
-          :class="editable && 'pointer-events-none select-none'"
-        >
-          <span
-            class="text-[length:var(--text-base)] font-medium"
+          <div
+            class="flex flex-col gap-[var(--spacing-xs)] min-w-0 flex-1"
             :class="editable && 'pointer-events-none select-none'"
-            :style="getItemLabelStyle()"
-          >{{ link.label }}</span>
-          <span
-            v-if="link.description"
-            class="text-[length:var(--text-sm)] text-[var(--color-muted)]"
-            :class="editable && 'pointer-events-none select-none'"
-            :style="getItemDescriptionStyle()"
-          >{{ link.description }}</span>
-        </div>
+          >
+            <span
+              class="text-[length:var(--text-base)] font-medium"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="getItemLabelStyle()"
+            >{{ link.label }}</span>
+            <span
+              v-if="link.description"
+              class="text-[length:var(--text-sm)] text-[var(--color-muted)]"
+              :class="editable && 'pointer-events-none select-none'"
+              :style="getItemDescriptionStyle()"
+            >{{ link.description }}</span>
+          </div>
           <i
             class="lni lni-arrow-right text-[var(--color-muted)] group-hover:text-[var(--color-fg)] transition-colors flex-shrink-0 ml-[var(--spacing-md)]"
             :class="editable && 'pointer-events-none select-none'"
@@ -209,7 +209,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
           :hidden-fields="hiddenFields"
           class="text-[length:var(--text-3xl)] font-bold leading-tight m-0"
           :style="getHeaderFieldStyle('headline', '--font-heading')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
         <EditableText
@@ -223,7 +223,7 @@ function handleUpdate(fieldKey: string, value: unknown) {
           :html="true"
           class="text-[length:var(--text-base)] text-[var(--color-muted)] m-0 prose prose-sm"
           :style="getHeaderFieldStyle('paragraph', '--font-body')"
-          @selectField="handleSelectField"
+          @select-field="handleSelectField"
           @update="handleUpdate"
         />
       </div>

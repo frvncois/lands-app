@@ -2,9 +2,9 @@
 </script>
 
 <template>
-    <section>
-        <div class="preview"/>
-    </section>
+  <section>
+    <div class="preview" />
+  </section>
 </template>
 
 <style scoped>
