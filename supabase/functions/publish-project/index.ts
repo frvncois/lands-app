@@ -43,7 +43,7 @@ const FONT_REGISTRY: Record<string, string> = {
 
 interface RequestBody {
   projectId: string
-  action: 'publish' | 'unpublish'
+  action: 'publish' | 'unpublish' | 'delete'
 }
 
 interface TranslationSettings {
@@ -4791,6 +4791,43 @@ async function purgeCloudflareCache(slug: string): Promise<void> {
   }
 }
 
+/**
+ * Delete all files in a project's storage folder
+ */
+async function deleteProjectStorage(supabase: ReturnType<typeof createClient>, projectId: string): Promise<void> {
+  try {
+    // List all files in the project folder
+    const { data: files, error: listError } = await supabase.storage
+      .from('uploads')
+      .list(projectId)
+
+    if (listError) {
+      console.error('Failed to list storage files:', listError)
+      return
+    }
+
+    if (!files || files.length === 0) {
+      return
+    }
+
+    // Build array of file paths to delete
+    const filePaths = files.map(file => `${projectId}/${file.name}`)
+
+    // Delete all files
+    const { error: deleteError } = await supabase.storage
+      .from('uploads')
+      .remove(filePaths)
+
+    if (deleteError) {
+      console.error('Failed to delete storage files:', deleteError)
+    } else {
+      console.log(`Successfully deleted ${filePaths.length} files for project ${projectId}`)
+    }
+  } catch (error) {
+    console.error('Error deleting project storage:', error)
+  }
+}
+
 // ============================================
 // MAIN SERVER
 // ============================================
@@ -4841,26 +4878,29 @@ serve(async (req) => {
     }
 
     // Rate limiting: max 10 publishes per hour per user
-    const ONE_HOUR_AGO = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    // Skip rate limiting for delete action
+    if (action !== 'delete') {
+      const ONE_HOUR_AGO = new Date(Date.now() - 60 * 60 * 1000).toISOString()
 
-    const { count: recentPublishes } = await supabase
-      .from('publish_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', project.user_id)
-      .gte('created_at', ONE_HOUR_AGO)
+      const { count: recentPublishes } = await supabase
+        .from('publish_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', project.user_id)
+        .gte('created_at', ONE_HOUR_AGO)
 
-    if ((recentPublishes || 0) >= 10) {
-      return new Response(JSON.stringify({
-        error: 'Rate limit exceeded. Maximum 10 publishes per hour.',
-        retryAfter: 3600
-      }), {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          'Retry-After': '3600',
-          ...corsHeaders
-        },
-      })
+      if ((recentPublishes || 0) >= 10) {
+        return new Response(JSON.stringify({
+          error: 'Rate limit exceeded. Maximum 10 publishes per hour.',
+          retryAfter: 3600
+        }), {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': '3600',
+            ...corsHeaders
+          },
+        })
+      }
     }
 
     // Log this publish attempt
@@ -5003,6 +5043,55 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         success: true,
         message: 'Project unpublished successfully'
+      }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      })
+
+    } else if (action === 'delete') {
+      // Full cleanup for project deletion
+
+      // 1. Delete from Cloudflare KV (if was published)
+      if (project.is_published && project.slug) {
+        await deleteFromKV(project.slug)
+        await purgeCloudflareCache(project.slug)
+      }
+
+      // 2. Delete all project files from storage
+      await deleteProjectStorage(supabase, projectId)
+
+      // 3. Delete Umami analytics site if exists
+      const { data: settings } = await supabase
+        .from('project_settings')
+        .select('umami_site_id')
+        .eq('project_id', projectId)
+        .single()
+
+      if (settings?.umami_site_id) {
+        try {
+          // Call Umami delete (if UMAMI_API_KEY is configured)
+          const UMAMI_API_KEY = Deno.env.get('UMAMI_API_KEY')
+          const UMAMI_API_URL = Deno.env.get('UMAMI_API_URL') || 'https://cloud.umami.is'
+
+          if (UMAMI_API_KEY) {
+            await fetch(`${UMAMI_API_URL}/api/websites/${settings.umami_site_id}`, {
+              method: 'DELETE',
+              headers: {
+                'x-umami-api-key': UMAMI_API_KEY,
+              },
+            })
+          }
+        } catch (e) {
+          console.error('Failed to delete Umami site:', e)
+          // Continue with deletion even if Umami fails
+        }
+      }
+
+      // Note: Database records are deleted by the frontend via cascade
+      // This function only handles external resources (Cloudflare, Storage, Umami)
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: 'Project resources cleaned up successfully'
       }), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       })

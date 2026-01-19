@@ -276,7 +276,7 @@ export const useProjectsStore = defineStore('projects', () => {
     const previousCollaborators = collaborators.value.filter(c => c.projectId === id)
     const previousInvites = collaboratorInvites.value.filter(i => i.projectId === id)
 
-    // Optimistic delete
+    // Optimistic delete from local state
     projects.value = projects.value.filter(p => p.id !== id)
     projectContents.value.delete(id)
     integrations.value = integrations.value.filter(i => i.projectId !== id)
@@ -284,12 +284,24 @@ export const useProjectsStore = defineStore('projects', () => {
     collaboratorInvites.value = collaboratorInvites.value.filter(i => i.projectId !== id)
 
     try {
+      // 1. Clean up external resources (Cloudflare KV, Storage, Umami)
+      const { error: cleanupError } = await supabase.functions.invoke('publish-project', {
+        body: { projectId: id, action: 'delete' },
+      })
+
+      if (cleanupError) {
+        console.error('Failed to cleanup project resources:', cleanupError)
+        // Continue with deletion even if cleanup fails
+      }
+
+      // 2. Delete from database (cascades to related tables)
       const { error: deleteError } = await supabase
         .from('projects')
         .delete()
         .eq('id', id)
 
       if (deleteError) throw deleteError
+
       toast.success('Project deleted')
       return true
     } catch (e) {
