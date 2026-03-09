@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* ── Modal panel transitions ── */
+
+/* Forward: slide in from right, out to left */
+.modal-forward-enter-active,
+.modal-forward-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.modal-forward-enter-from { opacity: 0; transform: translateX(16px); }
+.modal-forward-leave-to   { opacity: 0; transform: translateX(-16px); }
+
+/* Back: slide in from left, out to right */
+.modal-back-enter-active,
+.modal-back-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.modal-back-enter-from { opacity: 0; transform: translateX(-16px); }
+.modal-back-leave-to   { opacity: 0; transform: translateX(16px); }
+
+/* Modal open/close: grow */
+.modal-grow-enter-active,
+.modal-grow-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.modal-grow-enter-from,
+.modal-grow-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Fade only */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to { opacity: 0; }
+
+/* Title: slide up on leave, slide from bottom on enter */
+.modal-title-enter-active,
+.modal-title-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.modal-title-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.modal-title-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+/* Center modal: backdrop fade + card scale */
+.modal-center-enter-active,
+.modal-center-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-center-enter-from,
+.modal-center-leave-to {
+  opacity: 0;
+}
+.modal-center-enter-active .modal-card,
+.modal-center-leave-active .modal-card {
+  transition: transform 0.2s ease;
+}
+.modal-center-enter-from .modal-card,
+.modal-center-leave-to .modal-card {
+  transform: scale(0.95);
+}

@@ -1,0 +1,96 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { XMarkIcon, ArrowUpTrayIcon, PhotoIcon, DocumentIcon } from '@heroicons/vue/24/outline'
+
+const props = withDefaults(defineProps<{
+  label: string
+  modelValue?: string
+  type?: 'image' | 'file'
+  size?: 'sm' | 'md' | 'lg'
+}>(), {
+  type: 'image',
+  size: 'md',
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+}>()
+
+const inputRef = ref<HTMLInputElement | null>(null)
+
+const sizes = {
+  sm: { label: 'text-xs', text: 'text-xs', preview: 'h-24' },
+  md: { label: 'text-xs', text: 'text-sm', preview: 'h-32' },
+  lg: { label: 'text-sm', text: 'text-base', preview: 'h-40' },
+}
+
+const accept = computed(() => props.type === 'image' ? 'image/*' : '*')
+
+const isImage = computed(() => props.type === 'image')
+
+function onFileChange(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const url = URL.createObjectURL(file)
+  emit('update:modelValue', url)
+}
+
+function remove() {
+  emit('update:modelValue', '')
+  if (inputRef.value) inputRef.value.value = ''
+}
+</script>
+
+<template>
+  <div class="flex flex-col gap-2 flex-1">
+    <span class="text-gray-700 shrink-0" :class="sizes[size].label">{{ label }}</span>
+
+    <!-- Preview (image type with value) -->
+    <div v-if="isImage && modelValue" class="relative rounded-xl overflow-hidden border border-gray-200 group" :class="sizes[size].preview">
+      <img :src="modelValue" class="w-full h-full object-cover" />
+      <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+      <button
+        type="button"
+        class="absolute top-2 right-2 p-1 rounded-lg bg-white shadow text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+        @click="remove"
+      >
+        <XMarkIcon class="h-3.5 w-3.5" />
+      </button>
+    </div>
+
+    <!-- Drop zone / trigger (no value) -->
+    <button
+      v-else
+      type="button"
+      class="flex flex-col items-center justify-center gap-2 w-full border border-dashed border-gray-300 rounded-xl text-gray-400 hover:border-gray-400 hover:text-gray-500 hover:bg-gray-50 transition-colors"
+      :class="[sizes[size].preview, sizes[size].text]"
+      @click="inputRef?.click()"
+    >
+      <component :is="isImage ? PhotoIcon : DocumentIcon" class="h-5 w-5" />
+      <span class="text-xs">Click to upload {{ type }}</span>
+    </button>
+
+    <!-- File row (file type with value) -->
+    <div v-if="!isImage && modelValue" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl">
+      <DocumentIcon class="h-4 w-4 text-gray-400 shrink-0" />
+      <span class="flex-1 text-xs text-gray-700 truncate">{{ modelValue }}</span>
+      <button type="button" class="text-gray-400 hover:text-red-500 transition-colors" @click="remove">
+        <XMarkIcon class="h-3.5 w-3.5" />
+      </button>
+    </div>
+
+    <!-- Hidden input -->
+    <input ref="inputRef" type="file" :accept="accept" class="hidden" @change="onFileChange" />
+
+    <!-- Upload button (when image has value, allow replacing) -->
+    <button
+      v-if="isImage && modelValue"
+      type="button"
+      class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+      @click="inputRef?.click()"
+    >
+      <ArrowUpTrayIcon class="h-3.5 w-3.5" />
+      Replace image
+    </button>
+  </div>
+</template>
