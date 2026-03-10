@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useLandStore } from '@/stores/land'
 import { useThemeStore } from '@/stores/theme'
 import { useThemeVars } from '@/composables/useThemeVars'
+import { useKeyboardShortcuts } from '@/composables/useKeyboard'
 import { userService } from '@/services/user.service'
 import { landService } from '@/services/land.service'
 
@@ -13,6 +14,7 @@ const landStore = useLandStore()
 const themeStore = useThemeStore()
 
 useThemeVars()
+useKeyboardShortcuts()
 
 async function loadUserData() {
   const [user, lands] = await Promise.all([

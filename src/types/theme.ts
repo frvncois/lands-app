@@ -15,8 +15,6 @@ export const TYPOGRAPHY_STYLES = {
 export type TypographyStyle = typeof TYPOGRAPHY_STYLES[keyof typeof TYPOGRAPHY_STYLES]
 
 export interface LandTheme {
-  id: string
-  land_id: string
   theme_preset: ThemePreset
   color_main: string    // Primary brand color — headings, buttons, strong emphasis
   color_accent: string  // Secondary highlight — links, hover states, active indicators

@@ -1,4 +1,3 @@
-import { faker } from '@faker-js/faker'
 import { useLandStore } from '@/stores/land'
 import type { Collaborator, CollaboratorRole } from '@/types/collaborator'
 
@@ -16,7 +15,7 @@ export function useCollaboratorActions() {
     if (existing) return existing
 
     const collaborator: Collaborator = {
-      id: faker.string.uuid(),
+      id: crypto.randomUUID(),
       land_id: landStore.activeLand.id,
       email,
       role,

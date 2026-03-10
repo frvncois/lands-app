@@ -19,7 +19,3 @@ export interface Collection {
   items: CollectionItem[]
 }
 
-export interface CollectionSection {
-  section_id: string
-  collections: Collection[]
-}

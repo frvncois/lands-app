@@ -6,7 +6,8 @@ import { useToast } from '@/composables/useToast'
 import { sortByPosition, generatePositionAfter, generatePositionBetween } from '@/lib/utils/position'
 import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
 import { storageService, extractSectionUrls } from '@/services/storage.service'
-import type { Section, SectionType, MediaItem } from '@/types/section'
+import { landService } from '@/services/land.service'
+import type { Section, SectionType } from '@/types/section'
 import type { ListItem } from '@/types/list'
 import type { Collection, CollectionItem } from '@/types/collection'
 import type { Store, StoreItem } from '@/types/store'
@@ -84,7 +85,7 @@ export function useEditorActions() {
       type,
       position,
       style_variant: defaults.style_variant,
-      settings_json: { ...defaults.settings_json },
+      settings_json: { ...defaults.settings_json } as any,
       content,
       created_at: new Date().toISOString(),
     }
@@ -110,7 +111,7 @@ export function useEditorActions() {
     const section = activeLand.value.sections.find((s) => s.id === sectionId)
     if (section) {
       const urls = extractSectionUrls(section)
-      urls.forEach((url) => storageService.remove(url))
+      Promise.all(urls.map((url) => storageService.remove(url))).catch(() => {})
     }
     const updatedSections = activeLand.value.sections.filter((s) => s.id !== sectionId)
     landStore.updateLand(activeLand.value.id, { sections: updatedSections })
@@ -134,35 +135,7 @@ export function useEditorActions() {
   }
 
   function updateSectionStyleVariant(sectionId: string, variant: string) {
-    patchSection(sectionId, (s) => ({
-      ...s,
-      style_variant: variant,
-      settings_json: { ...s.settings_json, style: variant } as any,
-    }))
-  }
-
-  // ─── Media Items ───
-
-  function addMediaItem(sectionId: string, data: Pick<MediaItem, 'media_type' | 'url' | 'caption'>) {
-    const existing: MediaItem[] = (getSection(sectionId)?.content as any)?.items ?? []
-    const sorted = sortByPosition(existing)
-    const newItem: MediaItem = {
-      ...data,
-      id: crypto.randomUUID(),
-      position: generatePositionAfter(sorted[sorted.length - 1]?.position ?? null),
-    }
-    updateSectionContent(sectionId, { items: [...existing, newItem] })
-  }
-
-  function updateMediaItem(sectionId: string, itemId: string, data: Partial<Pick<MediaItem, 'media_type' | 'url' | 'caption'>>) {
-    const items: MediaItem[] = (getSection(sectionId)?.content as any)?.items ?? []
-    updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) })
-  }
-
-  function deleteMediaItem(sectionId: string, itemId: string) {
-    const items: MediaItem[] = (getSection(sectionId)?.content as any)?.items ?? []
-    updateSectionContent(sectionId, { items: items.filter((i) => i.id !== itemId) })
-    addToast('Media removed')
+    patchSection(sectionId, (s) => ({ ...s, style_variant: variant }))
   }
 
   // ─── List Items ───
@@ -363,7 +336,7 @@ export function useEditorActions() {
   function updateLandImages(data: { cover_image?: string; avatar_image?: string }) {
     if (!activeLand.value) return
     landStore.updateLand(activeLand.value.id, data)
-    editorStore.markDirty()
+    landService.updateLand(activeLand.value.id, data).catch(() => addToast('Failed to save image'))
   }
 
   // ─── Theme ───
@@ -387,7 +360,7 @@ export function useEditorActions() {
       ...s,
       content: data.content as any,
       style_variant: data.style_variant,
-      settings_json: { ...(data.settings_json as any), style: data.style_variant },
+      settings_json: data.settings_json as any,
     }))
   }
 
@@ -433,17 +406,19 @@ export function useEditorActions() {
   function updateLandSettings(data: { handle?: string; title?: string; description?: string }) {
     if (!activeLand.value) return
     landStore.updateLand(activeLand.value.id, data)
-    editorStore.markDirty()
-    addToast('Settings saved')
+    landService.updateLand(activeLand.value.id, data)
+      .then(() => addToast('Settings saved'))
+      .catch(() => addToast('Failed to save settings'))
   }
 
-  function deleteLand() {
+  async function deleteLand() {
     if (!activeLand.value) return
-    activeLand.value.sections.forEach((s) => {
-      extractSectionUrls(s).forEach((url) => storageService.remove(url))
-    })
-    landStore.removeLand(activeLand.value.id)
+    const id = activeLand.value.id
+    const urls = activeLand.value.sections.flatMap(extractSectionUrls)
+    landStore.removeLand(id)
     editorStore.exitEditMode()
+    await landService.deleteLand(id)
+    Promise.all(urls.map((url) => storageService.remove(url))).catch(() => {})
     addToast('Land deleted')
   }
 
@@ -453,9 +428,6 @@ export function useEditorActions() {
     updateSectionContent,
     updateSectionSettings,
     updateSectionStyleVariant,
-    addMediaItem,
-    updateMediaItem,
-    deleteMediaItem,
     addListItem,
     updateListItem,
     deleteListItem,

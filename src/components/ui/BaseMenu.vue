@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+
+defineEmits<{ logout: [] }>()
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import LandsLogo from '@/assets/LandsLogo.vue'
@@ -71,7 +73,7 @@ const navButtonClass = 'w-full !justify-start text-gray-700'
         <BaseButton size="sm" :class="navButtonClass" @click="open = false">Support</BaseButton>
       </div>
       <div class="p-1">
-        <BaseButton size="sm" :class="navButtonClass" @click="console.log('logout'); open = false">
+        <BaseButton size="sm" :class="navButtonClass" @click="$emit('logout'); open = false">
           Logout
         </BaseButton>
       </div>

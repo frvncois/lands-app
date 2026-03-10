@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BaseButton from '../ui/BaseButton.vue';
 import {
@@ -15,11 +15,12 @@ import SettingsModal from '../modals/SettingsModal.vue';
 import EditorModal from '../modals/EditorModal.vue';
 import ConfirmLeaveModal from '../modals/ConfirmLeaveModal.vue';
 import ConfirmPublishedModal from '../modals/ConfirmPublishedModal.vue';
-import { useProjectStore } from '@/stores/project'
 import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
 import { useThemeStore } from '@/stores/theme'
+import { useToast } from '@/composables/useToast'
 import { landService } from '@/services/land.service'
+import authService from '@/services/auth.service'
 import type { Land } from '@/types/land'
 import type { LandTheme } from '@/types/theme'
 
@@ -27,13 +28,12 @@ const activeModal = ref<'plugins' | 'settings' | null>(null)
 const showLeaveModal = ref(false)
 const showPublishedModal = ref(false)
 const pendingPath = ref<string | null>(null)
-// 'navigate' = router guard triggered, 'close' = user clicked Close with dirty state
 const leaveContext = ref<'navigate' | 'close'>('navigate')
 
-const project = useProjectStore()
 const editorStore = useEditorStore()
 const landStore = useLandStore()
 const themeStore = useThemeStore()
+const { addToast } = useToast()
 const route = useRoute()
 const router = useRouter()
 
@@ -51,9 +51,10 @@ async function save() {
       theme: themeStore.theme ?? land.theme,
     })
     editorStore.markClean()
-    // Update snapshot to reflect the newly saved state
     landSnapshot = JSON.parse(JSON.stringify(landStore.activeLand))
     themeSnapshot = themeStore.theme ? JSON.parse(JSON.stringify(themeStore.theme)) : null
+  } catch {
+    addToast('Failed to save — please try again')
   } finally {
     isSaving.value = false
   }
@@ -63,8 +64,8 @@ watch(() => route.path, () => {
   activeModal.value = null
 })
 
-router.beforeEach((to, from) => {
-  if (project.mode === 'editor' && to.path !== from.path) {
+const removeGuard = router.beforeEach((to, from) => {
+  if (editorStore.isEditMode && to.path !== from.path) {
     if (editorStore.isDirty) {
       pendingPath.value = to.path
       leaveContext.value = 'navigate'
@@ -75,17 +76,16 @@ router.beforeEach((to, from) => {
   }
 })
 
+onUnmounted(removeGuard)
+
 function enterEditor() {
   activeModal.value = null
-  // Snapshot current state before any edits
   landSnapshot = JSON.parse(JSON.stringify(landStore.activeLand))
   themeSnapshot = themeStore.theme ? JSON.parse(JSON.stringify(themeStore.theme)) : null
-  project.setMode('editor')
   editorStore.enterEditMode()
 }
 
 function exitEditor() {
-  project.setMode('preview')
   editorStore.exitEditMode()
   landSnapshot = null
   themeSnapshot = null
@@ -135,18 +135,23 @@ function confirmPublished() {
   showPublishedModal.value = false
   exitEditor()
 }
+
+async function handleLogout() {
+  await authService.logout()
+  router.push('/auth')
+}
 </script>
 
 <template>
     <header class="flex justify-between items-center p-2">
 
-        <BaseMenu />
+        <BaseMenu @logout="handleLogout" />
 
 
         <Transition name="modal-title" mode="out-in">
 
           <!--Preview state-->
-          <div v-if="project.mode === 'preview' && route.path === '/dashboard'" class="flex space-x-2 items-center">
+          <div v-if="!editorStore.isEditMode && route.path === '/dashboard'" class="flex space-x-2 items-center">
               <BaseButton size="sm" variant="outline" :active="activeModal === 'plugins'" @click="activeModal = activeModal === 'plugins' ? null : 'plugins'">
                   <PuzzlePieceIcon class="h-4 w-4" />
                   Plugins
@@ -162,7 +167,7 @@ function confirmPublished() {
           </div>
 
           <!--Editor state-->
-          <div v-else-if="project.mode === 'editor'" class="flex space-x-2 items-center">
+          <div v-else-if="editorStore.isEditMode" class="flex space-x-2 items-center">
               <BaseButton size="sm">
                   <LinkIcon class="h-4 w-4" />
                   {{ landStore.activeLand?.handle }}.lands.app
@@ -188,7 +193,7 @@ function confirmPublished() {
           <SettingsModal v-if="activeModal === 'settings'" @close="activeModal = null" />
         </Transition>
         <Transition name="modal-grow">
-          <EditorModal v-if="project.mode === 'editor'" @close="project.setMode('preview')" />
+          <EditorModal v-if="editorStore.isEditMode" />
         </Transition>
         <Transition name="modal-center">
           <ConfirmLeaveModal v-if="showLeaveModal" @confirm="confirmLeave" @cancel="cancelLeave" />
@@ -198,6 +203,6 @@ function confirmPublished() {
         </Transition>
 
 
-        
+
     </header>
 </template>

@@ -5,22 +5,40 @@ import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseAvatar from '@/components/ui/BaseAvatar.vue';
 import BaseToggle from '@/components/ui/BaseToggle.vue';
 import { useUserStore } from '@/stores/user'
+import { userService } from '@/services/user.service'
+import { useToast } from '@/composables/useToast'
 
 const userStore = useUserStore()
+const { addToast } = useToast()
 
 const avatarUrl = ref(userStore.user?.avatar_image ?? '')
 const firstName = ref(userStore.user?.first_name ?? '')
 const lastName = ref(userStore.user?.last_name ?? '')
 const email = ref(userStore.user?.email ?? '')
+const isSaving = ref(false)
 
 const commMarketing = ref(true)
 const commCommunications = ref(true)
 const commAnalytics = ref(true)
 const commStore = ref(false)
 
-function saveProfile() {
+async function saveProfile() {
   if (!userStore.user) return
-  userStore.setUser({ ...userStore.user, avatar_image: avatarUrl.value, first_name: firstName.value, last_name: lastName.value, email: email.value })
+  isSaving.value = true
+  try {
+    const updated = await userService.updateMe({
+      avatar_image: avatarUrl.value,
+      first_name: firstName.value,
+      last_name: lastName.value,
+      email: email.value,
+    })
+    userStore.setUser(updated)
+    addToast('Profile saved')
+  } catch {
+    addToast('Failed to save profile')
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 
@@ -45,7 +63,7 @@ function saveProfile() {
         <BaseInput size="lg" label="Email" placeholder="user@example.com" v-model="email" />
       </div>
       <div>
-        <BaseButton variant="solid" size="md" @click="saveProfile">Save</BaseButton>
+        <BaseButton variant="solid" size="md" :disabled="isSaving" @click="saveProfile">{{ isSaving ? 'Saving…' : 'Save' }}</BaseButton>
       </div>
     </div>
     <div class="flex flex-col gap-4 pb-8">

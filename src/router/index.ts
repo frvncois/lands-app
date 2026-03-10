@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 import { supabase } from '@/lib/supabase'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -72,8 +73,13 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  const { data: { session } } = await supabase.auth.getSession()
-  const isAuthenticated = !!session
+  // Use cached auth state when available; fall back to session check on first load
+  const userStore = useUserStore()
+  let isAuthenticated = userStore.isAuthenticated
+  if (!isAuthenticated) {
+    const { data: { session } } = await supabase.auth.getSession()
+    isAuthenticated = !!session
+  }
 
   if (to.meta.requiresAuth && !isAuthenticated) return '/auth'
   if (to.meta.requiresGuest && isAuthenticated) return '/dashboard'

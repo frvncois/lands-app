@@ -1,11 +1,22 @@
 import { supabase } from '@/lib/supabase'
 import type { Land } from '@/types/land'
+import type { LandTheme } from '@/types/theme'
+
+const DEFAULT_THEME: LandTheme = {
+  theme_preset: 'minimal',
+  color_main: '#18181B',
+  color_accent: '#6366F1',
+  color_surface: '#F4F4F5',
+  typography_style: 'sans',
+}
 
 function normalizeLand(row: Record<string, unknown>): Land {
   return {
     ...row,
     sections: Array.isArray(row.sections) ? row.sections : [],
-    theme: (row.theme && typeof row.theme === 'object') ? row.theme : {},
+    theme: (row.theme && typeof row.theme === 'object' && !Array.isArray(row.theme))
+      ? { ...DEFAULT_THEME, ...(row.theme as Partial<LandTheme>) }
+      : { ...DEFAULT_THEME },
   } as Land
 }
 

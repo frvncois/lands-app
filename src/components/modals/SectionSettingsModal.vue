@@ -101,7 +101,7 @@ function saveListSectionTitle() {
   updateSectionContent(props.section.id, { title: listSectionTitle.value })
 }
 
-const listItems = computed(() => sortByPosition((props.section.content as any)?.items ?? []))
+const listItems = computed(() => sortByPosition(((props.section.content as any)?.items ?? []) as ListItem[]))
 
 const editingListItem = ref<ListItem | null>(null)
 const editListTitle = ref('')
@@ -541,8 +541,8 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
         <div class="border-t border-gray-100 pt-3 flex flex-col gap-2">
           <p class="text-xs font-medium text-gray-500">Buttons</p>
           <div v-for="btn in cmButtons" :key="btn.id" class="flex items-center gap-2">
-            <BaseInput size="sm" v-model="btn.label" placeholder="Label" class="flex-1" @update:modelValue="saveCm" />
-            <BaseInput size="sm" v-model="btn.url" placeholder="https://..." class="flex-1" @update:modelValue="saveCm" />
+            <BaseInput size="sm" label="" v-model="btn.label" placeholder="Label" class="flex-1" @update:modelValue="saveCm" />
+            <BaseInput size="sm" label="" v-model="btn.url" placeholder="https://..." class="flex-1" @update:modelValue="saveCm" />
             <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeCmButton(btn.id)">
               <TrashIcon class="h-3.5 w-3.5" />
             </button>

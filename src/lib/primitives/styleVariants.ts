@@ -23,18 +23,33 @@ export const STYLE_VARIANTS_BY_SECTION: Record<SectionType, StyleVariantOption[]
     { value: TEXT_STYLES.centered, label: 'Centered' },
     { value: TEXT_STYLES.wide, label: 'Wide' },
   ],
-  [SECTION_TYPES.collection]: [
-    { value: COLLECTION_DISPLAY_STYLES.grid, label: 'Grid' },
-    { value: COLLECTION_DISPLAY_STYLES.list, label: 'List' },
-    { value: COLLECTION_DISPLAY_STYLES.cards, label: 'Cards' },
-  ],
   [SECTION_TYPES.media]: [
     { value: MEDIA_STYLES.default, label: 'Default' },
     { value: MEDIA_STYLES.fullwidth, label: 'Full Width' },
     { value: MEDIA_STYLES.compact, label: 'Compact' },
   ],
+  [SECTION_TYPES.content_media]: [
+    { value: 'default', label: 'Default' },
+    { value: 'reversed', label: 'Reversed' },
+  ],
   [SECTION_TYPES.list]: [
     { value: LIST_STYLES.default, label: 'Default' },
     { value: LIST_STYLES.compact, label: 'Compact' },
+  ],
+  [SECTION_TYPES.collection]: [
+    { value: COLLECTION_DISPLAY_STYLES.grid, label: 'Grid' },
+    { value: COLLECTION_DISPLAY_STYLES.list, label: 'List' },
+    { value: COLLECTION_DISPLAY_STYLES.cards, label: 'Cards' },
+  ],
+  [SECTION_TYPES.store]: [
+    { value: COLLECTION_DISPLAY_STYLES.grid, label: 'Grid' },
+    { value: COLLECTION_DISPLAY_STYLES.list, label: 'List' },
+  ],
+  [SECTION_TYPES.campaign]: [
+    { value: 'default', label: 'Default' },
+    { value: 'minimal', label: 'Minimal' },
+  ],
+  [SECTION_TYPES.footer]: [
+    { value: 'default', label: 'Default' },
   ],
 }

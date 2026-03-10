@@ -9,7 +9,7 @@ export const useEditorStore = defineStore('editor', () => {
   const isDirty = ref(false)
   const isDragging = ref(false)
   const leftPanelTab = ref<'sections' | 'theme' | 'settings'>('sections')
-  const panelPos = ref({ x: window.innerWidth - 336, y: 80 })
+  const panelPos = ref({ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 336, y: 80 })
 
   function enterEditMode() {
     isEditMode.value = true

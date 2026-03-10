@@ -1,6 +1,5 @@
 import { watch } from 'vue'
 import { useThemeStore } from '@/stores/theme'
-import { useLandStore } from '@/stores/land'
 
 const FONT_MAP = {
   sans: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
@@ -10,7 +9,6 @@ const FONT_MAP = {
 
 export function useThemeVars() {
   const themeStore = useThemeStore()
-  const landStore = useLandStore()
 
   function applyVars() {
     const t = themeStore.theme
@@ -22,13 +20,6 @@ export function useThemeVars() {
     root.style.setProperty('--theme-font', FONT_MAP[t.typography_style])
   }
 
-  // Sync themeStore when active land changes
-  watch(
-    () => landStore.activeLand,
-    (land) => { if (land?.theme) themeStore.setTheme(land.theme) },
-    { immediate: true }
-  )
-
-  // Apply CSS vars whenever theme changes
+  // Apply CSS vars whenever theme changes (land → themeStore sync handled by setActiveLand)
   watch(() => themeStore.theme, applyVars, { deep: true, immediate: true })
 }

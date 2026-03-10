@@ -30,10 +30,8 @@ const MAIN_COLORS = ['#18181B', '#2563EB', '#1E1E1E', '#7C3AED']
 const ACCENT_COLORS = ['#6366F1', '#F59E0B', '#EC4899', '#0891B2', '#B45309']
 const SURFACE_COLORS = ['#F4F4F5', '#FAF9F6', '#1E293B', '#FEF3C7']
 
-export function createMockTheme(landId: string, overrides?: Partial<LandTheme>): LandTheme {
+export function createMockTheme(_landId?: string, overrides?: Partial<LandTheme>): LandTheme {
   return {
-    id: faker.string.uuid(),
-    land_id: landId,
     theme_preset: faker.helpers.arrayElement([...PRESET_OPTIONS]),
     color_main: faker.helpers.arrayElement(MAIN_COLORS),
     color_accent: faker.helpers.arrayElement(ACCENT_COLORS),

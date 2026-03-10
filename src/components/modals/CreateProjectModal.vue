@@ -170,7 +170,7 @@ function buildSections(types: SectionType[], landId: string, projectTitle: strin
       type,
       position: pos,
       style_variant: defaults.style_variant,
-      settings_json: { ...defaults.settings_json },
+      settings_json: { ...defaults.settings_json } as unknown as import('@/types/section').SectionSettings,
       content,
       created_at: new Date().toISOString(),
     }
