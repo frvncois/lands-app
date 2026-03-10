@@ -8,8 +8,9 @@ import BaseButton from '../ui/BaseButton.vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorActions } from '@/composables/useEditorActions'
 import CustomDomainModal from './CustomDomainModal.vue'
+import DeleteProjectModal from './DeleteProjectModal.vue'
 
-defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [] }>()
 
 const landStore = useLandStore()
 const { updateLandSettings } = useEditorActions()
@@ -20,6 +21,7 @@ const published = ref(false)
 const isPrivate = ref(false)
 const password = ref('')
 const showDomainModal = ref(false)
+const showDeleteModal = ref(false)
 function save() {
   updateLandSettings({ title: title.value, handle: url.value })
 }
@@ -46,10 +48,14 @@ function save() {
         <BaseInput size="sm" label="Password" v-model="password" placeholder="Enter a password" />
       </BaseToggle>
       <BaseButton variant="solid" @click="save">Save</BaseButton>
+      <BaseButton variant="remove" @click="showDeleteModal = true">Delete project</BaseButton>
     </div>
     <Teleport to="body">
       <Transition name="modal-center">
         <CustomDomainModal v-if="showDomainModal" @close="showDomainModal = false" />
+      </Transition>
+      <Transition name="modal-center">
+        <DeleteProjectModal v-if="showDeleteModal" @close="showDeleteModal = false" @deleted="emit('close')" />
       </Transition>
     </Teleport>
   </div>

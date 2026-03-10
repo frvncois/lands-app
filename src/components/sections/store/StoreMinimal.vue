@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getMockStores } from '@/lib/mock/provider'
 import { sortByPosition } from '@/lib/utils/position'
 import type { Section } from '@/types/section'
+import type { Store } from '@/types/store'
 
 const props = defineProps<{ section: Section }>()
-const stores = computed(() => sortByPosition(getMockStores(props.section.id)))
+const stores = computed(() => sortByPosition((props.section.content as any)?.stores ?? [] as Store[]))
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ChartBarIcon, MegaphoneIcon, UsersIcon, ShoppingCartIcon, BuildingStorefrontIcon, PuzzlePieceIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon } from '@heroicons/vue/24/outline'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import PluginsSettingsModal, { type Plugin } from './PluginsSettingsModal.vue'
@@ -8,11 +8,10 @@ import PluginsSettingsModal, { type Plugin } from './PluginsSettingsModal.vue'
 defineEmits<{ close: [] }>()
 
 const plugins: Plugin[] = [
-  { id: 'analytics',     title: 'Analytics',     description: 'Track visits and engagement',          icon: ChartBarIcon },
-  { id: 'campaign',      title: 'Campaign',       description: 'Manage marketing campaigns',           icon: MegaphoneIcon },
-  { id: 'collaborators', title: 'Collaborators',  description: 'Invite team members to your project', icon: UsersIcon },
-  { id: 'monetize',      title: 'Monetize',       description: 'Add a store to your project',         icon: ShoppingCartIcon },
-  { id: 'store',         title: 'Store',          description: 'Manage products, orders and payments', icon: BuildingStorefrontIcon },
+  { id: 'analytics',     title: 'Analytics',        description: 'Track visits and engagement',              icon: ChartBarIcon },
+  { id: 'campaign',      title: 'Campaign',          description: 'Manage marketing campaigns',               icon: MegaphoneIcon },
+  { id: 'collaborators', title: 'Collaborators',     description: 'Invite team members to your project',      icon: UsersIcon },
+  { id: 'sell_monetize', title: 'Sell & Monetize',  description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
 ]
 
 const active = ref<Plugin | null>(null)

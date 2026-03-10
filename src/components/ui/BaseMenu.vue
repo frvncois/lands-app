@@ -1,15 +1,27 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ChevronDownIcon } from '@heroicons/vue/24/outline'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import BaseButton from './BaseButton.vue'
 import BaseProject from './BaseProject.vue'
 import CreateProjectModal from '@/components/modals/CreateProjectModal.vue'
 import { useLandStore } from '@/stores/land'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const landStore = useLandStore()
+const userStore = useUserStore()
+
+const routeLabels: Record<string, string> = {
+  '/dashboard/account': 'Account',
+  '/dashboard/plans': 'Plans',
+}
+
+const subLabel = computed(() => {
+  return routeLabels[route.path] ?? landStore.activeLand?.title ?? 'My Land'
+})
 
 const open = ref(false)
 const showCreateModal = ref(false)
@@ -25,8 +37,8 @@ const navButtonClass = 'w-full !justify-start text-gray-700'
     >
       <LandsLogo class="h-5 w-5 shrink-0" />
       <div class="text-left leading-tight w-[150px]">
-        <p class="text-sm font-medium text-gray-900 truncate">{{ landStore.activeLand?.title ?? 'My Land' }}</p>
-        <p class="text-xs text-gray-400 truncate">{{ landStore.activeLand?.handle }}.lands.app</p>
+        <p class="text-sm font-medium text-gray-900 truncate">{{ userStore.fullName || 'My account' }}</p>
+        <p class="text-xs text-gray-400 truncate">{{ subLabel }}</p>
       </div>
       <ChevronDownIcon class="h-3.5 w-3.5 text-gray-400 shrink-0" />
     </button>
@@ -42,7 +54,7 @@ const navButtonClass = 'w-full !justify-start text-gray-700'
           :title="land.title"
           :url="land.handle + '.lands.app'"
           :image="land.avatar_image"
-          :active="landStore.activeLandId === land.id"
+          :active="landStore.activeLandId === land.id && route.path === '/dashboard'"
           @click="landStore.setActiveLand(land.id); router.push('/dashboard'); open = false"
         />
         <BaseButton size="sm" :class="navButtonClass" @click="showCreateModal = true; open = false">
@@ -51,9 +63,11 @@ const navButtonClass = 'w-full !justify-start text-gray-700'
       </div>
       <div class="p-1 border-b border-gray-100">
         <RouterLink to="/dashboard/account" class="block" @click="open = false">
-          <BaseButton size="sm" :class="navButtonClass">Account</BaseButton>
+          <BaseButton size="sm" :class="navButtonClass" :active="route.path === '/dashboard/account'">Account</BaseButton>
         </RouterLink>
-        <BaseButton size="sm" :class="navButtonClass" @click="open = false">Plans</BaseButton>
+        <RouterLink to="/dashboard/plans" class="block" @click="open = false">
+          <BaseButton size="sm" :class="navButtonClass" :active="route.path === '/dashboard/plans'">Plans</BaseButton>
+        </RouterLink>
         <BaseButton size="sm" :class="navButtonClass" @click="open = false">Support</BaseButton>
       </div>
       <div class="p-1">

@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getMockListItems } from '@/lib/mock/provider'
 import { sortByPosition } from '@/lib/utils/position'
 import type { Section } from '@/types/section'
+import type { ListItem } from '@/types/list'
 
 const props = defineProps<{ section: Section }>()
-const items = computed(() => sortByPosition(getMockListItems(props.section.id)))
+const items = computed(() => sortByPosition((props.section.content as any)?.items ?? [] as ListItem[]))
+const title = computed(() => (props.section.content as any)?.title ?? '')
 </script>
 
 <template>
   <div class="px-6 py-6 flex flex-col gap-0">
+  <h2 v-if="title" class="text-xs font-semibold uppercase tracking-widest mb-6 opacity-40" style="color: var(--theme-main)">{{ title }}</h2>
     <a
       v-for="(item, i) in items"
       :key="item.id"

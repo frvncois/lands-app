@@ -2,7 +2,7 @@ import { faker } from '@faker-js/faker'
 import { generatePositions } from '@/lib/utils/position'
 import type { User } from '@/types/user'
 import type { LandTheme } from '@/types/theme'
-import type { Section, MediaItem, HeaderContent, TextContent, MediaContent } from '@/types/section'
+import type { Section, HeaderContent, TextContent, MediaContent } from '@/types/section'
 import type { ListItem } from '@/types/list'
 import type { Collection, CollectionItem } from '@/types/collection'
 import type { Collaborator, CollaboratorRole, CollaboratorStatus } from '@/types/collaborator'
@@ -94,21 +94,14 @@ export function createMockTextSection(landId: string, position: string): Section
 }
 
 export function createMockMediaSection(landId: string, position: string): Section {
-  const itemCount = faker.number.int({ min: 1, max: 6 })
-  const itemPositions = generatePositions(itemCount)
-
-  const items: MediaItem[] = itemPositions.map((pos, i) => {
-    const isVideo = i === 0 && faker.datatype.boolean()
-    return {
-      id: faker.string.uuid(),
-      media_type: isVideo ? 'video' : 'image',
-      url: isVideo
-        ? 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-        : faker.image.urlPicsumPhotos({ width: 800, height: 600 }),
-      caption: faker.datatype.boolean() ? faker.lorem.sentence() : '',
-      position: pos,
-    }
-  })
+  const isVideo = faker.datatype.boolean()
+  const content: MediaContent = {
+    media_type: isVideo ? 'video' : 'image',
+    url: isVideo
+      ? 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+      : faker.image.urlPicsumPhotos({ width: 800, height: 600 }),
+    caption: faker.datatype.boolean() ? faker.lorem.sentence() : '',
+  }
 
   return {
     id: faker.string.uuid(),
@@ -117,7 +110,7 @@ export function createMockMediaSection(landId: string, position: string): Sectio
     position,
     style_variant: faker.helpers.arrayElement(['default', 'fullwidth', 'compact']),
     settings_json: { style: 'default' },
-    content: { items } as MediaContent,
+    content,
     created_at: faker.date.past().toISOString(),
   }
 }
@@ -257,13 +250,14 @@ export function createMockStoreItems(storeId: string, count: number = 4): StoreI
   return positions.map((pos) => ({
     id: faker.string.uuid(),
     store_id: storeId,
+    type: 'product' as const,
     title: faker.commerce.productName(),
     description: faker.commerce.productDescription(),
     image: faker.datatype.boolean({ probability: 0.8 })
       ? faker.image.urlPicsumPhotos({ width: 600, height: 600 })
       : '',
     price: parseFloat(faker.commerce.price({ min: 5, max: 200 })),
-    product_type: 'physical',
+    product_type: 'physical' as const,
     variants: [],
     inventory: faker.number.int({ min: 0, max: 100 }),
     file_url: '',
@@ -278,6 +272,8 @@ export function createMockStore(sectionId: string, position: string): Store {
     id: storeId,
     section_id: sectionId,
     title: faker.helpers.arrayElement(['Shop', 'Merch', 'Products', 'Store']),
+    mode: 'products',
+    membership_price: 0,
     position,
     items: createMockStoreItems(storeId, faker.number.int({ min: 2, max: 6 })),
   }

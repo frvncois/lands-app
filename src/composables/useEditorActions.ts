@@ -3,13 +3,13 @@ import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { useThemeStore } from '@/stores/theme'
 import { useToast } from '@/composables/useToast'
-import { mockState } from '@/lib/mock/provider'
-import { sortByPosition, generatePositionAfter } from '@/lib/utils/position'
+import { sortByPosition, generatePositionAfter, generatePositionBetween } from '@/lib/utils/position'
 import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
+import { storageService, extractSectionUrls } from '@/services/storage.service'
 import type { Section, SectionType, MediaItem } from '@/types/section'
 import type { ListItem } from '@/types/list'
 import type { Collection, CollectionItem } from '@/types/collection'
-import type { Store, StoreItem, StoreVariant } from '@/types/store'
+import type { Store, StoreItem } from '@/types/store'
 import type { LandTheme } from '@/types/theme'
 
 export function useEditorActions() {
@@ -20,7 +20,7 @@ export function useEditorActions() {
 
   const activeLand = computed(() => landStore.activeLand)
 
-  // ─── Internal helper ───
+  // ─── Internal helpers ───
 
   function patchSection(sectionId: string, updater: (s: Section) => Section) {
     if (!activeLand.value) return
@@ -34,11 +34,50 @@ export function useEditorActions() {
     editorStore.markDirty()
   }
 
+  function getSection(sectionId: string): Section | undefined {
+    return activeLand.value?.sections.find((s) => s.id === sectionId)
+  }
+
   // ─── Section CRUD ───
 
   function addSection(type: SectionType, position: string) {
     if (!activeLand.value) return
     const defaults = SECTION_DEFAULTS[type]
+    let content = defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {}
+
+    // Header is always first, footer is always last
+    const sorted = sortByPosition(activeLand.value.sections)
+    if (type === 'header') {
+      position = generatePositionBetween(null, sorted[0]?.position ?? null)
+    } else if (type === 'footer') {
+      position = generatePositionBetween(sorted[sorted.length - 1]?.position ?? null, null)
+    }
+
+    // Seed an initial collection/store so the UI isn't empty
+    if (type === 'collection') {
+      const col: Collection = {
+        id: crypto.randomUUID(),
+        section_id: '', // filled below
+        title: '',
+        description: '',
+        position: generatePositionAfter(null),
+        items: [],
+      }
+      content = { collections: [col] }
+    }
+    if (type === 'store') {
+      const store: Store = {
+        id: crypto.randomUUID(),
+        section_id: '', // filled below
+        title: '',
+        mode: 'products',
+        membership_price: 0,
+        position: generatePositionAfter(null),
+        items: [],
+      }
+      content = { stores: [store] }
+    }
+
     const newSection: Section = {
       id: crypto.randomUUID(),
       land_id: activeLand.value.id,
@@ -46,34 +85,21 @@ export function useEditorActions() {
       position,
       style_variant: defaults.style_variant,
       settings_json: { ...defaults.settings_json },
-      content: defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : null,
+      content,
       created_at: new Date().toISOString(),
     }
+
+    // Patch section_id into seeded collection/store
+    if (type === 'collection') {
+      (newSection.content as any).collections[0].section_id = newSection.id
+    }
+    if (type === 'store') {
+      (newSection.content as any).stores[0].section_id = newSection.id
+    }
+
     landStore.updateLand(activeLand.value.id, {
       sections: [...activeLand.value.sections, newSection],
     })
-    if (type === 'list') mockState.listItems[newSection.id] = []
-    if (type === 'collection') {
-      const defaultCol: Collection = {
-        id: crypto.randomUUID(),
-        section_id: newSection.id,
-        title: '',
-        description: '',
-        position: generatePositionAfter(null),
-        items: [],
-      }
-      mockState.collections[newSection.id] = [defaultCol]
-    }
-    if (type === 'store') {
-      const defaultStore: Store = {
-        id: crypto.randomUUID(),
-        section_id: newSection.id,
-        title: '',
-        position: generatePositionAfter(null),
-        items: [],
-      }
-      mockState.stores[newSection.id] = [defaultStore]
-    }
     editorStore.setActiveSection(newSection)
     editorStore.markDirty()
     addToast(`${type.charAt(0).toUpperCase() + type.slice(1)} section added`)
@@ -81,11 +107,13 @@ export function useEditorActions() {
 
   function deleteSection(sectionId: string) {
     if (!activeLand.value) return
+    const section = activeLand.value.sections.find((s) => s.id === sectionId)
+    if (section) {
+      const urls = extractSectionUrls(section)
+      urls.forEach((url) => storageService.remove(url))
+    }
     const updatedSections = activeLand.value.sections.filter((s) => s.id !== sectionId)
     landStore.updateLand(activeLand.value.id, { sections: updatedSections })
-    delete mockState.listItems[sectionId]
-    delete mockState.collections[sectionId]
-    delete mockState.stores[sectionId]
     if (editorStore.activeSection?.id === sectionId) editorStore.setActiveSection(null)
     editorStore.markDirty()
     addToast('Section deleted')
@@ -116,10 +144,7 @@ export function useEditorActions() {
   // ─── Media Items ───
 
   function addMediaItem(sectionId: string, data: Pick<MediaItem, 'media_type' | 'url' | 'caption'>) {
-    if (!activeLand.value) return
-    const section = activeLand.value.sections.find((s) => s.id === sectionId)
-    if (!section) return
-    const existing: MediaItem[] = (section.content as any)?.items ?? []
+    const existing: MediaItem[] = (getSection(sectionId)?.content as any)?.items ?? []
     const sorted = sortByPosition(existing)
     const newItem: MediaItem = {
       ...data,
@@ -130,18 +155,12 @@ export function useEditorActions() {
   }
 
   function updateMediaItem(sectionId: string, itemId: string, data: Partial<Pick<MediaItem, 'media_type' | 'url' | 'caption'>>) {
-    if (!activeLand.value) return
-    const section = activeLand.value.sections.find((s) => s.id === sectionId)
-    if (!section) return
-    const items: MediaItem[] = (section.content as any)?.items ?? []
+    const items: MediaItem[] = (getSection(sectionId)?.content as any)?.items ?? []
     updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) })
   }
 
   function deleteMediaItem(sectionId: string, itemId: string) {
-    if (!activeLand.value) return
-    const section = activeLand.value.sections.find((s) => s.id === sectionId)
-    if (!section) return
-    const items: MediaItem[] = (section.content as any)?.items ?? []
+    const items: MediaItem[] = (getSection(sectionId)?.content as any)?.items ?? []
     updateSectionContent(sectionId, { items: items.filter((i) => i.id !== itemId) })
     addToast('Media removed')
   }
@@ -149,7 +168,7 @@ export function useEditorActions() {
   // ─── List Items ───
 
   function addListItem(sectionId: string, data: Pick<ListItem, 'title' | 'url' | 'description' | 'icon'>): ListItem {
-    const existing = mockState.listItems[sectionId] ?? []
+    const existing: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
     const sorted = sortByPosition(existing)
     const newItem: ListItem = {
       ...data,
@@ -157,40 +176,35 @@ export function useEditorActions() {
       section_id: sectionId,
       position: generatePositionAfter(sorted[sorted.length - 1]?.position ?? null),
     }
-    mockState.listItems[sectionId] = [...existing, newItem]
-    editorStore.markDirty()
+    updateSectionContent(sectionId, { items: [...existing, newItem] })
     addToast('Link added')
     return newItem
   }
 
   function updateListItem(sectionId: string, itemId: string, data: Partial<ListItem>) {
-    const items = mockState.listItems[sectionId]
-    if (!items) return
-    mockState.listItems[sectionId] = items.map((i) => (i.id === itemId ? { ...i, ...data } : i))
-    editorStore.markDirty()
+    const items: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
+    updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) })
   }
 
   function deleteListItem(sectionId: string, itemId: string) {
-    const items = mockState.listItems[sectionId]
-    if (!items) return
-    mockState.listItems[sectionId] = items.filter((i) => i.id !== itemId)
-    editorStore.markDirty()
+    const items: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
+    updateSectionContent(sectionId, { items: items.filter((i) => i.id !== itemId) })
     addToast('Link removed')
   }
 
   function reorderListItem(sectionId: string, itemId: string, newPosition: string) {
-    const items = mockState.listItems[sectionId]
-    if (!items) return
-    mockState.listItems[sectionId] = items.map((i) =>
-      i.id === itemId ? { ...i, position: newPosition } : i
-    )
-    editorStore.markDirty()
+    const items: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
+    updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)) })
   }
 
   // ─── Collections ───
 
+  function getCollections(sectionId: string): Collection[] {
+    return (getSection(sectionId)?.content as any)?.collections ?? []
+  }
+
   function addCollection(sectionId: string) {
-    const existing = mockState.collections[sectionId] ?? []
+    const existing = getCollections(sectionId)
     const sorted = sortByPosition(existing)
     const newCollection: Collection = {
       id: crypto.randomUUID(),
@@ -200,33 +214,24 @@ export function useEditorActions() {
       position: generatePositionAfter(sorted[sorted.length - 1]?.position ?? null),
       items: [],
     }
-    mockState.collections[sectionId] = [...existing, newCollection]
-    editorStore.markDirty()
+    updateSectionContent(sectionId, { collections: [...existing, newCollection] })
     addToast('Collection added')
   }
 
   function updateCollection(sectionId: string, collectionId: string, data: Partial<Collection>) {
-    const cols = mockState.collections[sectionId]
-    if (!cols) return
-    mockState.collections[sectionId] = cols.map((c) => (c.id === collectionId ? { ...c, ...data } : c))
-    editorStore.markDirty()
+    const cols = getCollections(sectionId)
+    updateSectionContent(sectionId, { collections: cols.map((c) => (c.id === collectionId ? { ...c, ...data } : c)) })
   }
 
   function deleteCollection(sectionId: string, collectionId: string) {
-    const cols = mockState.collections[sectionId]
-    if (!cols) return
-    mockState.collections[sectionId] = cols.filter((c) => c.id !== collectionId)
-    editorStore.markDirty()
+    const cols = getCollections(sectionId)
+    updateSectionContent(sectionId, { collections: cols.filter((c) => c.id !== collectionId) })
     addToast('Collection removed')
   }
 
   function reorderCollection(sectionId: string, collectionId: string, newPosition: string) {
-    const cols = mockState.collections[sectionId]
-    if (!cols) return
-    mockState.collections[sectionId] = cols.map((c) =>
-      c.id === collectionId ? { ...c, position: newPosition } : c
-    )
-    editorStore.markDirty()
+    const cols = getCollections(sectionId)
+    updateSectionContent(sectionId, { collections: cols.map((c) => (c.id === collectionId ? { ...c, position: newPosition } : c)) })
   }
 
   // ─── Collection Items ───
@@ -236,10 +241,9 @@ export function useEditorActions() {
     collectionId: string,
     data: Pick<CollectionItem, 'title' | 'description' | 'media_url' | 'content' | 'external_url'>,
   ): CollectionItem | undefined {
-    const cols = mockState.collections[sectionId]
-    if (!cols) return
+    const cols = getCollections(sectionId)
     let newItem: CollectionItem | undefined
-    mockState.collections[sectionId] = cols.map((c) => {
+    const updated = cols.map((c) => {
       if (c.id !== collectionId) return c
       const sorted = sortByPosition(c.items)
       newItem = {
@@ -251,57 +255,61 @@ export function useEditorActions() {
       }
       return { ...c, items: [...c.items, newItem] }
     })
-    editorStore.markDirty()
+    updateSectionContent(sectionId, { collections: updated })
     addToast('Item added')
     return newItem
   }
 
   function updateCollectionItem(sectionId: string, collectionId: string, itemId: string, data: Partial<CollectionItem>) {
-    const cols = mockState.collections[sectionId]
-    if (!cols) return
-    mockState.collections[sectionId] = cols.map((c) => {
-      if (c.id !== collectionId) return c
-      return { ...c, items: c.items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) }
+    const cols = getCollections(sectionId)
+    updateSectionContent(sectionId, {
+      collections: cols.map((c) => {
+        if (c.id !== collectionId) return c
+        return { ...c, items: c.items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) }
+      }),
     })
-    editorStore.markDirty()
   }
 
   function deleteCollectionItem(sectionId: string, collectionId: string, itemId: string) {
-    const cols = mockState.collections[sectionId]
-    if (!cols) return
-    mockState.collections[sectionId] = cols.map((c) => {
-      if (c.id !== collectionId) return c
-      return { ...c, items: c.items.filter((i) => i.id !== itemId) }
+    const cols = getCollections(sectionId)
+    updateSectionContent(sectionId, {
+      collections: cols.map((c) => {
+        if (c.id !== collectionId) return c
+        return { ...c, items: c.items.filter((i) => i.id !== itemId) }
+      }),
     })
-    editorStore.markDirty()
     addToast('Item removed')
   }
 
   function reorderCollectionItem(sectionId: string, collectionId: string, itemId: string, newPosition: string) {
-    const cols = mockState.collections[sectionId]
-    if (!cols) return
-    mockState.collections[sectionId] = cols.map((c) => {
-      if (c.id !== collectionId) return c
-      return { ...c, items: c.items.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)) }
+    const cols = getCollections(sectionId)
+    updateSectionContent(sectionId, {
+      collections: cols.map((c) => {
+        if (c.id !== collectionId) return c
+        return { ...c, items: c.items.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)) }
+      }),
     })
-    editorStore.markDirty()
   }
 
   // ─── Store Items ───
+
+  function getStores(sectionId: string): Store[] {
+    return (getSection(sectionId)?.content as any)?.stores ?? []
+  }
 
   function addStoreItem(
     sectionId: string,
     storeId: string,
     data: Pick<StoreItem, 'title' | 'description' | 'image' | 'price' | 'variants' | 'inventory' | 'product_type' | 'file_url'>,
   ): StoreItem | undefined {
-    const stores = mockState.stores[sectionId]
-    if (!stores) return
+    const stores = getStores(sectionId)
     let newItem: StoreItem | undefined
-    mockState.stores[sectionId] = stores.map((s) => {
+    const updated = stores.map((s) => {
       if (s.id !== storeId) return s
       const sorted = sortByPosition(s.items)
       newItem = {
         ...data,
+        type: s.mode === 'membership' ? 'membership' : 'product',
         id: crypto.randomUUID(),
         store_id: storeId,
         position: generatePositionAfter(sorted[sorted.length - 1]?.position ?? null),
@@ -309,40 +317,45 @@ export function useEditorActions() {
       }
       return { ...s, items: [...s.items, newItem] }
     })
-    editorStore.markDirty()
+    updateSectionContent(sectionId, { stores: updated })
     addToast('Item added')
     return newItem
   }
 
   function updateStoreItem(sectionId: string, storeId: string, itemId: string, data: Partial<StoreItem>) {
-    const stores = mockState.stores[sectionId]
-    if (!stores) return
-    mockState.stores[sectionId] = stores.map((s) => {
-      if (s.id !== storeId) return s
-      return { ...s, items: s.items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) }
+    const stores = getStores(sectionId)
+    updateSectionContent(sectionId, {
+      stores: stores.map((s) => {
+        if (s.id !== storeId) return s
+        return { ...s, items: s.items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) }
+      }),
     })
-    editorStore.markDirty()
   }
 
   function deleteStoreItem(sectionId: string, storeId: string, itemId: string) {
-    const stores = mockState.stores[sectionId]
-    if (!stores) return
-    mockState.stores[sectionId] = stores.map((s) => {
-      if (s.id !== storeId) return s
-      return { ...s, items: s.items.filter((i) => i.id !== itemId) }
+    const stores = getStores(sectionId)
+    updateSectionContent(sectionId, {
+      stores: stores.map((s) => {
+        if (s.id !== storeId) return s
+        return { ...s, items: s.items.filter((i) => i.id !== itemId) }
+      }),
     })
-    editorStore.markDirty()
     addToast('Item removed')
   }
 
+  function updateStore(sectionId: string, storeId: string, data: Partial<Store>) {
+    const stores = getStores(sectionId)
+    updateSectionContent(sectionId, { stores: stores.map((s) => (s.id === storeId ? { ...s, ...data } : s)) })
+  }
+
   function reorderStoreItem(sectionId: string, storeId: string, itemId: string, newPosition: string) {
-    const stores = mockState.stores[sectionId]
-    if (!stores) return
-    mockState.stores[sectionId] = stores.map((s) => {
-      if (s.id !== storeId) return s
-      return { ...s, items: s.items.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)) }
+    const stores = getStores(sectionId)
+    updateSectionContent(sectionId, {
+      stores: stores.map((s) => {
+        if (s.id !== storeId) return s
+        return { ...s, items: s.items.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)) }
+      }),
     })
-    editorStore.markDirty()
   }
 
   // ─── Land Images ───
@@ -370,18 +383,41 @@ export function useEditorActions() {
     settings_json: unknown
     style_variant: string
   }) {
-    patchSection(sectionId, (s) => {
-      const restoredSettings = data.settings_json as any
-      return {
-        ...s,
-        content: data.content as any,
-        style_variant: data.style_variant,
-        settings_json: { ...restoredSettings, style: data.style_variant },
-      }
-    })
+    patchSection(sectionId, (s) => ({
+      ...s,
+      content: data.content as any,
+      style_variant: data.style_variant,
+      settings_json: { ...(data.settings_json as any), style: data.style_variant },
+    }))
   }
 
   // ─── Section Reorder ───
+
+  function duplicateSection(sectionId: string) {
+    if (!activeLand.value) return
+    const sorted = sortByPosition(activeLand.value.sections)
+    const idx = sorted.findIndex((s) => s.id === sectionId)
+    if (idx === -1) return
+    const original = sorted[idx]
+    const next = sorted[idx + 1] ?? null
+    let position = generatePositionBetween(original.position, next?.position ?? null)
+    // Header always first, footer always last
+    if (original.type === 'header') {
+      position = generatePositionBetween(null, sorted[0]?.position ?? null)
+    } else if (original.type === 'footer') {
+      position = generatePositionBetween(sorted[sorted.length - 1]?.position ?? null, null)
+    }
+    const copy: Section = {
+      ...JSON.parse(JSON.stringify(original)),
+      id: crypto.randomUUID(),
+      position,
+      created_at: new Date().toISOString(),
+    }
+    landStore.updateLand(activeLand.value.id, {
+      sections: [...activeLand.value.sections, copy],
+    })
+    editorStore.markDirty()
+  }
 
   function reorderSection(sectionId: string, newPosition: string) {
     if (!activeLand.value) return
@@ -404,9 +440,7 @@ export function useEditorActions() {
   function deleteLand() {
     if (!activeLand.value) return
     activeLand.value.sections.forEach((s) => {
-      delete mockState.listItems[s.id]
-      delete mockState.collections[s.id]
-      delete mockState.stores[s.id]
+      extractSectionUrls(s).forEach((url) => storageService.remove(url))
     })
     landStore.removeLand(activeLand.value.id)
     editorStore.exitEditMode()
@@ -435,12 +469,14 @@ export function useEditorActions() {
     deleteCollectionItem,
     reorderCollectionItem,
     addStoreItem,
+    updateStore,
     updateStoreItem,
     deleteStoreItem,
     reorderStoreItem,
     updateLandImages,
     updateTheme,
     restoreSectionSnapshot,
+    duplicateSection,
     reorderSection,
     updateLandSettings,
     deleteLand,

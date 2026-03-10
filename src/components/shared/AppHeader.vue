@@ -14,19 +14,50 @@ import PluginsModal from '../modals/PluginsModal.vue';
 import SettingsModal from '../modals/SettingsModal.vue';
 import EditorModal from '../modals/EditorModal.vue';
 import ConfirmLeaveModal from '../modals/ConfirmLeaveModal.vue';
+import ConfirmPublishedModal from '../modals/ConfirmPublishedModal.vue';
 import { useProjectStore } from '@/stores/project'
 import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
+import { useThemeStore } from '@/stores/theme'
+import { landService } from '@/services/land.service'
+import type { Land } from '@/types/land'
+import type { LandTheme } from '@/types/theme'
 
 const activeModal = ref<'plugins' | 'settings' | null>(null)
 const showLeaveModal = ref(false)
+const showPublishedModal = ref(false)
 const pendingPath = ref<string | null>(null)
+// 'navigate' = router guard triggered, 'close' = user clicked Close with dirty state
+const leaveContext = ref<'navigate' | 'close'>('navigate')
 
 const project = useProjectStore()
 const editorStore = useEditorStore()
 const landStore = useLandStore()
+const themeStore = useThemeStore()
 const route = useRoute()
 const router = useRouter()
+
+const isSaving = ref(false)
+let landSnapshot: Land | null = null
+let themeSnapshot: LandTheme | null = null
+
+async function save() {
+  const land = landStore.activeLand
+  if (!land) return
+  isSaving.value = true
+  try {
+    await landService.save(land.id, {
+      sections: land.sections,
+      theme: themeStore.theme ?? land.theme,
+    })
+    editorStore.markClean()
+    // Update snapshot to reflect the newly saved state
+    landSnapshot = JSON.parse(JSON.stringify(landStore.activeLand))
+    themeSnapshot = themeStore.theme ? JSON.parse(JSON.stringify(themeStore.theme)) : null
+  } finally {
+    isSaving.value = false
+  }
+}
 
 watch(() => route.path, () => {
   activeModal.value = null
@@ -34,14 +65,21 @@ watch(() => route.path, () => {
 
 router.beforeEach((to, from) => {
   if (project.mode === 'editor' && to.path !== from.path) {
-    pendingPath.value = to.path
-    showLeaveModal.value = true
-    return false
+    if (editorStore.isDirty) {
+      pendingPath.value = to.path
+      leaveContext.value = 'navigate'
+      showLeaveModal.value = true
+      return false
+    }
+    exitEditor()
   }
 })
 
 function enterEditor() {
   activeModal.value = null
+  // Snapshot current state before any edits
+  landSnapshot = JSON.parse(JSON.stringify(landStore.activeLand))
+  themeSnapshot = themeStore.theme ? JSON.parse(JSON.stringify(themeStore.theme)) : null
   project.setMode('editor')
   editorStore.enterEditMode()
 }
@@ -49,19 +87,53 @@ function enterEditor() {
 function exitEditor() {
   project.setMode('preview')
   editorStore.exitEditMode()
+  landSnapshot = null
+  themeSnapshot = null
+}
+
+function handleClose() {
+  if (editorStore.isDirty) {
+    leaveContext.value = 'close'
+    showLeaveModal.value = true
+  } else {
+    exitEditor()
+  }
+}
+
+function discardChanges() {
+  const land = landStore.activeLand
+  if (land && landSnapshot) {
+    landStore.updateLand(land.id, landSnapshot)
+  }
+  if (themeSnapshot) {
+    themeStore.setTheme(themeSnapshot)
+  }
 }
 
 function confirmLeave() {
-  exitEditor()
   showLeaveModal.value = false
-  const path = pendingPath.value
-  pendingPath.value = null
-  if (path) router.push(path)
+  discardChanges()
+  exitEditor()
+  if (leaveContext.value === 'navigate') {
+    const path = pendingPath.value
+    pendingPath.value = null
+    if (path) router.push(path)
+  }
 }
 
 function cancelLeave() {
   showLeaveModal.value = false
   pendingPath.value = null
+}
+
+async function publish() {
+  await save()
+  showPublishedModal.value = true
+}
+
+function confirmPublished() {
+  showPublishedModal.value = false
+  exitEditor()
 }
 </script>
 
@@ -95,12 +167,15 @@ function cancelLeave() {
                   <LinkIcon class="h-4 w-4" />
                   {{ landStore.activeLand?.handle }}.lands.app
               </BaseButton>
-              <BaseButton size="sm" variant="outline" @click="exitEditor">
-                  Cancel
+              <BaseButton size="sm" variant="outline" @click="handleClose">
+                  Close
               </BaseButton>
-              <BaseButton size="sm" variant="solid" @click="exitEditor">
+              <BaseButton size="sm" variant="outline" :disabled="isSaving" @click="save">
+                  {{ isSaving ? 'Saving…' : 'Save' }}
+              </BaseButton>
+              <BaseButton size="sm" variant="solid" :disabled="isSaving" @click="publish">
                   <CloudArrowUpIcon class="h-4 w-4" />
-                  Publish
+                  {{ isSaving ? 'Publishing…' : 'Publish' }}
               </BaseButton>
           </div>
 
@@ -117,6 +192,9 @@ function cancelLeave() {
         </Transition>
         <Transition name="modal-center">
           <ConfirmLeaveModal v-if="showLeaveModal" @confirm="confirmLeave" @cancel="cancelLeave" />
+        </Transition>
+        <Transition name="modal-center">
+          <ConfirmPublishedModal v-if="showPublishedModal" @close="confirmPublished" />
         </Transition>
 
 

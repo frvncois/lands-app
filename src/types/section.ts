@@ -2,6 +2,7 @@ export const SECTION_TYPES = {
   header: 'header',
   text: 'text',
   media: 'media',
+  content_media: 'content_media',
   list: 'list',
   collection: 'collection',
   store: 'store',
@@ -76,9 +77,6 @@ export interface TextSettings {
 
 export interface CollectionSettings {
   style: CollectionDisplayStyle
-  monetized?: boolean
-  price?: number
-  payment_type?: 'monthly' | 'one_time'
 }
 
 export interface StoreSettings {
@@ -138,7 +136,9 @@ export interface MediaItem {
 }
 
 export interface MediaContent {
-  items: MediaItem[]
+  media_type: MediaType
+  url: string
+  caption: string
 }
 
 export interface CampaignContent {
@@ -153,6 +153,21 @@ export interface FooterContent {
   subtitle: string
 }
 
+export interface ContentMediaButton {
+  id: string
+  label: string
+  url: string
+}
+
+export interface ContentMediaContent {
+  media_type: MediaType
+  media_url: string
+  title: string
+  subtitle: string
+  body: string
+  buttons: ContentMediaButton[]
+}
+
 // --- Base section ---
 
 export interface Section {
@@ -162,6 +177,6 @@ export interface Section {
   position: string // fractional index
   style_variant: string
   settings_json: SectionSettings
-  content: HeaderContent | TextContent | MediaContent | CampaignContent | FooterContent | null
+  content: HeaderContent | TextContent | MediaContent | ContentMediaContent | CampaignContent | FooterContent | null
   created_at: string
 }

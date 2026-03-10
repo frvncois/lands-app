@@ -30,7 +30,7 @@ const maxClicks = topClicked[0]!.clicks
       <h2 class="text-sm font-semibold text-gray-900">{{ plugin.title }}</h2>
     </div>
     <div class="flex items-center gap-1">
-      <template v-if="['analytics', 'collaborators', 'campaign', 'store'].includes(plugin.id)">
+      <template v-if="['analytics', 'collaborators', 'campaign', 'sell_monetize'].includes(plugin.id)">
         <BaseButton variant="outline" size="xs" @click="$emit('back')">Back</BaseButton>
       </template>
       <template v-else>
@@ -40,7 +40,7 @@ const maxClicks = topClicked[0]!.clicks
     </div>
   </div>
 
-  <div class="flex flex-col max-h-[70vh] overflow-y-auto" :class="!['collaborators', 'campaign', 'store'].includes(plugin.id) && 'p-4 gap-5'">
+  <div class="flex flex-col max-h-[70vh] overflow-y-auto" :class="!['collaborators', 'campaign', 'sell_monetize'].includes(plugin.id) && 'p-4 gap-5'">
 
     <!-- ── Analytics ── -->
     <template v-if="plugin.id === 'analytics'">
@@ -105,22 +105,9 @@ const maxClicks = topClicked[0]!.clicks
       <CollaboratorsPanel />
     </template>
 
-    <!-- ── Store ── -->
-    <template v-else-if="plugin.id === 'store'">
+    <!-- ── Sell & Monetize ── -->
+    <template v-else-if="plugin.id === 'sell_monetize'">
       <StorePanel />
-    </template>
-
-    <!-- ── Monetize ── -->
-    <template v-else-if="plugin.id === 'monetize'">
-      <div class="flex flex-col gap-5">
-        <p class="text-xs text-neutral-400 leading-tight">
-          Turn your Land into a source of income. Monetize collections, individual items, or services by setting a price and connecting your Stripe account. Payments are handled securely, and buyers receive instant access to what they purchased.
-        </p>
-        <div class="flex flex-col gap-2">
-          <BaseButton variant="solid" size="sm">Connect Stripe</BaseButton>
-          <BaseButton variant="outline" size="sm">Learn more</BaseButton>
-        </div>
-      </div>
     </template>
 
     <!-- ── Other plugins — placeholder ── -->

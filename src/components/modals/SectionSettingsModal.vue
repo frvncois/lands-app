@@ -1,32 +1,33 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon, ArrowLeftIcon, CurrencyDollarIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon, ArrowLeftIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+
 import BaseInput from '../ui/BaseInput.vue'
 import BaseToggle from '../ui/BaseToggle.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseUpload from '../ui/BaseUpload.vue'
 import BaseItem from '../ui/BaseItem.vue'
 import RichTextEditor from '../ui/RichTextEditor.vue'
-import CollectionMonetizePanel from './CollectionMonetizePanel.vue'
 import CollectionItemContentModal from './CollectionItemContentModal.vue'
-import type { Section, HeaderContent, HeaderSettings, TextContent, MediaContent, MediaItem, CampaignContent, CampaignSettings, FooterContent, FooterSettings } from '@/types/section'
-import type { ListItem } from '@/types/list'
+import type { Section, HeaderContent, HeaderSettings, TextContent, MediaContent, ContentMediaContent, ContentMediaButton, CampaignContent, CampaignSettings, FooterContent, FooterSettings } from '@/types/section'
 import type { CollectionItem, Collection } from '@/types/collection'
 import type { Store, StoreItem } from '@/types/store'
+import type { ListItem } from '@/types/list'
 import { useEditorActions } from '@/composables/useEditorActions'
-import { mockState, getMockListItems, getMockCollections, getMockStores } from '@/lib/mock/provider'
 import { sortByPosition } from '@/lib/utils/position'
 import { renderMarkdown } from '@/lib/utils/markdown'
+import { sectionPrimitives } from '@/sections/index'
+
+const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
 
 const props = defineProps<{ section: Section; hideHeader?: boolean }>()
-const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean], 'monetize-open': [value: boolean] }>()
+const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
 
 const {
   updateSectionContent, updateSectionSettings, restoreSectionSnapshot,
   addListItem, updateListItem, deleteListItem,
-  addMediaItem, updateMediaItem, deleteMediaItem,
-  addCollectionItem, updateCollectionItem, deleteCollectionItem,
-  addStoreItem, updateStoreItem, deleteStoreItem,
+  updateCollection, addCollectionItem, updateCollectionItem, deleteCollectionItem,
+  updateStore, addStoreItem, updateStoreItem, deleteStoreItem,
 } = useEditorActions()
 
 // ─── Header ───
@@ -53,42 +54,54 @@ function saveText() {
 }
 
 // ─── Media ───
-const mediaItems = computed(() =>
-  sortByPosition((props.section.content as MediaContent | null)?.items ?? [])
-)
+const mediaType = ref<'image' | 'video'>('image')
+const mediaUrl = ref('')
+const mediaCaption = ref('')
 
-const editingMediaItem = ref<MediaItem | null>(null)
-const editMediaType = ref<'image' | 'video'>('image')
-const editMediaUrl = ref('')
-const editMediaCaption = ref('')
-
-function openEditMediaItem(item: MediaItem) {
-  editingMediaItem.value = item
-  editMediaType.value = item.media_type
-  editMediaUrl.value = item.url
-  editMediaCaption.value = item.caption
-}
-
-function closeEditMediaItem() {
-  editingMediaItem.value = null
-}
-
-function saveMediaItem() {
-  if (!editingMediaItem.value) return
-  updateMediaItem(props.section.id, editingMediaItem.value.id, {
-    media_type: editMediaType.value,
-    url: editMediaUrl.value,
-    caption: editMediaCaption.value,
+function saveMedia() {
+  updateSectionContent(props.section.id, {
+    media_type: mediaType.value,
+    url: mediaUrl.value,
+    caption: mediaCaption.value,
   })
-  closeEditMediaItem()
 }
 
-function duplicateMediaItem(item: MediaItem) {
-  addMediaItem(props.section.id, { media_type: item.media_type, url: item.url, caption: item.caption })
+// ─── Content + Media ───
+const cmMediaType = ref<'image' | 'video'>('image')
+const cmMediaUrl = ref('')
+const cmTitle = ref('')
+const cmSubtitle = ref('')
+const cmBody = ref('')
+const cmButtons = ref<ContentMediaButton[]>([])
+
+function saveCm() {
+  updateSectionContent(props.section.id, {
+    media_type: cmMediaType.value,
+    media_url: cmMediaUrl.value,
+    title: cmTitle.value,
+    subtitle: cmSubtitle.value,
+    body: cmBody.value,
+    buttons: cmButtons.value,
+  })
+}
+
+function addCmButton() {
+  cmButtons.value.push({ id: crypto.randomUUID(), label: 'Button', url: '' })
+  saveCm()
+}
+
+function removeCmButton(id: string) {
+  cmButtons.value = cmButtons.value.filter((b) => b.id !== id)
+  saveCm()
 }
 
 // ─── List ───
-const listItems = computed(() => sortByPosition(getMockListItems(props.section.id)))
+const listSectionTitle = ref('')
+function saveListSectionTitle() {
+  updateSectionContent(props.section.id, { title: listSectionTitle.value })
+}
+
+const listItems = computed(() => sortByPosition((props.section.content as any)?.items ?? []))
 
 const editingListItem = ref<ListItem | null>(null)
 const editListTitle = ref('')
@@ -124,14 +137,14 @@ function duplicateListItem(item: ListItem) {
 }
 
 // ─── Collection ───
-const collection = computed(() => getMockCollections(props.section.id)[0] ?? null)
+const collectionTitle = ref('')
+function saveCollectionTitle() {
+  if (!collection.value) return
+  updateCollection(props.section.id, collection.value.id, { title: collectionTitle.value })
+}
+
+const collection = computed(() => ((props.section.content as any)?.collections?.[0] ?? null) as Collection | null)
 const collectionItems = computed(() => collection.value ? sortByPosition(collection.value.items) : [])
-const collectionSettings = computed(() => props.section.settings_json as import('@/types/section').CollectionSettings)
-const showMonetize = ref(false)
-
-function openMonetize() { showMonetize.value = true }
-function closeMonetize() { showMonetize.value = false }
-
 const editingItem = ref<CollectionItem | null>(null)
 const editTitle = ref('')
 const editDescription = ref('')
@@ -188,8 +201,26 @@ function addItem() {
 }
 
 // ─── Store ───
-const store = computed(() => getMockStores(props.section.id)[0] ?? null)
+const storeTitle = ref('')
+function saveStoreTitle() {
+  if (!store.value) return
+  updateStore(props.section.id, store.value.id, { title: storeTitle.value })
+}
+
+const store = computed(() => ((props.section.content as any)?.stores?.[0] ?? null) as Store | null)
 const storeItems = computed(() => store.value ? sortByPosition(store.value.items) : [])
+const storeMode = ref<'products' | 'membership'>('products')
+const storeMembershipPrice = ref('')
+
+function saveStoreMode() {
+  if (!store.value) return
+  updateStore(props.section.id, store.value.id, { mode: storeMode.value })
+}
+
+function saveStoreMembershipPrice() {
+  if (!store.value) return
+  updateStore(props.section.id, store.value.id, { membership_price: parseFloat(storeMembershipPrice.value) || 0 })
+}
 
 const editingStoreItem = ref<StoreItem | null>(null)
 const storeEditTitle = ref('')
@@ -219,18 +250,31 @@ function closeEditStoreItem() {
 
 function saveStoreItem() {
   if (!editingStoreItem.value || !store.value) return
-  updateStoreItem(props.section.id, store.value.id, editingStoreItem.value.id, {
-    title: storeEditTitle.value,
-    description: storeEditDescription.value,
-    image: storeEditImage.value,
-    price: parseFloat(storeEditPrice.value) || 0,
-    product_type: storeEditProductType.value,
-    inventory: storeEditProductType.value === 'physical' ? (parseInt(storeEditInventory.value) || 0) : 0,
-    file_url: storeEditProductType.value === 'digital' ? storeEditFileUrl.value : '',
-    variants: storeEditProductType.value === 'physical'
-      ? storeEditVariants.value.map((v) => ({ id: v.id, name: v.name, options: v.options.filter((o) => o.value.trim()) }))
-      : [],
-  })
+  if (editingStoreItem.value.type === 'membership') {
+    updateStoreItem(props.section.id, store.value.id, editingStoreItem.value.id, {
+      title: storeEditTitle.value,
+      description: storeEditDescription.value,
+      image: storeEditImage.value,
+      file_url: storeEditFileUrl.value,
+      product_type: 'digital',
+      price: 0,
+      inventory: 0,
+      variants: [],
+    })
+  } else {
+    updateStoreItem(props.section.id, store.value.id, editingStoreItem.value.id, {
+      title: storeEditTitle.value,
+      description: storeEditDescription.value,
+      image: storeEditImage.value,
+      price: parseFloat(storeEditPrice.value) || 0,
+      product_type: storeEditProductType.value,
+      inventory: storeEditProductType.value === 'physical' ? (parseInt(storeEditInventory.value) || 0) : 0,
+      file_url: storeEditProductType.value === 'digital' ? storeEditFileUrl.value : '',
+      variants: storeEditProductType.value === 'physical'
+        ? storeEditVariants.value.map((v) => ({ id: v.id, name: v.name, options: v.options.filter((o) => o.value.trim()) }))
+        : [],
+    })
+  }
   closeEditStoreItem()
 }
 
@@ -294,26 +338,32 @@ interface SectionSnapshot {
   content: unknown
   settings_json: unknown
   style_variant: string
-  listItems: ListItem[]
-  collections: Collection[]
-  stores: Store[]
 }
 
 const snapshot = ref<SectionSnapshot | null>(null)
 
 function takeSnapshot() {
   snapshot.value = {
-    content: JSON.parse(JSON.stringify(props.section.content ?? null)),
+    content: JSON.parse(JSON.stringify(props.section.content ?? {})),
     settings_json: JSON.parse(JSON.stringify(props.section.settings_json ?? {})),
     style_variant: props.section.style_variant,
-    listItems: JSON.parse(JSON.stringify(getMockListItems(props.section.id))),
-    collections: JSON.parse(JSON.stringify(getMockCollections(props.section.id))),
-    stores: JSON.parse(JSON.stringify(getMockStores(props.section.id))),
   }
 }
 
 // ─── Sync ───
 function syncFromSection() {
+  if (props.section.type === 'list') {
+    listSectionTitle.value = (props.section.content as any)?.title ?? ''
+  }
+  if (props.section.type === 'collection') {
+    collectionTitle.value = (props.section.content as any)?.collections?.[0]?.title ?? ''
+  }
+  if (props.section.type === 'store') {
+    const s = (props.section.content as any)?.stores?.[0] as Store | undefined
+    storeTitle.value = s?.title ?? ''
+    storeMode.value = s?.mode ?? 'products'
+    storeMembershipPrice.value = s?.membership_price ? s.membership_price.toString() : ''
+  }
   if (props.section.type === 'header') {
     const c = props.section.content as HeaderContent | null
     const s = props.section.settings_json as HeaderSettings
@@ -324,6 +374,21 @@ function syncFromSection() {
   if (props.section.type === 'text') {
     const raw = (props.section.content as TextContent | null)?.body ?? ''
     textHtml.value = raw.startsWith('<') ? raw : renderMarkdown(raw)
+  }
+  if (props.section.type === 'media') {
+    const c = props.section.content as MediaContent | null
+    mediaType.value = c?.media_type ?? 'image'
+    mediaUrl.value = c?.url ?? ''
+    mediaCaption.value = c?.caption ?? ''
+  }
+  if (props.section.type === 'content_media') {
+    const c = props.section.content as ContentMediaContent | null
+    cmMediaType.value = c?.media_type ?? 'image'
+    cmMediaUrl.value = c?.media_url ?? ''
+    cmTitle.value = c?.title ?? ''
+    cmSubtitle.value = c?.subtitle ?? ''
+    cmBody.value = c?.body ?? ''
+    cmButtons.value = c?.buttons ? JSON.parse(JSON.stringify(c.buttons)) : []
   }
   if (props.section.type === 'footer') {
     const c = props.section.content as FooterContent | null
@@ -351,7 +416,6 @@ watch(() => props.section.id, () => {
   takeSnapshot()
   closeEditItem()
   closeEditListItem()
-  closeEditMediaItem()
 })
 
 // ─── Save / Cancel ───
@@ -362,20 +426,16 @@ function handleSave() {
 function handleCancel() {
   if (snapshot.value) {
     restoreSectionSnapshot(props.section.id, snapshot.value)
-    mockState.listItems[props.section.id] = snapshot.value.listItems
-    mockState.collections[props.section.id] = snapshot.value.collections
-    mockState.stores[props.section.id] = snapshot.value.stores
   }
   emit('close')
 }
 
 // ─── Computed edit state ───
-const isEditingSubItem = computed(() => !!(editingItem.value || editingListItem.value || editingMediaItem.value || editingStoreItem.value))
+const isEditingSubItem = computed(() => !!(editingItem.value || editingListItem.value || editingStoreItem.value))
 
 function closeSubItem() {
   if (editingItem.value) closeEditItem()
   else if (editingListItem.value) closeEditListItem()
-  else if (editingMediaItem.value) closeEditMediaItem()
   else if (editingStoreItem.value) closeEditStoreItem()
 }
 
@@ -386,9 +446,8 @@ function saveSubItem() {
 }
 
 watch(isEditingSubItem, (val) => emit('editing-change', val))
-watch(showMonetize, (val) => emit('monetize-open', val))
 
-defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubItem, closeMonetize, addItem, addStoreItem: addStoreItemAction })
+defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubItem, addItem, addStoreItem: addStoreItemAction })
 </script>
 
 <template>
@@ -399,8 +458,8 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
         <ArrowLeftIcon class="h-4 w-4" />
       </button>
       <Transition name="modal-fade" mode="out-in">
-        <h2 :key="isEditingSubItem ? 'edit' : section.type" class="text-sm font-semibold text-gray-900 capitalize">
-          {{ isEditingSubItem ? 'Edit item' : section.type }}
+        <h2 :key="isEditingSubItem ? 'edit' : section.type" class="text-sm font-semibold text-gray-900">
+          {{ isEditingSubItem ? 'Edit item' : (sectionLabelMap[section.type] ?? section.type) }}
         </h2>
       </Transition>
     </div>
@@ -411,8 +470,8 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
   </div>
 
   <div class="max-h-[70vh] overflow-y-auto overflow-x-hidden">
-  <Transition :name="(isEditingSubItem || showMonetize) ? 'modal-forward' : 'modal-back'" mode="out-in">
-  <div :key="showMonetize ? 'monetize' : isEditingSubItem ? 'edit' : 'list'" class="p-4 flex flex-col gap-3">
+  <Transition :name="isEditingSubItem ? 'modal-forward' : 'modal-back'" mode="out-in">
+  <div :key="isEditingSubItem ? 'edit' : 'list'" class="p-4 flex flex-col gap-3">
 
       <!-- ── Header ── -->
       <template v-if="section.type === 'header'">
@@ -433,65 +492,73 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
         <RichTextEditor v-model="textHtml" @update:modelValue="saveText" />
       </template>
 
-      <!-- ── Media — items list ── -->
-      <template v-else-if="section.type === 'media' && !editingMediaItem">
-        <div class="flex flex-col">
-          <div
-            v-for="item in mediaItems"
-            :key="item.id"
-            class="flex items-center justify-between gap-1 py-2 border-b border-gray-100 last:border-0"
-          >
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium truncate capitalize">{{ item.media_type }}</p>
-              <p class="text-xs text-gray-400 truncate">{{ item.url }}</p>
-            </div>
-            <div class="flex items-center shrink-0">
-              <button class="text-gray-400 hover:text-gray-700 p-1" @click="openEditMediaItem(item)">
-                <PencilIcon class="h-3.5 w-3.5" />
-              </button>
-              <button class="text-gray-400 hover:text-gray-700 p-1" @click="duplicateMediaItem(item)">
-                <DocumentDuplicateIcon class="h-3.5 w-3.5" />
-              </button>
-              <button class="text-gray-400 hover:text-red-500 p-1" @click="deleteMediaItem(section.id, item.id)">
-                <TrashIcon class="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-        <button
-          class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
-          @click="addMediaItem(section.id, { media_type: 'image', url: '', caption: '' })"
-        >
-          <PlusIcon class="h-3.5 w-3.5" /> Add media
-        </button>
-      </template>
-
-      <!-- ── Media — item edit form ── -->
-      <template v-else-if="section.type === 'media' && editingMediaItem">
+      <!-- ── Media ── -->
+      <template v-else-if="section.type === 'media'">
         <div class="flex gap-1 pb-3 border-b border-gray-100">
           <button
             v-for="opt in [{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]"
             :key="opt.value"
             class="flex-1 py-1 text-xs rounded-lg border transition-colors"
-            :class="editMediaType === opt.value
+            :class="mediaType === opt.value
               ? 'border-gray-900 bg-gray-900 text-white'
               : 'border-gray-200 text-gray-600 hover:border-gray-400'"
-            @click="editMediaType = opt.value as 'image' | 'video'"
+            @click="mediaType = opt.value as 'image' | 'video'; saveMedia()"
           >
             {{ opt.label }}
           </button>
         </div>
-        <BaseUpload v-if="editMediaType === 'image'" type="image" size="sm" label="Image" v-model="editMediaUrl" />
-        <BaseInput v-else size="sm" label="URL" v-model="editMediaUrl" placeholder="https://..." />
-        <BaseInput size="sm" label="Caption" v-model="editMediaCaption" />
-        <div class="flex gap-2 pt-1">
-          <BaseButton class="flex-1" variant="outline" size="xs" @click="closeEditMediaItem">Cancel</BaseButton>
-          <BaseButton class="flex-1" variant="solid" size="xs" @click="saveMediaItem">Save</BaseButton>
+        <BaseUpload v-if="mediaType === 'image'" type="image" size="sm" label="Image" v-model="mediaUrl" @update:modelValue="saveMedia" />
+        <BaseInput v-else size="sm" label="Video URL" v-model="mediaUrl" placeholder="YouTube or Vimeo URL" @update:modelValue="saveMedia" />
+        <BaseInput size="sm" label="Caption" v-model="mediaCaption" placeholder="Optional caption" @update:modelValue="saveMedia" />
+      </template>
+
+      <!-- ── Content + Media ── -->
+      <template v-else-if="section.type === 'content_media'">
+        <!-- Media type toggle -->
+        <div class="flex gap-1 pb-3 border-b border-gray-100">
+          <button
+            v-for="opt in [{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]"
+            :key="opt.value"
+            class="flex-1 py-1 text-xs rounded-lg border transition-colors"
+            :class="cmMediaType === opt.value
+              ? 'border-gray-900 bg-gray-900 text-white'
+              : 'border-gray-200 text-gray-600 hover:border-gray-400'"
+            @click="cmMediaType = opt.value as 'image' | 'video'; saveCm()"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+        <BaseUpload v-if="cmMediaType === 'image'" type="image" size="sm" label="Image" v-model="cmMediaUrl" @update:modelValue="saveCm" />
+        <BaseInput v-else size="sm" label="Video URL" v-model="cmMediaUrl" placeholder="YouTube or Vimeo URL" @update:modelValue="saveCm" />
+
+        <div class="border-t border-gray-100 pt-3 flex flex-col gap-3">
+          <BaseInput size="sm" label="Subtitle" v-model="cmSubtitle" placeholder="Eyebrow text" @update:modelValue="saveCm" />
+          <BaseInput size="sm" label="Title" v-model="cmTitle" placeholder="Your headline" @update:modelValue="saveCm" />
+          <BaseInput size="sm" label="Body" v-model="cmBody" placeholder="Supporting text" @update:modelValue="saveCm" />
+        </div>
+
+        <!-- Buttons -->
+        <div class="border-t border-gray-100 pt-3 flex flex-col gap-2">
+          <p class="text-xs font-medium text-gray-500">Buttons</p>
+          <div v-for="btn in cmButtons" :key="btn.id" class="flex items-center gap-2">
+            <BaseInput size="sm" v-model="btn.label" placeholder="Label" class="flex-1" @update:modelValue="saveCm" />
+            <BaseInput size="sm" v-model="btn.url" placeholder="https://..." class="flex-1" @update:modelValue="saveCm" />
+            <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeCmButton(btn.id)">
+              <TrashIcon class="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <button
+            class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
+            @click="addCmButton"
+          >
+            <PlusIcon class="h-3.5 w-3.5" /> Add button
+          </button>
         </div>
       </template>
 
       <!-- ── List — items list ── -->
       <template v-else-if="section.type === 'list' && !editingListItem">
+        <BaseInput size="sm" label="Section title" v-model="listSectionTitle" placeholder="My Links" @update:modelValue="saveListSectionTitle" />
         <div class="flex flex-col">
           <div
             v-for="item in listItems"
@@ -531,13 +598,9 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
         <BaseUpload type="image" size="sm" label="Icon" v-model="editListIcon" />
       </template>
 
-      <!-- ── Collection — monetize panel ── -->
-      <template v-else-if="section.type === 'collection' && showMonetize">
-        <CollectionMonetizePanel :section-id="section.id" :settings="collectionSettings" />
-      </template>
-
       <!-- ── Collection — items list ── -->
       <template v-else-if="section.type === 'collection' && !editingItem">
+        <BaseInput size="sm" label="Collection title" v-model="collectionTitle" placeholder="My Collection" @update:modelValue="saveCollectionTitle" />
         <div class="flex flex-col gap-1">
           <BaseItem
             v-for="item in collectionItems"
@@ -550,11 +613,32 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             @action="openEditItem(item)"
           />
         </div>
-        <BaseItem :icon="CurrencyDollarIcon" title="Monetize collection" description="Charge users for access" action="Setup" @action="openMonetize" />
       </template>
 
       <!-- ── Store — items list ── -->
       <template v-else-if="section.type === 'store' && !editingStoreItem">
+        <BaseInput size="sm" label="Title" v-model="storeTitle" placeholder="My Store" @update:modelValue="saveStoreTitle" />
+
+        <!-- Mode toggle -->
+        <div class="flex gap-1">
+          <button
+            v-for="opt in [{ value: 'products', label: 'Products' }, { value: 'membership', label: 'Membership' }]"
+            :key="opt.value"
+            type="button"
+            class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
+            :class="storeMode === opt.value
+              ? 'border-gray-900 bg-gray-900 text-white'
+              : 'border-gray-200 text-gray-600 hover:border-gray-400'"
+            @click="storeMode = opt.value as 'products' | 'membership'; saveStoreMode()"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+
+        <!-- Membership price -->
+        <BaseInput v-if="storeMode === 'membership'" size="sm" label="Monthly price" v-model="storeMembershipPrice" placeholder="0.00" @update:modelValue="saveStoreMembershipPrice" />
+
+        <!-- Items list -->
         <div class="flex flex-col gap-1">
           <BaseItem
             v-for="item in storeItems"
@@ -569,7 +653,18 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
         </div>
       </template>
 
-      <!-- ── Store — item edit form ── -->
+      <!-- ── Store — item edit form (membership) ── -->
+      <template v-else-if="section.type === 'store' && editingStoreItem && editingStoreItem.type === 'membership'">
+        <BaseInput size="sm" label="Title" v-model="storeEditTitle" />
+        <BaseInput size="sm" label="Description" v-model="storeEditDescription" />
+        <BaseUpload type="image" size="sm" label="Image" v-model="storeEditImage" />
+        <BaseUpload type="file" size="sm" label="File" v-model="storeEditFileUrl" />
+        <div class="pt-1 border-t border-gray-100">
+          <BaseButton variant="remove" size="sm" class="w-full" @click="deleteStoreItem(section.id, store!.id, editingStoreItem.id); closeEditStoreItem()">Delete item</BaseButton>
+        </div>
+      </template>
+
+      <!-- ── Store — item edit form (product) ── -->
       <template v-else-if="section.type === 'store' && editingStoreItem">
         <BaseInput size="sm" label="Title" v-model="storeEditTitle" />
         <BaseInput size="sm" label="Description" v-model="storeEditDescription" />
@@ -591,6 +686,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             {{ opt.label }}
           </button>
         </div>
+
         <!-- Physical: variants + inventory -->
         <template v-if="storeEditProductType === 'physical'">
           <div class="flex flex-col gap-2 pt-1 border-t border-gray-100">
@@ -606,19 +702,8 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
                 </button>
               </div>
               <div v-for="(opt, oi) in variant.options" :key="oi" class="flex items-center gap-2">
-                <input
-                  v-model="opt.value"
-                  type="text"
-                  placeholder="Option"
-                  class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400"
-                />
-                <input
-                  v-model.number="opt.inventory"
-                  type="number"
-                  min="0"
-                  placeholder="Qty"
-                  class="w-16 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400"
-                />
+                <input v-model="opt.value" type="text" placeholder="Option" class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400" />
+                <input v-model.number="opt.inventory" type="number" min="0" placeholder="Qty" class="w-16 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400" />
                 <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeStoreVariantOption(vi, oi)">
                   <TrashIcon class="h-3.5 w-3.5" />
                 </button>

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import BaseAvatar from '@/components/ui/BaseAvatar.vue';
+import BaseToggle from '@/components/ui/BaseToggle.vue';
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -11,6 +12,11 @@ const avatarUrl = ref(userStore.user?.avatar_image ?? '')
 const firstName = ref(userStore.user?.first_name ?? '')
 const lastName = ref(userStore.user?.last_name ?? '')
 const email = ref(userStore.user?.email ?? '')
+
+const commMarketing = ref(true)
+const commCommunications = ref(true)
+const commAnalytics = ref(true)
+const commStore = ref(false)
 
 function saveProfile() {
   if (!userStore.user) return
@@ -56,6 +62,13 @@ function saveProfile() {
           </div>
     </div>
 
-    
+    <div class="flex flex-col gap-4 pt-8 pb-8">
+      <h2>Communications</h2>
+      <BaseToggle size="lg" label="Marketing" description="Receive updates about new features and offers" v-model="commMarketing" />
+      <BaseToggle size="lg" label="Communications" description="Receive important account and billing notifications" v-model="commCommunications" />
+      <BaseToggle size="lg" label="Analytics" description="Receive weekly reports about your project performance" v-model="commAnalytics" />
+      <BaseToggle size="lg" label="Store" description="Receive notifications about orders and store activity" v-model="commStore" />
+    </div>
+
   </section>
 </template>

@@ -12,6 +12,7 @@ export interface StoreVariant {
 export interface StoreItem {
   id: string
   store_id: string
+  type: 'product' | 'membership'
   title: string
   description: string
   image: string
@@ -28,6 +29,8 @@ export interface Store {
   id: string
   section_id: string
   title: string
+  mode: 'products' | 'membership'
+  membership_price: number
   position: string
   items: StoreItem[]
 }

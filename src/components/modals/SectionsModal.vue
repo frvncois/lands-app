@@ -1,8 +1,21 @@
 <script setup lang="ts">
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import { sectionPrimitives } from '@/sections/index'
+import type { SectionPrimitive } from '@/sections/index'
+import BaseItem from '@/components/ui/BaseItem.vue'
+import draggable from 'vuedraggable'
+import type { TreeNode } from '@/components/ui/BaseTree.vue'
 
 defineEmits<{ close: [], select: [id: string] }>()
+
+function cloneForDrop(section: SectionPrimitive): TreeNode {
+  return {
+    id: `__new__${section.id}`,
+    label: section.label,
+    icon: section.icon,
+    sectionType: section.id,
+  }
+}
 </script>
 
 <template>
@@ -13,15 +26,26 @@ defineEmits<{ close: [], select: [id: string] }>()
         <XMarkIcon class="h-4 w-4 text-gray-400 hover:text-gray-600" />
       </button>
     </div>
-    <div class="grid grid-cols-2 gap-2 p-4">
-      <button
-        v-for="section in sectionPrimitives"
-        :key="section.id"
-        class="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-colors"
-        @click="$emit('select', section.id); $emit('close')"
-      >
-        <span class="text-sm font-medium text-gray-900">{{ section.label }}</span>
-      </button>
-    </div>
+    <draggable
+      :list="sectionPrimitives"
+      :clone="cloneForDrop"
+      item-key="id"
+      :group="{ name: 'sections', pull: 'clone', put: false }"
+      :sort="false"
+      class="flex flex-col gap-1 p-2"
+    >
+      <template #item="{ element }">
+        <div>
+          <BaseItem
+            :icon="element.icon"
+            :title="element.label"
+            :description="element.description"
+            size="sm"
+            clickable
+            @click="$emit('select', element.id); $emit('close')"
+          />
+        </div>
+      </template>
+    </draggable>
   </div>
 </template>

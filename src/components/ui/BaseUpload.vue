@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { XMarkIcon, ArrowUpTrayIcon, PhotoIcon, DocumentIcon } from '@heroicons/vue/24/outline'
+import { storageService } from '@/services/storage.service'
 
 const props = withDefaults(defineProps<{
   label: string
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 }>()
 
 const inputRef = ref<HTMLInputElement | null>(null)
+const isUploading = ref(false)
 
 const sizes = {
   sm: { label: 'text-xs', text: 'text-xs', preview: 'h-24' },
@@ -25,17 +27,27 @@ const sizes = {
 }
 
 const accept = computed(() => props.type === 'image' ? 'image/*' : '*')
-
 const isImage = computed(() => props.type === 'image')
 
-function onFileChange(event: Event) {
+async function onFileChange(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
-  const url = URL.createObjectURL(file)
-  emit('update:modelValue', url)
+  isUploading.value = true
+  try {
+    const url = await storageService.upload(file)
+    emit('update:modelValue', url)
+  } catch (e) {
+    console.error('Upload failed:', e)
+  } finally {
+    isUploading.value = false
+    if (inputRef.value) inputRef.value.value = ''
+  }
 }
 
-function remove() {
+async function remove() {
+  if (props.modelValue) {
+    await storageService.remove(props.modelValue)
+  }
   emit('update:modelValue', '')
   if (inputRef.value) inputRef.value.value = ''
 }
@@ -62,12 +74,13 @@ function remove() {
     <button
       v-else
       type="button"
-      class="flex flex-col items-center justify-center gap-2 w-full border border-dashed border-gray-300 rounded-xl text-gray-400 hover:border-gray-400 hover:text-gray-500 hover:bg-gray-50 transition-colors"
+      class="flex flex-col items-center justify-center gap-2 w-full border border-dashed border-gray-300 rounded-xl text-gray-400 hover:border-gray-400 hover:text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       :class="[sizes[size].preview, sizes[size].text]"
+      :disabled="isUploading"
       @click="inputRef?.click()"
     >
-      <component :is="isImage ? PhotoIcon : DocumentIcon" class="h-5 w-5" />
-      <span class="text-xs">Click to upload {{ type }}</span>
+      <component :is="isImage ? PhotoIcon : DocumentIcon" class="h-5 w-5" :class="isUploading ? 'animate-pulse' : ''" />
+      <span class="text-xs">{{ isUploading ? 'Uploading…' : `Click to upload ${type}` }}</span>
     </button>
 
     <!-- File row (file type with value) -->
@@ -86,11 +99,12 @@ function remove() {
     <button
       v-if="isImage && modelValue"
       type="button"
-      class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+      class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-50"
+      :disabled="isUploading"
       @click="inputRef?.click()"
     >
       <ArrowUpTrayIcon class="h-3.5 w-3.5" />
-      Replace image
+      {{ isUploading ? 'Uploading…' : 'Replace image' }}
     </button>
   </div>
 </template>

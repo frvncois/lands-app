@@ -1,20 +1,28 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { supabase } from '@/lib/supabase'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import OnboardingLayout from '@/layouts/OnboardingLayout.vue'
 import ProjectView from '@/views/dashboard/ProjectView.vue'
 import AccountView from '@/views/dashboard/AccountView.vue'
+import PlansView from '@/views/dashboard/PlansView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
 import LostPasswordView from '@/views/auth/LostPasswordView.vue'
 import OnboardingView from '@/views/onboarding/OnboardingView.vue'
+import HomeView from '@/views/storefront/HomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/',
+      component: HomeView,
+    },
+    {
       path: '/dashboard',
       component: AppLayout,
+      meta: { requiresAuth: true },
       children: [
         {
           path: '',
@@ -24,11 +32,16 @@ const router = createRouter({
           path: 'account',
           component: AccountView,
         },
+        {
+          path: 'plans',
+          component: PlansView,
+        },
       ],
     },
     {
       path: '/auth',
       component: AuthLayout,
+      meta: { requiresGuest: true },
       children: [
         {
           path: '',
@@ -47,6 +60,7 @@ const router = createRouter({
     {
       path: '/onboarding',
       component: OnboardingLayout,
+      meta: { requiresAuth: true },
       children: [
         {
           path: '',
@@ -55,6 +69,14 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  const { data: { session } } = await supabase.auth.getSession()
+  const isAuthenticated = !!session
+
+  if (to.meta.requiresAuth && !isAuthenticated) return '/auth'
+  if (to.meta.requiresGuest && isAuthenticated) return '/dashboard'
 })
 
 export default router

@@ -10,6 +10,7 @@ import {
   type HeaderContent,
   type TextContent,
   type MediaContent,
+  type ContentMediaContent,
   type CampaignContent,
   type FooterContent,
 } from '@/types/section'
@@ -18,7 +19,7 @@ import {
 interface SectionDefault {
   style_variant: string
   settings_json: SectionSettings
-  content: HeaderContent | TextContent | MediaContent | CampaignContent | FooterContent | null
+  content: HeaderContent | TextContent | MediaContent | ContentMediaContent | CampaignContent | FooterContent | null
 }
 
 export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
@@ -40,24 +41,38 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
   [SECTION_TYPES.collection]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
-    content: null,
+    content: { collections: [] },
   },
   [SECTION_TYPES.store]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
-    content: null,
+    content: { stores: [] },
+  },
+  [SECTION_TYPES.content_media]: {
+    style_variant: 'default',
+    settings_json: {},
+    content: {
+      media_type: 'image',
+      media_url: '',
+      title: '',
+      subtitle: '',
+      body: '',
+      buttons: [],
+    },
   },
   [SECTION_TYPES.media]: {
     style_variant: MEDIA_STYLES.default,
     settings_json: { style: MEDIA_STYLES.default },
     content: {
-      items: [],
+      media_type: 'image',
+      url: '',
+      caption: '',
     },
   },
   [SECTION_TYPES.list]: {
     style_variant: LIST_STYLES.default,
     settings_json: { style: LIST_STYLES.default },
-    content: null,
+    content: { items: [] },
   },
   [SECTION_TYPES.campaign]: {
     style_variant: 'default',

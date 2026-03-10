@@ -17,11 +17,12 @@ import { sortByPosition, generatePositionAfter, generatePositionBetween, generat
 import type { SectionType } from '@/types/section'
 import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
 import { TYPOGRAPHY_STYLES } from '@/types/theme'
+import { sectionPrimitives } from '@/sections/index'
 
 const landStore = useLandStore()
 const editorStore = useEditorStore()
 const themeStore = useThemeStore()
-const { addSection, deleteSection, reorderSection, updateTheme } = useEditorActions()
+const { addSection, deleteSection, duplicateSection, reorderSection, updateTheme } = useEditorActions()
 
 const showSections = ref(false)
 const openAccordion = ref<'theme' | 'colors' | 'typography'>('theme')
@@ -29,11 +30,10 @@ const direction = ref<'forward' | 'back'>('forward')
 const sectionSettingsRef = ref<InstanceType<typeof SectionSettingsModal> | null>(null)
 const contentWrapper = ref<HTMLElement | null>(null)
 const isSubItemEditing = ref(false)
-const isMonetizeOpen = ref(false)
 
 watch(() => editorStore.showSectionSettings, (val) => {
   direction.value = val ? 'forward' : 'back'
-  if (!val) { isSubItemEditing.value = false; isMonetizeOpen.value = false }
+  if (!val) { isSubItemEditing.value = false }
 })
 
 function onBeforeLeave() {
@@ -78,6 +78,7 @@ function onTabAfterEnter() {
 function handleTreeSettings(node: TreeNode) {
   const section = landStore.activeLand?.sections.find(s => s.id === node.id)
   if (section) {
+    showSections.value = false
     editorStore.setActiveSection(section, true)
   }
 }
@@ -98,19 +99,40 @@ function setTab(tab: Tab) {
   activeTab.value = tab
 }
 
+const sectionIconMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon]))
+const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
+
 const nodes = computed<TreeNode[]>(() => {
   const sections = landStore.activeLand?.sections ?? []
   return sortByPosition(sections).map((s) => ({
     id: s.id,
-    label: s.type.charAt(0).toUpperCase() + s.type.slice(1),
+    label: sectionLabelMap[s.type] ?? (s.type.charAt(0).toUpperCase() + s.type.slice(1)),
+    icon: sectionIconMap[s.type],
+    locked: s.type === 'header' || s.type === 'footer',
   }))
 })
+
+function handleSectionDrop(sectionType: string, newIndex: number) {
+  const sorted = sortByPosition(landStore.activeLand?.sections ?? [])
+  const prev = sorted[newIndex - 1]?.position ?? null
+  const next = sorted[newIndex]?.position ?? null
+  const position = prev === null
+    ? generatePositionBefore(next)
+    : next === null
+      ? generatePositionAfter(prev)
+      : generatePositionBetween(prev, next)
+  addSection(sectionType as SectionType, position)
+}
 
 function handleReorder(oldIndex: number, newIndex: number) {
   if (oldIndex === newIndex) return
   const sorted = sortByPosition(landStore.activeLand?.sections ?? [])
   const moved = sorted[oldIndex]
   if (!moved) return
+  // Header stays first, footer stays last
+  if (moved.type === 'header' || moved.type === 'footer') return
+  if (sorted[newIndex]?.type === 'header' && newIndex === 0) return
+  if (sorted[newIndex]?.type === 'footer' && newIndex === sorted.length - 1) return
   const remaining = sorted.filter((_, i) => i !== oldIndex)
   const prevPos = remaining[newIndex - 1]?.position ?? null
   const nextPos = remaining[newIndex]?.position ?? null
@@ -127,10 +149,10 @@ function handleAddSection(type: string) {
   const sorted = sortByPosition(sections)
   const lastPos = sorted[sorted.length - 1]?.position ?? null
   addSection(type as SectionType, generatePositionAfter(lastPos))
-  editorStore.showSectionSettings = true
 }
 
 // ─── Drag ───
+const panelRef = ref<HTMLElement | null>(null)
 let dragOffset = { x: 0, y: 0 }
 
 function onDragStart(e: MouseEvent) {
@@ -143,9 +165,11 @@ function onDragStart(e: MouseEvent) {
 }
 
 function onDragMove(e: MouseEvent) {
+  const w = panelRef.value?.offsetWidth ?? 320
+  const h = panelRef.value?.offsetHeight ?? 0
   editorStore.setPanelPos({
-    x: e.clientX - dragOffset.x,
-    y: e.clientY - dragOffset.y,
+    x: Math.min(Math.max(0, e.clientX - dragOffset.x), window.innerWidth - w),
+    y: Math.min(Math.max(0, e.clientY - dragOffset.y), window.innerHeight - h),
   })
 }
 
@@ -162,6 +186,7 @@ onUnmounted(() => {
 
 <template>
   <div
+    ref="panelRef"
     class="fixed w-80 z-50 bg-white shadow-xl rounded-2xl select-none origin-top-right overflow-hidden"
     :style="{ left: editorStore.panelPos.x + 'px', top: editorStore.panelPos.y + 'px' }"
   >
@@ -181,12 +206,9 @@ onUnmounted(() => {
 
         <!-- Section settings header -->
         <div v-if="editorStore.showSectionSettings && editorStore.activeSection" :key="editorStore.activeSection.id" class="flex items-center justify-between p-4">
-          <h2 class="text-sm font-semibold text-gray-900 capitalize">{{ editorStore.activeSection.type }}</h2>
+          <h2 class="text-sm font-semibold text-gray-900">{{ sectionLabelMap[editorStore.activeSection.type] ?? editorStore.activeSection.type }}</h2>
           <div class="flex items-center gap-1">
-            <template v-if="isMonetizeOpen">
-              <BaseButton variant="outline" size="xs" @click="sectionSettingsRef?.closeMonetize">Back</BaseButton>
-            </template>
-            <template v-else-if="isSubItemEditing">
+            <template v-if="isSubItemEditing">
               <BaseButton variant="outline" size="xs" @click="sectionSettingsRef?.cancelSubItem">Cancel</BaseButton>
               <BaseButton variant="solid" size="xs" @click="sectionSettingsRef?.saveSubItem">Save</BaseButton>
             </template>
@@ -228,7 +250,6 @@ onUnmounted(() => {
             :hide-header="true"
             @close="editorStore.showSectionSettings = false; editorStore.setActiveSection(null)"
             @editing-change="isSubItemEditing = $event"
-            @monetize-open="isMonetizeOpen = $event"
           />
         </div>
 
@@ -243,7 +264,7 @@ onUnmounted(() => {
               @after-enter="onTabAfterEnter"
             >
               <div v-if="activeTab === 'content'" key="content" class="flex flex-col gap-4 p-4">
-                <BaseTree :nodes="nodes" @settings="handleTreeSettings" @delete="deleteSection($event.id)" @reorder="handleReorder" />
+                <BaseTree :nodes="nodes" @settings="handleTreeSettings" @delete="deleteSection($event.id)" @duplicate="duplicateSection($event.id)" @reorder="handleReorder" @add="handleSectionDrop" />
                 <BaseButton variant="outline" size="sm" @click="showSections = !showSections">+ Add section</BaseButton>
               </div>
               <div v-else key="design" class="flex flex-col divide-y divide-gray-100">
