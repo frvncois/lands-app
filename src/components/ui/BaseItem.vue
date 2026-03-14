@@ -8,10 +8,12 @@ const props = withDefaults(defineProps<{
   description?: string
   action?: string
   clickable?: boolean
+  grab?: boolean
   size?: 'sm' | 'md' | 'lg'
 }>(), {
   size: 'md',
   clickable: false,
+  grab: false,
 })
 
 defineEmits<{ action: []; click: [] }>()
@@ -26,14 +28,14 @@ const sizes = {
 <template>
   <component
     :is="clickable ? 'button' : 'div'"
-    class="flex items-center rounded-xl border border-gray-200 w-full text-left"
-    :class="[sizes[size].wrap, clickable && 'hover:shadow-md/2 hover:scale-101 transition cursor-pointer']"
+    class="flex items-center rounded-xl border border-gray-200 hover:bg-gray-50 transition-all p-1.5 gap-2"
+    :class="[sizes[size].wrap, clickable && 'cursor-pointer', grab && 'hover:scale-[1.02] cursor-grab active:cursor-grabbing']"
     @click="clickable && $emit('click')"
   >
-    <div v-if="icon" class="shrink-0 flex items-center justify-center bg-gray-100" :class="sizes[size].icon">
-      <component :is="icon" class="text-gray-600" :class="sizes[size].iconSize" />
+    <div v-if="icon" class="shrink-0 flex items-center justify-center bg-gray-900 text-gray-100" :class="sizes[size].icon">
+      <component :is="icon" :class="sizes[size].iconSize" />
     </div>
-    <div class="flex-1 min-w-0">
+    <div class="flex-1 min-w-0 text-left">
       <p class="font-medium text-gray-900 truncate" :class="sizes[size].title">{{ title }}</p>
       <p v-if="description" class="text-gray-400 truncate" :class="sizes[size].description">{{ description }}</p>
     </div>

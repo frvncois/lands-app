@@ -12,11 +12,12 @@ defineEmits<{ click: [] }>()
 
 <template>
   <button
-    class="flex-1 flex items-center justify-center gap-2 p-5 text-sm font-medium transition-colors"
-    :class="active ? 'text-gray-900 border-b-2 border-gray-900 -mb-px' : 'text-gray-400 hover:text-gray-600'"
+    class="relative flex-1 flex items-center justify-center gap-2 h-16 text-sm font-medium transition-colors"
+    :class="active ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'"
     @click="$emit('click')"
   >
     <component :is="icon" class="h-4 w-4" />
     {{ label }}
+    <span v-if="active" class="absolute bottom-0 inset-x-3 h-0.5 rounded-full bg-gray-900" />
   </button>
 </template>

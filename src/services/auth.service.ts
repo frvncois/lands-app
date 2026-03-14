@@ -37,6 +37,16 @@ const authService = {
     return data
   },
 
+  async verifyOtp(email: string, token: string) {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'signup',
+    })
+    if (error) throw new Error(error.message)
+    return data
+  },
+
   async forgotPassword(email: string) {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset`,

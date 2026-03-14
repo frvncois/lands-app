@@ -3,11 +3,13 @@ import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { useThemeStore } from '@/stores/theme'
 import { useToast } from '@/composables/useToast'
+import { usePlan } from '@/composables/usePlan'
 import { sortByPosition, generatePositionAfter, generatePositionBetween } from '@/lib/utils/position'
 import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
+import { buildSectionContent } from '@/lib/primitives/purposeDefaults'
 import { storageService, extractSectionUrls } from '@/services/storage.service'
 import { landService } from '@/services/land.service'
-import type { Section, SectionType } from '@/types/section'
+import type { Section, SectionType, SectionSettings } from '@/types/section'
 import type { ListItem } from '@/types/list'
 import type { Collection, CollectionItem } from '@/types/collection'
 import type { Store, StoreItem } from '@/types/store'
@@ -18,6 +20,7 @@ export function useEditorActions() {
   const editorStore = useEditorStore()
   const themeStore = useThemeStore()
   const { addToast } = useToast()
+  const { withinSectionLimit, withinCollectionSectionLimit, canAddSectionType, withinCollectionLimit, withinItemLimit, maxSections, maxCollectionSections, maxCollectionsPerSection, maxItemsPerCollection } = usePlan()
 
   const activeLand = computed(() => landStore.activeLand)
 
@@ -43,41 +46,39 @@ export function useEditorActions() {
 
   function addSection(type: SectionType, position: string) {
     if (!activeLand.value) return
+    if (type === 'header' || type === 'footer') return
+
+    // Plan gates
+    if (!canAddSectionType(type)) {
+      addToast('Campaign sections require a paid plan — upgrade to unlock', 'error')
+      return
+    }
+    const contentSections = activeLand.value.sections.filter((s) => s.type !== 'header' && s.type !== 'footer')
+    if (!withinSectionLimit(contentSections.length)) {
+      addToast(`Free plan allows up to ${maxSections.value} sections — upgrade to add more`, 'error')
+      return
+    }
+
+    // Collection-type section limit: max per type (collection / store / monetize each capped separately)
+    const COLLECTION_TYPES: SectionType[] = ['collection', 'store', 'monetize']
+    if (COLLECTION_TYPES.includes(type)) {
+      const existing = activeLand.value.sections.filter((s) => s.type === type).length
+      if (!withinCollectionSectionLimit(existing)) {
+        addToast(`Free plan allows up to ${maxCollectionSections.value} ${type} sections — upgrade to add more`, 'error')
+        return
+      }
+    }
+
     const defaults = SECTION_DEFAULTS[type]
-    let content = defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {}
+    const purpose = activeLand.value.purpose
 
-    // Header is always first, footer is always last
-    const sorted = sortByPosition(activeLand.value.sections)
-    if (type === 'header') {
-      position = generatePositionBetween(null, sorted[0]?.position ?? null)
-    } else if (type === 'footer') {
-      position = generatePositionBetween(sorted[sorted.length - 1]?.position ?? null, null)
-    }
+    // Count existing sections of this type to cycle through content variants
+    const existingCount = activeLand.value.sections.filter((s) => s.type === type).length
 
-    // Seed an initial collection/store so the UI isn't empty
-    if (type === 'collection') {
-      const col: Collection = {
-        id: crypto.randomUUID(),
-        section_id: '', // filled below
-        title: '',
-        description: '',
-        position: generatePositionAfter(null),
-        items: [],
-      }
-      content = { collections: [col] }
-    }
-    if (type === 'store') {
-      const store: Store = {
-        id: crypto.randomUUID(),
-        section_id: '', // filled below
-        title: '',
-        mode: 'products',
-        membership_price: 0,
-        position: generatePositionAfter(null),
-        items: [],
-      }
-      content = { stores: [store] }
-    }
+    const seeded = buildSectionContent(purpose, type, existingCount)
+    const content = Object.keys(seeded).length > 0
+      ? seeded
+      : (defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {})
 
     const newSection: Section = {
       id: crypto.randomUUID(),
@@ -85,17 +86,23 @@ export function useEditorActions() {
       type,
       position,
       style_variant: defaults.style_variant,
-      settings_json: { ...defaults.settings_json } as any,
+      settings_json: defaults.settings_json as unknown as SectionSettings,
       content,
       created_at: new Date().toISOString(),
     }
 
-    // Patch section_id into seeded collection/store
-    if (type === 'collection') {
-      (newSection.content as any).collections[0].section_id = newSection.id
+    // Patch section_id into seeded content
+    if (type === 'collection' || type === 'monetize') {
+      const col = (newSection.content as unknown as { collections: Collection[] }).collections?.[0]
+      if (col) col.section_id = newSection.id
     }
     if (type === 'store') {
-      (newSection.content as any).stores[0].section_id = newSection.id
+      const store = (newSection.content as unknown as { stores: Store[] }).stores?.[0]
+      if (store) store.section_id = newSection.id
+    }
+    if (type === 'list') {
+      const items = (newSection.content as unknown as { items: { section_id: string }[] }).items
+      if (items) items.forEach((item) => { item.section_id = newSection.id })
     }
 
     landStore.updateLand(activeLand.value.id, {
@@ -109,6 +116,7 @@ export function useEditorActions() {
   function deleteSection(sectionId: string) {
     if (!activeLand.value) return
     const section = activeLand.value.sections.find((s) => s.id === sectionId)
+    if (section?.type === 'header' || section?.type === 'footer') return
     if (section) {
       const urls = extractSectionUrls(section)
       Promise.all(urls.map((url) => storageService.remove(url))).catch(() => {})
@@ -123,14 +131,14 @@ export function useEditorActions() {
   function updateSectionContent(sectionId: string, content: Record<string, unknown>) {
     patchSection(sectionId, (s) => ({
       ...s,
-      content: { ...(s.content ?? {}), ...content } as any,
+      content: { ...(s.content ?? {}), ...content } as Section['content'],
     }))
   }
 
   function updateSectionSettings(sectionId: string, settings: Record<string, unknown>) {
     patchSection(sectionId, (s) => ({
       ...s,
-      settings_json: { ...s.settings_json, ...settings } as any,
+      settings_json: { ...s.settings_json, ...settings } as SectionSettings,
     }))
   }
 
@@ -138,10 +146,16 @@ export function useEditorActions() {
     patchSection(sectionId, (s) => ({ ...s, style_variant: variant }))
   }
 
+  // ─── Content accessors ───
+
+  function getListItems(sectionId: string): ListItem[] {
+    return (getSection(sectionId)?.content as { items?: ListItem[] } | null)?.items ?? []
+  }
+
   // ─── List Items ───
 
-  function addListItem(sectionId: string, data: Pick<ListItem, 'title' | 'url' | 'description' | 'icon'>): ListItem {
-    const existing: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
+  function addListItem(sectionId: string, data: Pick<ListItem, 'title' | 'subtitle' | 'url' | 'description' | 'icon'>): ListItem {
+    const existing = getListItems(sectionId)
     const sorted = sortByPosition(existing)
     const newItem: ListItem = {
       ...data,
@@ -155,29 +169,33 @@ export function useEditorActions() {
   }
 
   function updateListItem(sectionId: string, itemId: string, data: Partial<ListItem>) {
-    const items: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
+    const items = getListItems(sectionId)
     updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) })
   }
 
   function deleteListItem(sectionId: string, itemId: string) {
-    const items: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
+    const items = getListItems(sectionId)
     updateSectionContent(sectionId, { items: items.filter((i) => i.id !== itemId) })
     addToast('Link removed')
   }
 
   function reorderListItem(sectionId: string, itemId: string, newPosition: string) {
-    const items: ListItem[] = (getSection(sectionId)?.content as any)?.items ?? []
+    const items = getListItems(sectionId)
     updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)) })
   }
 
   // ─── Collections ───
 
   function getCollections(sectionId: string): Collection[] {
-    return (getSection(sectionId)?.content as any)?.collections ?? []
+    return (getSection(sectionId)?.content as { collections?: Collection[] } | null)?.collections ?? []
   }
 
   function addCollection(sectionId: string) {
     const existing = getCollections(sectionId)
+    if (!withinCollectionLimit(existing.length)) {
+      addToast(`Free plan allows up to ${maxCollectionsPerSection.value} collections — upgrade to add more`, 'error')
+      return
+    }
     const sorted = sortByPosition(existing)
     const newCollection: Collection = {
       id: crypto.randomUUID(),
@@ -212,9 +230,14 @@ export function useEditorActions() {
   function addCollectionItem(
     sectionId: string,
     collectionId: string,
-    data: Pick<CollectionItem, 'title' | 'description' | 'media_url' | 'content' | 'external_url'>,
+    data: Pick<CollectionItem, 'title' | 'subtitle' | 'description' | 'media_url' | 'content' | 'external_url'>,
   ): CollectionItem | undefined {
     const cols = getCollections(sectionId)
+    const col = cols.find((c) => c.id === collectionId)
+    if (col && !withinItemLimit(col.items.length)) {
+      addToast(`Free plan allows up to ${maxItemsPerCollection.value} items per collection — upgrade to add more`, 'error')
+      return undefined
+    }
     let newItem: CollectionItem | undefined
     const updated = cols.map((c) => {
       if (c.id !== collectionId) return c
@@ -267,7 +290,7 @@ export function useEditorActions() {
   // ─── Store Items ───
 
   function getStores(sectionId: string): Store[] {
-    return (getSection(sectionId)?.content as any)?.stores ?? []
+    return (getSection(sectionId)?.content as { stores?: Store[] } | null)?.stores ?? []
   }
 
   function addStoreItem(
@@ -276,6 +299,11 @@ export function useEditorActions() {
     data: Pick<StoreItem, 'title' | 'description' | 'image' | 'price' | 'variants' | 'inventory' | 'product_type' | 'file_url'>,
   ): StoreItem | undefined {
     const stores = getStores(sectionId)
+    const store = stores.find((s) => s.id === storeId)
+    if (store && !withinItemLimit(store.items.length)) {
+      addToast(`Free plan allows up to ${maxItemsPerCollection.value} items — upgrade to add more`, 'error')
+      return undefined
+    }
     let newItem: StoreItem | undefined
     const updated = stores.map((s) => {
       if (s.id !== storeId) return s
@@ -358,9 +386,9 @@ export function useEditorActions() {
   }) {
     patchSection(sectionId, (s) => ({
       ...s,
-      content: data.content as any,
+      content: data.content as Section['content'],
       style_variant: data.style_variant,
-      settings_json: data.settings_json as any,
+      settings_json: data.settings_json as SectionSettings,
     }))
   }
 
@@ -371,15 +399,16 @@ export function useEditorActions() {
     const sorted = sortByPosition(activeLand.value.sections)
     const idx = sorted.findIndex((s) => s.id === sectionId)
     if (idx === -1) return
-    const original = sorted[idx]
+    const original = sorted[idx]!
+    if (original.type === 'header' || original.type === 'footer') return
+    const contentSections = activeLand.value.sections.filter((s) => s.type !== 'header' && s.type !== 'footer')
+    if (!withinSectionLimit(contentSections.length)) {
+      addToast(`Free plan allows up to ${maxSections.value} sections — upgrade to add more`, 'error')
+      return
+    }
     const next = sorted[idx + 1] ?? null
     let position = generatePositionBetween(original.position, next?.position ?? null)
     // Header always first, footer always last
-    if (original.type === 'header') {
-      position = generatePositionBetween(null, sorted[0]?.position ?? null)
-    } else if (original.type === 'footer') {
-      position = generatePositionBetween(sorted[sorted.length - 1]?.position ?? null, null)
-    }
     const copy: Section = {
       ...JSON.parse(JSON.stringify(original)),
       id: crypto.randomUUID(),
@@ -408,18 +437,7 @@ export function useEditorActions() {
     landStore.updateLand(activeLand.value.id, data)
     landService.updateLand(activeLand.value.id, data)
       .then(() => addToast('Settings saved'))
-      .catch(() => addToast('Failed to save settings'))
-  }
-
-  async function deleteLand() {
-    if (!activeLand.value) return
-    const id = activeLand.value.id
-    const urls = activeLand.value.sections.flatMap(extractSectionUrls)
-    landStore.removeLand(id)
-    editorStore.exitEditMode()
-    await landService.deleteLand(id)
-    Promise.all(urls.map((url) => storageService.remove(url))).catch(() => {})
-    addToast('Land deleted')
+      .catch(() => addToast('Failed to save settings', 'error'))
   }
 
   return {
@@ -451,6 +469,5 @@ export function useEditorActions() {
     duplicateSection,
     reorderSection,
     updateLandSettings,
-    deleteLand,
   }
 }

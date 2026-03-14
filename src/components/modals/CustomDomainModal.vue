@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
+import BaseModal from '../ui/BaseModal.vue'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -24,8 +25,8 @@ function done() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/50 backdrop-blur-lg">
-    <div class="modal-card w-full mx-4 bg-white rounded-3xl p-6 max-w-[400px]">
+  <BaseModal @close="emit('close')">
+    <div>
 
       <div class="flex items-center justify-between mb-4">
         <Transition name="modal-title" mode="out-in">
@@ -88,5 +89,5 @@ function done() {
 
       </Transition>
     </div>
-  </div>
+  </BaseModal>
 </template>

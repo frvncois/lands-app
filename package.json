@@ -30,6 +30,7 @@
     "@faker-js/faker": "^10.3.0",
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.11.0",
+    "@vitejs/plugin-basic-ssl": "^2.1.4",
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/tsconfig": "^0.8.1",
     "npm-run-all2": "^8.0.4",

@@ -1,68 +1,59 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon, ArrowLeftIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+import { PlusIcon, TrashIcon, ArrowLeftIcon, DocumentTextIcon, ListBulletIcon, RectangleStackIcon, ShoppingBagIcon, CreditCardIcon, PuzzlePieceIcon } from '@heroicons/vue/24/outline'
 
 import BaseInput from '../ui/BaseInput.vue'
 import BaseToggle from '../ui/BaseToggle.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseUpload from '../ui/BaseUpload.vue'
 import BaseItem from '../ui/BaseItem.vue'
-import RichTextEditor from '../ui/RichTextEditor.vue'
+import BaseCard from '../ui/BaseCard.vue'
+import BaseTree from '../ui/BaseTree.vue'
+import type { TreeNode } from '../ui/BaseTree.vue'
 import CollectionItemContentModal from './CollectionItemContentModal.vue'
-import type { Section, HeaderContent, HeaderSettings, TextContent, MediaContent, ContentMediaContent, ContentMediaButton, CampaignContent, CampaignSettings, FooterContent, FooterSettings } from '@/types/section'
+import SetupCampaignModal from './SetupCampaignModal.vue'
+import type { Section, HeaderContent, HeaderSettings, ContentMediaContent, ContentMediaButton, CampaignContent, CampaignSettings, FooterContent, FooterSettings } from '@/types/section'
 import type { CollectionItem, Collection } from '@/types/collection'
 import type { Store, StoreItem } from '@/types/store'
 import type { ListItem } from '@/types/list'
 import { useEditorActions } from '@/composables/useEditorActions'
-import { sortByPosition } from '@/lib/utils/position'
-import { renderMarkdown } from '@/lib/utils/markdown'
+import { useLandStore } from '@/stores/land'
+import { useAppModals } from '@/stores/appModals'
+import { useCampaignStore } from '@/stores/campaign'
+import { sortByPosition, generatePositionBefore, generatePositionAfter, generatePositionBetween } from '@/lib/utils/position'
 import { sectionPrimitives } from '@/sections/index'
 
 const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
+const landStore = useLandStore()
+const appModals = useAppModals()
+const campaignStore = useCampaignStore()
 
 const props = defineProps<{ section: Section; hideHeader?: boolean }>()
 const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
 
 const {
   updateSectionContent, updateSectionSettings, restoreSectionSnapshot,
-  addListItem, updateListItem, deleteListItem,
-  updateCollection, addCollectionItem, updateCollectionItem, deleteCollectionItem,
-  updateStore, addStoreItem, updateStoreItem, deleteStoreItem,
+  addListItem, updateListItem, deleteListItem, reorderListItem,
+  updateCollection, addCollectionItem, updateCollectionItem, deleteCollectionItem, reorderCollectionItem,
+  updateStore, addStoreItem, updateStoreItem, deleteStoreItem, reorderStoreItem,
 } = useEditorActions()
 
 // ─── Header ───
 const headerTitle = ref('')
 const headerSubtitle = ref('')
 const headerCoverMediaValue = ref('')
-
+const headerLogoUrl = ref('')
 function saveHeaderContent() {
-  updateSectionContent(props.section.id, { title: headerTitle.value, subtitle: headerSubtitle.value })
+  updateSectionContent(props.section.id, {
+    title: headerTitle.value,
+    subtitle: headerSubtitle.value,
+    logo: headerLogoUrl.value,
+  })
 }
 
 function saveHeaderSettings() {
   updateSectionSettings(props.section.id, {
-    cover_media_type: 'image',
     cover_media_value: headerCoverMediaValue.value,
-  })
-}
-
-// ─── Text ───
-const textHtml = ref('')
-
-function saveText() {
-  updateSectionContent(props.section.id, { body: textHtml.value })
-}
-
-// ─── Media ───
-const mediaType = ref<'image' | 'video'>('image')
-const mediaUrl = ref('')
-const mediaCaption = ref('')
-
-function saveMedia() {
-  updateSectionContent(props.section.id, {
-    media_type: mediaType.value,
-    url: mediaUrl.value,
-    caption: mediaCaption.value,
   })
 }
 
@@ -103,8 +94,42 @@ function saveListSectionTitle() {
 
 const listItems = computed(() => sortByPosition(((props.section.content as any)?.items ?? []) as ListItem[]))
 
+const listTreeNodes = computed<TreeNode[]>(() =>
+  listItems.value.map((item) => ({
+    id: item.id,
+    label: item.title,
+    icon: DocumentTextIcon,
+  }))
+)
+
+function handleListReorder(oldIndex: number, newIndex: number) {
+  if (oldIndex === newIndex) return
+  const items = listItems.value
+  const moved = items[oldIndex]
+  if (!moved) return
+  const remaining = items.filter((_, i) => i !== oldIndex)
+  const prevPos = remaining[newIndex - 1]?.position ?? null
+  const nextPos = remaining[newIndex]?.position ?? null
+  const newPosition = prevPos === null
+    ? generatePositionBefore(nextPos)
+    : nextPos === null
+      ? generatePositionAfter(prevPos)
+      : generatePositionBetween(prevPos, nextPos)
+  reorderListItem(props.section.id, moved.id, newPosition)
+}
+
+function handleListDelete(node: TreeNode) {
+  deleteListItem(props.section.id, node.id)
+}
+
+function handleListSettings(node: TreeNode) {
+  const item = listItems.value.find((i) => i.id === node.id)
+  if (item) openEditListItem(item)
+}
+
 const editingListItem = ref<ListItem | null>(null)
 const editListTitle = ref('')
+const editListSubtitle = ref('')
 const editListUrl = ref('')
 const editListDescription = ref('')
 const editListIcon = ref('')
@@ -112,6 +137,7 @@ const editListIcon = ref('')
 function openEditListItem(item: ListItem) {
   editingListItem.value = item
   editListTitle.value = item.title
+  editListSubtitle.value = item.subtitle
   editListUrl.value = item.url
   editListDescription.value = item.description
   editListIcon.value = item.icon
@@ -125,15 +151,12 @@ function saveListItem() {
   if (!editingListItem.value) return
   updateListItem(props.section.id, editingListItem.value.id, {
     title: editListTitle.value,
+    subtitle: editListSubtitle.value,
     url: editListUrl.value,
     description: editListDescription.value,
     icon: editListIcon.value,
   })
   closeEditListItem()
-}
-
-function duplicateListItem(item: ListItem) {
-  addListItem(props.section.id, { title: item.title, url: item.url, description: item.description, icon: item.icon })
 }
 
 // ─── Collection ───
@@ -145,18 +168,56 @@ function saveCollectionTitle() {
 
 const collection = computed(() => ((props.section.content as any)?.collections?.[0] ?? null) as Collection | null)
 const collectionItems = computed(() => collection.value ? sortByPosition(collection.value.items) : [])
+
+const collectionTreeNodes = computed<TreeNode[]>(() =>
+  collectionItems.value.map((item) => ({
+    id: item.id,
+    label: item.title,
+    icon: RectangleStackIcon,
+  }))
+)
+
+function handleCollectionReorder(oldIndex: number, newIndex: number) {
+  if (oldIndex === newIndex || !collection.value) return
+  const items = collectionItems.value
+  const moved = items[oldIndex]
+  if (!moved) return
+  const remaining = items.filter((_, i) => i !== oldIndex)
+  const prevPos = remaining[newIndex - 1]?.position ?? null
+  const nextPos = remaining[newIndex]?.position ?? null
+  const newPosition = prevPos === null
+    ? generatePositionBefore(nextPos)
+    : nextPos === null
+      ? generatePositionAfter(prevPos)
+      : generatePositionBetween(prevPos, nextPos)
+  reorderCollectionItem(props.section.id, collection.value.id, moved.id, newPosition)
+}
+
+function handleCollectionDelete(node: TreeNode) {
+  if (!collection.value) return
+  deleteCollectionItem(props.section.id, collection.value.id, node.id)
+}
+
+function handleCollectionSettings(node: TreeNode) {
+  const item = collectionItems.value.find((i) => i.id === node.id)
+  if (item) openEditItem(item)
+}
+
 const editingItem = ref<CollectionItem | null>(null)
 const editTitle = ref('')
+const editSubtitle = ref('')
 const editDescription = ref('')
 const editCollectionMediaUrl = ref('')
 const editContent = ref('')
 const editExternalUrl = ref('')
 const editRedirectEnabled = ref(false)
 const showContentEditor = ref(false)
+const showSetupCampaignModal = ref(false)
 
 function openEditItem(item: CollectionItem) {
   editingItem.value = item
   editTitle.value = item.title
+  editSubtitle.value = item.subtitle
   editDescription.value = item.description
   editCollectionMediaUrl.value = item.media_url
   editContent.value = item.content
@@ -173,6 +234,7 @@ function saveItem() {
   if (!editingItem.value || !collection.value) return
   updateCollectionItem(props.section.id, collection.value.id, editingItem.value.id, {
     title: editTitle.value,
+    subtitle: editSubtitle.value,
     description: editDescription.value,
     media_url: editCollectionMediaUrl.value,
     content: editContent.value,
@@ -184,7 +246,7 @@ function saveItem() {
 function duplicateItem(item: CollectionItem) {
   if (!collection.value) return
   addCollectionItem(props.section.id, collection.value.id, {
-    title: item.title, description: item.description, media_url: item.media_url,
+    title: item.title, subtitle: item.subtitle, description: item.description, media_url: item.media_url,
     content: item.content, external_url: item.external_url,
   })
 }
@@ -196,8 +258,13 @@ function deleteItem(item: CollectionItem) {
 
 function addItem() {
   if (!collection.value) return
-  const newItem = addCollectionItem(props.section.id, collection.value.id, { title: 'New item', description: '', media_url: '', content: '', external_url: '' })
+  const newItem = addCollectionItem(props.section.id, collection.value.id, { title: 'New item', subtitle: '', description: '', media_url: '', content: '', external_url: '' })
   if (newItem) openEditItem(newItem)
+}
+
+function addListItemAction() {
+  const newItem = addListItem(props.section.id, { title: 'New item', subtitle: '', url: 'https://', description: '', icon: '' })
+  if (newItem) openEditListItem(newItem)
 }
 
 // ─── Store ───
@@ -209,17 +276,46 @@ function saveStoreTitle() {
 
 const store = computed(() => ((props.section.content as any)?.stores?.[0] ?? null) as Store | null)
 const storeItems = computed(() => store.value ? sortByPosition(store.value.items) : [])
-const storeMode = ref<'products' | 'membership'>('products')
-const storeMembershipPrice = ref('')
 
-function saveStoreMode() {
-  if (!store.value) return
-  updateStore(props.section.id, store.value.id, { mode: storeMode.value })
+const storeTreeNodes = computed<TreeNode[]>(() =>
+  storeItems.value.map((item) => ({
+    id: item.id,
+    label: item.title,
+    icon: ShoppingBagIcon,
+  }))
+)
+
+function handleStoreReorder(oldIndex: number, newIndex: number) {
+  if (oldIndex === newIndex || !store.value) return
+  const items = storeItems.value
+  const moved = items[oldIndex]
+  if (!moved) return
+  const remaining = items.filter((_, i) => i !== oldIndex)
+  const prevPos = remaining[newIndex - 1]?.position ?? null
+  const nextPos = remaining[newIndex]?.position ?? null
+  const newPosition = prevPos === null
+    ? generatePositionBefore(nextPos)
+    : nextPos === null
+      ? generatePositionAfter(prevPos)
+      : generatePositionBetween(prevPos, nextPos)
+  reorderStoreItem(props.section.id, store.value.id, moved.id, newPosition)
 }
 
-function saveStoreMembershipPrice() {
+function handleStoreDelete(node: TreeNode) {
   if (!store.value) return
-  updateStore(props.section.id, store.value.id, { membership_price: parseFloat(storeMembershipPrice.value) || 0 })
+  deleteStoreItem(props.section.id, store.value.id, node.id)
+}
+
+function handleStoreSettings(node: TreeNode) {
+  const item = storeItems.value.find((i) => i.id === node.id)
+  if (item) openEditStoreItem(item)
+}
+
+// ─── Monetize ───
+const monetizePrice = ref('')
+function saveMonetizePrice() {
+  if (!collection.value) return
+  updateCollection(props.section.id, collection.value.id, { price: parseFloat(monetizePrice.value) || 0 })
 }
 
 const editingStoreItem = ref<StoreItem | null>(null)
@@ -361,25 +457,19 @@ function syncFromSection() {
   if (props.section.type === 'store') {
     const s = (props.section.content as any)?.stores?.[0] as Store | undefined
     storeTitle.value = s?.title ?? ''
-    storeMode.value = s?.mode ?? 'products'
-    storeMembershipPrice.value = s?.membership_price ? s.membership_price.toString() : ''
+  }
+  if (props.section.type === 'monetize') {
+    const c = (props.section.content as any)?.collections?.[0]
+    collectionTitle.value = c?.title ?? ''
+    monetizePrice.value = c?.price != null ? c.price.toString() : ''
   }
   if (props.section.type === 'header') {
     const c = props.section.content as HeaderContent | null
     const s = props.section.settings_json as HeaderSettings
     headerTitle.value = c?.title ?? ''
     headerSubtitle.value = c?.subtitle ?? ''
+    headerLogoUrl.value = c?.logo ?? ''
     headerCoverMediaValue.value = s?.cover_media_value ?? ''
-  }
-  if (props.section.type === 'text') {
-    const raw = (props.section.content as TextContent | null)?.body ?? ''
-    textHtml.value = raw.startsWith('<') ? raw : renderMarkdown(raw)
-  }
-  if (props.section.type === 'media') {
-    const c = props.section.content as MediaContent | null
-    mediaType.value = c?.media_type ?? 'image'
-    mediaUrl.value = c?.url ?? ''
-    mediaCaption.value = c?.caption ?? ''
   }
   if (props.section.type === 'content_media') {
     const c = props.section.content as ContentMediaContent | null
@@ -447,7 +537,7 @@ function saveSubItem() {
 
 watch(isEditingSubItem, (val) => emit('editing-change', val))
 
-defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubItem, addItem, addStoreItem: addStoreItemAction })
+defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubItem, addItem, addListItem: addListItemAction, addStoreItem: addStoreItemAction })
 </script>
 
 <template>
@@ -471,204 +561,258 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
 
   <div class="max-h-[70vh] overflow-y-auto overflow-x-hidden">
   <Transition :name="isEditingSubItem ? 'modal-forward' : 'modal-back'" mode="out-in">
-  <div :key="isEditingSubItem ? 'edit' : 'list'" class="p-4 flex flex-col gap-3">
+  <div :key="isEditingSubItem ? 'edit' : 'list'" class="flex flex-col gap-2 p-2">
 
       <!-- ── Header ── -->
       <template v-if="section.type === 'header'">
-        <BaseUpload
-          type="image"
-          size="sm"
-          label="Cover image"
-          v-model="headerCoverMediaValue"
-          @update:modelValue="saveHeaderSettings"
-        />
-        <BaseInput size="sm" label="Title" v-model="headerTitle" @update:modelValue="saveHeaderContent" />
-        <BaseInput size="sm" label="Subtitle" v-model="headerSubtitle" @update:modelValue="saveHeaderContent" />
-
-      </template>
-
-      <!-- ── Text ── -->
-      <template v-else-if="section.type === 'text'">
-        <RichTextEditor v-model="textHtml" @update:modelValue="saveText" />
-      </template>
-
-      <!-- ── Media ── -->
-      <template v-else-if="section.type === 'media'">
-        <div class="flex gap-1 pb-3 border-b border-gray-100">
-          <button
-            v-for="opt in [{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]"
-            :key="opt.value"
-            class="flex-1 py-1 text-xs rounded-lg border transition-colors"
-            :class="mediaType === opt.value
-              ? 'border-gray-900 bg-gray-900 text-white'
-              : 'border-gray-200 text-gray-600 hover:border-gray-400'"
-            @click="mediaType = opt.value as 'image' | 'video'; saveMedia()"
-          >
-            {{ opt.label }}
-          </button>
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <BaseUpload type="image" size="sm" label="Logo" v-model="headerLogoUrl" @update:modelValue="saveHeaderContent" />
+          <BaseUpload type="image" size="sm" label="Cover image" v-model="headerCoverMediaValue" @update:modelValue="saveHeaderSettings" />
+          <BaseInput size="sm" label="Title" v-model="headerTitle" @update:modelValue="saveHeaderContent" />
+          <BaseInput size="sm" label="Subtitle" v-model="headerSubtitle" @update:modelValue="saveHeaderContent" />
         </div>
-        <BaseUpload v-if="mediaType === 'image'" type="image" size="sm" label="Image" v-model="mediaUrl" @update:modelValue="saveMedia" />
-        <BaseInput v-else size="sm" label="Video URL" v-model="mediaUrl" placeholder="YouTube or Vimeo URL" @update:modelValue="saveMedia" />
-        <BaseInput size="sm" label="Caption" v-model="mediaCaption" placeholder="Optional caption" @update:modelValue="saveMedia" />
       </template>
 
       <!-- ── Content + Media ── -->
       <template v-else-if="section.type === 'content_media'">
         <!-- Media type toggle -->
-        <div class="flex gap-1 pb-3 border-b border-gray-100">
-          <button
-            v-for="opt in [{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]"
-            :key="opt.value"
-            class="flex-1 py-1 text-xs rounded-lg border transition-colors"
-            :class="cmMediaType === opt.value
-              ? 'border-gray-900 bg-gray-900 text-white'
-              : 'border-gray-200 text-gray-600 hover:border-gray-400'"
-            @click="cmMediaType = opt.value as 'image' | 'video'; saveCm()"
-          >
-            {{ opt.label }}
-          </button>
-        </div>
-        <BaseUpload v-if="cmMediaType === 'image'" type="image" size="sm" label="Image" v-model="cmMediaUrl" @update:modelValue="saveCm" />
-        <BaseInput v-else size="sm" label="Video URL" v-model="cmMediaUrl" placeholder="YouTube or Vimeo URL" @update:modelValue="saveCm" />
-
-        <div class="border-t border-gray-100 pt-3 flex flex-col gap-3">
-          <BaseInput size="sm" label="Subtitle" v-model="cmSubtitle" placeholder="Eyebrow text" @update:modelValue="saveCm" />
-          <BaseInput size="sm" label="Title" v-model="cmTitle" placeholder="Your headline" @update:modelValue="saveCm" />
-          <BaseInput size="sm" label="Body" v-model="cmBody" placeholder="Supporting text" @update:modelValue="saveCm" />
-        </div>
-
-        <!-- Buttons -->
-        <div class="border-t border-gray-100 pt-3 flex flex-col gap-2">
-          <p class="text-xs font-medium text-gray-500">Buttons</p>
-          <div v-for="btn in cmButtons" :key="btn.id" class="flex items-center gap-2">
-            <BaseInput size="sm" label="" v-model="btn.label" placeholder="Label" class="flex-1" @update:modelValue="saveCm" />
-            <BaseInput size="sm" label="" v-model="btn.url" placeholder="https://..." class="flex-1" @update:modelValue="saveCm" />
-            <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeCmButton(btn.id)">
-              <TrashIcon class="h-3.5 w-3.5" />
+         
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <div class="flex gap-2">
+            <button
+              v-for="opt in [{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]"
+              :key="opt.value"
+              class="flex-1 py-1 text-xs rounded-lg border transition-colors"
+              :class="cmMediaType === opt.value
+                ? 'border-gray-900 bg-gray-900 text-white'
+                : 'border-gray-200 text-gray-600 hover:border-gray-400'"
+              @click="cmMediaType = opt.value as 'image' | 'video'; saveCm()"
+            >
+              {{ opt.label }}
             </button>
           </div>
-          <button
-            class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
-            @click="addCmButton"
-          >
-            <PlusIcon class="h-3.5 w-3.5" /> Add button
-          </button>
+          <BaseUpload v-if="cmMediaType === 'image'" type="image" size="sm" v-model="cmMediaUrl" @update:modelValue="saveCm" />
+          <BaseInput v-else size="sm" label="Video URL" v-model="cmMediaUrl" placeholder="YouTube or Vimeo URL" @update:modelValue="saveCm" />
+          <BaseInput size="sm" label="Title" v-model="cmTitle" placeholder="Your headline" @update:modelValue="saveCm" />
+          <BaseInput size="sm" label="Subtitle" v-model="cmSubtitle" placeholder="Eyebrow text" @update:modelValue="saveCm" />
+          <BaseInput size="sm" type="textarea" label="Body" v-model="cmBody" placeholder="Supporting text" @update:modelValue="saveCm" />
+          <div class="flex flex-col gap-2">
+            <div class="flex justify-between">
+              <p class="text-xs font-medium text-gray-500">Links</p>
+              <button
+                class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
+                @click="addCmButton"
+              >
+                <PlusIcon class="h-3.5 w-3.5" /> Add link
+              </button>
+            </div>
+            <div class="flex flex-col gap-2">
+              <p v-if="!cmButtons.length" class="text-xs text-gray-400">No links added</p>
+              <div v-for="btn in cmButtons" :key="btn.id" class="flex items-center gap-1">
+                <BaseInput size="sm" label="" v-model="btn.label" placeholder="Label" class="flex-1" @update:modelValue="saveCm" />
+                <BaseInput size="sm" label="" v-model="btn.url" placeholder="https://..." class="flex-1" @update:modelValue="saveCm" />
+                <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeCmButton(btn.id)">
+                  <TrashIcon class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </template>
 
       <!-- ── List — items list ── -->
       <template v-else-if="section.type === 'list' && !editingListItem">
-        <BaseInput size="sm" label="Section title" v-model="listSectionTitle" placeholder="My Links" @update:modelValue="saveListSectionTitle" />
-        <div class="flex flex-col">
-          <div
-            v-for="item in listItems"
-            :key="item.id"
-            class="flex items-center justify-between gap-1 py-2 border-b border-gray-100 last:border-0"
-          >
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium truncate">{{ item.title }}</p>
-              <p class="text-xs text-gray-400 truncate">{{ item.url }}</p>
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <BaseInput size="sm" label="Section title" v-model="listSectionTitle" placeholder="My Items" @update:modelValue="saveListSectionTitle" />
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-medium text-gray-500">List items</span>
+            <div v-if="listItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
+              <p class="text-xs text-gray-300">No items yet</p>
             </div>
-            <div class="flex items-center shrink-0">
-              <button class="text-gray-400 hover:text-gray-700 p-1" @click="openEditListItem(item)">
-                <PencilIcon class="h-3.5 w-3.5" />
-              </button>
-              <button class="text-gray-400 hover:text-gray-700 p-1" @click="duplicateListItem(item)">
-                <DocumentDuplicateIcon class="h-3.5 w-3.5" />
-              </button>
-              <button class="text-gray-400 hover:text-red-500 p-1" @click="deleteListItem(section.id, item.id)">
-                <TrashIcon class="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <BaseTree
+              v-else
+              :nodes="listTreeNodes"
+              @settings="handleListSettings"
+              @delete="handleListDelete"
+              @reorder="handleListReorder"
+            />
           </div>
+            <BaseButton variant="outline" size="sm" class="w-full" @click="addListItemAction">+ Add item</BaseButton>
         </div>
-        <button
-          class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
-          @click="openEditListItem(addListItem(section.id, { title: 'New link', url: 'https://', description: '', icon: '' }))"
-        >
-          <PlusIcon class="h-3.5 w-3.5" /> Add link
-        </button>
       </template>
 
       <!-- ── List — item edit form ── -->
       <template v-else-if="section.type === 'list' && editingListItem">
-        <BaseInput size="sm" label="Title" v-model="editListTitle" />
-        <BaseInput size="sm" label="URL" v-model="editListUrl" placeholder="https://..." />
-        <BaseInput size="sm" label="Description" v-model="editListDescription" />
-        <BaseUpload type="image" size="sm" label="Icon" v-model="editListIcon" />
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <BaseInput size="sm" label="Title" v-model="editListTitle" />
+          <BaseInput size="sm" label="Subtitle" v-model="editListSubtitle" />
+          <BaseInput size="sm" label="URL" v-model="editListUrl" placeholder="https://..." />
+          <BaseInput size="sm" type="textarea" label="Description" v-model="editListDescription" />
+        </div>
       </template>
 
       <!-- ── Collection — items list ── -->
       <template v-else-if="section.type === 'collection' && !editingItem">
+        
+        <div class="flex flex-col gap-4 p-2 pr-0">
         <BaseInput size="sm" label="Collection title" v-model="collectionTitle" placeholder="My Collection" @update:modelValue="saveCollectionTitle" />
-        <div class="flex flex-col gap-1">
-          <BaseItem
-            v-for="item in collectionItems"
-            :key="item.id"
-            :title="item.title"
-            :description="item.description || undefined"
-            action="Edit"
-            clickable
-            @click="openEditItem(item)"
-            @action="openEditItem(item)"
+        <div class="flex flex-col gap-2">
+          <span class="text-xs font-medium text-gray-500">Collection items</span>
+          <div v-if="collectionItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
+            <p class="text-xs text-gray-400">No items yet</p>
+          </div>
+          <BaseTree
+            v-else
+            :nodes="collectionTreeNodes"
+            @settings="handleCollectionSettings"
+            @delete="handleCollectionDelete"
+            @reorder="handleCollectionReorder"
+          />
+          </div>
+          <BaseButton variant="outline" size="sm" class="w-full" @click="addItem">+ Add item</BaseButton>
+        </div>
+      </template>
+
+            <!-- ── Collection — item edit form ── -->
+      <template v-else-if="section.type === 'collection' && editingItem">
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" /> 
+          <BaseInput size="sm" label="Title" v-model="editTitle" />
+          <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" />
+          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" />
+          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = '' }">
+            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." />
+          </BaseToggle>
+          <BaseItem v-if="!editRedirectEnabled" :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
+          <CollectionItemContentModal
+            v-if="showContentEditor"
+            v-model="editContent"
+            @close="showContentEditor = false"
           />
         </div>
       </template>
 
       <!-- ── Store — items list ── -->
       <template v-else-if="section.type === 'store' && !editingStoreItem">
-        <BaseInput size="sm" label="Title" v-model="storeTitle" placeholder="My Store" @update:modelValue="saveStoreTitle" />
-
-        <!-- Mode toggle -->
-        <div class="flex gap-1">
-          <button
-            v-for="opt in [{ value: 'products', label: 'Products' }, { value: 'membership', label: 'Membership' }]"
-            :key="opt.value"
-            type="button"
-            class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
-            :class="storeMode === opt.value
-              ? 'border-gray-900 bg-gray-900 text-white'
-              : 'border-gray-200 text-gray-600 hover:border-gray-400'"
-            @click="storeMode = opt.value as 'products' | 'membership'; saveStoreMode()"
-          >
-            {{ opt.label }}
-          </button>
-        </div>
-
-        <!-- Membership price -->
-        <BaseInput v-if="storeMode === 'membership'" size="sm" label="Monthly price" v-model="storeMembershipPrice" placeholder="0.00" @update:modelValue="saveStoreMembershipPrice" />
-
-        <!-- Items list -->
-        <div class="flex flex-col gap-1">
-          <BaseItem
-            v-for="item in storeItems"
-            :key="item.id"
-            :title="item.title"
-            :description="item.price > 0 ? `$${item.price.toFixed(2)}` : 'No price set'"
-            action="Edit"
-            clickable
-            @click="openEditStoreItem(item)"
-            @action="openEditStoreItem(item)"
-          />
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <template v-if="landStore.isStripeConnected">
+            <BaseInput size="sm" label="Title" v-model="storeTitle" placeholder="My Store" @update:modelValue="saveStoreTitle" />
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-medium text-gray-500">Products</span>
+              <div v-if="storeItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
+                <p class="text-xs text-gray-400">No products yet</p>
+              </div>
+              <BaseTree
+                v-else
+                :nodes="storeTreeNodes"
+                @settings="handleStoreSettings"
+                @delete="handleStoreDelete"
+                @reorder="handleStoreReorder"
+              />
+            </div>
+            <BaseButton variant="outline" size="sm" class="w-full" @click="addStoreItemAction">+ Add item</BaseButton>
+          </template>
+          <BaseCard :icon="ShoppingBagIcon" title="Store">
+            <template v-if="!landStore.isStripeConnected && storeItems.length === 0">
+              Sell your products directly from your landing page. Connect your Stripe account and start adding your products.
+            </template>
+            <template v-else-if="landStore.isStripeConnected && storeItems.length === 0">
+              Start adding your products to this store.
+            </template>
+            <template v-else>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                  <p class="text-xs text-gray-400">Orders</p>
+                  <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
+                  <p class="text-xs text-gray-400">total</p>
+                </div>
+                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                  <p class="text-xs text-gray-400">Revenue</p>
+                  <p class="text-xl font-semibold text-gray-900 leading-tight">$0</p>
+                  <p class="text-xs text-gray-400">this month</p>
+                </div>
+              </div>
+            </template>
+            <template #actions>
+              <BaseButton v-if="!landStore.isStripeConnected" size="sm" variant="solid" class="w-full justify-center" @click="appModals.openIntegrations('sell_monetize')">Connect your Stripe account</BaseButton>
+              <BaseButton v-else size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('orders')">View orders</BaseButton>
+            </template>
+          </BaseCard>
         </div>
       </template>
 
-      <!-- ── Store — item edit form (membership) ── -->
-      <template v-else-if="section.type === 'store' && editingStoreItem && editingStoreItem.type === 'membership'">
-        <BaseInput size="sm" label="Title" v-model="storeEditTitle" />
-        <BaseInput size="sm" label="Description" v-model="storeEditDescription" />
-        <BaseUpload type="image" size="sm" label="Image" v-model="storeEditImage" />
-        <BaseUpload type="file" size="sm" label="File" v-model="storeEditFileUrl" />
-        <div class="pt-1 border-t border-gray-100">
-          <BaseButton variant="remove" size="sm" class="w-full" @click="deleteStoreItem(section.id, store!.id, editingStoreItem.id); closeEditStoreItem()">Delete item</BaseButton>
+      <!-- ── Monetize — items list ── -->
+      <template v-else-if="section.type === 'monetize' && !editingItem">
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <template v-if="landStore.isStripeConnected">
+            <BaseInput size="sm" label="Collection title" v-model="collectionTitle" placeholder="Exclusive Content" @update:modelValue="saveCollectionTitle" />
+            <BaseInput size="sm" label="Price ($/month)" v-model="monetizePrice" placeholder="9.00" @update:modelValue="saveMonetizePrice" />
+            <div class="flex flex-col gap-2">
+              <span class="text-xs font-medium text-gray-500">Items</span>
+              <div v-if="collectionItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
+                <p class="text-xs text-gray-400">No items yet</p>
+              </div>
+              <BaseTree
+                v-else
+                :nodes="collectionTreeNodes"
+                @settings="handleCollectionSettings"
+                @delete="handleCollectionDelete"
+                @reorder="handleCollectionReorder"
+              />
+            </div>
+            <BaseButton variant="outline" size="sm" class="w-full" @click="addItem">+ Add item</BaseButton>
+          </template>
+          <BaseCard :icon="CreditCardIcon" title="Monetize">
+            <template v-if="!landStore.isStripeConnected && collectionItems.length === 0">
+              Earn money by offering monthly subscriptions to your visitors to access the content of this collection. Connect your Stripe account and start adding exclusive content to this collection.
+            </template>
+            <template v-else-if="landStore.isStripeConnected && collectionItems.length === 0">
+              Start adding your exclusive content to this collection.
+            </template>
+            <template v-else>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                  <p class="text-xs text-gray-400">Subscribers</p>
+                  <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
+                  <p class="text-xs text-gray-400">total</p>
+                </div>
+                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                  <p class="text-xs text-gray-400">Revenue</p>
+                  <p class="text-xl font-semibold text-gray-900 leading-tight">$0</p>
+                  <p class="text-xs text-gray-400">this month</p>
+                </div>
+              </div>
+            </template>
+            <template #actions>
+              <BaseButton v-if="!landStore.isStripeConnected" size="sm" variant="solid" class="w-full justify-center" @click="appModals.openIntegrations('sell_monetize')">Connect your Stripe account</BaseButton>
+              <BaseButton v-else size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('monetize')">View details</BaseButton>
+            </template>
+          </BaseCard>
         </div>
       </template>
+
+      <!-- ── Monetize — item edit form ── -->
+      <template v-else-if="section.type === 'monetize' && editingItem">
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" />
+          <BaseInput size="sm" label="Title" v-model="editTitle" />
+          <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" />
+          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" />
+          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = '' }">
+            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." />
+          </BaseToggle>
+          <BaseItem v-if="!editRedirectEnabled" :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
+          <CollectionItemContentModal v-if="showContentEditor" v-model="editContent" @close="showContentEditor = false" />
+        </div>
+      </template>
+
 
       <!-- ── Store — item edit form (product) ── -->
       <template v-else-if="section.type === 'store' && editingStoreItem">
+        <div class="flex flex-col gap-4 p-2 pr-02">
+        <BaseUpload type="image" size="sm" label="Cover" v-model="storeEditImage" />
         <BaseInput size="sm" label="Title" v-model="storeEditTitle" />
-        <BaseInput size="sm" label="Description" v-model="storeEditDescription" />
-        <BaseUpload type="image" size="sm" label="Image" v-model="storeEditImage" />
+        <BaseInput size="sm" type="textarea" label="Description" v-model="storeEditDescription" />
         <BaseInput size="sm" label="Price" v-model="storeEditPrice" placeholder="0.00" />
 
         <!-- Product type -->
@@ -718,53 +862,63 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
 
         <!-- Digital: file upload only -->
         <BaseUpload v-if="storeEditProductType === 'digital'" type="file" size="sm" label="File" v-model="storeEditFileUrl" />
-
-        <div class="pt-1 border-t border-gray-100">
-          <BaseButton variant="remove" size="sm" class="w-full" @click="deleteStoreItem(section.id, store!.id, editingStoreItem.id); closeEditStoreItem()">Delete item</BaseButton>
         </div>
       </template>
 
       <!-- ── Footer ── -->
       <template v-else-if="section.type === 'footer'">
-        <BaseUpload type="image" size="sm" label="Cover image" v-model="footerCoverMediaValue" @update:modelValue="saveFooterSettings" />
-        <BaseInput size="sm" label="Title" v-model="footerTitle" @update:modelValue="saveFooterContent" />
-        <BaseInput size="sm" label="Subtitle" v-model="footerSubtitle" @update:modelValue="saveFooterContent" />
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <BaseUpload type="image" size="sm" label="Cover image" v-model="footerCoverMediaValue" @update:modelValue="saveFooterSettings" />
+          <BaseInput size="sm" label="Title" v-model="footerTitle" @update:modelValue="saveFooterContent" />
+          <BaseInput size="sm" label="Subtitle" v-model="footerSubtitle" @update:modelValue="saveFooterContent" />
+        </div>
       </template>
 
       <!-- ── Campaign ── -->
       <template v-else-if="section.type === 'campaign'">
-        <BaseInput size="sm" label="Title" v-model="campaignTitle" @update:modelValue="saveCampaignContent" />
-        <BaseInput size="sm" label="Description" v-model="campaignDescription" @update:modelValue="saveCampaignContent" />
-        <BaseInput size="sm" label="Button label" v-model="campaignButtonLabel" @update:modelValue="saveCampaignContent" />
-        <BaseInput size="sm" label="Email placeholder" v-model="campaignPlaceholder" @update:modelValue="saveCampaignContent" />
-        <div class="border-t border-gray-100 pt-3">
-          <BaseToggle size="sm" label="Name field" description="Add a name field above the email" v-model="campaignShowNameField" @update:modelValue="saveCampaignSettings" />
-        </div>
-      </template>
-
-      <!-- ── Collection — item edit form ── -->
-      <template v-else-if="section.type === 'collection' && editingItem">
-        <BaseInput size="sm" label="Title" v-model="editTitle" />
-        <BaseInput size="sm" label="Description" v-model="editDescription" />
-        <BaseUpload type="image" size="sm" label="Image" v-model="editCollectionMediaUrl" />
-
-        <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = '' }">
-          <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." />
-        </BaseToggle>
-        <BaseItem v-if="!editRedirectEnabled" :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
-
-        <CollectionItemContentModal
-          v-if="showContentEditor"
-          v-model="editContent"
-          @close="showContentEditor = false"
-        />
-
-        <div class="pt-1 border-t border-gray-100">
-          <BaseButton variant="remove" size="sm" class="w-full" @click="deleteItem(editingItem); closeEditItem()">Delete item</BaseButton>
+        <div class="flex flex-col gap-4 p-2 pr-0">
+          <template v-if="campaignStore.isConnected">
+            <BaseInput size="sm" label="Title" v-model="campaignTitle" @update:modelValue="saveCampaignContent" />
+            <BaseInput size="sm" label="Description" v-model="campaignDescription" @update:modelValue="saveCampaignContent" />
+            <BaseInput size="sm" label="Button label" v-model="campaignButtonLabel" @update:modelValue="saveCampaignContent" />
+            <BaseInput size="sm" label="Email placeholder" v-model="campaignPlaceholder" @update:modelValue="saveCampaignContent" />
+            <div class="border-t border-gray-100 pt-3">
+              <BaseToggle size="sm" label="Name field" description="Add a name field above the email" v-model="campaignShowNameField" @update:modelValue="saveCampaignSettings" />
+            </div>
+          </template>
+          <BaseCard :icon="PuzzlePieceIcon" title="Campaign">
+            <template v-if="!campaignStore.isConnected">
+              Grow your audience by integrating Mailchimp, FloDesk or Brevo.
+            </template>
+            <template v-else>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                  <p class="text-xs text-gray-400">Subscribers</p>
+                  <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
+                  <p class="text-xs text-gray-400">total</p>
+                </div>
+                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                  <p class="text-xs text-gray-400">New</p>
+                  <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
+                  <p class="text-xs text-gray-400">this month</p>
+                </div>
+              </div>
+            </template>
+            <template #actions>
+              <BaseButton v-if="!campaignStore.isConnected" size="sm" variant="solid" class="w-full justify-center" @click="showSetupCampaignModal = true">Set up Campaign</BaseButton>
+              <BaseButton v-else size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('campaign')">View details</BaseButton>
+            </template>
+          </BaseCard>
         </div>
       </template>
 
     </div>
   </Transition>
   </div>
+
+  <Teleport to="body">
+    <Transition name="modal-center">
+      <SetupCampaignModal v-if="showSetupCampaignModal" @close="showSetupCampaignModal = false" />
+    </Transition>
+  </Teleport>
 </template>

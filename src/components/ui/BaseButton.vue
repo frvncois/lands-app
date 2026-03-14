@@ -19,8 +19,8 @@ const classes = computed(() => {
   const base = 'inline-flex items-center justify-center font-medium transition-all duration-fast rounded-xl cursor-pointer'
 
   const variants = {
-    ghost: 'text-gray-700 hover:bg-gray-100 active:bg-gray-200',
-    outline: 'text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-50',
+    ghost: 'bg-gray-white hover:bg-gray-50 active:bg-gray-100',
+    outline: 'text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-50 ',
     solid: 'text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-700',
     icon: 'text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:bg-gray-200',
     remove: 'text-red-600 border border-red-300 hover:bg-red-50 active:bg-red-100',

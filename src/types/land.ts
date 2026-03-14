@@ -15,6 +15,9 @@ export interface Land {
   theme: LandTheme
   plan: LandPlan
   collaborators: Collaborator[]
+  stripe_account_id: string | null
+  stripe_account_name: string | null
+  purpose?: string
   created_at: string
   updated_at: string
 }

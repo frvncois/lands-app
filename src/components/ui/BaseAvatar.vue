@@ -38,7 +38,7 @@ const initials = props.alt
 
 <template>
   <div class="flex items-center gap-4">
-    <div class="rounded-full overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center" :class="sizes[size].avatar">
+    <div class="rounded-full overflow-hidden shrink-0 bg-gray-200 flex items-center justify-center" :class="sizes[size].avatar">
       <img v-if="modelValue" :src="modelValue" :alt="alt" class="h-full w-full object-cover" />
       <span v-else class="font-medium text-gray-400" :class="sizes[size].initials">{{ initials }}</span>
     </div>

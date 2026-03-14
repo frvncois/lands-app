@@ -9,16 +9,13 @@ const settings = computed(() => props.section.settings_json as HeaderSettings)
 
 <template>
   <div class="flex flex-col">
-    <div class="relative h-[40em] overflow-hidden" style="background: var(--theme-accent)">
-      <img
-        v-if="settings.cover_media_value"
-        :src="settings.cover_media_value"
-        class="absolute inset-0 w-full h-full object-cover"
-      />
+    <div class="flex flex-col gap-6 justify-end h-[40em] p-16">
+      <img v-if="content?.logo" :src="content.logo" class="h-8 w-auto object-contain object-left" />
+      <h1 class="text-8xl font-semibold" style="color: var(--theme-main)">{{ content?.title }}</h1>
+      <h2 class="text-4xl" style="color: var(--theme-main); opacity: 0.5">{{ content?.subtitle }}</h2>
     </div>
-    <div class="flex flex-1 gap-2 justify-between items-end border-b py-4 px-6">
-      <h1 class="text-2xl font-semibold" style="color: var(--theme-main)">{{ content?.title }}</h1>
-      <h2 class="text-2xl" style="color: var(--theme-main); opacity: 0.5">{{ content?.subtitle }}</h2>
+    <div class="relative h-[40em] overflow-hidden" style="background: var(--theme-accent)">
+      <img v-if="settings.cover_media_value" :src="settings.cover_media_value" class="absolute inset-0 w-full h-full object-cover" />
     </div>
   </div>
 </template>

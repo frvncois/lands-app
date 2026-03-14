@@ -7,26 +7,26 @@ import {
   PencilSquareIcon,
   PuzzlePieceIcon,
   CloudArrowUpIcon,
-  Cog6ToothIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/vue/24/outline'
 import BaseMenu from '../ui/BaseMenu.vue';
-import PluginsModal from '../modals/PluginsModal.vue';
-import SettingsModal from '../modals/SettingsModal.vue';
-import EditorModal from '../modals/EditorModal.vue';
+import LandsLoading from './LandsLoading.vue';
+import IntegrationsModal from '../modals/IntegrationsModal.vue';
 import ConfirmLeaveModal from '../modals/ConfirmLeaveModal.vue';
 import ConfirmPublishedModal from '../modals/ConfirmPublishedModal.vue';
 import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
+import { useAppModals } from '@/stores/appModals'
 import { useThemeStore } from '@/stores/theme'
 import { useToast } from '@/composables/useToast'
 import { landService } from '@/services/land.service'
+import { publishService } from '@/services/publish.service'
 import authService from '@/services/auth.service'
-import type { Land } from '@/types/land'
-import type { LandTheme } from '@/types/theme'
 
-const activeModal = ref<'plugins' | 'settings' | null>(null)
+const appModals = useAppModals()
 const showLeaveModal = ref(false)
 const showPublishedModal = ref(false)
+const publishStatus = ref<'loading' | 'done' | 'error'>('loading')
 const pendingPath = ref<string | null>(null)
 const leaveContext = ref<'navigate' | 'close'>('navigate')
 
@@ -38,8 +38,6 @@ const route = useRoute()
 const router = useRouter()
 
 const isSaving = ref(false)
-let landSnapshot: Land | null = null
-let themeSnapshot: LandTheme | null = null
 
 async function save() {
   const land = landStore.activeLand
@@ -49,19 +47,21 @@ async function save() {
     await landService.save(land.id, {
       sections: land.sections,
       theme: themeStore.theme ?? land.theme,
+      title: land.title,
+      handle: land.handle,
     })
     editorStore.markClean()
-    landSnapshot = JSON.parse(JSON.stringify(landStore.activeLand))
-    themeSnapshot = themeStore.theme ? JSON.parse(JSON.stringify(themeStore.theme)) : null
+    editorStore.takeSnapshot(landStore.activeLand!, themeStore.theme)
+    addToast('Changes saved')
   } catch {
-    addToast('Failed to save — please try again')
+    addToast('Failed to save — please try again', 'error')
   } finally {
     isSaving.value = false
   }
 }
 
 watch(() => route.path, () => {
-  activeModal.value = null
+  appModals.close()
 })
 
 const removeGuard = router.beforeEach((to, from) => {
@@ -79,16 +79,13 @@ const removeGuard = router.beforeEach((to, from) => {
 onUnmounted(removeGuard)
 
 function enterEditor() {
-  activeModal.value = null
-  landSnapshot = JSON.parse(JSON.stringify(landStore.activeLand))
-  themeSnapshot = themeStore.theme ? JSON.parse(JSON.stringify(themeStore.theme)) : null
+  appModals.close()
+  editorStore.takeSnapshot(landStore.activeLand!, themeStore.theme)
   editorStore.enterEditMode()
 }
 
 function exitEditor() {
   editorStore.exitEditMode()
-  landSnapshot = null
-  themeSnapshot = null
 }
 
 function handleClose() {
@@ -102,11 +99,11 @@ function handleClose() {
 
 function discardChanges() {
   const land = landStore.activeLand
-  if (land && landSnapshot) {
-    landStore.updateLand(land.id, landSnapshot)
+  if (land && editorStore.landSnapshot) {
+    landStore.updateLand(land.id, editorStore.landSnapshot)
   }
-  if (themeSnapshot) {
-    themeStore.setTheme(themeSnapshot)
+  if (editorStore.themeSnapshot) {
+    themeStore.setTheme(editorStore.themeSnapshot)
   }
 }
 
@@ -127,8 +124,17 @@ function cancelLeave() {
 }
 
 async function publish() {
-  await save()
+  const land = landStore.activeLand
+  if (!land) return
+  publishStatus.value = 'loading'
   showPublishedModal.value = true
+  try {
+    await save()
+    await publishService.publish(land)
+    publishStatus.value = 'done'
+  } catch {
+    publishStatus.value = 'error'
+  }
 }
 
 function confirmPublished() {
@@ -136,9 +142,12 @@ function confirmPublished() {
   exitEditor()
 }
 
+const loggingOut = ref(false)
+
 async function handleLogout() {
+  loggingOut.value = true
   await authService.logout()
-  router.push('/auth')
+  setTimeout(() => router.push('/auth'), 1500)
 }
 </script>
 
@@ -152,13 +161,9 @@ async function handleLogout() {
 
           <!--Preview state-->
           <div v-if="!editorStore.isEditMode && route.path === '/dashboard'" class="flex space-x-2 items-center">
-              <BaseButton size="sm" variant="outline" :active="activeModal === 'plugins'" @click="activeModal = activeModal === 'plugins' ? null : 'plugins'">
+              <BaseButton size="sm" variant="outline" :active="appModals.activeModal === 'integrations'" @click="appModals.activeModal === 'integrations' ? appModals.close() : appModals.openIntegrations()">
                   <PuzzlePieceIcon class="h-4 w-4" />
-                  Plugins
-              </BaseButton>
-              <BaseButton size="sm" variant="outline" :active="activeModal === 'settings'" @click="activeModal = activeModal === 'settings' ? null : 'settings'">
-                  <Cog6ToothIcon class="h-4 w-4" />
-                  Settings
+                  Integrations
               </BaseButton>
               <BaseButton size="sm" variant="solid" @click="enterEditor">
                   <PencilSquareIcon class="h-4 w-4" />
@@ -166,43 +171,66 @@ async function handleLogout() {
               </BaseButton>
           </div>
 
+          <!--Account state-->
+          <div v-else-if="route.path.startsWith('/dashboard/account') || route.path.startsWith('/dashboard/plans')" class="flex space-x-2 items-center">
+              <BaseButton size="sm" variant="outline">
+                  <QuestionMarkCircleIcon class="h-4 w-4" />
+                  Need help?
+              </BaseButton>
+          </div>
+
           <!--Editor state-->
-          <div v-else-if="editorStore.isEditMode" class="flex space-x-2 items-center">
-              <BaseButton size="sm">
-                  <LinkIcon class="h-4 w-4" />
+          <div v-else-if="editorStore.isEditMode" class="flex">
+              <div class="flex justify-end gap-2">
+              <BaseButton size="sm" variant="ghost" class="text-gray-400 bg-gray-50">
+                  <LinkIcon class="h-3.5 w-3.5" />
                   {{ landStore.activeLand?.handle }}.lands.app
               </BaseButton>
-              <BaseButton size="sm" variant="outline" @click="handleClose">
-                  Close
-              </BaseButton>
-              <BaseButton size="sm" variant="outline" :disabled="isSaving" @click="save">
-                  {{ isSaving ? 'Saving…' : 'Save' }}
-              </BaseButton>
-              <BaseButton size="sm" variant="solid" :disabled="isSaving" @click="publish">
-                  <CloudArrowUpIcon class="h-4 w-4" />
-                  {{ isSaving ? 'Publishing…' : 'Publish' }}
-              </BaseButton>
+                <BaseButton size="sm" variant="ghost" @click="handleClose">
+                    Close Editor
+                </BaseButton>
+                <BaseButton size="sm" variant="outline" :disabled="isSaving" @click="save">
+                    {{ isSaving ? 'Saving…' : 'Save' }}
+                </BaseButton>
+                <BaseButton size="sm" variant="solid" :disabled="isSaving" @click="publish">
+                    <CloudArrowUpIcon class="h-4 w-4" />
+                    {{ isSaving ? 'Publishing…' : 'Publish' }}
+                </BaseButton>
+              </div>
           </div>
 
         </Transition>
 
-        <Transition name="modal-grow">
-          <PluginsModal v-if="activeModal === 'plugins'" @close="activeModal = null" />
+        <!-- Backdrop — closes any open modal on click outside -->
+        <Transition name="modal-fade">
+          <div
+            v-if="appModals.activeModal"
+            class="fixed inset-0 z-40"
+            @click="appModals.close()"
+          />
         </Transition>
+
         <Transition name="modal-grow">
-          <SettingsModal v-if="activeModal === 'settings'" @close="activeModal = null" />
+          <IntegrationsModal v-if="appModals.activeModal === 'integrations'" @close="appModals.close()" />
         </Transition>
-        <Transition name="modal-grow">
-          <EditorModal v-if="editorStore.isEditMode" />
-        </Transition>
+
         <Transition name="modal-center">
           <ConfirmLeaveModal v-if="showLeaveModal" @confirm="confirmLeave" @cancel="cancelLeave" />
         </Transition>
         <Transition name="modal-center">
-          <ConfirmPublishedModal v-if="showPublishedModal" @close="confirmPublished" />
+          <ConfirmPublishedModal v-if="showPublishedModal" :handle="landStore.activeLand?.handle ?? ''" :status="publishStatus" @close="confirmPublished" />
         </Transition>
 
 
 
     </header>
+
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div v-if="loggingOut" class="fixed inset-0 z-[9999] bg-white">
+          <LandsLoading />
+        </div>
+      </Transition>
+    </Teleport>
+
 </template>

@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import {
-  XMarkIcon, ArrowLeftIcon,
-  PhotoIcon, MusicalNoteIcon, ShoppingBagIcon, BuildingOfficeIcon,
-  DevicePhoneMobileIcon, TicketIcon, PencilIcon, UserIcon, BoltIcon,
-} from '@heroicons/vue/24/outline'
-import type { FunctionalComponent } from 'vue'
+import { XMarkIcon, ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
+import BaseModal from '../ui/BaseModal.vue'
 import { useLandStore } from '@/stores/land'
 import { landService } from '@/services/land.service'
+import { useToast } from '@/composables/useToast'
+
+const { addToast } = useToast()
 import { toSlug } from '@/lib/utils/slug'
 import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
 import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
+import { PURPOSE_OPTIONS, buildSectionContent, type Purpose } from '@/lib/primitives/purposeDefaults'
 import { generatePositionAfter } from '@/lib/utils/position'
 import { THEME_PRESETS, type ThemePreset } from '@/types/theme'
 import type { Section, SectionType } from '@/types/section'
+import type { Collection } from '@/types/collection'
+import type { Store } from '@/types/store'
 
 const emit = defineEmits<{ close: [] }>()
 const landStore = useLandStore()
@@ -38,81 +40,6 @@ function onHandleInput(e: Event) {
 }
 
 // ─── Step 2: Purpose ───
-type Purpose = 'portfolio' | 'artist' | 'product' | 'business' | 'creator' | 'event' | 'writing' | 'personal' | 'custom'
-
-interface PurposeOption {
-  id: Purpose
-  label: string
-  description: string
-  icon: FunctionalComponent
-  sections: SectionType[]
-}
-
-const PURPOSE_OPTIONS: PurposeOption[] = [
-  {
-    id: 'portfolio',
-    label: 'Portfolio',
-    description: 'Showcase your work and projects',
-    icon: PhotoIcon,
-    sections: ['header', 'collection', 'footer'],
-  },
-  {
-    id: 'artist',
-    label: 'Artist',
-    description: 'Share your visual art, music or creative practice',
-    icon: MusicalNoteIcon,
-    sections: ['header', 'media', 'collection', 'store', 'campaign', 'footer'],
-  },
-  {
-    id: 'product',
-    label: 'Product',
-    description: 'Sell products or digital goods',
-    icon: ShoppingBagIcon,
-    sections: ['header', 'text', 'store', 'campaign', 'footer'],
-  },
-  {
-    id: 'business',
-    label: 'Business',
-    description: 'Promote your company or service',
-    icon: BuildingOfficeIcon,
-    sections: ['header', 'text', 'list', 'campaign', 'footer'],
-  },
-  {
-    id: 'creator',
-    label: 'Creator',
-    description: 'Centralise your content and links',
-    icon: DevicePhoneMobileIcon,
-    sections: ['header', 'text', 'media', 'collection', 'store', 'list', 'footer'],
-  },
-  {
-    id: 'event',
-    label: 'Event',
-    description: 'Promote a conference, concert or meetup',
-    icon: TicketIcon,
-    sections: ['header', 'text', 'media', 'collection', 'store', 'campaign', 'footer'],
-  },
-  {
-    id: 'writing',
-    label: 'Writing',
-    description: 'Share articles, essays or newsletters',
-    icon: PencilIcon,
-    sections: ['header', 'list', 'collection', 'footer'],
-  },
-  {
-    id: 'personal',
-    label: 'Personal',
-    description: 'Your own corner of the internet',
-    icon: UserIcon,
-    sections: ['header', 'text', 'footer'],
-  },
-  {
-    id: 'custom',
-    label: 'Blank',
-    description: 'Start from scratch and build your own',
-    icon: BoltIcon,
-    sections: ['header', 'footer'],
-  },
-]
 
 const selectedPurpose = ref<Purpose | null>(null)
 
@@ -144,8 +71,8 @@ const THEME_OPTIONS = Object.values(THEME_PRESETS)
 const stepValid = computed(() => {
   if (step.value === 1) return title.value.trim().length > 0 && handle.value.trim().length > 0
   if (step.value === 2) return selectedPurpose.value !== null
-  if (step.value === 3) return selectedPalette.value !== null
-  if (step.value === 4) return selectedTheme.value !== null
+  if (step.value === 3) return selectedTheme.value !== null
+  if (step.value === 4) return selectedPalette.value !== null
   return false
 })
 
@@ -153,17 +80,27 @@ const stepValid = computed(() => {
 const isLoading = ref(false)
 const error = ref('')
 
-function buildSections(types: SectionType[], landId: string, projectTitle: string): Section[] {
+function buildSections(types: SectionType[], landId: string, projectTitle: string, purpose: Purpose): Section[] {
   const sections: Section[] = []
   let lastPos: string | null = null
+  const countByType: Partial<Record<SectionType, number>> = {}
+
   for (const type of types) {
     const defaults = SECTION_DEFAULTS[type]
     const pos = generatePositionAfter(lastPos)
     lastPos = pos
-    let content = defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {}
+
+    const existingCount = countByType[type] ?? 0
+    countByType[type] = existingCount + 1
+
+    let content: Record<string, unknown>
     if (type === 'header') {
-      content = { ...content, title: projectTitle, subtitle: 'A short tagline about what you do' }
+      content = { ...(defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
+    } else {
+      const seeded = buildSectionContent(purpose, type, existingCount)
+      content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {})
     }
+
     const section: Section = {
       id: crypto.randomUUID(),
       land_id: landId,
@@ -171,9 +108,24 @@ function buildSections(types: SectionType[], landId: string, projectTitle: strin
       position: pos,
       style_variant: defaults.style_variant,
       settings_json: { ...defaults.settings_json } as unknown as import('@/types/section').SectionSettings,
-      content,
+      content: content as unknown as Section['content'],
       created_at: new Date().toISOString(),
     }
+
+    // Patch section_id into seeded content
+    if (type === 'collection' || type === 'monetize') {
+      const col = (section.content as unknown as { collections: Collection[] }).collections?.[0]
+      if (col) col.section_id = section.id
+    }
+    if (type === 'store') {
+      const store = (section.content as unknown as { stores: Store[] }).stores?.[0]
+      if (store) store.section_id = section.id
+    }
+    if (type === 'list') {
+      const items = (section.content as unknown as { items: { section_id: string }[] }).items
+      if (items) items.forEach((item) => { item.section_id = section.id })
+    }
+
     sections.push(section)
   }
   return sections
@@ -193,7 +145,7 @@ async function create() {
       handle: handle.value.trim(),
     })
 
-    const sections = buildSections(purpose.sections, land.id, title.value.trim())
+    const sections = buildSections(purpose.sections, land.id, title.value.trim(), purpose.id)
     const theme = {
       theme_preset: selectedTheme.value!,
       typography_style: themeDef.defaults.typography_style,
@@ -204,10 +156,12 @@ async function create() {
 
     await landService.save(land.id, { sections, theme })
 
-    landStore.addLand({ ...land, sections, theme })
+    landStore.addLand({ ...land, sections, theme, purpose: purpose.id })
+    addToast('Project created')
     emit('close')
   } catch (e) {
     error.value = (e as Error).message
+    addToast('Failed to create project', 'error')
   } finally {
     isLoading.value = false
   }
@@ -224,8 +178,8 @@ function back() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/50 backdrop-blur-lg">
-    <div class="modal-card w-full mx-4 bg-white rounded-3xl max-w-[480px] overflow-hidden">
+  <BaseModal max-width="max-w-[480px]" padding="" @close="emit('close')">
+    <div>
 
       <!-- Header -->
       <div class="flex items-center justify-between px-6 pt-6 pb-4">
@@ -240,8 +194,8 @@ function back() {
           <h3 class="text-base font-semibold text-gray-900">
             <span v-if="step === 1">Create new Land</span>
             <span v-else-if="step === 2">What's it for?</span>
-            <span v-else-if="step === 3">Pick a palette</span>
-            <span v-else-if="step === 4">Choose a theme</span>
+            <span v-else-if="step === 3">Choose a theme</span>
+            <span v-else-if="step === 4">Pick a palette</span>
           </h3>
         </div>
         <button class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100" @click="$emit('close')">
@@ -301,7 +255,7 @@ function back() {
               : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
             @click="selectedPurpose = option.id"
           >
-            <div class="shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100">
+            <div class="shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-gray-200">
               <component :is="option.icon" class="h-4 w-4 text-gray-600" />
             </div>
             <div class="flex flex-col min-w-0">
@@ -312,32 +266,8 @@ function back() {
         </div>
       </div>
 
-      <!-- Step 3: Palette -->
+      <!-- Step 3: Theme -->
       <div v-else-if="step === 3" class="px-6 pb-6">
-        <div class="grid grid-cols-2 gap-3">
-          <button
-            v-for="palette in PALETTES"
-            :key="palette.id"
-            type="button"
-            class="flex flex-col gap-2 p-3 rounded-xl border text-left transition-all"
-            :class="selectedPalette === palette.id
-              ? 'border-gray-900 ring-2 ring-gray-900/10'
-              : 'border-gray-200 hover:border-gray-300'"
-            @click="selectedPalette = palette.id"
-          >
-            <!-- Color swatches -->
-            <div class="flex gap-1.5 h-8">
-              <div class="flex-1 rounded-md" :style="{ backgroundColor: palette.surface }" />
-              <div class="w-8 rounded-md" :style="{ backgroundColor: palette.main }" />
-              <div class="w-8 rounded-md" :style="{ backgroundColor: palette.accent }" />
-            </div>
-            <span class="text-xs font-medium text-gray-700">{{ palette.label }}</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 4: Theme -->
-      <div v-else-if="step === 4" class="px-6 pb-6">
         <div class="flex flex-col gap-2">
           <button
             v-for="themeKey in THEME_OPTIONS"
@@ -367,6 +297,29 @@ function back() {
         </div>
       </div>
 
+      <!-- Step 4: Palette -->
+      <div v-else-if="step === 4" class="px-6 pb-6">
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            v-for="palette in PALETTES"
+            :key="palette.id"
+            type="button"
+            class="flex flex-col gap-2 p-3 rounded-xl border text-left transition-all"
+            :class="selectedPalette === palette.id
+              ? 'border-gray-900 ring-2 ring-gray-900/10'
+              : 'border-gray-200 hover:border-gray-300'"
+            @click="selectedPalette = palette.id"
+          >
+            <div class="flex gap-1.5 h-8">
+              <div class="flex-1 rounded-md" :style="{ backgroundColor: palette.surface }" />
+              <div class="w-8 rounded-md" :style="{ backgroundColor: palette.main }" />
+              <div class="w-8 rounded-md" :style="{ backgroundColor: palette.accent }" />
+            </div>
+            <span class="text-xs font-medium text-gray-700">{{ palette.label }}</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Footer -->
       <div class="px-6 pb-6">
         <p v-if="error" class="text-sm text-red-500 mb-3">{{ error }}</p>
@@ -382,5 +335,5 @@ function back() {
       </div>
 
     </div>
-  </div>
+  </BaseModal>
 </template>

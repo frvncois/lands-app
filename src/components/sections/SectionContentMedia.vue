@@ -27,10 +27,10 @@ const displaySection = computed(() =>
         content: {
           media_type: 'image',
           media_url: '',
-          title: '[ Your headline here ]',
-          subtitle: '[ Subtitle ]',
-          body: '[ Add a short description to support your headline and guide readers. ]',
-          buttons: [{ id: 'mock-1', label: '[ Button ]', url: '#' }],
+          title: 'Lorem ipsum dolor',
+          subtitle: 'Sit amet consectetur',
+          body: 'Add a short description to support your headline and guide readers.',
+          buttons: [{ id: 'mock-1', label: 'Button', url: '#' }],
         },
       }
     : props.section

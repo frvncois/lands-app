@@ -1,31 +1,44 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon } from '@heroicons/vue/24/outline'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseButton from '../ui/BaseButton.vue'
-import PluginsSettingsModal, { type Plugin } from './PluginsSettingsModal.vue'
+import IntegrationSettingsModal, { type Integration } from './IntegrationSettingsModal.vue'
+import { useAppModals } from '@/stores/appModals'
 
 defineEmits<{ close: [] }>()
 
-const plugins: Plugin[] = [
+const appModals = useAppModals()
+
+const integrations: Integration[] = [
   { id: 'analytics',     title: 'Analytics',        description: 'Track visits and engagement',              icon: ChartBarIcon },
   { id: 'campaign',      title: 'Campaign',          description: 'Manage marketing campaigns',               icon: MegaphoneIcon },
   { id: 'collaborators', title: 'Collaborators',     description: 'Invite team members to your project',      icon: UsersIcon },
   { id: 'sell_monetize', title: 'Sell & Monetize',  description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
 ]
 
-const active = ref<Plugin | null>(null)
+const active = ref<Integration | null>(null)
+
+watch(() => appModals.activeIntegration, (id) => {
+  if (id) {
+    const integration = integrations.find(p => p.id === id)
+    if (integration) { direction.value = 'forward'; active.value = integration }
+  } else {
+    active.value = null
+  }
+}, { immediate: true })
 const direction = ref<'forward' | 'back'>('forward')
 const contentWrapper = ref<HTMLElement | null>(null)
 
-function goTo(plugin: Plugin) {
+function goTo(integration: Integration) {
   direction.value = 'forward'
-  active.value = plugin
+  active.value = integration
 }
 
 function goBack() {
   direction.value = 'back'
   active.value = null
+  appModals.activeIntegration = null
 }
 
 function onBeforeLeave() {
@@ -52,14 +65,14 @@ function onAfterEnter() {
 <template>
   <div class="fixed top-20 right-8 w-80 z-50 bg-white shadow-xl rounded-2xl overflow-hidden origin-top-right">
 
-    <!-- Unified header: title fades, buttons switch instantly -->
+    <!-- Unified header -->
     <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
       <div class="flex items-center gap-2">
         <Transition name="modal-fade" mode="out-in">
           <component :is="active?.icon ?? PuzzlePieceIcon" :key="active?.id ?? 'list'" class="h-4 w-4 text-gray-400" />
         </Transition>
         <Transition name="modal-title" mode="out-in">
-          <h2 :key="active?.id ?? 'list'" class="text-sm font-semibold text-gray-900">{{ active?.title ?? 'Plugins' }}</h2>
+          <h2 :key="active?.id ?? 'list'" class="text-sm font-semibold text-gray-900">{{ active?.title ?? 'Integrations' }}</h2>
         </Transition>
       </div>
       <div class="flex items-center gap-1 shrink-0">
@@ -82,8 +95,8 @@ function onAfterEnter() {
         @after-enter="onAfterEnter"
       >
         <div v-if="active" :key="active.id">
-          <PluginsSettingsModal
-            :plugin="active"
+          <IntegrationSettingsModal
+            :integration="active"
             :hide-header="true"
             @back="goBack"
             @save="goBack"
@@ -91,16 +104,15 @@ function onAfterEnter() {
         </div>
         <div v-else key="list" class="flex flex-col gap-2 p-4">
           <BaseItem
-            v-for="plugin in plugins"
-            :key="plugin.id"
+            v-for="integration in integrations"
+            :key="integration.id"
             clickable
-            :icon="plugin.icon"
-            :title="plugin.title"
-            :description="plugin.description"
-            @click="goTo(plugin)"
+            :icon="integration.icon"
+            :title="integration.title"
+            :description="integration.description"
+            @click="goTo(integration)"
           />
-            <BaseButton size="sm" variant="outline" class="mt-2">About plugins</BaseButton>
-
+          <BaseButton size="sm" variant="outline" class="mt-2">About integrations</BaseButton>
         </div>
       </Transition>
     </div>

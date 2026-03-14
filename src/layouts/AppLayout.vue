@@ -1,12 +1,40 @@
 <script setup lang="ts">
-import AppHeader from '@/components/shared/AppHeader.vue';
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import AppHeader from '@/components/shared/AppHeader.vue'
+
+const route = useRoute()
+const transitionName = ref('modal-forward')
+
+const routeDepth: Record<string, number> = {
+  '/dashboard': 0,
+  '/dashboard/account': 1,
+  '/dashboard/plans': 1,
+}
+
+let prevDepth = routeDepth[route.path] ?? 0
+
+watch(() => route.path, (next, prev) => {
+  const nextDepth = routeDepth[next] ?? 0
+  const prevD = routeDepth[prev] ?? prevDepth
+  transitionName.value = nextDepth >= prevD ? 'modal-forward' : 'modal-back'
+  prevDepth = nextDepth
+})
 </script>
 
 <template>
   <div class="grid h-screen grid-rows-[auto_1fr] overflow-hidden">
-    <AppHeader />
-    <main class="min-h-0 overflow-y-auto bg-neutral-100 rounded-xl m-2 mt-0">
-      <RouterView />
-    </main>
+    <Transition name="app-header" appear>
+      <AppHeader />
+    </Transition>
+    <Transition name="app-main" appear>
+      <main class="min-h-0 overflow-hidden m-2 mt-0">
+        <RouterView v-slot="{ Component }">
+          <Transition :name="transitionName" mode="out-in">
+            <component :is="Component" :key="route.path" />
+          </Transition>
+        </RouterView>
+      </main>
+    </Transition>
   </div>
 </template>

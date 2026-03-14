@@ -1,12 +1,20 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
-import { sectionPrimitives } from '@/sections/index'
-import type { SectionPrimitive } from '@/sections/index'
 import BaseItem from '@/components/ui/BaseItem.vue'
 import draggable from 'vuedraggable'
+import { sectionPrimitives } from '@/sections/index'
+import type { SectionPrimitive } from '@/sections/index'
 import type { TreeNode } from '@/components/ui/BaseTree.vue'
+import { usePlan } from '@/composables/usePlan'
+
+const { canAddSectionType } = usePlan()
 
 defineEmits<{ close: [], select: [id: string] }>()
+
+const addableSections = computed(() =>
+  sectionPrimitives.filter((s) => s.id !== 'header' && s.id !== 'footer' && canAddSectionType(s.id))
+)
 
 function cloneForDrop(section: SectionPrimitive): TreeNode {
   return {
@@ -19,7 +27,7 @@ function cloneForDrop(section: SectionPrimitive): TreeNode {
 </script>
 
 <template>
-  <div class="fixed top-20 right-[21rem] w-72 z-50 bg-white shadow-xl rounded-2xl">
+  <div class="fixed top-16 right-80 w-72 z-50 bg-white shadow-xl rounded-2xl mr-2">
     <div class="flex items-center justify-between p-4 border-b border-gray-200">
       <h2 class="text-sm font-semibold text-gray-900">Add section</h2>
       <button @click="$emit('close')">
@@ -27,21 +35,21 @@ function cloneForDrop(section: SectionPrimitive): TreeNode {
       </button>
     </div>
     <draggable
-      :list="sectionPrimitives"
+      :list="addableSections"
       :clone="cloneForDrop"
       item-key="id"
       :group="{ name: 'sections', pull: 'clone', put: false }"
       :sort="false"
-      class="flex flex-col gap-1 p-2"
+      class="flex flex-col gap-2 p-4"
     >
       <template #item="{ element }">
-        <div>
+        <div class="flex flex-col">
           <BaseItem
             :icon="element.icon"
             :title="element.label"
             :description="element.description"
             size="sm"
-            clickable
+            grab
             @click="$emit('select', element.id); $emit('close')"
           />
         </div>

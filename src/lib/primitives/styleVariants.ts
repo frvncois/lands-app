@@ -1,8 +1,6 @@
 import {
   SECTION_TYPES,
-  TEXT_STYLES,
   COLLECTION_DISPLAY_STYLES,
-  MEDIA_STYLES,
   LIST_STYLES,
   type SectionType,
 } from '@/types/section'
@@ -17,16 +15,6 @@ export const STYLE_VARIANTS_BY_SECTION: Record<SectionType, StyleVariantOption[]
     { value: 'below', label: 'Below' },
     { value: 'overlapping', label: 'Overlapping' },
     { value: 'overlay', label: 'Overlay' },
-  ],
-  [SECTION_TYPES.text]: [
-    { value: TEXT_STYLES.default, label: 'Default' },
-    { value: TEXT_STYLES.centered, label: 'Centered' },
-    { value: TEXT_STYLES.wide, label: 'Wide' },
-  ],
-  [SECTION_TYPES.media]: [
-    { value: MEDIA_STYLES.default, label: 'Default' },
-    { value: MEDIA_STYLES.fullwidth, label: 'Full Width' },
-    { value: MEDIA_STYLES.compact, label: 'Compact' },
   ],
   [SECTION_TYPES.content_media]: [
     { value: 'default', label: 'Default' },
@@ -44,6 +32,11 @@ export const STYLE_VARIANTS_BY_SECTION: Record<SectionType, StyleVariantOption[]
   [SECTION_TYPES.store]: [
     { value: COLLECTION_DISPLAY_STYLES.grid, label: 'Grid' },
     { value: COLLECTION_DISPLAY_STYLES.list, label: 'List' },
+  ],
+  [SECTION_TYPES.monetize]: [
+    { value: COLLECTION_DISPLAY_STYLES.grid, label: 'Grid' },
+    { value: COLLECTION_DISPLAY_STYLES.list, label: 'List' },
+    { value: COLLECTION_DISPLAY_STYLES.cards, label: 'Cards' },
   ],
   [SECTION_TYPES.campaign]: [
     { value: 'default', label: 'Default' },

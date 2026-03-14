@@ -6,7 +6,7 @@ const props = withDefaults(defineProps<{
   label: string
   modelValue?: string
   placeholder?: string
-  type?: 'text' | 'email' | 'password' | 'slug'
+  type?: 'text' | 'email' | 'password' | 'slug' | 'textarea'
   size?: 'sm' | 'md' | 'lg'
 }>(), {
   size: 'md',
@@ -34,7 +34,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 <template>
   <div class="flex flex-col gap-2 flex-1">
-    <span class="text-gray-700 shrink-0" :class="sizes[size].label">{{ label }}</span>
+    <span v-if="label" class="text-xs font-medium text-gray-500" :class="sizes[size].label">{{ label }}</span>
     <div class="relative">
       <div v-if="type === 'slug'" class="flex items-center border border-gray-300 focus-within:border-gray-400 focus-within:ring-4 focus-within:ring-gray-900/5 transition-colors" :class="sizes[size].slug">
         <input
@@ -46,6 +46,15 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
         />
         <span class="shrink-0 text-gray-400 pl-0.5">.lands.app</span>
       </div>
+      <textarea
+        v-else-if="type === 'textarea'"
+        class="w-full text-gray-900 bg-transparent border border-gray-300 focus:border-gray-400 focus:ring-4 focus:ring-gray-900/5 outline-none transition-colors placeholder:text-gray-300 resize-none"
+        :class="sizes[size].input"
+        rows="3"
+        :value="internal"
+        :placeholder="placeholder"
+        @input="onInput"
+      />
       <input
         v-else-if="type !== 'password'"
         class="w-full text-gray-900 bg-transparent border border-gray-300 focus:border-gray-400 focus:ring-4 focus:ring-gray-900/5 outline-none transition-colors placeholder:text-gray-300"

@@ -2,9 +2,12 @@
 import { ref, computed } from 'vue'
 import { XMarkIcon, ArrowUpTrayIcon, PhotoIcon, DocumentIcon } from '@heroicons/vue/24/outline'
 import { storageService } from '@/services/storage.service'
+import { useToast } from '@/composables/useToast'
+
+const { addToast } = useToast()
 
 const props = withDefaults(defineProps<{
-  label: string
+  label?: string
   modelValue?: string
   type?: 'image' | 'file'
   size?: 'sm' | 'md' | 'lg'
@@ -36,8 +39,8 @@ async function onFileChange(event: Event) {
   try {
     const url = await storageService.upload(file)
     emit('update:modelValue', url)
-  } catch (e) {
-    console.error('Upload failed:', e)
+  } catch {
+    addToast('Upload failed — please try again', 'error')
   } finally {
     isUploading.value = false
     if (inputRef.value) inputRef.value.value = ''
@@ -55,7 +58,7 @@ async function remove() {
 
 <template>
   <div class="flex flex-col gap-2 flex-1">
-    <span class="text-gray-700 shrink-0" :class="sizes[size].label">{{ label }}</span>
+    <span v-if="label" class="text-xs font-medium text-gray-500" :class="sizes[size].label">{{ label }}</span>
 
     <!-- Preview (image type with value) -->
     <div v-if="isImage && modelValue" class="relative rounded-xl overflow-hidden border border-gray-200 group" :class="sizes[size].preview">

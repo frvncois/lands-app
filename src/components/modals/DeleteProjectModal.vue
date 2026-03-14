@@ -2,9 +2,13 @@
 import { ref, computed } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
+import BaseModal from '../ui/BaseModal.vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { landService } from '@/services/land.service'
+import { useToast } from '@/composables/useToast'
+
+const { addToast } = useToast()
 
 const emit = defineEmits<{ close: []; deleted: [] }>()
 
@@ -27,10 +31,12 @@ async function handleDelete() {
     await landService.deleteLand(id)
     landStore.removeLand(id)
     editorStore.exitEditMode()
+    addToast('Project deleted')
     emit('deleted')
     emit('close')
   } catch (e) {
     error.value = (e as Error).message
+    addToast('Failed to delete project', 'error')
   } finally {
     isLoading.value = false
   }
@@ -38,8 +44,8 @@ async function handleDelete() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/50 backdrop-blur-lg">
-    <div class="modal-card w-full mx-4 bg-white rounded-3xl p-6 max-w-[400px]">
+  <BaseModal @close="$emit('close')">
+    <div>
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-gray-900">Delete project</h3>
         <button class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100" @click="$emit('close')">
@@ -67,5 +73,5 @@ async function handleDelete() {
         </div>
       </div>
     </div>
-  </div>
+  </BaseModal>
 </template>

@@ -7,11 +7,15 @@ import OnboardingLayout from '@/layouts/OnboardingLayout.vue'
 import ProjectView from '@/views/dashboard/ProjectView.vue'
 import AccountView from '@/views/dashboard/AccountView.vue'
 import PlansView from '@/views/dashboard/PlansView.vue'
+import SupportView from '@/views/dashboard/SupportView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
 import LostPasswordView from '@/views/auth/LostPasswordView.vue'
+import StripeCallbackView from '@/views/auth/StripeCallbackView.vue'
 import OnboardingView from '@/views/onboarding/OnboardingView.vue'
 import HomeView from '@/views/storefront/HomeView.vue'
+import CheckoutSuccessView from '@/views/checkout/CheckoutSuccessView.vue'
+import CheckoutCancelView from '@/views/checkout/CheckoutCancelView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +41,10 @@ const router = createRouter({
           path: 'plans',
           component: PlansView,
         },
+        {
+          path: 'support',
+          component: SupportView,
+        },
       ],
     },
     {
@@ -59,6 +67,18 @@ const router = createRouter({
       ],
     },
     {
+      path: '/auth/stripe/callback',
+      component: StripeCallbackView,
+    },
+    {
+      path: '/checkout/success',
+      component: CheckoutSuccessView,
+    },
+    {
+      path: '/checkout/cancel',
+      component: CheckoutCancelView,
+    },
+    {
       path: '/onboarding',
       component: OnboardingLayout,
       meta: { requiresAuth: true },
@@ -77,8 +97,10 @@ router.beforeEach(async (to) => {
   const userStore = useUserStore()
   let isAuthenticated = userStore.isAuthenticated
   if (!isAuthenticated) {
+    userStore.isLoading = true
     const { data: { session } } = await supabase.auth.getSession()
     isAuthenticated = !!session
+    userStore.isLoading = false
   }
 
   if (to.meta.requiresAuth && !isAuthenticated) return '/auth'

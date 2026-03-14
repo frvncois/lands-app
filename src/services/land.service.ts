@@ -49,7 +49,7 @@ export const landService = {
     return normalizeLand(data)
   },
 
-  async save(id: string, updates: { sections?: Land['sections']; theme?: Land['theme'] }): Promise<void> {
+  async save(id: string, updates: { sections?: Land['sections']; theme?: Land['theme']; title?: string; handle?: string }): Promise<void> {
     const { error } = await supabase
       .from('lands')
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -58,7 +58,7 @@ export const landService = {
     if (error) throw new Error(error.message)
   },
 
-  async updateLand(id: string, updates: Partial<Pick<Land, 'handle' | 'title' | 'description' | 'avatar_image' | 'cover_image'>>): Promise<void> {
+  async updateLand(id: string, updates: Partial<Pick<Land, 'handle' | 'title' | 'description' | 'avatar_image' | 'cover_image' | 'plan'>>): Promise<void> {
     const { error } = await supabase
       .from('lands')
       .update({ ...updates, updated_at: new Date().toISOString() })

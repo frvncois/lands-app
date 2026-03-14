@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import { GlobeAltIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline'
 import BaseInput from '../ui/BaseInput.vue'
-import BaseToggle from '../ui/BaseToggle.vue'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import { useLandStore } from '@/stores/land'
@@ -17,15 +16,12 @@ const { updateLandSettings } = useEditorActions()
 
 const title = ref(landStore.activeLand?.title ?? '')
 const url = ref(landStore.activeLand?.handle ?? '')
-const published = ref(false)
-const isPrivate = ref(false)
-const password = ref('')
 const showDomainModal = ref(false)
 const showDeleteModal = ref(false)
+
 function save() {
   updateLandSettings({ title: title.value, handle: url.value })
 }
-
 </script>
 
 <template>
@@ -43,10 +39,6 @@ function save() {
         <BaseInput size="sm" type="slug" label="URL" v-model="url" placeholder="my-project" />
         <BaseItem size="sm" :icon="GlobeAltIcon" title="Custom domain" description="Connect your own domain" action="Setup" @action="showDomainModal = true" />
       </div>
-      <BaseToggle size="sm" label="Published" description="Make your project visible to everyone" v-model="published" />
-      <BaseToggle size="sm" label="Private" description="Protect your project with a password" v-model="isPrivate">
-        <BaseInput size="sm" label="Password" v-model="password" placeholder="Enter a password" />
-      </BaseToggle>
       <BaseButton variant="solid" @click="save">Save</BaseButton>
       <BaseButton variant="remove" @click="showDeleteModal = true">Delete project</BaseButton>
     </div>

@@ -18,9 +18,14 @@ export const useThemeStore = defineStore('theme', () => {
     }
   }
 
+  function clearTheme() {
+    theme.value = null
+  }
+
   return {
     theme,
     setTheme,
     updateThemeField,
+    clearTheme,
   }
 })

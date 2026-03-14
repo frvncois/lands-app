@@ -2,7 +2,7 @@ import { faker } from '@faker-js/faker'
 import { generatePositions } from '@/lib/utils/position'
 import type { User } from '@/types/user'
 import type { LandTheme } from '@/types/theme'
-import type { Section, HeaderContent, TextContent, MediaContent } from '@/types/section'
+import type { Section, HeaderContent } from '@/types/section'
 import type { ListItem } from '@/types/list'
 import type { Collection, CollectionItem } from '@/types/collection'
 import type { Collaborator, CollaboratorRole, CollaboratorStatus } from '@/types/collaborator'
@@ -58,57 +58,6 @@ export function createMockHeaderSection(landId: string, position: string): Secti
       title: faker.person.fullName(),
       subtitle: faker.person.jobTitle(),
     } as HeaderContent,
-    created_at: faker.date.past().toISOString(),
-  }
-}
-
-export function createMockTextSection(landId: string, position: string): Section {
-  const paragraphs = faker.helpers.multiple(
-    () => faker.lorem.paragraph(),
-    { count: { min: 1, max: 3 } }
-  )
-  const body = [
-    `## ${faker.company.buzzPhrase()}`,
-    '',
-    paragraphs.join('\n\n'),
-    '',
-    `**${faker.lorem.sentence()}**`,
-    '',
-    `_${faker.lorem.sentence()}_`,
-    '',
-    `[${faker.company.name()}](https://example.com)`,
-  ].join('\n')
-
-  return {
-    id: faker.string.uuid(),
-    land_id: landId,
-    type: 'text',
-    position,
-    style_variant: faker.helpers.arrayElement(['default', 'centered', 'wide']),
-    settings_json: { style: 'default' },
-    content: { body } as TextContent,
-    created_at: faker.date.past().toISOString(),
-  }
-}
-
-export function createMockMediaSection(landId: string, position: string): Section {
-  const isVideo = faker.datatype.boolean()
-  const content: MediaContent = {
-    media_type: isVideo ? 'video' : 'image',
-    url: isVideo
-      ? 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-      : faker.image.urlPicsumPhotos({ width: 800, height: 600 }),
-    caption: faker.datatype.boolean() ? faker.lorem.sentence() : '',
-  }
-
-  return {
-    id: faker.string.uuid(),
-    land_id: landId,
-    type: 'media',
-    position,
-    style_variant: faker.helpers.arrayElement(['default', 'fullwidth', 'compact']),
-    settings_json: { style: 'default' },
-    content,
     created_at: faker.date.past().toISOString(),
   }
 }
@@ -294,6 +243,34 @@ export function createMockStoreSection(
   }
   const stores = [createMockStore(sectionId, generatePositions(1)[0]!)]
   return { section, stores }
+}
+
+export function createMockMonetizeSection(
+  landId: string,
+  position: string,
+): { section: Section; collections: Collection[] } {
+  const sectionId = faker.string.uuid()
+  const collectionId = faker.string.uuid()
+  const section: Section = {
+    id: sectionId,
+    land_id: landId,
+    type: 'monetize',
+    position,
+    style_variant: 'grid',
+    settings_json: { style: 'grid' },
+    content: null,
+    created_at: faker.date.past().toISOString(),
+  }
+  const collections: Collection[] = [{
+    id: collectionId,
+    section_id: sectionId,
+    title: faker.helpers.arrayElement(['Premium Access', 'Pro Content', 'Exclusive Collection']),
+    description: faker.lorem.sentence(),
+    price: faker.helpers.arrayElement([5, 9, 15, 19, 29]),
+    position: 'a',
+    items: createMockCollectionItems(collectionId, faker.number.int({ min: 2, max: 4 })),
+  }]
+  return { section, collections }
 }
 
 // ─── Collaborators ───

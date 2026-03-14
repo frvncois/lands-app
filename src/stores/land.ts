@@ -16,7 +16,12 @@ export const useLandStore = defineStore('land', () => {
 
   const landCount = computed(() => lands.value.length)
 
-  const canCreateLand = computed(() => lands.value.length < 100)
+  // Free: max 2 lands total. Upgrading any land to paid removes the cap.
+  const canCreateLand = computed(() => {
+    const hasPaid = lands.value.some((l) => l.plan === 'paid')
+    return hasPaid || lands.value.length < 2
+  })
+  const isStripeConnected = computed(() => !!activeLand.value?.stripe_account_id)
 
   function setLands(data: Land[]) {
     lands.value = data
@@ -63,6 +68,7 @@ export const useLandStore = defineStore('land', () => {
     activeLand,
     landCount,
     canCreateLand,
+    isStripeConnected,
     isLoading,
     error,
     setLands,

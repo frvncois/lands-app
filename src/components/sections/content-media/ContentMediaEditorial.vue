@@ -4,6 +4,7 @@ import type { Section, ContentMediaContent } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
 const c = computed(() => props.section.content as ContentMediaContent | null)
+const reversed = computed(() => props.section.style_variant === 'reversed')
 
 function getEmbedUrl(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/)
@@ -17,16 +18,16 @@ const embedUrl = computed(() => c.value?.media_type === 'video' ? getEmbedUrl(c.
 </script>
 
 <template>
-  <div class="px-6 py-10 flex flex-col gap-6">
+  <div class="px-6 py-10" :class="reversed ? 'flex flex-col-reverse gap-6' : 'flex flex-col gap-6'">
     <!-- Media full-width -->
-    <div class="w-full aspect-video overflow-hidden rounded-sm bg-gray-100">
+    <div class="w-full aspect-video overflow-hidden rounded-sm bg-gray-200">
       <img v-if="c?.media_type === 'image' && c.media_url" :src="c.media_url" class="w-full h-full object-cover" />
       <div v-else-if="c?.media_type === 'image'" class="w-full h-full flex items-center justify-center text-xs text-gray-400">Image</div>
       <iframe v-else-if="embedUrl" :src="embedUrl" class="w-full h-full" frameborder="0" allowfullscreen />
       <div v-else class="w-full h-full flex items-center justify-center text-xs text-gray-400">Video</div>
     </div>
 
-    <!-- Content below -->
+    <!-- Content -->
     <div class="flex flex-col gap-4 max-w-xl">
       <div class="flex flex-col gap-1">
         <p v-if="c?.subtitle" class="text-xs tracking-widest uppercase text-gray-400">{{ c.subtitle }}</p>

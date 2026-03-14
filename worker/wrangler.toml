@@ -1,0 +1,12 @@
+name = "lands-worker"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+account_id = "ed6289659dcacb7380998868e43fa46a"
+
+[[kv_namespaces]]
+binding = "LANDS_PAGES"
+id = "f3d4015701e4479f87c548d8daa78b69"
+
+[[routes]]
+pattern = "*.lands.app/*"
+zone_name = "lands.app"

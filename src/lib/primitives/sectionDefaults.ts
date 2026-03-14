@@ -1,8 +1,6 @@
 import {
   SECTION_TYPES,
-  TEXT_STYLES,
   COLLECTION_DISPLAY_STYLES,
-  MEDIA_STYLES,
   LIST_STYLES,
   HEADER_PROFILE_POSITIONS,
   HEADER_COVER_MEDIA_TYPES,
@@ -27,13 +25,8 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
     content: {
       title: '',
       subtitle: '',
-    },
-  },
-  [SECTION_TYPES.text]: {
-    style_variant: TEXT_STYLES.default,
-    settings_json: { style: TEXT_STYLES.default },
-    content: {
-      body: '',
+      logo: '',
+      buttons: [],
     },
   },
   [SECTION_TYPES.collection]: {
@@ -42,6 +35,11 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
     content: null,
   },
   [SECTION_TYPES.store]: {
+    style_variant: COLLECTION_DISPLAY_STYLES.grid,
+    settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
+    content: null,
+  },
+  [SECTION_TYPES.monetize]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
     content: null,
@@ -56,15 +54,6 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       subtitle: '',
       body: '',
       buttons: [],
-    },
-  },
-  [SECTION_TYPES.media]: {
-    style_variant: MEDIA_STYLES.default,
-    settings_json: { style: MEDIA_STYLES.default },
-    content: {
-      media_type: 'image',
-      url: '',
-      caption: '',
     },
   },
   [SECTION_TYPES.list]: {

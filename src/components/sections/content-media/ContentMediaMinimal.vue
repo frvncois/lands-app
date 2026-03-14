@@ -4,6 +4,7 @@ import type { Section, ContentMediaContent } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
 const c = computed(() => props.section.content as ContentMediaContent | null)
+const reversed = computed(() => props.section.style_variant === 'reversed')
 
 function getEmbedUrl(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/)
@@ -17,9 +18,9 @@ const embedUrl = computed(() => c.value?.media_type === 'video' ? getEmbedUrl(c.
 </script>
 
 <template>
-  <div class="px-6 py-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+  <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
     <!-- Media -->
-    <div class="rounded-xl overflow-hidden bg-gray-100 aspect-video">
+    <div class="rounded-xl overflow-hidden bg-gray-200 aspect-video" :class="reversed ? 'md:order-2' : 'md:order-1'">
       <img v-if="c?.media_type === 'image' && c.media_url" :src="c.media_url" class="w-full h-full object-cover" />
       <div v-else-if="c?.media_type === 'image'" class="w-full h-full flex items-center justify-center text-xs text-gray-400">Image</div>
       <iframe v-else-if="embedUrl" :src="embedUrl" class="w-full h-full" frameborder="0" allowfullscreen />
@@ -27,10 +28,10 @@ const embedUrl = computed(() => c.value?.media_type === 'video' ? getEmbedUrl(c.
     </div>
 
     <!-- Content -->
-    <div class="flex flex-col gap-4">
-      <div class="flex flex-col gap-1">
+    <div class="flex flex-col gap-4" :class="reversed ? 'md:order-1' : 'md:order-2'">
+      <div class="flex flex-col gap-2">
         <p v-if="c?.subtitle" class="text-xs font-medium uppercase tracking-widest text-gray-400">{{ c.subtitle }}</p>
-        <h2 v-if="c?.title" class="text-2xl font-bold text-gray-900">{{ c.title }}</h2>
+        <h2 v-if="c?.title" class="text-4xl font-medium text-gray-900">{{ c.title }}</h2>
         <p v-if="c?.body" class="text-sm text-gray-500 leading-relaxed">{{ c.body }}</p>
       </div>
       <div v-if="c?.buttons?.length" class="flex flex-wrap gap-2">

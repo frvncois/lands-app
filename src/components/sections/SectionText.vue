@@ -5,7 +5,7 @@ import type { Section, TextContent } from '@/types/section'
 import TextMinimal from './text/TextMinimal.vue'
 import TextBold from './text/TextBold.vue'
 import TextEditorial from './text/TextEditorial.vue'
-import { MOCK_TEXT_BODY } from '@/lib/primitives/mockSectionContent'
+import { MOCK_TEXT_CONTENT } from '@/lib/primitives/mockSectionContent'
 
 const props = defineProps<{ section: Section }>()
 const themeStore = useThemeStore()
@@ -18,11 +18,14 @@ const component = computed(() => {
   }
 })
 
-const isMock = computed(() => !((props.section.content as TextContent | null)?.body ?? '').trim())
+const isMock = computed(() => {
+  const c = props.section.content as TextContent | null
+  return !c || (!c.title?.trim() && !c.subtitle?.trim() && !c.body?.trim() && !c.buttons?.length)
+})
 
 const displaySection = computed(() =>
   isMock.value
-    ? { ...props.section, content: { ...(props.section.content as any), body: MOCK_TEXT_BODY } }
+    ? { ...props.section, content: MOCK_TEXT_CONTENT }
     : props.section
 )
 </script>

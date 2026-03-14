@@ -8,6 +8,7 @@ import { useThemeVars } from '@/composables/useThemeVars'
 import { useKeyboardShortcuts } from '@/composables/useKeyboard'
 import { userService } from '@/services/user.service'
 import { landService } from '@/services/land.service'
+import BaseToastContainer from '@/components/ui/BaseToastContainer.vue'
 
 const userStore = useUserStore()
 const landStore = useLandStore()
@@ -17,14 +18,19 @@ useThemeVars()
 useKeyboardShortcuts()
 
 async function loadUserData() {
-  const [user, lands] = await Promise.all([
-    userService.getMe(),
-    landService.getMyLands(),
-  ])
-  userStore.setUser(user)
-  landStore.setLands(lands)
-  if (landStore.activeLand?.theme) {
-    themeStore.setTheme(landStore.activeLand.theme)
+  landStore.isLoading = true
+  try {
+    const [user, lands] = await Promise.all([
+      userService.getMe(),
+      landService.getMyLands(),
+    ])
+    userStore.setUser(user)
+    landStore.setLands(lands)
+    if (landStore.activeLand?.theme) {
+      themeStore.setTheme(landStore.activeLand.theme)
+    }
+  } finally {
+    landStore.isLoading = false
   }
 }
 
@@ -33,11 +39,12 @@ onMounted(async () => {
   if (session) await loadUserData()
 
   supabase.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
+    if (event === 'SIGNED_IN' && session && !userStore.isAuthenticated) {
       await loadUserData()
     } else if (event === 'SIGNED_OUT') {
       userStore.clearUser()
       landStore.clearLands()
+      themeStore.clearTheme()
     }
   })
 })
@@ -45,4 +52,5 @@ onMounted(async () => {
 
 <template>
   <RouterView />
+  <BaseToastContainer />
 </template>

@@ -2,6 +2,7 @@ export interface CollectionItem {
   id: string
   collection_id: string
   title: string
+  subtitle: string
   description: string
   media_url: string
   content: string
@@ -15,6 +16,7 @@ export interface Collection {
   section_id: string
   title: string
   description: string
+  price?: number
   position: string // fractional index
   items: CollectionItem[]
 }

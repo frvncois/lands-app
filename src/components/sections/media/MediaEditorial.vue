@@ -14,11 +14,22 @@ function getEmbedUrl(url: string): string | null {
 }
 
 const embedUrl = computed(() => media.value?.media_type === 'video' ? getEmbedUrl(media.value.url) : null)
+const containerClass = computed(() => {
+  const v = props.section.style_variant
+  if (v === 'fullwidth') return 'p-0'
+  return 'px-6 py-6 flex flex-col gap-2'
+})
+const mediaClass = computed(() => {
+  const v = props.section.style_variant
+  if (v === 'fullwidth') return 'w-full overflow-hidden bg-gray-200 aspect-video'
+  if (v === 'compact') return 'w-full overflow-hidden rounded-sm bg-gray-200 max-h-48'
+  return 'w-full overflow-hidden rounded-sm bg-gray-200 aspect-video'
+})
 </script>
 
 <template>
-  <figure class="px-6 py-6 flex flex-col gap-2">
-    <div class="w-full overflow-hidden rounded-sm bg-gray-100 aspect-video">
+  <figure :class="containerClass">
+    <div :class="mediaClass">
       <img v-if="media?.media_type === 'image' && media.url" :src="media.url" class="w-full h-full object-cover" />
       <div v-else-if="media?.media_type === 'image'" class="w-full h-full flex items-center justify-center text-xs text-gray-400">Image</div>
       <iframe v-else-if="embedUrl" :src="embedUrl" class="w-full h-full" frameborder="0" allowfullscreen />

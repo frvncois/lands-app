@@ -3,22 +3,17 @@ import { ref, computed } from 'vue'
 import { EnvelopeIcon, TrashIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseBadge from '../ui/BaseBadge.vue'
+import BasePlanGate from '../ui/BasePlanGate.vue'
 import InviteCollaboratorModal from '../modals/InviteCollaboratorModal.vue'
 import { useCollaboratorActions } from '@/composables/useCollaboratorActions'
-import { useLandStore } from '@/stores/land'
-import { PLAN_DETAILS } from '@/types/plan'
+import { usePlan } from '@/composables/usePlan'
 
-const landStore = useLandStore()
 const { getCollaborators, remove, resendInvite } = useCollaboratorActions()
+const { canUseCollaborators } = usePlan()
 
 const showInviteModal = ref(false)
 
 const collaborators = computed(() => getCollaborators())
-
-const isPaid = computed(() => {
-  const plan = landStore.activeLand?.plan ?? 'free'
-  return PLAN_DETAILS[plan].plugins
-})
 
 const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
   active: 'success',
@@ -30,22 +25,17 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
 <template>
 
   <!-- Upgrade gate -->
-  <div v-if="!isPaid" class="flex flex-col items-center gap-3 py-8 px-4 text-center">
-    <div class="h-10 w-10 rounded-2xl bg-gray-100 flex items-center justify-center">
-      <EnvelopeIcon class="h-5 w-5 text-gray-400" />
-    </div>
-    <div class="flex flex-col gap-1">
-      <p class="text-sm font-semibold text-gray-900">Collaborators require a paid plan</p>
-      <p class="text-xs text-gray-400">Upgrade to invite team members to your land.</p>
-    </div>
-    <BaseButton variant="solid" size="sm">Upgrade to Paid — $4/mo</BaseButton>
-  </div>
+  <BasePlanGate
+    v-if="!canUseCollaborators"
+    title="Collaborators require a paid plan"
+    description="Upgrade to invite team members to your land."
+  />
 
   <!-- Paid: full UI -->
   <template v-else>
 
     <!-- Invite button row -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-100">
+    <div class="flex items-center justify-between p-4">
       <p class="text-xs font-medium text-gray-500">
         {{ collaborators.length ? `${collaborators.length} member${collaborators.length > 1 ? 's' : ''}` : 'No collaborators yet' }}
       </p>
@@ -56,14 +46,14 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
     </div>
 
     <!-- Collaborator list -->
-    <div class="flex flex-col p-4 gap-2">
+    <div class="flex flex-col p-4 pt-0 gap-2">
       <div
         v-for="c in collaborators"
         :key="c.id"
         class="flex items-center gap-2 p-2 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
       >
         <!-- Avatar initials -->
-        <div class="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+        <div class="h-7 w-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
           <span class="text-xs font-medium text-gray-500">{{ c.email[0]?.toUpperCase() }}</span>
         </div>
 

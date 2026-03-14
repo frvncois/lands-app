@@ -14,10 +14,15 @@ function getEmbedUrl(url: string): string | null {
 }
 
 const embedUrl = computed(() => media.value?.media_type === 'video' ? getEmbedUrl(media.value.url) : null)
+const mediaClass = computed(() =>
+  props.section.style_variant === 'compact'
+    ? 'w-full max-h-48 overflow-hidden'
+    : 'w-full aspect-video overflow-hidden'
+)
 </script>
 
 <template>
-  <div class="w-full aspect-video overflow-hidden" style="background: var(--theme-surface)">
+  <div :class="mediaClass" style="background: var(--theme-surface)">
     <img v-if="media?.media_type === 'image' && media.url" :src="media.url" class="w-full h-full object-cover" />
     <div v-else-if="media?.media_type === 'image'" class="w-full h-full flex items-center justify-center text-sm font-bold" style="color: var(--theme-main)">Image</div>
     <iframe v-else-if="embedUrl" :src="embedUrl" class="w-full h-full" frameborder="0" allowfullscreen />

@@ -1,11 +1,10 @@
 export const SECTION_TYPES = {
   header: 'header',
-  text: 'text',
-  media: 'media',
   content_media: 'content_media',
   list: 'list',
   collection: 'collection',
   store: 'store',
+  monetize: 'monetize',
   campaign: 'campaign',
   footer: 'footer',
 } as const
@@ -83,6 +82,10 @@ export interface StoreSettings {
   style: CollectionDisplayStyle
 }
 
+export interface MonetizeSettings {
+  style: CollectionDisplayStyle
+}
+
 export interface MediaSettings {
   style: MediaStyle
 }
@@ -104,6 +107,7 @@ export type SectionSettings =
   | TextSettings
   | CollectionSettings
   | StoreSettings
+  | MonetizeSettings
   | MediaSettings
   | ListSettings
   | CampaignSettings
@@ -114,10 +118,14 @@ export type SectionSettings =
 export interface HeaderContent {
   title: string
   subtitle: string
+  logo: string
 }
 
 export interface TextContent {
-  body: string // markdown
+  title: string
+  subtitle: string
+  body: string // rich text
+  buttons: ContentMediaButton[]
 }
 
 export const MEDIA_TYPES = {

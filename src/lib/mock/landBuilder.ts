@@ -8,11 +8,10 @@ import type { Collaborator } from '@/types/collaborator'
 import {
   createMockTheme,
   createMockHeaderSection,
-  createMockTextSection,
-  createMockMediaSection,
   createMockListSection,
   createMockCollectionSection,
   createMockStoreSection,
+  createMockFooterSection,
   createMockCollaborator,
 } from './generators'
 
@@ -32,12 +31,11 @@ export function buildMockLand(overrides?: Partial<Land>): MockLandData {
   const positions = generatePositions(5)
 
   const header = createMockHeaderSection(landId, positions[0]!)
-  const text = createMockTextSection(landId, positions[1]!)
-  const media = createMockMediaSection(landId, positions[2]!)
-  const { section: listSection, items: listItems } = createMockListSection(landId, positions[3]!)
-  const { section: collectionSection, collections } = createMockCollectionSection(landId, positions[4]!)
+  const { section: listSection, items: listItems } = createMockListSection(landId, positions[1]!)
+  const { section: collectionSection, collections } = createMockCollectionSection(landId, positions[2]!)
   const positions2 = generatePositions(1)
   const { section: storeSection, stores } = createMockStoreSection(landId, positions2[0]!)
+  const footer = createMockFooterSection(landId, positions[4]!)
 
   const collaborators = faker.helpers
     .multiple(() => createMockCollaborator(landId), { count: { min: 0, max: 3 } })
@@ -52,7 +50,7 @@ export function buildMockLand(overrides?: Partial<Land>): MockLandData {
     description: overrides?.description || faker.person.bio(),
     avatar_image: overrides?.avatar_image ?? faker.image.avatar(),
     cover_image: overrides?.cover_image ?? faker.image.urlPicsumPhotos({ width: 1200, height: 600 }),
-    sections: [header, text, media, listSection, collectionSection, storeSection],
+    sections: [header, listSection, collectionSection, storeSection, footer],
     theme: createMockTheme(landId, { theme_preset: 'minimal' }),
     plan: 'paid',
     collaborators,
@@ -78,7 +76,7 @@ export function buildMinimalMockLand(overrides?: Partial<Land>): MockLandData {
   const positions = generatePositions(2)
 
   const header = createMockHeaderSection(landId, positions[0]!)
-  const text = createMockTextSection(landId, positions[1]!)
+  const footer = createMockFooterSection(landId, positions[1]!)
 
   const land: Land = {
     id: landId,
@@ -88,7 +86,7 @@ export function buildMinimalMockLand(overrides?: Partial<Land>): MockLandData {
     description: '',
     avatar_image: '',
     cover_image: '',
-    sections: [header, text],
+    sections: [header, footer],
     theme: createMockTheme(landId, {
       theme_preset: 'minimal',
       color_main: '#18181B',

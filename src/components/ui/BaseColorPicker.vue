@@ -9,7 +9,7 @@ defineEmits<{ select: [color: string] }>()
 </script>
 
 <template>
-  <div class="absolute right-full top-0 mr-2 z-50 bg-white border border-gray-200 rounded-xl shadow-xl p-3 w-44">
+  <div class="bg-white border border-gray-200 rounded-xl shadow-xl p-3 w-44">
     <div class="grid grid-cols-5 gap-1.5">
       <button
         v-for="color in colors"

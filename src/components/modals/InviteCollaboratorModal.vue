@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
+import BaseModal from '../ui/BaseModal.vue'
 import { useCollaboratorActions } from '@/composables/useCollaboratorActions'
 import type { CollaboratorRole } from '@/types/collaborator'
 
@@ -27,8 +28,8 @@ function send() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-100/50 backdrop-blur-lg">
-    <div class="modal-card w-full mx-4 bg-white rounded-3xl p-6 max-w-[400px]">
+  <BaseModal @close="$emit('close')">
+    <div>
 
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold text-gray-900">Invite collaborator</h3>
@@ -67,7 +68,7 @@ function send() {
           </div>
           <p class="text-xs text-gray-400">
             <span v-if="role === 'editor'">Can edit content and settings.</span>
-            <span v-else>Can edit content, settings and manage plugins.</span>
+            <span v-else>Can edit content, settings and manage integrations.</span>
           </p>
         </div>
 
@@ -78,5 +79,5 @@ function send() {
       </div>
 
     </div>
-  </div>
+  </BaseModal>
 </template>
