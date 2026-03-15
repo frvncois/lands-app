@@ -2,6 +2,7 @@ import { faker } from '@faker-js/faker'
 import { generatePositions } from '@/lib/utils/position'
 import type { User } from '@/types/user'
 import type { LandTheme } from '@/types/theme'
+import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
 import type { Section, HeaderContent } from '@/types/section'
 import type { ListItem } from '@/types/list'
 import type { Collection, CollectionItem } from '@/types/collection'
@@ -25,18 +26,22 @@ export function createMockUser(overrides?: Partial<User>): User {
 // ─── Theme ───
 
 const PRESET_OPTIONS = ['minimal', 'bold', 'editorial'] as const
-const TYPO_OPTIONS = ['sans', 'serif', 'mono'] as const
 const MAIN_COLORS = ['#18181B', '#2563EB', '#1E1E1E', '#7C3AED']
 const ACCENT_COLORS = ['#6366F1', '#F59E0B', '#EC4899', '#0891B2', '#B45309']
 const SURFACE_COLORS = ['#F4F4F5', '#FAF9F6', '#1E293B', '#FEF3C7']
 
 export function createMockTheme(_landId?: string, overrides?: Partial<LandTheme>): LandTheme {
+  const preset = faker.helpers.arrayElement([...PRESET_OPTIONS])
+  const presetDef = THEME_PRESET_DEFINITIONS[preset]
+  const titleFont = faker.helpers.arrayElement(presetDef.fonts.title)
+  const bodyFont = faker.helpers.arrayElement(presetDef.fonts.body)
   return {
-    theme_preset: faker.helpers.arrayElement([...PRESET_OPTIONS]),
+    theme_preset: preset,
     color_main: faker.helpers.arrayElement(MAIN_COLORS),
     color_accent: faker.helpers.arrayElement(ACCENT_COLORS),
     color_surface: faker.helpers.arrayElement(SURFACE_COLORS),
-    typography_style: faker.helpers.arrayElement([...TYPO_OPTIONS]),
+    font_title: titleFont.fontFamily,
+    font_body: bodyFont.fontFamily,
     ...overrides,
   }
 }
@@ -83,6 +88,7 @@ export function createMockListItems(sectionId: string, count: number = 5): ListI
       id: faker.string.uuid(),
       section_id: sectionId,
       title: site.title,
+      subtitle: '',
       url: `${site.url}/${faker.internet.username()}`,
       description: faker.datatype.boolean() ? faker.lorem.sentence() : '',
       icon: '',
@@ -119,6 +125,7 @@ export function createMockCollectionItems(
     id: faker.string.uuid(),
     collection_id: collectionId,
     title: faker.commerce.productName(),
+    subtitle: '',
     description: faker.lorem.sentence(),
     media_url: faker.datatype.boolean({ probability: 0.8 })
       ? faker.image.urlPicsumPhotos({ width: 600, height: 400 })

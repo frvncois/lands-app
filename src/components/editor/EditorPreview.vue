@@ -6,6 +6,7 @@ import { useEditorStore } from '@/stores/editor'
 import { sortByPosition, generatePositionBetween, generatePositionBefore, generatePositionAfter } from '@/lib/utils/position'
 import { useEditorActions } from '@/composables/useEditorActions'
 import type { Section } from '@/types/section'
+import BaseContextMenu from '@/components/ui/BaseContextMenu.vue'
 import SectionHeader from '@/components/sections/SectionHeader.vue'
 import SectionContentMedia from '@/components/sections/SectionContentMedia.vue'
 import SectionList from '@/components/sections/SectionList.vue'
@@ -73,17 +74,30 @@ function moveDown(section: Section) {
   reorderSection(section.id, generatePositionBetween(next.position, nextNext?.position ?? null))
 }
 
-function onMove(evt: { draggedContext: { element: Section }; relatedContext: { element: Section } }) {
+function onMove(evt: { draggedContext: { element: Section; futureIndex: number }; relatedContext: { element: Section } }) {
   const dragged = evt.draggedContext.element
   const related = evt.relatedContext?.element
   if (dragged.type === 'header' || dragged.type === 'footer') return false
   if (related?.type === 'header') return false
   if (related?.type === 'footer') return false
+  if (evt.draggedContext.futureIndex === 0) return false
   return true
 }
 
 function sectionComponent(section: Section) {
   return componentMap[section.type]
+}
+
+// Context menu
+const contextMenu = ref<{ x: number; y: number; section: Section; idx: number } | null>(null)
+
+function onContextMenu(e: MouseEvent, section: Section, idx: number) {
+  if (!isInteractive.value) return
+  contextMenu.value = { x: e.clientX, y: e.clientY, section, idx }
+}
+
+function closeContextMenu() {
+  contextMenu.value = null
 }
 
 function onDragEnd(event: { oldIndex: number; newIndex: number }) {
@@ -130,6 +144,7 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
           ? 'cursor-grab active:cursor-grabbing'
           : isInteractive ? 'cursor-pointer' : ''"
         @click="handleSectionClick(section)"
+        @contextmenu.prevent="onContextMenu($event, section, idx)"
       >
         <component :is="sectionComponent(section)" :section="section" style="font-family: var(--theme-font)" />
 
@@ -200,6 +215,23 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
   <div v-if="localSections.length === 0" class="flex items-center justify-center h-64 text-sm text-gray-400">
     No sections yet. Add one from the editor panel.
   </div>
+
+  <Teleport to="body">
+    <BaseContextMenu
+      v-if="contextMenu"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :locked="contextMenu.section.type === 'header' || contextMenu.section.type === 'footer'"
+      :can-move-up="contextMenu.idx > 0 && sections[contextMenu.idx - 1]?.type !== 'header'"
+      :can-move-down="contextMenu.idx < sections.length - 1 && sections[contextMenu.idx + 1]?.type !== 'footer'"
+      @edit="selectSection(contextMenu.section)"
+      @duplicate="duplicateSection(contextMenu.section.id)"
+      @move-up="moveUp(contextMenu.section)"
+      @move-down="moveDown(contextMenu.section)"
+      @delete="deleteSection(contextMenu.section.id)"
+      @close="closeContextMenu"
+    />
+  </Teleport>
   </div>
 </template>
 

@@ -24,9 +24,9 @@ watch(() => route.path, (next, prev) => {
 
 <template>
   <div class="grid h-screen grid-rows-[auto_1fr] overflow-hidden">
-    <Transition name="app-header" appear>
+    <div class="app-header-enter relative z-50">
       <AppHeader />
-    </Transition>
+    </div>
     <Transition name="app-main" appear>
       <main class="min-h-0 overflow-hidden m-2 mt-0">
         <RouterView v-slot="{ Component }">

@@ -39,9 +39,10 @@ function toggle(id: string) {
   collapsed.value.has(id) ? collapsed.value.delete(id) : collapsed.value.add(id)
 }
 
-function onMove(evt: { draggedContext: { element: TreeNode }; relatedContext: { element: TreeNode } }) {
+function onMove(evt: { draggedContext: { element: TreeNode; futureIndex: number }; relatedContext: { element: TreeNode } }) {
   if (evt.draggedContext.element.locked) return false
   if (evt.relatedContext?.element?.locked) return false
+  if (evt.draggedContext.futureIndex === 0) return false
   return true
 }
 

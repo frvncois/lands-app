@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { CreditCardIcon } from '@heroicons/vue/24/outline'
+import { CreditCardIcon, CurrencyDollarIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseToggle from '../ui/BaseToggle.vue'
@@ -49,35 +49,43 @@ function openStripeSettings() {
 <template>
   <div class="flex flex-col divide-y divide-gray-100">
 
-    <!-- Payment -->
-    <div class="p-4 flex flex-col gap-3">
+    <!-- Not connected: full-panel empty state -->
+    <div v-if="!landStore.isStripeConnected" class="flex flex-col items-center gap-3 py-8 px-4 text-center">
+      <div class="h-10 w-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+        <CurrencyDollarIcon class="h-4 w-4 text-gray-400" />
+      </div>
+      <div class="flex flex-col gap-1">
+        <p class="text-sm font-semibold text-gray-900">Sell & Monetize</p>
+        <p class="text-xs text-gray-400 leading-relaxed">Connect your Stripe account and start selling products, classes and exclusive content.</p>
+      </div>
+      <BaseButton variant="solid" size="sm" @click="connectStripe">
+        <CreditCardIcon class="h-3.5 w-3.5" /> Connect Stripe
+      </BaseButton>
+    </div>
+
+    <!-- Connected: settings -->
+    <div v-if="landStore.isStripeConnected" class="p-4 flex flex-col gap-3">
       <p class="text-xs font-medium text-gray-500">Payment</p>
-      <template v-if="landStore.isStripeConnected">
-        <BaseItem
-          :icon="CreditCardIcon"
-          title="Stripe"
-          :description="landStore.activeLand?.stripe_account_name ?? landStore.activeLand?.stripe_account_id ?? 'Connected'"
-          action="Settings"
-          size="sm"
-          @action="openStripeSettings"
-        />
-        <BaseButton variant="outline" size="sm" :disabled="isDisconnecting" @click="disconnectStripe">
-          {{ isDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
-        </BaseButton>
-      </template>
-      <template v-else>
-        <p class="text-xs text-gray-400 leading-relaxed">Connect Stripe to accept payments for your store items.</p>
-        <BaseButton variant="solid" size="sm" @click="connectStripe">Connect Stripe</BaseButton>
-      </template>
+      <BaseItem
+        :icon="CreditCardIcon"
+        title="Stripe"
+        :description="landStore.activeLand?.stripe_account_name ?? landStore.activeLand?.stripe_account_id ?? 'Connected'"
+        action="Settings"
+        size="sm"
+        @action="openStripeSettings"
+      />
+      <BaseButton variant="outline" size="sm" :disabled="isDisconnecting" @click="disconnectStripe">
+        {{ isDisconnecting ? 'Disconnecting…' : 'Disconnect' }}
+      </BaseButton>
     </div>
 
     <!-- Tax -->
-    <div class="p-4">
+    <div v-if="landStore.isStripeConnected" class="p-4">
       <BaseToggle size="sm" label="Collect tax" description="Automatically calculate and add tax to orders" v-model="taxEnabled" />
     </div>
 
     <!-- Orders -->
-    <div class="p-4">
+    <div v-if="landStore.isStripeConnected" class="p-4">
       <BaseButton variant="outline" size="sm" class="w-full justify-center" @click="appModals.openDashboardDetail('orders')">
         View Orders
       </BaseButton>

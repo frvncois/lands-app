@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseModal from '../ui/BaseModal.vue'
@@ -12,6 +13,7 @@ const { addToast } = useToast()
 
 const emit = defineEmits<{ close: []; deleted: [] }>()
 
+const router = useRouter()
 const landStore = useLandStore()
 const editorStore = useEditorStore()
 
@@ -34,6 +36,9 @@ async function handleDelete() {
     addToast('Project deleted')
     emit('deleted')
     emit('close')
+    if (landStore.lands.length === 0) {
+      router.push('/onboarding')
+    }
   } catch (e) {
     error.value = (e as Error).message
     addToast('Failed to delete project', 'error')

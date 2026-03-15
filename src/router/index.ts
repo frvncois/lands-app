@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useLandStore } from '@/stores/land'
 import { supabase } from '@/lib/supabase'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
@@ -105,6 +106,12 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAuth && !isAuthenticated) return '/auth'
   if (to.meta.requiresGuest && isAuthenticated) return '/dashboard'
+
+  // If authenticated user with lands tries to access onboarding, redirect to dashboard
+  if (to.path === '/onboarding' && isAuthenticated) {
+    const landStore = useLandStore()
+    if (landStore.lands.length > 0) return '/dashboard'
+  }
 })
 
 export default router

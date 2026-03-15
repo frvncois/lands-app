@@ -19,6 +19,7 @@ async function handleLogin() {
   try {
     await authService.login({ email: email.value, password: password.value })
     loading.value = true
+    authStore.signingIn = true
     setTimeout(() => router.push('/dashboard'), 1500)
   } catch (e) {
     authStore.setError((e as Error).message)

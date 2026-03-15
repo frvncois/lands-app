@@ -131,11 +131,16 @@ async function publish() {
   try {
     await save()
     await publishService.publish(land)
+    landStore.updateLand(land.id, { is_published: true })
     publishStatus.value = 'done'
   } catch {
     publishStatus.value = 'error'
   }
 }
+
+watch(() => appModals.publishTrigger, (val) => {
+  if (val > 0) publish()
+})
 
 function confirmPublished() {
   showPublishedModal.value = false

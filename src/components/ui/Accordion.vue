@@ -24,12 +24,12 @@ watch(() => props.open, (val) => { if (!val) isOpen.value = false })
       @click="() => { isOpen = !isOpen; if (isOpen) emit('open') }"
     >
       {{ label }}
-      <ChevronRightIcon class="h-3.5 w-3.5 text-gray-400 transition-transform duration-200" :class="{ 'rotate-90': isOpen }" />
+      <ChevronRightIcon class="h-3.5 w-3.5 text-gray-400 transition-transform duration-500" :class="{ 'rotate-90': isOpen }" />
     </button>
     <div
       :style="isOpen
-        ? { maxHeight: '600px', overflow: 'visible', transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), overflow 0s 0.35s' }
-        : { maxHeight: '0px',   overflow: 'hidden',  transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), overflow 0s' }"
+        ? { maxHeight: '600px', overflow: 'visible', transition: 'max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), overflow 0s 0.5s' }
+        : { maxHeight: '0px',   overflow: 'hidden',  transition: 'max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), overflow 0s' }"
     >
       <slot />
     </div>

@@ -5,6 +5,7 @@ import EditorPreview from '@/components/editor/EditorPreview.vue'
 import LandsDashboard from '@/components/dashboard/LandsDashboard.vue'
 import LandsLoading from '@/components/shared/LandsLoading.vue'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
+import OnboardingTour from '@/components/shared/OnboardingTour.vue'
 
 const editorStore = useEditorStore()
 const landStore = useLandStore()
@@ -14,7 +15,7 @@ const landStore = useLandStore()
   <div class="flex h-full">
     <!-- Left: dashboard sidebar -->
     <div
-      class="transition-[width] duration-300 ease-in-out overflow-hidden shrink-0 h-full"
+      class="transition-[width] duration-500 ease-in-out overflow-hidden shrink-0 h-full"
       :class="editorStore.isEditMode ? 'w-0' : 'w-72'"
     >
       <LandsDashboard />
@@ -30,18 +31,20 @@ const landStore = useLandStore()
 
     <!-- Right: editor sidebar -->
     <div
-      class="transition-[width] duration-300 ease-in-out overflow-hidden shrink-0 h-full"
+      class="transition-[width] duration-500 ease-in-out overflow-hidden shrink-0 h-full"
       :class="editorStore.isEditMode ? 'w-72' : 'w-0'"
     >
-      <EditorSidebar v-if="editorStore.isEditMode" />
+      <EditorSidebar />
     </div>
   </div>
+
+  <OnboardingTour />
 </template>
 
 <style scoped>
 .loading-fade-enter-active,
 .loading-fade-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.4s ease;
 }
 .loading-fade-enter-from,
 .loading-fade-leave-to {

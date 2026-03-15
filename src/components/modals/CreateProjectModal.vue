@@ -148,7 +148,8 @@ async function create() {
     const sections = buildSections(purpose.sections, land.id, title.value.trim(), purpose.id)
     const theme = {
       theme_preset: selectedTheme.value!,
-      typography_style: themeDef.defaults.typography_style,
+      font_title: themeDef.defaults.font_title,
+      font_body: themeDef.defaults.font_body,
       color_main: palette.main,
       color_accent: palette.accent,
       color_surface: palette.surface,

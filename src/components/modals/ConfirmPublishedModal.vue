@@ -117,7 +117,7 @@ async function share() {
 }
 
 .publish-fade-enter-active,
-.publish-fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
+.publish-fade-leave-active { transition: opacity 0.45s ease, transform 0.45s ease; }
 .publish-fade-enter-from   { opacity: 0; transform: scale(0.95); }
 .publish-fade-leave-to     { opacity: 0; transform: scale(1.05); }
 </style>

@@ -63,7 +63,7 @@ function onAfterEnter() {
 </script>
 
 <template>
-  <div class="fixed top-20 right-8 w-80 z-50 bg-white shadow-xl rounded-2xl overflow-hidden origin-top-right">
+  <div class="fixed top-20 right-8 w-80 z-50 bg-white shadow-xl rounded-2xl overflow-hidden origin-top-right border border-gray-200">
 
     <!-- Unified header -->
     <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">

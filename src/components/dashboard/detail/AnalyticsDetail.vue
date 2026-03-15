@@ -7,7 +7,7 @@ import { visitData, totalViews, avgPerDay, referrers, topClicked } from '@/lib/m
   <div class="flex flex-col gap-5 p-4">
 
     <!-- Summary -->
-    <div class="grid grid-cols-2 gap-2">
+    <div class="grid grid-cols-2 gap-2 card-appear" style="animation-delay: 0ms">
       <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
         <p class="text-xs text-gray-400">Total views</p>
         <p class="text-xl font-semibold text-gray-900 leading-tight">{{ totalViews.toLocaleString() }}</p>
@@ -21,13 +21,13 @@ import { visitData, totalViews, avgPerDay, referrers, topClicked } from '@/lib/m
     </div>
 
     <!-- Chart -->
-    <div class="rounded-xl bg-white border border-gray-100 p-3">
+    <div class="rounded-xl bg-white border border-gray-100 p-3 card-appear" style="animation-delay: 100ms">
       <p class="text-xs font-medium text-gray-500 mb-3">Views — last 30 days</p>
       <BaseChart :data="visitData" :height="100" />
     </div>
 
     <!-- Referrers -->
-    <div class="rounded-xl bg-white border border-gray-100 p-3">
+    <div class="rounded-xl bg-white border border-gray-100 p-3 card-appear" style="animation-delay: 200ms">
       <p class="text-xs font-medium text-gray-500 mb-3">Referrers</p>
       <div class="flex flex-col gap-2">
         <div v-for="r in referrers" :key="r.label" class="flex items-center gap-2">
@@ -44,7 +44,7 @@ import { visitData, totalViews, avgPerDay, referrers, topClicked } from '@/lib/m
     </div>
 
     <!-- Top clicked links -->
-    <div class="rounded-xl bg-white border border-gray-100 p-3">
+    <div class="rounded-xl bg-white border border-gray-100 p-3 card-appear" style="animation-delay: 300ms">
       <p class="text-xs font-medium text-gray-500 mb-3">Top clicked links</p>
       <div class="flex flex-col divide-y divide-gray-50">
         <div v-for="link in topClicked" :key="link.label" class="flex items-center justify-between py-2">
@@ -56,3 +56,14 @@ import { visitData, totalViews, avgPerDay, referrers, topClicked } from '@/lib/m
 
   </div>
 </template>
+
+<style scoped>
+.card-appear {
+  animation: card-fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes card-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>

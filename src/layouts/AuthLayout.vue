@@ -1,10 +1,27 @@
 <script setup lang="ts">
+import { ref, watch, onMounted } from 'vue'
 import LandsLogo from '@/assets/LandsLogo.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const expanded = ref(false)
+
+onMounted(() => {
+  expanded.value = false
+  authStore.signingIn = false
+})
+
+watch(() => authStore.signingIn, (val) => {
+  if (val) expanded.value = true
+})
 </script>
 
 <template>
   <main class="flex w-screen h-screen">
-    <div class="flex flex-col w-2xl p-16 overflow-hidden">
+    <div
+      class="flex flex-col p-16 bg-white overflow-hidden relative z-2 transition-[width] ease-in-out duration-700"
+      :class="expanded ? 'w-screen' : 'w-2xl'"
+    >
       <LandsLogo class="mb-8 shrink-0" />
       <RouterView v-slot="{ Component }">
         <Transition name="auth" mode="out-in">
@@ -12,7 +29,7 @@ import LandsLogo from '@/assets/LandsLogo.vue'
         </Transition>
       </RouterView>
     </div>
-    <div class="flex-1 bg-neutral-900">
+    <div class="flex-1 bg-neutral-900 fixed inset-0 z-1">
       Welcome
     </div>
   </main>
@@ -20,10 +37,10 @@ import LandsLogo from '@/assets/LandsLogo.vue'
 
 <style>
 .auth-enter-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .auth-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 .auth-enter-from {
   opacity: 0;

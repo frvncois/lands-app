@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { EnvelopeIcon, TrashIcon, ArrowPathIcon } from '@heroicons/vue/24/outline'
+import { EnvelopeIcon, TrashIcon, ArrowPathIcon, UserPlusIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseBadge from '../ui/BaseBadge.vue'
 import BasePlanGate from '../ui/BasePlanGate.vue'
@@ -34,10 +34,24 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
   <!-- Paid: full UI -->
   <template v-else>
 
+    <!-- Empty state -->
+    <div v-if="!collaborators.length" class="flex flex-col items-center gap-3 py-8 px-4 text-center">
+      <div class="h-10 w-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+        <UserPlusIcon class="h-4 w-4 text-gray-400" />
+      </div>
+      <div class="flex flex-col gap-1">
+        <p class="text-sm font-semibold text-gray-900">Invite a teammate</p>
+        <p class="text-xs text-gray-400 leading-relaxed">Collaborate on your land by inviting team members to view or edit your project.</p>
+      </div>
+      <BaseButton variant="solid" size="sm" @click="showInviteModal = true">
+        <EnvelopeIcon class="h-3.5 w-3.5" /> Invite collaborator
+      </BaseButton>
+    </div>
+
     <!-- Invite button row -->
-    <div class="flex items-center justify-between p-4">
+    <div v-else class="flex items-center justify-between p-4">
       <p class="text-xs font-medium text-gray-500">
-        {{ collaborators.length ? `${collaborators.length} member${collaborators.length > 1 ? 's' : ''}` : 'No collaborators yet' }}
+        {{ collaborators.length }} member{{ collaborators.length > 1 ? 's' : '' }}
       </p>
       <BaseButton variant="outline" size="xs" @click="showInviteModal = true">
         <EnvelopeIcon class="h-3.5 w-3.5" />
@@ -46,7 +60,7 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
     </div>
 
     <!-- Collaborator list -->
-    <div class="flex flex-col p-4 pt-0 gap-2">
+    <div v-if="collaborators.length" class="flex flex-col p-4 pt-0 gap-2">
       <div
         v-for="c in collaborators"
         :key="c.id"

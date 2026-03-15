@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
   const resetEmailSent = ref(false)
   const passwordResetSuccess = ref(false)
   const needsOnboarding = ref(false)
+  const signingIn = ref(false)
 
   function setLoading(loading: boolean) {
     isLoading.value = loading
@@ -36,6 +37,7 @@ export const useAuthStore = defineStore('auth', () => {
     resetEmailSent,
     passwordResetSuccess,
     needsOnboarding,
+    signingIn,
     setLoading,
     setError,
     clearError,

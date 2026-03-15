@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon, GlobeAltIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline'
+import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon, GlobeAltIcon, Cog6ToothIcon, RocketLaunchIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseTree from '../ui/BaseTree.vue'
 import BaseTab from '../ui/BaseTab.vue'
 import BaseColorInput from '../ui/BaseColorInput.vue'
+import BaseFont from '../ui/BaseFont.vue'
 import BaseInput from '../ui/BaseInput.vue'
 import BaseCard from '../ui/BaseCard.vue'
 import SectionSettingsModal from '@/components/modals/SectionSettingsModal.vue'
 import SectionsModal from '@/components/modals/SectionsModal.vue'
 import CustomDomainModal from '@/components/modals/CustomDomainModal.vue'
+import DeleteProjectModal from '@/components/modals/DeleteProjectModal.vue'
 import type { TreeNode } from '../ui/BaseTree.vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { useThemeStore } from '@/stores/theme'
 import { useEditorActions } from '@/composables/useEditorActions'
+import { usePlan } from '@/composables/usePlan'
 import { sortByPosition, generatePositionAfter, generatePositionBetween, generatePositionBefore } from '@/lib/utils/position'
 import type { SectionType } from '@/types/section'
 import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
@@ -24,6 +27,9 @@ const landStore = useLandStore()
 const editorStore = useEditorStore()
 const themeStore = useThemeStore()
 const { addSection, deleteSection, duplicateSection, reorderSection, updateTheme } = useEditorActions()
+const { isPaid } = usePlan()
+
+const showDeleteModal = ref(false)
 
 // ─── Section settings ───
 const showSections = ref(false)
@@ -33,7 +39,18 @@ const isSubItemEditing = ref(false)
 
 watch(() => editorStore.showSectionSettings, (val) => {
   direction.value = val ? 'forward' : 'back'
-  if (!val) { isSubItemEditing.value = false }
+  if (!val) {
+    isSubItemEditing.value = false
+    activeTab.value = 'content'
+    activeDesignPanel.value = null
+  }
+})
+
+watch(() => editorStore.isEditMode, (val) => {
+  if (!val) {
+    activeTab.value = 'content'
+    activeDesignPanel.value = null
+  }
 })
 
 function handleTreeSettings(node: TreeNode) {
@@ -109,10 +126,10 @@ const activeColorSlots = computed(() => {
   return THEME_PRESET_DEFINITIONS[preset].colorSlots
 })
 
-const activeTypographyOptions = computed(() => {
+const activeFontOptions = computed(() => {
   const preset = themeStore.theme?.theme_preset
-  if (!preset) return THEME_PRESET_DEFINITIONS.minimal.typographyOptions
-  return THEME_PRESET_DEFINITIONS[preset].typographyOptions
+  if (!preset) return THEME_PRESET_DEFINITIONS.minimal.fonts
+  return THEME_PRESET_DEFINITIONS[preset].fonts
 })
 
 function applyPreset(preset: typeof presets[number]) {
@@ -255,7 +272,6 @@ function handleAddSection(type: string) {
             <!-- Options tab: tree + settings card -->
             <div v-else-if="activeTab === 'design' && !activeDesignPanel" key="design-list" class="flex flex-col gap-8">
               <div class="flex flex-col gap-4">
-              <span class="text-xs font-medium text-gray-500">Sections</span>
               <BaseTree
                 :nodes="designNodes"
                 :group="{ name: 'design', pull: false, put: false }"
@@ -263,17 +279,33 @@ function handleAddSection(type: string) {
               />
               </div>
 
-              <BaseCard :icon="Cog6ToothIcon" title="Settings">
-                <div class="flex flex-col gap-2">
-                  <BaseInput size="sm" label="Project title" v-model="settingsTitle" placeholder="My project" @update:modelValue="onSettingsChange" />
-                  <BaseInput size="sm" type="slug" label="URL" v-model="settingsUrl" placeholder="my-project" @update:modelValue="onSettingsChange" />
-                </div>
-              </BaseCard>
+              <div class="space-y-2">
+                <BaseCard :icon="Cog6ToothIcon" title="Settings">
+                  <div class="flex flex-col gap-2">
+                    <BaseInput size="sm" label="Project title" v-model="settingsTitle" placeholder="My project" @update:modelValue="onSettingsChange" />
+                    <BaseInput size="sm" type="slug" label="URL" v-model="settingsUrl" placeholder="my-project" @update:modelValue="onSettingsChange" />
+                  </div>
+                </BaseCard>
                 <BaseCard :icon="GlobeAltIcon" title="Custom domain" description="Connect your own domain">
                   <template #actions>
                     <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="showDomainModal = true">Setup</BaseButton>
                   </template>
                 </BaseCard>
+
+                <!-- Upgrade card (free plan only) -->
+                <BaseCard v-if="!isPaid" :icon="RocketLaunchIcon" title="Upgrade to Pro" description="Unlock custom domains, campaign integrations, collaborators and more.">
+                  <template #actions>
+                    <BaseButton size="sm" variant="solid" class="w-full justify-center" @click="$router.push('/dashboard/plans')">Upgrade — $10/mo</BaseButton>
+                  </template>
+                </BaseCard>
+
+                <!-- Danger zone -->
+                <BaseCard :icon="TrashIcon" title="Danger zone" variant="danger">
+                  <template #actions>
+                    <BaseButton size="sm" variant="remove" class="w-full justify-center" @click="showDeleteModal = true">Delete project</BaseButton>
+                  </template>
+                </BaseCard>
+                </div>
             </div>
 
             <!-- Design sub-panel: Theme -->
@@ -311,18 +343,37 @@ function handleAddSection(type: string) {
             </div>
 
             <!-- Design sub-panel: Typography -->
-            <div v-else-if="activeDesignPanel === 'typography'" key="design-typography" class="flex gap-1">
-              <button
-                v-for="option in activeTypographyOptions"
-                :key="option.value"
-                class="flex-1 py-1.5 text-xs rounded-lg border transition-colors"
-                :class="themeStore.theme?.typography_style === option.value
-                  ? 'border-gray-900 bg-gray-900 text-white'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-400'"
-                @click="updateTheme({ typography_style: option.value })"
-              >
-                {{ option.label }}
-              </button>
+            <div v-else-if="activeDesignPanel === 'typography'" key="design-typography" class="flex flex-col gap-4">
+              <!-- Title fonts -->
+              <div>
+                <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2">Title</p>
+                <div class="flex flex-col gap-1.5">
+                  <BaseFont
+                    v-for="font in activeFontOptions.title"
+                    :key="font.id"
+                    :label="font.label"
+                    :fontFamily="font.fontFamily"
+                    :googleFont="font.googleFont"
+                    :active="themeStore.theme?.font_title === font.fontFamily"
+                    @click="updateTheme({ font_title: font.fontFamily })"
+                  />
+                </div>
+              </div>
+              <!-- Body fonts -->
+              <div>
+                <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2">Body</p>
+                <div class="flex flex-col gap-1.5">
+                  <BaseFont
+                    v-for="font in activeFontOptions.body"
+                    :key="font.id"
+                    :label="font.label"
+                    :fontFamily="font.fontFamily"
+                    :googleFont="font.googleFont"
+                    :active="themeStore.theme?.font_body === font.fontFamily"
+                    @click="updateTheme({ font_body: font.fontFamily })"
+                  />
+                </div>
+              </div>
             </div>
 
           </Transition>
@@ -338,6 +389,9 @@ function handleAddSection(type: string) {
     <Teleport to="body">
       <Transition name="modal-center">
         <CustomDomainModal v-if="showDomainModal" @close="showDomainModal = false" />
+      </Transition>
+      <Transition name="modal-center">
+        <DeleteProjectModal v-if="showDeleteModal" @close="showDeleteModal = false" />
       </Transition>
     </Teleport>
   </aside>

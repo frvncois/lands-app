@@ -122,6 +122,12 @@ function handleListDelete(node: TreeNode) {
   deleteListItem(props.section.id, node.id)
 }
 
+function handleListDuplicate(node: TreeNode) {
+  const item = listItems.value.find((i) => i.id === node.id)
+  if (!item) return
+  addListItem(props.section.id, { title: item.title, subtitle: item.subtitle, url: item.url, description: item.description, icon: item.icon })
+}
+
 function handleListSettings(node: TreeNode) {
   const item = listItems.value.find((i) => i.id === node.id)
   if (item) openEditListItem(item)
@@ -135,6 +141,7 @@ const editListDescription = ref('')
 const editListIcon = ref('')
 
 function openEditListItem(item: ListItem) {
+  takeSubItemSnapshot()
   editingListItem.value = item
   editListTitle.value = item.title
   editListSubtitle.value = item.subtitle
@@ -147,7 +154,7 @@ function closeEditListItem() {
   editingListItem.value = null
 }
 
-function saveListItem() {
+function syncListItem() {
   if (!editingListItem.value) return
   updateListItem(props.section.id, editingListItem.value.id, {
     title: editListTitle.value,
@@ -156,7 +163,6 @@ function saveListItem() {
     description: editListDescription.value,
     icon: editListIcon.value,
   })
-  closeEditListItem()
 }
 
 // ─── Collection ───
@@ -198,6 +204,11 @@ function handleCollectionDelete(node: TreeNode) {
   deleteCollectionItem(props.section.id, collection.value.id, node.id)
 }
 
+function handleCollectionDuplicate(node: TreeNode) {
+  const item = collectionItems.value.find((i) => i.id === node.id)
+  if (item) duplicateItem(item)
+}
+
 function handleCollectionSettings(node: TreeNode) {
   const item = collectionItems.value.find((i) => i.id === node.id)
   if (item) openEditItem(item)
@@ -215,6 +226,7 @@ const showContentEditor = ref(false)
 const showSetupCampaignModal = ref(false)
 
 function openEditItem(item: CollectionItem) {
+  takeSubItemSnapshot()
   editingItem.value = item
   editTitle.value = item.title
   editSubtitle.value = item.subtitle
@@ -230,7 +242,7 @@ function closeEditItem() {
   showContentEditor.value = false
 }
 
-function saveItem() {
+function syncCollectionItem() {
   if (!editingItem.value || !collection.value) return
   updateCollectionItem(props.section.id, collection.value.id, editingItem.value.id, {
     title: editTitle.value,
@@ -238,9 +250,8 @@ function saveItem() {
     description: editDescription.value,
     media_url: editCollectionMediaUrl.value,
     content: editContent.value,
-    external_url: editExternalUrl.value,
+    external_url: editRedirectEnabled.value ? editExternalUrl.value : '',
   })
-  closeEditItem()
 }
 
 function duplicateItem(item: CollectionItem) {
@@ -258,13 +269,31 @@ function deleteItem(item: CollectionItem) {
 
 function addItem() {
   if (!collection.value) return
+  takeSubItemSnapshot()
   const newItem = addCollectionItem(props.section.id, collection.value.id, { title: 'New item', subtitle: '', description: '', media_url: '', content: '', external_url: '' })
-  if (newItem) openEditItem(newItem)
+  if (newItem) {
+    editingItem.value = newItem
+    editTitle.value = newItem.title
+    editSubtitle.value = newItem.subtitle
+    editDescription.value = newItem.description
+    editCollectionMediaUrl.value = newItem.media_url
+    editContent.value = newItem.content
+    editExternalUrl.value = newItem.external_url
+    editRedirectEnabled.value = false
+  }
 }
 
 function addListItemAction() {
+  takeSubItemSnapshot()
   const newItem = addListItem(props.section.id, { title: 'New item', subtitle: '', url: 'https://', description: '', icon: '' })
-  if (newItem) openEditListItem(newItem)
+  if (newItem) {
+    editingListItem.value = newItem
+    editListTitle.value = newItem.title
+    editListSubtitle.value = newItem.subtitle
+    editListUrl.value = newItem.url
+    editListDescription.value = newItem.description
+    editListIcon.value = newItem.icon
+  }
 }
 
 // ─── Store ───
@@ -306,6 +335,16 @@ function handleStoreDelete(node: TreeNode) {
   deleteStoreItem(props.section.id, store.value.id, node.id)
 }
 
+function handleStoreDuplicate(node: TreeNode) {
+  const item = storeItems.value.find((i) => i.id === node.id)
+  if (!item || !store.value) return
+  addStoreItem(props.section.id, store.value.id, {
+    title: item.title, description: item.description, image: item.image,
+    price: item.price, variants: JSON.parse(JSON.stringify(item.variants)),
+    inventory: item.inventory, product_type: item.product_type, file_url: item.file_url,
+  })
+}
+
 function handleStoreSettings(node: TreeNode) {
   const item = storeItems.value.find((i) => i.id === node.id)
   if (item) openEditStoreItem(item)
@@ -329,6 +368,7 @@ const storeEditFileUrl = ref('')
 const storeEditVariants = ref<{ id: string; name: string; options: { value: string; inventory: number }[] }[]>([])
 
 function openEditStoreItem(item: StoreItem) {
+  takeSubItemSnapshot()
   editingStoreItem.value = item
   storeEditTitle.value = item.title
   storeEditDescription.value = item.description
@@ -344,7 +384,7 @@ function closeEditStoreItem() {
   editingStoreItem.value = null
 }
 
-function saveStoreItem() {
+function syncStoreItem() {
   if (!editingStoreItem.value || !store.value) return
   if (editingStoreItem.value.type === 'membership') {
     updateStoreItem(props.section.id, store.value.id, editingStoreItem.value.id, {
@@ -371,29 +411,43 @@ function saveStoreItem() {
         : [],
     })
   }
-  closeEditStoreItem()
 }
 
 function addStoreVariant() {
   storeEditVariants.value.push({ id: crypto.randomUUID(), name: '', options: [{ value: '', inventory: 0 }] })
+  syncStoreItem()
 }
 
 function addStoreVariantOption(variantIndex: number) {
   storeEditVariants.value[variantIndex]?.options.push({ value: '', inventory: 0 })
+  syncStoreItem()
 }
 
 function removeStoreVariantOption(variantIndex: number, optionIndex: number) {
   storeEditVariants.value[variantIndex]?.options.splice(optionIndex, 1)
+  syncStoreItem()
 }
 
 function removeStoreVariant(index: number) {
   storeEditVariants.value.splice(index, 1)
+  syncStoreItem()
 }
 
 function addStoreItemAction() {
   if (!store.value) return
+  takeSubItemSnapshot()
   const newItem = addStoreItem(props.section.id, store.value.id, { title: 'New item', description: '', image: '', price: 0, variants: [], inventory: 0, product_type: 'physical', file_url: '' })
-  if (newItem) openEditStoreItem(newItem)
+  if (newItem) {
+    editingStoreItem.value = newItem
+    storeEditTitle.value = newItem.title
+    storeEditDescription.value = newItem.description
+    storeEditImage.value = newItem.image
+    storeEditPrice.value = ''
+    storeEditProductType.value = newItem.product_type
+    storeEditInventory.value = ''
+    storeEditFileUrl.value = ''
+    storeEditVariants.value = []
+  }
 }
 
 // ─── Campaign ───
@@ -437,13 +491,22 @@ interface SectionSnapshot {
 }
 
 const snapshot = ref<SectionSnapshot | null>(null)
+const subItemSnapshot = ref<SectionSnapshot | null>(null)
 
-function takeSnapshot() {
-  snapshot.value = {
+function currentSnapshot(): SectionSnapshot {
+  return {
     content: JSON.parse(JSON.stringify(props.section.content ?? {})),
     settings_json: JSON.parse(JSON.stringify(props.section.settings_json ?? {})),
     style_variant: props.section.style_variant,
   }
+}
+
+function takeSnapshot() {
+  snapshot.value = currentSnapshot()
+}
+
+function takeSubItemSnapshot() {
+  subItemSnapshot.value = currentSnapshot()
 }
 
 // ─── Sync ───
@@ -524,15 +587,22 @@ function handleCancel() {
 const isEditingSubItem = computed(() => !!(editingItem.value || editingListItem.value || editingStoreItem.value))
 
 function closeSubItem() {
+  if (subItemSnapshot.value) {
+    restoreSectionSnapshot(props.section.id, subItemSnapshot.value)
+  }
+  subItemSnapshot.value = null
   if (editingItem.value) closeEditItem()
   else if (editingListItem.value) closeEditListItem()
   else if (editingStoreItem.value) closeEditStoreItem()
 }
 
 function saveSubItem() {
-  if (editingItem.value) saveItem()
-  else if (editingListItem.value) saveListItem()
-  else if (editingStoreItem.value) saveStoreItem()
+  // Data is already in store (real-time). Update global snapshot so "Back" doesn't revert this item.
+  takeSnapshot()
+  subItemSnapshot.value = null
+  if (editingItem.value) closeEditItem()
+  else if (editingListItem.value) closeEditListItem()
+  else if (editingStoreItem.value) closeEditStoreItem()
 }
 
 watch(isEditingSubItem, (val) => emit('editing-change', val))
@@ -634,6 +704,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
               :nodes="listTreeNodes"
               @settings="handleListSettings"
               @delete="handleListDelete"
+              @duplicate="handleListDuplicate"
               @reorder="handleListReorder"
             />
           </div>
@@ -644,10 +715,10 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <!-- ── List — item edit form ── -->
       <template v-else-if="section.type === 'list' && editingListItem">
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <BaseInput size="sm" label="Title" v-model="editListTitle" />
-          <BaseInput size="sm" label="Subtitle" v-model="editListSubtitle" />
-          <BaseInput size="sm" label="URL" v-model="editListUrl" placeholder="https://..." />
-          <BaseInput size="sm" type="textarea" label="Description" v-model="editListDescription" />
+          <BaseInput size="sm" label="Title" v-model="editListTitle" @update:modelValue="syncListItem" />
+          <BaseInput size="sm" label="Subtitle" v-model="editListSubtitle" @update:modelValue="syncListItem" />
+          <BaseInput size="sm" label="URL" v-model="editListUrl" placeholder="https://..." @update:modelValue="syncListItem" />
+          <BaseInput size="sm" type="textarea" label="Description" v-model="editListDescription" @update:modelValue="syncListItem" />
         </div>
       </template>
 
@@ -666,6 +737,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             :nodes="collectionTreeNodes"
             @settings="handleCollectionSettings"
             @delete="handleCollectionDelete"
+            @duplicate="handleCollectionDuplicate"
             @reorder="handleCollectionReorder"
           />
           </div>
@@ -676,18 +748,18 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             <!-- ── Collection — item edit form ── -->
       <template v-else-if="section.type === 'collection' && editingItem">
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" /> 
-          <BaseInput size="sm" label="Title" v-model="editTitle" />
-          <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" />
-          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" />
-          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = '' }">
-            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." />
+          <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" @update:modelValue="syncCollectionItem" />
+          <BaseInput size="sm" label="Title" v-model="editTitle" @update:modelValue="syncCollectionItem" />
+          <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" @update:modelValue="syncCollectionItem" />
+          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" @update:modelValue="syncCollectionItem" />
+          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = ''; syncCollectionItem() }">
+            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." @update:modelValue="syncCollectionItem" />
           </BaseToggle>
           <BaseItem v-if="!editRedirectEnabled" :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
           <CollectionItemContentModal
             v-if="showContentEditor"
             v-model="editContent"
-            @close="showContentEditor = false"
+            @close="showContentEditor = false; syncCollectionItem()"
           />
         </div>
       </template>
@@ -707,6 +779,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
                 :nodes="storeTreeNodes"
                 @settings="handleStoreSettings"
                 @delete="handleStoreDelete"
+                @duplicate="handleStoreDuplicate"
                 @reorder="handleStoreReorder"
               />
             </div>
@@ -757,6 +830,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
                 :nodes="collectionTreeNodes"
                 @settings="handleCollectionSettings"
                 @delete="handleCollectionDelete"
+                @duplicate="handleCollectionDuplicate"
                 @reorder="handleCollectionReorder"
               />
             </div>
@@ -794,15 +868,15 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <!-- ── Monetize — item edit form ── -->
       <template v-else-if="section.type === 'monetize' && editingItem">
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" />
-          <BaseInput size="sm" label="Title" v-model="editTitle" />
-          <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" />
-          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" />
-          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = '' }">
-            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." />
+          <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" @update:modelValue="syncCollectionItem" />
+          <BaseInput size="sm" label="Title" v-model="editTitle" @update:modelValue="syncCollectionItem" />
+          <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" @update:modelValue="syncCollectionItem" />
+          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" @update:modelValue="syncCollectionItem" />
+          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = ''; syncCollectionItem() }">
+            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." @update:modelValue="syncCollectionItem" />
           </BaseToggle>
           <BaseItem v-if="!editRedirectEnabled" :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
-          <CollectionItemContentModal v-if="showContentEditor" v-model="editContent" @close="showContentEditor = false" />
+          <CollectionItemContentModal v-if="showContentEditor" v-model="editContent" @close="showContentEditor = false; syncCollectionItem()" />
         </div>
       </template>
 
@@ -810,10 +884,10 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <!-- ── Store — item edit form (product) ── -->
       <template v-else-if="section.type === 'store' && editingStoreItem">
         <div class="flex flex-col gap-4 p-2 pr-02">
-        <BaseUpload type="image" size="sm" label="Cover" v-model="storeEditImage" />
-        <BaseInput size="sm" label="Title" v-model="storeEditTitle" />
-        <BaseInput size="sm" type="textarea" label="Description" v-model="storeEditDescription" />
-        <BaseInput size="sm" label="Price" v-model="storeEditPrice" placeholder="0.00" />
+        <BaseUpload type="image" size="sm" label="Cover" v-model="storeEditImage" @update:modelValue="syncStoreItem" />
+        <BaseInput size="sm" label="Title" v-model="storeEditTitle" @update:modelValue="syncStoreItem" />
+        <BaseInput size="sm" type="textarea" label="Description" v-model="storeEditDescription" @update:modelValue="syncStoreItem" />
+        <BaseInput size="sm" label="Price" v-model="storeEditPrice" placeholder="0.00" @update:modelValue="syncStoreItem" />
 
         <!-- Product type -->
         <div class="flex gap-1">
@@ -825,7 +899,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             :class="storeEditProductType === opt.value
               ? 'border-gray-900 bg-gray-900 text-white'
               : 'border-gray-200 text-gray-600 hover:border-gray-400'"
-            @click="storeEditProductType = opt.value as 'physical' | 'digital'"
+            @click="storeEditProductType = opt.value as 'physical' | 'digital'; syncStoreItem()"
           >
             {{ opt.label }}
           </button>
@@ -840,14 +914,14 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             </div>
             <div v-for="(variant, vi) in storeEditVariants" :key="variant.id" class="flex flex-col gap-2 p-3 rounded-xl border border-gray-200">
               <div class="flex items-center gap-2">
-                <BaseInput size="sm" label="Name" v-model="variant.name" placeholder="e.g. Size" class="flex-1" />
+                <BaseInput size="sm" label="Name" v-model="variant.name" placeholder="e.g. Size" class="flex-1" @update:modelValue="syncStoreItem" />
                 <button class="text-gray-400 hover:text-red-500 mt-4 shrink-0" @click="removeStoreVariant(vi)">
                   <TrashIcon class="h-3.5 w-3.5" />
                 </button>
               </div>
               <div v-for="(opt, oi) in variant.options" :key="oi" class="flex items-center gap-2">
-                <input v-model="opt.value" type="text" placeholder="Option" class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400" />
-                <input v-model.number="opt.inventory" type="number" min="0" placeholder="Qty" class="w-16 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400" />
+                <input v-model="opt.value" type="text" placeholder="Option" class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400" @input="syncStoreItem" />
+                <input v-model.number="opt.inventory" type="number" min="0" placeholder="Qty" class="w-16 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400" @input="syncStoreItem" />
                 <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeStoreVariantOption(vi, oi)">
                   <TrashIcon class="h-3.5 w-3.5" />
                 </button>
@@ -856,12 +930,12 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             </div>
           </div>
           <div class="pt-1 border-t border-gray-100">
-            <BaseInput size="sm" label="Inventory total" v-model="storeEditInventory" placeholder="0" />
+            <BaseInput size="sm" label="Inventory total" v-model="storeEditInventory" placeholder="0" @update:modelValue="syncStoreItem" />
           </div>
         </template>
 
         <!-- Digital: file upload only -->
-        <BaseUpload v-if="storeEditProductType === 'digital'" type="file" size="sm" label="File" v-model="storeEditFileUrl" />
+        <BaseUpload v-if="storeEditProductType === 'digital'" type="file" size="sm" label="File" v-model="storeEditFileUrl" @update:modelValue="syncStoreItem" />
         </div>
       </template>
 

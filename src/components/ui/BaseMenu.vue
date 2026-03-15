@@ -66,17 +66,29 @@ function cancelLeave() {
   open.value = false
 }
 
+function switchProject(landId: string) {
+  const wasEditing = editorStore.isEditMode
+  editorStore.exitEditMode()
+  landStore.isLoading = true
+  router.push('/dashboard')
+  // If editor was open, delay the land switch until the sidebar has collapsed
+  setTimeout(() => {
+    landStore.setActiveLand(landId)
+    setTimeout(() => { landStore.isLoading = false }, 600)
+  }, wasEditing ? 500 : 0)
+}
+
 const navButtonClass = 'w-full !justify-start text-gray-700'
 </script>
 
 <template>
   <div class="relative">
     <button
-      class="flex items-center gap-3 px-3 py-1 rounded-xl w-72 hover:bg-gray-50 transition-colors"
+      class="flex items-center gap-3 px-3 py-1 rounded-xl w-70 hover:bg-gray-50 transition-colors"
       @click="open = !open"
     >
       <LandsLogo class="h-5 w-5 shrink-0" />
-      <div class="text-left leading-tight w-[150px]">
+      <div class="text-left leading-tight w-[250px]">
         <p class="text-sm font-medium text-gray-900 truncate">{{ userStore.fullName || 'My account' }}</p>
         <p class="text-xs text-gray-400 truncate">{{ subLabel }}</p>
       </div>
@@ -86,7 +98,7 @@ const navButtonClass = 'w-full !justify-start text-gray-700'
     <Transition name="modal-grow">
       <div
         v-if="open"
-        class="absolute top-full left-0 mt-1 z-50 min-w-72 rounded-xl bg-white shadow-xl/5 overflow-hidden origin-top-left"
+        class="absolute top-full left-0 mt-2 z-50 rounded-xl bg-white border border-gray-200 shadow-xl/5 overflow-hidden origin-top-left"
       >
         <div class="p-2 flex flex-col gap-1 border-b border-gray-100">
           <BaseProject
@@ -94,11 +106,12 @@ const navButtonClass = 'w-full !justify-start text-gray-700'
             :key="land.id"
             :title="land.title"
             :url="land.handle + '.lands.app'"
-            :image="land.avatar_image"
+            :image="(land.sections.find(s => s.type === 'header')?.settings_json as any)?.cover_media_value || undefined"
+            :plan="land.plan"
             :active="landStore.activeLandId === land.id && route.path === '/dashboard'"
-            @click="navigate(() => { landStore.setActiveLand(land.id); router.push('/dashboard') })"
+            @click="navigate(() => switchProject(land.id))"
           />
-          <BaseButton size="sm" :class="navButtonClass" @click="showCreateModal = true; open = false">
+          <BaseButton size="sm" variant="outline" :class="navButtonClass" @click="showCreateModal = true; open = false">
             + Create new project
           </BaseButton>
         </div>

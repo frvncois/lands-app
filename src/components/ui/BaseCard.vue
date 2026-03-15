@@ -5,22 +5,30 @@ withDefaults(defineProps<{
   icon?: FunctionalComponent
   title: string
   description?: string
-  variant?: 'default' | 'spaced'
+  variant?: 'default' | 'spaced' | 'danger'
 }>(), { variant: 'default' })
 </script>
 
 <template>
   <div
     class="flex flex-col rounded-xl overflow-hidden"
-    :class="variant === 'spaced' ? 'bg-gray-50' : 'border border-gray-200'"
+    :class="{
+      'bg-gray-50': variant === 'spaced',
+      'border border-gray-200': variant === 'default',
+      'border border-red-200': variant === 'danger',
+    }"
   >
 
     <!-- Header -->
     <div class="flex items-center gap-2" :class="variant === 'spaced' ? 'p-4' : 'p-2'">
-      <div v-if="icon" class="shrink-0 flex items-center justify-center h-7 w-7 rounded-md bg-gray-900 text-gray-100">
+      <div
+        v-if="icon"
+        class="shrink-0 flex items-center justify-center h-7 w-7 rounded-md"
+        :class="variant === 'danger' ? 'bg-red-100 text-red-500' : 'bg-gray-900 text-gray-100'"
+      >
         <component :is="icon" class="h-3.5 w-3.5" />
       </div>
-      <p class="text-sm font-medium text-gray-900">{{ title }}</p>
+      <p class="text-sm font-medium" :class="variant === 'danger' ? 'text-red-600' : 'text-gray-900'">{{ title }}</p>
       <div v-if="$slots['header-action']" class="ml-auto">
         <slot name="header-action" />
       </div>

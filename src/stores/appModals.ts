@@ -8,6 +8,7 @@ export const useAppModals = defineStore('appModals', () => {
   const activeModal = ref<'integrations' | null>(null)
   const activeIntegration = ref<IntegrationId | null>(null)
   const dashboardDetail = ref<DashboardDetail | null>(null)
+  const publishTrigger = ref(0)
 
   function openIntegrations(integration?: IntegrationId) {
     activeModal.value = 'integrations'
@@ -25,5 +26,5 @@ export const useAppModals = defineStore('appModals', () => {
     activeIntegration.value = null
   }
 
-  return { activeModal, activeIntegration, dashboardDetail, openIntegrations, openDashboardDetail, close }
+  return { activeModal, activeIntegration, dashboardDetail, publishTrigger, openIntegrations, openDashboardDetail, close }
 })

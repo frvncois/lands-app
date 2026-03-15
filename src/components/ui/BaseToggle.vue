@@ -41,8 +41,8 @@ const sizes = {
       v-if="$slots.default"
       class="overflow-hidden"
       :style="modelValue
-        ? { maxHeight: '200px', opacity: '1', transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease' }
-        : { maxHeight: '0px',   opacity: '0', transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease' }"
+        ? { maxHeight: '200px', opacity: '1', transition: 'max-height 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.45s ease' }
+        : { maxHeight: '0px',   opacity: '0', transition: 'max-height 0.5s cubic-bezier(0.16,1,0.3,1), opacity 0.35s ease' }"
     >
       <div class="pt-3">
         <slot />

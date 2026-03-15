@@ -17,6 +17,7 @@ export interface Land {
   collaborators: Collaborator[]
   stripe_account_id: string | null
   stripe_account_name: string | null
+  is_published: boolean
   purpose?: string
   created_at: string
   updated_at: string

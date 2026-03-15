@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { MegaphoneIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseBadge from '../ui/BaseBadge.vue'
-import BaseCard from '../ui/BaseCard.vue'
 import BasePlanGate from '../ui/BasePlanGate.vue'
 import SetupCampaignModal from '../modals/SetupCampaignModal.vue'
 import { CAMPAIGN_PROVIDERS } from '@/types/campaign'
@@ -49,15 +48,17 @@ function disconnect() {
 
   <!-- Not connected state -->
   <template v-else-if="!campaignStore.isConnected">
-    <div class="flex flex-col gap-4 p-4">
-      <BaseCard :icon="MegaphoneIcon" title="Campaign">
-        Grow your audience by integrating Mailchimp, FloDesk or Brevo.
-        <template #actions>
-          <BaseButton size="sm" variant="solid" class="w-full justify-center" @click="showSetupModal = true">
-            Set up Campaign
-          </BaseButton>
-        </template>
-      </BaseCard>
+    <div class="flex flex-col items-center gap-3 py-8 px-4 text-center">
+      <div class="h-10 w-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+        <MegaphoneIcon class="h-4 w-4 text-gray-400" />
+      </div>
+      <div class="flex flex-col gap-1">
+        <p class="text-sm font-semibold text-gray-900">Grow your audience</p>
+        <p class="text-xs text-gray-400 leading-relaxed">Connect Mailchimp, Flodesk, Brevo and more to capture emails directly from your land.</p>
+      </div>
+      <BaseButton variant="solid" size="sm" @click="showSetupModal = true">
+        Set up Campaign
+      </BaseButton>
     </div>
   </template>
 

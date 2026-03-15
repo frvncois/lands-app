@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* ── Theme typography ── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--theme-font-title);
+}
+
 @font-face {
   font-family: 'Gambarino-Regular';
   src: url('./fonts/Gambarino-Regular.otf') format('opentype');
@@ -84,35 +89,37 @@
 }
 
 /* App login entrance: header fades in */
-.app-header-enter-active {
-  transition: opacity 0.35s ease;
+.app-header-enter {
+  animation: app-header-fade 0.6s ease both;
 }
-.app-header-enter-from {
-  opacity: 0;
+
+@keyframes app-header-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* App login entrance: main slides in from right + grows */
 .app-main-enter-active {
-  transition: opacity 0.4s ease 0.1s, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+  transition: opacity 0.7s ease 0.15s, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
 }
 .app-main-enter-from {
   opacity: 0;
-  transform: translateX(24px) scale(0.98);
+  transform: translateX(28px) scale(0.98);
 }
 
 /* Toast: slide up from bottom-right */
 .toast-enter-active,
 .toast-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.35s ease, transform 0.35s ease;
 }
 .toast-enter-from {
   opacity: 0;
-  transform: translateY(8px) scale(0.97);
+  transform: translateY(10px) scale(0.97);
 }
 .toast-leave-to {
   opacity: 0;
-  transform: translateX(8px) scale(0.97);
+  transform: translateX(10px) scale(0.97);
 }
 .toast-move {
-  transition: transform 0.2s ease;
+  transition: transform 0.35s ease;
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { useUserStore } from '@/stores/user'
 import { useLandStore } from '@/stores/land'
@@ -10,6 +11,7 @@ import { userService } from '@/services/user.service'
 import { landService } from '@/services/land.service'
 import BaseToastContainer from '@/components/ui/BaseToastContainer.vue'
 
+const router = useRouter()
 const userStore = useUserStore()
 const landStore = useLandStore()
 const themeStore = useThemeStore()
@@ -28,6 +30,10 @@ async function loadUserData() {
     landStore.setLands(lands)
     if (landStore.activeLand?.theme) {
       themeStore.setTheme(landStore.activeLand.theme)
+    }
+    // Redirect to onboarding if user has no lands
+    if (landStore.lands.length === 0 && router.currentRoute.value.path !== '/onboarding') {
+      router.push('/onboarding')
     }
   } finally {
     landStore.isLoading = false

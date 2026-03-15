@@ -141,7 +141,7 @@ async function resendCode() {
         <div class="space-y-1 auth-heading">
           <h1 class="text-4xl">Check your email</h1>
           <h2 class="text-md text-neutral-400">
-            We sent a 6-digit code to <span class="text-neutral-900 font-medium">{{ email }}</span>
+            We sent a 8-digit code to <span class="text-neutral-900 font-medium">{{ email }}</span>
           </h2>
         </div>
         <div class="flex flex-col gap-6 auth-form">
