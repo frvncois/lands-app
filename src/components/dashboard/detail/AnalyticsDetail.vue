@@ -22,13 +22,13 @@ import { visitData, totalViews, avgPerDay, referrers, topClicked } from '@/lib/m
 
     <!-- Chart -->
     <div class="rounded-xl bg-white border border-gray-100 p-3 card-appear" style="animation-delay: 100ms">
-      <p class="text-xs font-medium text-gray-500 mb-3">Views — last 30 days</p>
+      <p class="text-xs font-medium text-gray-500 mb-2">Views — last 30 days</p>
       <BaseChart :data="visitData" :height="100" />
     </div>
 
     <!-- Referrers -->
     <div class="rounded-xl bg-white border border-gray-100 p-3 card-appear" style="animation-delay: 200ms">
-      <p class="text-xs font-medium text-gray-500 mb-3">Referrers</p>
+      <p class="text-xs font-medium text-gray-500 mb-2">Referrers</p>
       <div class="flex flex-col gap-2">
         <div v-for="r in referrers" :key="r.label" class="flex items-center gap-2">
           <span class="text-xs text-gray-600 w-20 truncate">{{ r.label }}</span>
@@ -45,7 +45,7 @@ import { visitData, totalViews, avgPerDay, referrers, topClicked } from '@/lib/m
 
     <!-- Top clicked links -->
     <div class="rounded-xl bg-white border border-gray-100 p-3 card-appear" style="animation-delay: 300ms">
-      <p class="text-xs font-medium text-gray-500 mb-3">Top clicked links</p>
+      <p class="text-xs font-medium text-gray-500 mb-2">Top clicked links</p>
       <div class="flex flex-col divide-y divide-gray-50">
         <div v-for="link in topClicked" :key="link.label" class="flex items-center justify-between py-2">
           <span class="text-xs text-gray-700">{{ link.label }}</span>

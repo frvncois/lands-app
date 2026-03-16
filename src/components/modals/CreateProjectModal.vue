@@ -95,10 +95,10 @@ function buildSections(types: SectionType[], landId: string, projectTitle: strin
 
     let content: Record<string, unknown>
     if (type === 'header') {
-      content = { ...(defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
+      content = { ...(defaults.content ? structuredClone(defaults.content) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
     } else {
       const seeded = buildSectionContent(purpose, type, existingCount)
-      content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {})
+      content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? structuredClone(defaults.content) : {})
     }
 
     const section: Section = {
@@ -323,7 +323,7 @@ function back() {
 
       <!-- Footer -->
       <div class="px-6 pb-6">
-        <p v-if="error" class="text-sm text-red-500 mb-3">{{ error }}</p>
+        <p v-if="error" class="text-sm text-red-500 mb-2">{{ error }}</p>
         <BaseButton
           variant="solid"
           class="w-full"

@@ -2,6 +2,7 @@ export const THEME_PRESETS = {
   minimal: 'minimal',
   bold: 'bold',
   editorial: 'editorial',
+  structure: 'structure',
 } as const
 
 export type ThemePreset = typeof THEME_PRESETS[keyof typeof THEME_PRESETS]

@@ -1,4 +1,5 @@
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 // Configure marked for basic formatting only
 marked.setOptions({
@@ -8,5 +9,6 @@ marked.setOptions({
 
 export function renderMarkdown(input: string): string {
   if (!input) return ''
-  return marked.parse(input, { async: false }) as string
+  const raw = marked.parse(input, { async: false }) as string
+  return DOMPurify.sanitize(raw)
 }

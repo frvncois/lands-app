@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon, GlobeAltIcon } from '@heroicons/vue/24/outline'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import IntegrationSettingsModal, { type Integration } from './IntegrationSettingsModal.vue'
 import { useAppModals } from '@/stores/appModals'
+import { usePlan } from '@/composables/usePlan'
 
-defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [], openCustomDomain: [] }>()
 
 const appModals = useAppModals()
+const { canUseCustomDomain } = usePlan()
 
 const integrations: Integration[] = [
   { id: 'analytics',     title: 'Analytics',        description: 'Track visits and engagement',              icon: ChartBarIcon },
   { id: 'campaign',      title: 'Campaign',          description: 'Manage marketing campaigns',               icon: MegaphoneIcon },
   { id: 'collaborators', title: 'Collaborators',     description: 'Invite team members to your project',      icon: UsersIcon },
   { id: 'sell_monetize', title: 'Sell & Monetize',  description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
+  { id: 'custom_domain', title: 'Custom Domain',     description: 'Connect your own domain to this land',     icon: GlobeAltIcon },
 ]
 
 const active = ref<Integration | null>(null)
@@ -31,6 +34,10 @@ const direction = ref<'forward' | 'back'>('forward')
 const contentWrapper = ref<HTMLElement | null>(null)
 
 function goTo(integration: Integration) {
+  if (integration.id === 'custom_domain' && canUseCustomDomain.value) {
+    emit('openCustomDomain')
+    return
+  }
   direction.value = 'forward'
   active.value = integration
 }
@@ -67,9 +74,9 @@ function onAfterEnter() {
 
     <!-- Unified header -->
     <div class="flex items-center justify-between p-4 border-b border-gray-200 shrink-0">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2.5">
         <Transition name="modal-fade" mode="out-in">
-          <component :is="active?.icon ?? PuzzlePieceIcon" :key="active?.id ?? 'list'" class="h-4 w-4 text-gray-400" />
+          <component :is="active?.icon ?? PuzzlePieceIcon" :key="active?.id ?? 'list'" class="h-4 w-4 text-gray-900" />
         </Transition>
         <Transition name="modal-title" mode="out-in">
           <h2 :key="active?.id ?? 'list'" class="text-sm font-semibold text-gray-900">{{ active?.title ?? 'Integrations' }}</h2>
@@ -80,7 +87,7 @@ function onAfterEnter() {
           <BaseButton variant="outline" size="xs" @click="goBack">Back</BaseButton>
         </template>
         <template v-else>
-          <BaseButton variant="outline" size="xs" @click="$emit('close')">Close</BaseButton>
+          <BaseButton variant="outline" size="xs" @click="emit('close')">Close</BaseButton>
         </template>
       </div>
     </div>

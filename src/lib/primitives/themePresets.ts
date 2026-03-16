@@ -1,15 +1,12 @@
 import { THEME_PRESETS, type ThemePreset, type LandTheme } from '@/types/theme'
 
-export interface FontOption {
-  id: string          // CSS font-family name (also used as Google Font family)
-  label: string       // Display name
-  fontFamily: string  // Full CSS font-family stack
-  googleFont?: string // Google Fonts family name to load (undefined = custom/system font)
-}
-
-export interface ThemeFontOptions {
-  title: FontOption[]
-  body: FontOption[]
+export interface TypographyPairing {
+  id: string
+  label: string
+  titleFont: string        // CSS font-family for title
+  bodyFont: string         // CSS font-family for body
+  titleGoogleFont?: string
+  bodyGoogleFont?: string
 }
 
 export interface ThemeColorSlot {
@@ -21,7 +18,7 @@ export interface ThemePresetDefinition {
   label: string
   description: string
   colorSlots: ThemeColorSlot[]
-  fonts: ThemeFontOptions
+  pairings: TypographyPairing[]
   defaults: Omit<LandTheme, 'id' | 'land_id'>
 }
 
@@ -34,24 +31,44 @@ export const THEME_PRESET_DEFINITIONS: Record<ThemePreset, ThemePresetDefinition
       { key: 'color_accent',  label: 'Accent' },
       { key: 'color_surface', label: 'Surface' },
     ],
-    fonts: {
-      title: [
-        { id: 'Inter',              label: 'Inter',         fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif',              googleFont: 'Inter' },
-        { id: 'DM Sans',            label: 'DM Sans',       fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',            googleFont: 'DM Sans' },
-        { id: 'Outfit',             label: 'Outfit',        fontFamily: '"Outfit", ui-sans-serif, system-ui, sans-serif',             googleFont: 'Outfit' },
-        { id: 'Plus Jakarta Sans',  label: 'Jakarta',       fontFamily: '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif',  googleFont: 'Plus Jakarta Sans' },
-      ],
-      body: [
-        { id: 'Inter',              label: 'Inter',         fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif',              googleFont: 'Inter' },
-        { id: 'DM Sans',            label: 'DM Sans',       fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',            googleFont: 'DM Sans' },
-        { id: 'Nunito Sans',        label: 'Nunito',        fontFamily: '"Nunito Sans", ui-sans-serif, system-ui, sans-serif',        googleFont: 'Nunito Sans' },
-        { id: 'Lato',               label: 'Lato',          fontFamily: '"Lato", ui-sans-serif, system-ui, sans-serif',               googleFont: 'Lato' },
-      ],
-    },
+    pairings: [
+      {
+        id: 'inter-inter',
+        label: 'System',
+        titleFont:       '"Inter", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Inter", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Inter',
+        bodyGoogleFont:  'Inter',
+      },
+      {
+        id: 'outfit-dm',
+        label: 'Geometric',
+        titleFont:       '"Outfit", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Outfit',
+        bodyGoogleFont:  'DM Sans',
+      },
+      {
+        id: 'jakarta-nunito',
+        label: 'Modern',
+        titleFont:       '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Nunito Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Plus Jakarta Sans',
+        bodyGoogleFont:  'Nunito Sans',
+      },
+      {
+        id: 'dm-lato',
+        label: 'Sharp',
+        titleFont:       '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Lato", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'DM Sans',
+        bodyGoogleFont:  'Lato',
+      },
+    ],
     defaults: {
       theme_preset: THEME_PRESETS.minimal,
-      color_main: '#18181B',
-      color_accent: '#6366F1',
+      color_main:    '#18181B',
+      color_accent:  '#6366F1',
       color_surface: '#F4F4F5',
       font_title: '"Inter", ui-sans-serif, system-ui, sans-serif',
       font_body:  '"Inter", ui-sans-serif, system-ui, sans-serif',
@@ -66,27 +83,99 @@ export const THEME_PRESET_DEFINITIONS: Record<ThemePreset, ThemePresetDefinition
       { key: 'color_accent',  label: 'Highlight' },
       { key: 'color_surface', label: 'Background' },
     ],
-    fonts: {
-      title: [
-        { id: 'Syne',                  label: 'Syne',        fontFamily: '"Syne", ui-sans-serif, system-ui, sans-serif',                  googleFont: 'Syne' },
-        { id: 'Space Grotesk',         label: 'Grotesk',     fontFamily: '"Space Grotesk", ui-sans-serif, system-ui, sans-serif',         googleFont: 'Space Grotesk' },
-        { id: 'Bricolage Grotesque',   label: 'Bricolage',   fontFamily: '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif',   googleFont: 'Bricolage Grotesque' },
-        { id: 'Bebas Neue',            label: 'Bebas',       fontFamily: '"Bebas Neue", ui-sans-serif, system-ui, sans-serif',            googleFont: 'Bebas Neue' },
-      ],
-      body: [
-        { id: 'Manrope',               label: 'Manrope',     fontFamily: '"Manrope", ui-sans-serif, system-ui, sans-serif',               googleFont: 'Manrope' },
-        { id: 'Plus Jakarta Sans',     label: 'Jakarta',     fontFamily: '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif',     googleFont: 'Plus Jakarta Sans' },
-        { id: 'Work Sans',             label: 'Work Sans',   fontFamily: '"Work Sans", ui-sans-serif, system-ui, sans-serif',             googleFont: 'Work Sans' },
-        { id: 'DM Sans',               label: 'DM Sans',     fontFamily: '"DM Sans", ui-sans-serif, system-ui, sans-serif',               googleFont: 'DM Sans' },
-      ],
-    },
+    pairings: [
+      {
+        id: 'syne-manrope',
+        label: 'Impact',
+        titleFont:       '"Syne", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Manrope", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Syne',
+        bodyGoogleFont:  'Manrope',
+      },
+      {
+        id: 'grotesk-worksans',
+        label: 'Grotesk',
+        titleFont:       '"Space Grotesk", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Work Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Space Grotesk',
+        bodyGoogleFont:  'Work Sans',
+      },
+      {
+        id: 'bricolage-dm',
+        label: 'Expressive',
+        titleFont:       '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Bricolage Grotesque',
+        bodyGoogleFont:  'DM Sans',
+      },
+      {
+        id: 'bebas-jakarta',
+        label: 'Condensed',
+        titleFont:       '"Bebas Neue", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Bebas Neue',
+        bodyGoogleFont:  'Plus Jakarta Sans',
+      },
+    ],
     defaults: {
       theme_preset: THEME_PRESETS.bold,
-      color_main: '#2563EB',
-      color_accent: '#F59E0B',
+      color_main:    '#2563EB',
+      color_accent:  '#F59E0B',
       color_surface: '#1E293B',
       font_title: '"Syne", ui-sans-serif, system-ui, sans-serif',
       font_body:  '"Manrope", ui-sans-serif, system-ui, sans-serif',
+    },
+  },
+
+  [THEME_PRESETS.structure]: {
+    label: 'Structure',
+    description: 'Structured and precise. Grid-first.',
+    colorSlots: [
+      { key: 'color_main',    label: 'Main' },
+      { key: 'color_accent',  label: 'Accent' },
+      { key: 'color_surface', label: 'Surface' },
+    ],
+    pairings: [
+      {
+        id: 'inter-inter',
+        label: 'System',
+        titleFont:       '"Inter", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Inter", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Inter',
+        bodyGoogleFont:  'Inter',
+      },
+      {
+        id: 'outfit-dm',
+        label: 'Geometric',
+        titleFont:       '"Outfit", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"DM Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Outfit',
+        bodyGoogleFont:  'DM Sans',
+      },
+      {
+        id: 'grotesk-worksans',
+        label: 'Grotesk',
+        titleFont:       '"Space Grotesk", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Work Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Space Grotesk',
+        bodyGoogleFont:  'Work Sans',
+      },
+      {
+        id: 'jakarta-nunito',
+        label: 'Modern',
+        titleFont:       '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif',
+        bodyFont:        '"Nunito Sans", ui-sans-serif, system-ui, sans-serif',
+        titleGoogleFont: 'Plus Jakarta Sans',
+        bodyGoogleFont:  'Nunito Sans',
+      },
+    ],
+    defaults: {
+      theme_preset: THEME_PRESETS.structure,
+      color_main:    '#18181B',
+      color_accent:  '#6366F1',
+      color_surface: '#F4F4F5',
+      font_title: '"Inter", ui-sans-serif, system-ui, sans-serif',
+      font_body:  '"Inter", ui-sans-serif, system-ui, sans-serif',
     },
   },
 
@@ -98,24 +187,42 @@ export const THEME_PRESET_DEFINITIONS: Record<ThemePreset, ThemePresetDefinition
       { key: 'color_accent',  label: 'Ink' },
       { key: 'color_surface', label: 'Paper' },
     ],
-    fonts: {
-      title: [
-        { id: 'Gambarino',           label: 'Gambarino',  fontFamily: '"Gambarino-Regular", ui-serif, Georgia, serif' },
-        { id: 'Playfair Display',    label: 'Playfair',   fontFamily: '"Playfair Display", ui-serif, Georgia, serif',    googleFont: 'Playfair Display' },
-        { id: 'Cormorant Garamond',  label: 'Cormorant',  fontFamily: '"Cormorant Garamond", ui-serif, Georgia, serif',  googleFont: 'Cormorant Garamond' },
-        { id: 'Libre Baskerville',   label: 'Baskerville',fontFamily: '"Libre Baskerville", ui-serif, Georgia, serif',   googleFont: 'Libre Baskerville' },
-      ],
-      body: [
-        { id: 'Switzer',             label: 'Switzer',    fontFamily: '"Switzer-Regular", ui-sans-serif, system-ui, sans-serif' },
-        { id: 'Lora',                label: 'Lora',       fontFamily: '"Lora", ui-serif, Georgia, serif',                       googleFont: 'Lora' },
-        { id: 'Merriweather',        label: 'Merriweather',fontFamily: '"Merriweather", ui-serif, Georgia, serif',              googleFont: 'Merriweather' },
-        { id: 'Source Serif 4',      label: 'Source Serif',fontFamily: '"Source Serif 4", ui-serif, Georgia, serif',            googleFont: 'Source Serif 4' },
-      ],
-    },
+    pairings: [
+      {
+        id: 'gambarino-switzer',
+        label: 'Classic',
+        titleFont:      '"Gambarino-Regular", ui-serif, Georgia, serif',
+        bodyFont:       '"Switzer-Regular", ui-sans-serif, system-ui, sans-serif',
+      },
+      {
+        id: 'playfair-lora',
+        label: 'Literary',
+        titleFont:       '"Playfair Display", ui-serif, Georgia, serif',
+        bodyFont:        '"Lora", ui-serif, Georgia, serif',
+        titleGoogleFont: 'Playfair Display',
+        bodyGoogleFont:  'Lora',
+      },
+      {
+        id: 'cormorant-merriweather',
+        label: 'Refined',
+        titleFont:       '"Cormorant Garamond", ui-serif, Georgia, serif',
+        bodyFont:        '"Merriweather", ui-serif, Georgia, serif',
+        titleGoogleFont: 'Cormorant Garamond',
+        bodyGoogleFont:  'Merriweather',
+      },
+      {
+        id: 'baskerville-sourceserif',
+        label: 'Academic',
+        titleFont:       '"Libre Baskerville", ui-serif, Georgia, serif',
+        bodyFont:        '"Source Serif 4", ui-serif, Georgia, serif',
+        titleGoogleFont: 'Libre Baskerville',
+        bodyGoogleFont:  'Source Serif 4',
+      },
+    ],
     defaults: {
       theme_preset: THEME_PRESETS.editorial,
-      color_main: '#1E1E1E',
-      color_accent: '#B45309',
+      color_main:    '#1E1E1E',
+      color_accent:  '#B45309',
       color_surface: '#FAF9F6',
       font_title: '"Gambarino-Regular", ui-serif, Georgia, serif',
       font_body:  '"Switzer-Regular", ui-sans-serif, system-ui, sans-serif',

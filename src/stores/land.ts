@@ -26,7 +26,7 @@ export const useLandStore = defineStore('land', () => {
   function setLands(data: Land[]) {
     lands.value = data
     if (!activeLandId.value && data.length > 0) {
-      activeLandId.value = data[0]!.id
+      activeLandId.value = data[0]?.id ?? null
     }
   }
 

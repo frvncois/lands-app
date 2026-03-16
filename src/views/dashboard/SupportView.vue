@@ -167,7 +167,7 @@ function articlesByCategory(category: string) {
 
         <!-- Search -->
         <div class="relative">
-          <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-900 pointer-events-none" />
           <input
             v-model="query"
             type="text"

@@ -101,7 +101,10 @@ const totalMonthly = computed(() =>
   <section class="h-full overflow-y-auto">
   <section class="max-w-2xl m-auto pt-4 space-y-8">
 
-    <h1 class="text-2xl">Plans</h1>
+    <div>
+      <h1 class="text-2xl">Plans</h1>
+      <p class="text-sm text-gray-400 mt-1">Choose the plan that fits your needs. Upgrade or downgrade anytime.</p>
+    </div>
 
     <!-- ── Active Plans ── -->
 

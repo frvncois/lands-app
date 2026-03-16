@@ -119,6 +119,8 @@ export interface HeaderContent {
   title: string
   subtitle: string
   logo: string
+  description?: string
+  buttons?: ContentMediaButton[]
 }
 
 export interface TextContent {
@@ -159,6 +161,7 @@ export interface CampaignContent {
 export interface FooterContent {
   title: string
   subtitle: string
+  buttons?: ContentMediaButton[]
 }
 
 export interface ContentMediaButton {

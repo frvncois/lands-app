@@ -13,10 +13,10 @@ export const userService = {
       .single()
 
     if (error) throw new Error(error.message)
-    return data as User
+    return { ...data, email: authUser.email ?? '' } as User
   },
 
-  async updateMe(updates: Partial<Omit<User, 'id' | 'created_at'>>): Promise<User> {
+  async updateMe(updates: Partial<Omit<User, 'id' | 'created_at' | 'email'>>): Promise<User> {
     const { data: { user: authUser } } = await supabase.auth.getUser()
     if (!authUser) throw new Error('Not authenticated')
 
@@ -28,7 +28,7 @@ export const userService = {
       .single()
 
     if (error) throw new Error(error.message)
-    return data as User
+    return { ...data, email: authUser.email ?? '' } as User
   },
 
   async deleteAccount(): Promise<void> {

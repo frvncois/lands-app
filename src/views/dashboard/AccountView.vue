@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { UserCircleIcon, LockClosedIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import { ref, watch } from 'vue'
+import { UserCircleIcon, LockClosedIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/components/ui/BaseButton.vue';
 import BaseInput from '@/components/ui/BaseInput.vue';
 import ConfirmDeleteAccountModal from '@/components/modals/ConfirmDeleteAccountModal.vue'
@@ -17,6 +17,13 @@ const router = useRouter()
 const firstName = ref(userStore.user?.first_name ?? '')
 const lastName = ref(userStore.user?.last_name ?? '')
 const email = ref(userStore.user?.email ?? '')
+
+watch(() => userStore.user, (user) => {
+  if (!user) return
+  firstName.value = user.first_name
+  lastName.value = user.last_name
+  email.value = user.email
+}, { immediate: false })
 const isSaving = ref(false)
 
 const newPassword = ref('')
@@ -32,7 +39,6 @@ async function saveProfile() {
     const updated = await userService.updateMe({
       first_name: firstName.value,
       last_name: lastName.value,
-      email: email.value,
     })
     userStore.setUser(updated)
     addToast('Profile saved')
@@ -68,7 +74,7 @@ async function changePassword() {
 
 async function onAccountDeleted() {
   showDeleteModal.value = false
-  // TODO: Call account deletion API when SMTP + deletion endpoint are ready
+  // Session is already gone server-side — just clear local state and redirect
   await authService.logout()
   router.push('/auth')
 }
@@ -78,7 +84,10 @@ async function onAccountDeleted() {
   <section class="h-full overflow-y-auto">
     <section class="max-w-2xl m-auto pt-4 space-y-8">
 
-    <h1 class="text-2xl pb-8">Account</h1>
+    <div class="pb-8">
+      <h1 class="text-2xl">Account</h1>
+      <p class="text-sm text-gray-400 mt-1">Manage your profile, password and account settings.</p>
+    </div>
 
     <!-- Profile -->
     <div class="flex flex-col gap-4 pb-8">
@@ -95,7 +104,7 @@ async function onAccountDeleted() {
         <BaseInput size="lg" label="First Name" placeholder="First name" v-model="firstName" />
         <BaseInput size="lg" label="Last Name" placeholder="Last name" v-model="lastName" />
       </div>
-      <BaseInput size="lg" label="Email" placeholder="user@example.com" v-model="email" />
+      <BaseInput size="lg" label="Email" placeholder="user@example.com" v-model="email" :disabled="true" />
       <div>
         <BaseButton variant="solid" size="md" :disabled="isSaving" @click="saveProfile">
           {{ isSaving ? 'Saving…' : 'Save' }}
@@ -127,23 +136,19 @@ async function onAccountDeleted() {
 
     <!-- Danger zone -->
     <div class="flex flex-col gap-4 pt-8 pb-8">
-      <div class="flex items-center gap-3">
-        <div class="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-red-50">
-          <ExclamationTriangleIcon class="h-4 w-4 text-red-400" />
+      <button
+        class="group flex items-center rounded-xl border border-red-100 hover:bg-red-50 transition-all p-1.5 gap-2 cursor-pointer w-full text-left"
+        @click="showDeleteModal = true"
+      >
+        <div class="shrink-0 flex items-center justify-center h-9 w-9 rounded-lg bg-red-500 text-white">
+          <TrashIcon class="h-4 w-4" />
         </div>
-        <div>
-          <h2 class="text-base font-semibold text-red-500">Danger zone</h2>
-          <p class="text-xs text-gray-400">Irreversible account actions</p>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-red-600">Delete account</p>
+          <p class="text-xs text-gray-400">Permanently removes your account and all projects</p>
         </div>
-      </div>
-      <p class="text-sm text-gray-500">
-        Deleting your account is permanent. All your projects will be deleted unless you transfer ownership to a collaborator.
-      </p>
-      <div>
-        <BaseButton variant="remove" size="md" @click="showDeleteModal = true">
-          Delete account
-        </BaseButton>
-      </div>
+        <TrashIcon class="h-4 w-4 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mr-1" />
+      </button>
     </div>
 
     </section>

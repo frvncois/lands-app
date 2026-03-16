@@ -1,17 +1,37 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { EnvelopeIcon, TrashIcon, ArrowPathIcon, UserPlusIcon } from '@heroicons/vue/24/outline'
+import { EnvelopeIcon, TrashIcon, UserPlusIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseBadge from '../ui/BaseBadge.vue'
 import BasePlanGate from '../ui/BasePlanGate.vue'
 import InviteCollaboratorModal from '../modals/InviteCollaboratorModal.vue'
+import ConfirmRemoveCollaboratorModal from '../modals/ConfirmRemoveCollaboratorModal.vue'
 import { useCollaboratorActions } from '@/composables/useCollaboratorActions'
 import { usePlan } from '@/composables/usePlan'
 
-const { getCollaborators, remove, resendInvite } = useCollaboratorActions()
+const { getCollaborators, remove } = useCollaboratorActions()
 const { canUseCollaborators } = usePlan()
 
 const showInviteModal = ref(false)
+const pendingRemoveId = ref<string | null>(null)
+const pendingRemoveEmail = ref('')
+
+function confirmRemove(id: string, email: string) {
+  pendingRemoveId.value = id
+  pendingRemoveEmail.value = email
+}
+
+function cancelRemove() {
+  pendingRemoveId.value = null
+  pendingRemoveEmail.value = ''
+}
+
+async function doRemove() {
+  if (!pendingRemoveId.value) return
+  await remove(pendingRemoveId.value)
+  pendingRemoveId.value = null
+  pendingRemoveEmail.value = ''
+}
 
 const collaborators = computed(() => getCollaborators())
 
@@ -36,8 +56,8 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
 
     <!-- Empty state -->
     <div v-if="!collaborators.length" class="flex flex-col items-center gap-3 py-8 px-4 text-center">
-      <div class="h-10 w-10 rounded-2xl bg-gray-100 flex items-center justify-center">
-        <UserPlusIcon class="h-4 w-4 text-gray-400" />
+      <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
+        <UserPlusIcon class="h-4 w-4 text-gray-900" />
       </div>
       <div class="flex flex-col gap-1">
         <p class="text-sm font-semibold text-gray-900">Invite a teammate</p>
@@ -60,7 +80,7 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
     </div>
 
     <!-- Collaborator list -->
-    <div v-if="collaborators.length" class="flex flex-col p-4 pt-0 gap-2">
+    <TransitionGroup v-if="collaborators.length" tag="div" name="collab-item" class="flex flex-col p-4 pt-0 gap-2">
       <div
         v-for="c in collaborators"
         :key="c.id"
@@ -82,21 +102,12 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
 
         <!-- Actions -->
         <div class="flex items-center gap-1 shrink-0">
-          <BaseButton
-            v-if="c.status === 'pending'"
-            variant="icon"
-            size="xs"
-            title="Resend invite"
-            @click="resendInvite(c.id)"
-          >
-            <ArrowPathIcon class="h-3.5 w-3.5" />
-          </BaseButton>
-          <BaseButton variant="icon" size="xs" title="Remove" @click="remove(c.id)">
+          <BaseButton variant="icon" size="xs" title="Remove" @click="confirmRemove(c.id, c.email)">
             <TrashIcon class="h-3.5 w-3.5" />
           </BaseButton>
         </div>
       </div>
-    </div>
+    </TransitionGroup>
 
   </template>
 
@@ -104,4 +115,20 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
     <InviteCollaboratorModal v-if="showInviteModal" @close="showInviteModal = false" />
   </Transition>
 
+  <Transition name="modal-center">
+    <ConfirmRemoveCollaboratorModal
+      v-if="pendingRemoveId"
+      :email="pendingRemoveEmail"
+      @confirm="doRemove"
+      @cancel="cancelRemove"
+    />
+  </Transition>
+
 </template>
+
+<style scoped>
+.collab-item-enter-active { transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.collab-item-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.collab-item-enter-from   { opacity: 0; transform: translateY(6px); }
+.collab-item-leave-to     { opacity: 0; transform: translateY(-4px); }
+</style>

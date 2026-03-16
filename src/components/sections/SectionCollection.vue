@@ -5,6 +5,7 @@ import type { Section } from '@/types/section'
 import CollectionMinimal from './collection/CollectionMinimal.vue'
 import CollectionBold from './collection/CollectionBold.vue'
 import CollectionEditorial from './collection/CollectionEditorial.vue'
+import CollectionStructure from './collection/CollectionStructure.vue'
 import { MOCK_COLLECTIONS } from '@/lib/primitives/mockSectionContent'
 
 const props = defineProps<{ section: Section }>()
@@ -14,6 +15,7 @@ const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
     case 'bold': return CollectionBold
     case 'editorial': return CollectionEditorial
+    case 'structure': return CollectionStructure
     default: return CollectionMinimal
   }
 })

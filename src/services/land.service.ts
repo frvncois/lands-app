@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { Land } from '@/types/land'
 import type { LandTheme } from '@/types/theme'
 
-const LAND_DEFAULTS = { is_published: false }
+const LAND_DEFAULTS = { is_published: false, is_private: false, private_password: null, stripe_customer_id: null, stripe_subscription_id: null }
 
 const DEFAULT_THEME: LandTheme = {
   theme_preset: 'minimal',
@@ -15,9 +15,9 @@ const DEFAULT_THEME: LandTheme = {
 
 function normalizeLand(row: Record<string, unknown>): Land {
   return {
+    ...LAND_DEFAULTS,
     ...row,
     sections: Array.isArray(row.sections) ? row.sections : [],
-    ...LAND_DEFAULTS,
     theme: (row.theme && typeof row.theme === 'object' && !Array.isArray(row.theme))
       ? { ...DEFAULT_THEME, ...(row.theme as Partial<LandTheme>) }
       : { ...DEFAULT_THEME },
@@ -29,14 +29,36 @@ export const landService = {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const { data, error } = await supabase
+    // Owned lands
+    const { data: owned, error: ownedError } = await supabase
       .from('lands')
       .select('*, collaborators(*)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true })
 
-    if (error) throw new Error(error.message)
-    return (data ?? []).map(normalizeLand)
+    if (ownedError) throw new Error(ownedError.message)
+
+    // Lands where user is an active collaborator (matched by email)
+    const { data: collabRows, error: collabError } = await supabase
+      .from('collaborators')
+      .select('lands(*, collaborators(*))')
+      .eq('email', user.email!)
+      .eq('status', 'active')
+
+    if (collabError) throw new Error(collabError.message)
+
+    const collaboratedLands = (collabRows ?? [])
+      .map((row) => (row as unknown as { lands: Record<string, unknown> }).lands)
+      .filter(Boolean)
+
+    // Merge — dedupe by id in case user is both owner and listed as collaborator
+    const ownedIds = new Set((owned ?? []).map((l) => l.id))
+    const allLands = [
+      ...(owned ?? []),
+      ...collaboratedLands.filter((l) => !ownedIds.has(l.id as string)),
+    ]
+
+    return allLands.map(normalizeLand)
   },
 
   async createLand(payload: { handle: string; title: string }): Promise<Land> {
@@ -62,7 +84,7 @@ export const landService = {
     if (error) throw new Error(error.message)
   },
 
-  async updateLand(id: string, updates: Partial<Pick<Land, 'handle' | 'title' | 'description' | 'avatar_image' | 'cover_image' | 'plan'>>): Promise<void> {
+  async updateLand(id: string, updates: Partial<Pick<Land, 'handle' | 'title' | 'description' | 'avatar_image' | 'cover_image' | 'plan' | 'is_published' | 'is_private' | 'private_password'>>): Promise<void> {
     const { error } = await supabase
       .from('lands')
       .update({ ...updates, updated_at: new Date().toISOString() })

@@ -9,6 +9,7 @@ export const useEditorStore = defineStore('editor', () => {
   const activeSection = ref<Section | null>(null)
   const showSectionSettings = ref(false)
   const isDirty = ref(false)
+  const hasUnpublishedChanges = ref(false)
   const landSnapshot = ref<Land | null>(null)
   const themeSnapshot = ref<LandTheme | null>(null)
   const panelPos = ref({ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 336, y: 80 })
@@ -42,6 +43,11 @@ export const useEditorStore = defineStore('editor', () => {
 
   function markClean() {
     isDirty.value = false
+    hasUnpublishedChanges.value = true
+  }
+
+  function markPublished() {
+    hasUnpublishedChanges.value = false
   }
 
   function setPanelPos(pos: { x: number; y: number }) {
@@ -53,6 +59,7 @@ export const useEditorStore = defineStore('editor', () => {
     activeSection,
     showSectionSettings,
     isDirty,
+    hasUnpublishedChanges,
     landSnapshot,
     themeSnapshot,
     enterEditMode,
@@ -61,6 +68,7 @@ export const useEditorStore = defineStore('editor', () => {
     setActiveSection,
     markDirty,
     markClean,
+    markPublished,
     panelPos,
     setPanelPos,
   }

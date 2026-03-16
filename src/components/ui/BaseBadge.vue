@@ -20,7 +20,7 @@ const styles = {
 }
 
 const sizes = {
-  xs: 'text-xs px-1.5 py-0.5 rounded-md gap-1',
+  xs: 'text-[10px] px-1.5 py-0.5 rounded-md gap-1',
   sm: 'text-xs px-2 py-0.5 rounded-lg gap-1.5',
 }
 </script>

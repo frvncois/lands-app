@@ -41,7 +41,7 @@ const classes = computed(() => {
     remove: 'bg-red-50',
   }
   const activeClass = props.active ? activeStates[props.variant] : ''
-  const state = (props.disabled || props.loading) ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+  const state = (props.disabled || props.loading) ? 'cursor-not-allowed pointer-events-none' : ''
 
   return [base, variants[props.variant], sizes[props.size], activeClass, state]
 })

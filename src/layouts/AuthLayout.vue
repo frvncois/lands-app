@@ -18,16 +18,22 @@ watch(() => authStore.signingIn, (val) => {
 
 <template>
   <main class="flex w-screen h-screen">
+    <!-- Outer: animates width, clips content via overflow-hidden -->
     <div
-      class="flex flex-col p-16 bg-white overflow-hidden relative z-2 transition-[width] ease-in-out duration-700"
+      class="shrink-0 overflow-hidden bg-white relative z-2 transition-[width] ease-in-out duration-700"
       :class="expanded ? 'w-screen' : 'w-2xl'"
     >
-      <LandsLogo class="mb-8 shrink-0" />
-      <RouterView v-slot="{ Component }">
-        <Transition name="auth" mode="out-in">
-          <component :is="Component" :key="$route.path" />
-        </Transition>
-      </RouterView>
+      <!-- Inner: fixed width with padding, always full height -->
+      <div class="flex flex-col p-16 h-full w-2xl">
+        <LandsLogo class="mb-8 shrink-0" />
+        <div class="flex flex-col flex-1">
+          <RouterView v-slot="{ Component }">
+            <Transition name="auth" mode="out-in">
+              <component :is="Component" :key="$route.path" />
+            </Transition>
+          </RouterView>
+        </div>
+      </div>
     </div>
     <div class="flex-1 bg-neutral-900 fixed inset-0 z-1">
       Welcome
@@ -36,6 +42,7 @@ watch(() => authStore.signingIn, (val) => {
 </template>
 
 <style>
+/* ── Route transitions within auth ── */
 .auth-enter-active {
   transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }

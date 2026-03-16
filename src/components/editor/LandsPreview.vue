@@ -33,6 +33,7 @@ const componentMap = {
       :key="section.id"
       :is="componentMap[section.type]"
       :section="section"
+      class="theme-section"
       style="font-family: var(--theme-font)"
     />
     <div v-if="sections.length === 0" class="flex items-center justify-center h-64 text-sm text-gray-400">

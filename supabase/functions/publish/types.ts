@@ -1,5 +1,5 @@
 export interface LandTheme {
-  theme_preset: 'minimal' | 'bold' | 'editorial'
+  theme_preset: 'minimal' | 'bold' | 'editorial' | 'structure'
   color_main: string
   color_accent: string
   color_surface: string
@@ -16,7 +16,8 @@ export interface HeaderContent {
   title: string
   subtitle: string
   logo: string
-  buttons: ContentMediaButton[]
+  description?: string
+  buttons?: ContentMediaButton[]
 }
 
 export interface HeaderSettings {
@@ -105,6 +106,7 @@ export interface CampaignContent {
 export interface FooterContent {
   title: string
   subtitle: string
+  buttons?: ContentMediaButton[]
 }
 
 export interface FooterSettings {

@@ -13,17 +13,23 @@ const { invite } = useCollaboratorActions()
 const email = ref('')
 const role = ref<CollaboratorRole>('editor')
 const error = ref('')
+const isSending = ref(false)
 
 const isValid = computed(() => email.value.trim().includes('@'))
 
-function send() {
+async function send() {
   if (!isValid.value) {
     error.value = 'Enter a valid email address.'
     return
   }
   error.value = ''
-  invite(email.value.trim(), role.value)
-  emit('close')
+  isSending.value = true
+  try {
+    await invite(email.value.trim(), role.value)
+    emit('close')
+  } finally {
+    isSending.value = false
+  }
 }
 </script>
 
@@ -45,7 +51,8 @@ function send() {
             v-model="email"
             type="email"
             placeholder="name@example.com"
-            class="w-full px-4 py-3 text-base border border-gray-200 rounded-xl bg-white transition-colors placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-4 focus:ring-black/[0.04]"
+            :disabled="isSending"
+            class="w-full px-4 py-3 text-base border border-gray-200 rounded-xl bg-white transition-colors placeholder:text-gray-400 focus:outline-none focus:border-gray-400 focus:ring-4 focus:ring-black/[0.04] disabled:opacity-50"
             @keydown.enter="send"
           />
           <p v-if="error" class="text-xs text-red-500">{{ error }}</p>
@@ -73,8 +80,8 @@ function send() {
         </div>
 
         <div class="flex justify-end gap-3 pt-2">
-          <BaseButton @click="$emit('close')">Cancel</BaseButton>
-          <BaseButton variant="solid" :disabled="!isValid" @click="send">Send invite</BaseButton>
+          <BaseButton :disabled="isSending" @click="$emit('close')">Cancel</BaseButton>
+          <BaseButton variant="solid" :disabled="!isValid || isSending" :loading="isSending" @click="send">Send invite</BaseButton>
         </div>
       </div>
 

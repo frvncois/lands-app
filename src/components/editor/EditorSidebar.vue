@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon, GlobeAltIcon, Cog6ToothIcon, RocketLaunchIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon, GlobeAltIcon, Cog6ToothIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseTree from '../ui/BaseTree.vue'
 import BaseTab from '../ui/BaseTab.vue'
@@ -8,13 +8,19 @@ import BaseColorInput from '../ui/BaseColorInput.vue'
 import BaseFont from '../ui/BaseFont.vue'
 import BaseInput from '../ui/BaseInput.vue'
 import BaseCard from '../ui/BaseCard.vue'
+import BaseToggle from '../ui/BaseToggle.vue'
 import SectionSettingsModal from '@/components/modals/SectionSettingsModal.vue'
 import SectionsModal from '@/components/modals/SectionsModal.vue'
 import CustomDomainModal from '@/components/modals/CustomDomainModal.vue'
 import DeleteProjectModal from '@/components/modals/DeleteProjectModal.vue'
+import ConfirmUnpublishModal from '@/components/modals/ConfirmUnpublishModal.vue'
 import type { TreeNode } from '../ui/BaseTree.vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
+import { landService } from '@/services/land.service'
+import { useAppModals } from '@/stores/appModals'
+
+const appModals = useAppModals()
 import { useThemeStore } from '@/stores/theme'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { usePlan } from '@/composables/usePlan'
@@ -27,7 +33,7 @@ const landStore = useLandStore()
 const editorStore = useEditorStore()
 const themeStore = useThemeStore()
 const { addSection, deleteSection, duplicateSection, reorderSection, updateTheme } = useEditorActions()
-const { isPaid } = usePlan()
+const { isPaid, withinSectionLimit, maxSections } = usePlan()
 
 const showDeleteModal = ref(false)
 
@@ -78,7 +84,7 @@ type DesignPanel = 'theme' | 'colors' | 'typography'
 
 const DESIGN_PANEL_LABELS: Record<DesignPanel, string> = {
   theme: 'Theme',
-  colors: 'Color palette',
+  colors: 'Color Palette',
   typography: 'Typography',
 }
 
@@ -86,7 +92,7 @@ const activeDesignPanel = ref<DesignPanel | null>(null)
 
 const designNodes: TreeNode[] = [
   { id: 'theme',      label: 'Theme',          icon: SparklesIcon,    locked: true },
-  { id: 'colors',     label: 'Color palette',  icon: EyeDropperIcon,  locked: true },
+  { id: 'colors',     label: 'Color Palette',  icon: EyeDropperIcon,  locked: true },
   { id: 'typography', label: 'Typography',     icon: LanguageIcon,    locked: true },
 ]
 
@@ -94,10 +100,15 @@ const designNodes: TreeNode[] = [
 const settingsTitle = ref(landStore.activeLand?.title ?? '')
 const settingsUrl = ref(landStore.activeLand?.handle ?? '')
 const showDomainModal = ref(false)
+const showUnpublishModal = ref(false)
+const isPrivate = ref(landStore.activeLand?.is_private ?? false)
+const privatePassword = ref(landStore.activeLand?.private_password ?? '')
 
 watch(() => landStore.activeLand?.id, () => {
   settingsTitle.value = landStore.activeLand?.title ?? ''
   settingsUrl.value = landStore.activeLand?.handle ?? ''
+  isPrivate.value = landStore.activeLand?.is_private ?? false
+  privatePassword.value = landStore.activeLand?.private_password ?? ''
 })
 
 function onSettingsChange() {
@@ -105,6 +116,46 @@ function onSettingsChange() {
   if (!land) return
   landStore.updateLand(land.id, { title: settingsTitle.value, handle: settingsUrl.value })
   editorStore.markDirty()
+}
+
+function handlePublishedToggle(val: boolean) {
+  const land = landStore.activeLand
+  if (!land) return
+  if (!val && land.is_published) {
+    showUnpublishModal.value = true
+  } else if (val) {
+    landStore.updateLand(land.id, { is_published: true })
+    landService.updateLand(land.id, { is_published: true })
+  }
+}
+
+async function confirmUnpublish() {
+  const land = landStore.activeLand
+  if (!land) return
+  showUnpublishModal.value = false
+  landStore.updateLand(land.id, { is_published: false })
+  await landService.updateLand(land.id, { is_published: false })
+}
+
+async function handlePrivateToggle(val: boolean) {
+  const land = landStore.activeLand
+  if (!land) return
+  isPrivate.value = val
+  if (!val) {
+    privatePassword.value = ''
+    landStore.updateLand(land.id, { is_private: false, private_password: null })
+    await landService.updateLand(land.id, { is_private: false, private_password: null })
+  } else {
+    landStore.updateLand(land.id, { is_private: true })
+    await landService.updateLand(land.id, { is_private: true })
+  }
+}
+
+async function savePrivatePassword() {
+  const land = landStore.activeLand
+  if (!land || !privatePassword.value) return
+  landStore.updateLand(land.id, { private_password: privatePassword.value })
+  await landService.updateLand(land.id, { private_password: privatePassword.value })
 }
 
 function handleDesignSettings(node: TreeNode) {
@@ -126,10 +177,10 @@ const activeColorSlots = computed(() => {
   return THEME_PRESET_DEFINITIONS[preset].colorSlots
 })
 
-const activeFontOptions = computed(() => {
+const activePairings = computed(() => {
   const preset = themeStore.theme?.theme_preset
-  if (!preset) return THEME_PRESET_DEFINITIONS.minimal.fonts
-  return THEME_PRESET_DEFINITIONS[preset].fonts
+  if (!preset) return THEME_PRESET_DEFINITIONS.minimal.pairings
+  return THEME_PRESET_DEFINITIONS[preset].pairings
 })
 
 function applyPreset(preset: typeof presets[number]) {
@@ -140,8 +191,10 @@ function applyPreset(preset: typeof presets[number]) {
 const sectionIconMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon]))
 const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
 
-const sectionCount = computed(() => landStore.activeLand?.sections?.length ?? 0)
-const atMaxSections = computed(() => sectionCount.value >= 12)
+const sectionCount = computed(() =>
+  (landStore.activeLand?.sections ?? []).filter(s => s.type !== 'header' && s.type !== 'footer').length
+)
+const atMaxSections = computed(() => !withinSectionLimit(sectionCount.value))
 
 const nodes = computed<TreeNode[]>(() => {
   const sections = landStore.activeLand?.sections ?? []
@@ -210,7 +263,9 @@ function handleAddSection(type: string) {
 
         <!-- Section settings header -->
         <div v-if="editorStore.showSectionSettings && editorStore.activeSection" :key="editorStore.activeSection.id" class="flex items-center flex-1 justify-between pl-4 pr-2">
-          <h2 class="text-sm font-semibold text-gray-900">{{ sectionLabelMap[editorStore.activeSection.type] ?? editorStore.activeSection.type }}</h2>
+          <Transition name="modal-title" mode="out-in">
+            <h2 :key="isSubItemEditing ? 'item' : 'section'" class="text-sm font-semibold text-gray-900">{{ (sectionLabelMap[editorStore.activeSection.type] ?? editorStore.activeSection.type) + (isSubItemEditing ? ' item' : '') }}</h2>
+          </Transition>
           <div class="flex items-center gap-1">
             <template v-if="isSubItemEditing">
               <BaseButton variant="outline" size="xs" @click="sectionSettingsRef?.cancelSubItem">Cancel</BaseButton>
@@ -238,7 +293,7 @@ function handleAddSection(type: string) {
     </div>
 
     <!-- Scrollable content -->
-    <div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="flex flex-col flex-1 min-h-0 overflow-y-auto">
       <Transition
         :name="direction === 'forward' ? 'modal-forward' : 'modal-back'"
         mode="out-in"
@@ -256,7 +311,7 @@ function handleAddSection(type: string) {
         </div>
 
         <!-- Default view -->
-        <div v-else key="default" class="pl-2 py-4">
+        <div v-else key="default" class="flex flex-col pl-4 pr-2 pt-4 flex-1">
           <Transition
             :name="tabDirection === 'forward' ? 'modal-forward' : 'modal-back'"
             mode="out-in"
@@ -265,12 +320,18 @@ function handleAddSection(type: string) {
             <div v-if="activeTab === 'content'" key="content" class="flex flex-col gap-4">
               <BaseTree :nodes="nodes" @settings="handleTreeSettings" @delete="deleteSection($event.id)" @duplicate="duplicateSection($event.id)" @reorder="handleReorder" @add="handleSectionDrop" />
               <BaseButton variant="outline" size="sm" :disabled="atMaxSections" @click="showSections = !showSections">
-                {{ atMaxSections ? 'Max 12 sections reached' : '+ Add section' }}
+                {{ atMaxSections ? `Max ${maxSections + 2} sections reached` : '+ Add Section' }}
               </BaseButton>
+              <Transition name="section-limit">
+                <div v-if="atMaxSections && !isPaid" class="rounded-xl border border-gray-200 p-3 flex flex-col gap-3 text-center items-center">
+                  <p class="text-xs text-gray-500 leading-relaxed">You've reached the section limit. Upgrade to Pro for unlimited sections.</p>
+                  <BaseButton size="sm" variant="solid" class="w-full justify-center" @click="appModals.openUpgrade()">Upgrade to Pro</BaseButton>
+                </div>
+              </Transition>
             </div>
 
             <!-- Options tab: tree + settings card -->
-            <div v-else-if="activeTab === 'design' && !activeDesignPanel" key="design-list" class="flex flex-col gap-8">
+            <div v-else-if="activeTab === 'design' && !activeDesignPanel" key="design-list" class="flex flex-col gap-4 flex-1">
               <div class="flex flex-col gap-4">
               <BaseTree
                 :nodes="designNodes"
@@ -279,32 +340,72 @@ function handleAddSection(type: string) {
               />
               </div>
 
-              <div class="space-y-2">
-                <BaseCard :icon="Cog6ToothIcon" title="Settings">
-                  <div class="flex flex-col gap-2">
+              <div class="flex flex-col flex-1 gap-2">
+                <BaseCard :icon="Cog6ToothIcon" title="Publish Settings">
+                  <div class="flex flex-col gap-3">
                     <BaseInput size="sm" label="Project title" v-model="settingsTitle" placeholder="My project" @update:modelValue="onSettingsChange" />
                     <BaseInput size="sm" type="slug" label="URL" v-model="settingsUrl" placeholder="my-project" @update:modelValue="onSettingsChange" />
+                    <div class="border-t border-gray-100 pt-3 flex flex-col gap-3">
+                      <BaseToggle
+                        size="sm"
+                        label="Published"
+                        description="Make this project accessible publicly"
+                        :model-value="landStore.activeLand?.is_published ?? false"
+                        @update:model-value="handlePublishedToggle"
+                      />
+                      <BaseToggle
+                        size="sm"
+                        label="Private"
+                        description="Protect with a password"
+                        :model-value="isPrivate"
+                        @update:model-value="handlePrivateToggle"
+                      >
+                        <BaseInput
+                          size="sm"
+                          type="password"
+                          label="Password"
+                          v-model="privatePassword"
+                          placeholder="Enter password"
+                          @blur="savePrivatePassword"
+                          @keydown.enter="savePrivatePassword"
+                        />
+                      </BaseToggle>
+                    </div>
                   </div>
                 </BaseCard>
-                <BaseCard :icon="GlobeAltIcon" title="Custom domain" description="Connect your own domain">
+                <BaseCard v-if="isPaid" :icon="GlobeAltIcon" title="Custom domain" description="Connect your own domain">
                   <template #actions>
                     <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="showDomainModal = true">Setup</BaseButton>
                   </template>
                 </BaseCard>
 
                 <!-- Upgrade card (free plan only) -->
-                <BaseCard v-if="!isPaid" :icon="RocketLaunchIcon" title="Upgrade to Pro" description="Unlock custom domains, campaign integrations, collaborators and more.">
-                  <template #actions>
-                    <BaseButton size="sm" variant="solid" class="w-full justify-center" @click="$router.push('/dashboard/plans')">Upgrade — $10/mo</BaseButton>
-                  </template>
-                </BaseCard>
+                <div v-if="!isPaid" class="rounded-xl border border-gray-200 px-4 py-4 flex flex-col flex-1 justify-center items-center gap-4 text-center">
+                  <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <SparklesIcon class="h-5 w-5 text-gray-700" />
+                  </div>
+                  <p class="text-sm font-semibold text-gray-900">Upgrade to Pro</p>
+                  <div class="flex flex-wrap justify-center gap-1.5">
+                    <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">Marketing</span>
+                    <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">Custom Domain</span>
+                    <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">Unlimited</span>
+                  </div>
+                  <BaseButton size="sm" variant="solid" class="w-full justify-center" @click="appModals.openUpgrade()">Upgrade — $10/mo</BaseButton>
+                </div>
 
                 <!-- Danger zone -->
-                <BaseCard :icon="TrashIcon" title="Danger zone" variant="danger">
-                  <template #actions>
-                    <BaseButton size="sm" variant="remove" class="w-full justify-center" @click="showDeleteModal = true">Delete project</BaseButton>
-                  </template>
-                </BaseCard>
+                <button
+                  class="group flex items-center rounded-xl border border-red-100 hover:bg-red-50 transition-all p-1.5 gap-2 cursor-pointer w-full text-left"
+                  @click="showDeleteModal = true"
+                >
+                  <div class="shrink-0 flex items-center justify-center h-7 w-7 rounded-lg bg-red-100 text-red-500">
+                    <TrashIcon class="h-4 w-4" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-red-600">Delete project</p>
+                  </div>
+                  <TrashIcon class="h-4 w-4 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mr-1" />
+                </button>
                 </div>
             </div>
 
@@ -343,37 +444,18 @@ function handleAddSection(type: string) {
             </div>
 
             <!-- Design sub-panel: Typography -->
-            <div v-else-if="activeDesignPanel === 'typography'" key="design-typography" class="flex flex-col gap-4">
-              <!-- Title fonts -->
-              <div>
-                <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2">Title</p>
-                <div class="flex flex-col gap-1.5">
-                  <BaseFont
-                    v-for="font in activeFontOptions.title"
-                    :key="font.id"
-                    :label="font.label"
-                    :fontFamily="font.fontFamily"
-                    :googleFont="font.googleFont"
-                    :active="themeStore.theme?.font_title === font.fontFamily"
-                    @click="updateTheme({ font_title: font.fontFamily })"
-                  />
-                </div>
-              </div>
-              <!-- Body fonts -->
-              <div>
-                <p class="text-[11px] font-medium text-gray-400 uppercase tracking-wider mb-2">Body</p>
-                <div class="flex flex-col gap-1.5">
-                  <BaseFont
-                    v-for="font in activeFontOptions.body"
-                    :key="font.id"
-                    :label="font.label"
-                    :fontFamily="font.fontFamily"
-                    :googleFont="font.googleFont"
-                    :active="themeStore.theme?.font_body === font.fontFamily"
-                    @click="updateTheme({ font_body: font.fontFamily })"
-                  />
-                </div>
-              </div>
+            <div v-else-if="activeDesignPanel === 'typography'" key="design-typography" class="flex flex-col gap-1.5">
+              <BaseFont
+                v-for="pairing in activePairings"
+                :key="pairing.id"
+                :label="pairing.label"
+                :titleFont="pairing.titleFont"
+                :bodyFont="pairing.bodyFont"
+                :titleGoogleFont="pairing.titleGoogleFont"
+                :bodyGoogleFont="pairing.bodyGoogleFont"
+                :active="themeStore.theme?.font_title === pairing.titleFont && themeStore.theme?.font_body === pairing.bodyFont"
+                @click="updateTheme({ font_title: pairing.titleFont, font_body: pairing.bodyFont })"
+              />
             </div>
 
           </Transition>
@@ -393,6 +475,26 @@ function handleAddSection(type: string) {
       <Transition name="modal-center">
         <DeleteProjectModal v-if="showDeleteModal" @close="showDeleteModal = false" />
       </Transition>
+      <Transition name="modal-center">
+        <ConfirmUnpublishModal v-if="showUnpublishModal" @confirm="confirmUnpublish" @cancel="showUnpublishModal = false" />
+      </Transition>
     </Teleport>
   </aside>
 </template>
+
+<style scoped>
+.section-limit-enter-active {
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.section-limit-leave-active {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.section-limit-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.section-limit-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+</style>

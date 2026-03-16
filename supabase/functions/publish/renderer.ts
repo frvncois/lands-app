@@ -277,6 +277,133 @@ a   { color: inherit; text-decoration: none; }
 .monetize__price { font-size: 2.5rem; font-weight: 700; color: var(--main); }
 .monetize__price span { font-size: 1rem; font-weight: 400; opacity: .5; }
 
+/* ── Header: Structure ── */
+.header-structure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 40em;
+  padding: 4rem;
+  position: relative;
+}
+.header-structure__brand {
+  position: absolute;
+  top: 3rem;
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--main);
+}
+.header-structure__title { font-size: clamp(3rem, 9vw, 6rem); font-weight: 600; line-height: 1; color: var(--main); }
+.header-structure__sub   { font-size: clamp(1.25rem, 3vw, 2rem); color: var(--main); opacity: .5; margin-top: .75rem; }
+.header-structure__desc  { font-size: 1rem; color: var(--main); opacity: .65; max-width: 38rem; line-height: 1.7; margin-top: 1rem; }
+
+/* ── List: Structure ── */
+.list-structure { padding: 4rem 2rem; }
+.list-structure__inner { max-width: 72rem; margin: 0 auto; }
+.list-structure__heading {
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--main);
+  opacity: .4;
+  margin-bottom: 1.5rem;
+}
+.list-structure__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  padding: 2rem 0;
+  border-bottom: 1px solid var(--main);
+  text-decoration: none;
+  color: inherit;
+  transition: opacity .15s;
+}
+.list-structure__item:hover { opacity: .6; }
+.list-structure__item-title { font-size: clamp(2.5rem, 6vw, 5rem); font-weight: 700; line-height: 1; color: var(--main); }
+.list-structure__item.compact .list-structure__item-title { font-size: clamp(1.5rem, 3vw, 2rem); }
+
+/* ── Collection: Structure ── */
+.collection-structure { padding: 4rem 2rem; }
+.collection-structure__inner { max-width: 72rem; margin: 0 auto; }
+.collection-structure__title { font-size: 2.5rem; font-weight: 600; color: var(--main); margin-bottom: 2rem; }
+.collection-structure__grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+.collection-structure__item-img {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: .75rem;
+  background: var(--main);
+}
+.collection-structure__item-img img { width: 100%; height: 100%; object-fit: cover; }
+.collection-structure__item-title { font-size: 1.5rem; font-weight: 500; color: var(--main); margin-top: .5rem; }
+.collection-structure__item-sub   { font-size: .875rem; color: var(--main); opacity: .5; }
+.collection-structure__list-item  { display: flex; gap: 1.25rem; padding: .75rem 0; border-bottom: 1px solid var(--main); align-items: center; }
+.collection-structure__list-thumb {
+  width: 5rem; height: 3.5rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--main);
+  opacity: .15;
+}
+.collection-structure__list-thumb img { width: 100%; height: 100%; object-fit: cover; opacity: 6.67; }
+.collection-structure__list-name { font-size: 1rem; font-weight: 500; color: var(--main); }
+
+/* ── Store: Structure ── */
+.store-structure { padding: 4rem 2rem; }
+.store-structure__inner { max-width: 72rem; margin: 0 auto; }
+.store-structure__title { font-size: 2.5rem; font-weight: 600; color: var(--main); margin-bottom: 2rem; }
+.store-structure__grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+.store-structure__item-img {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: .75rem;
+  background: var(--main);
+}
+.store-structure__item-img img { width: 100%; height: 100%; object-fit: cover; }
+.store-structure__item-name  { font-size: 1.5rem; font-weight: 500; color: var(--main); margin-top: .5rem; }
+.store-structure__item-price { font-size: .875rem; color: var(--main); opacity: .5; }
+.store-structure__item-btn   {
+  display: inline-block;
+  margin-top: .75rem;
+  padding: .5rem 1rem;
+  border: 1.5px solid var(--main);
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--main);
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.store-structure__item-btn:hover { opacity: .65; }
+.store-structure__list-item  { display: flex; gap: 1.25rem; padding: .75rem 0; border-bottom: 1px solid var(--main); align-items: center; }
+.store-structure__list-thumb {
+  width: 5rem; height: 3.5rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--main);
+  opacity: .15;
+}
+.store-structure__list-thumb img { width: 100%; height: 100%; object-fit: cover; opacity: 6.67; }
+.store-structure__list-name  { font-size: 1rem; font-weight: 500; color: var(--main); flex: 1; }
+.store-structure__list-price { font-size: .875rem; color: var(--main); opacity: .5; }
+
+/* ── Footer: Structure ── */
+.footer-structure__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--main);
+}
+.footer-structure__title { font-size: 1.5rem; font-weight: 600; color: var(--main); }
+.footer-structure__sub   { font-size: 1.5rem; color: var(--main); opacity: .5; }
+.footer-structure__links { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1rem 1.5rem; }
+.footer-structure__link  { font-size: .875rem; color: var(--main); transition: opacity .15s; }
+.footer-structure__link:hover { opacity: .6; }
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .cm__inner { grid-template-columns: 1fr; gap: 2rem; }
@@ -287,6 +414,10 @@ a   { color: inherit; text-decoration: none; }
   .header-bold { padding: 1.5rem; }
   .header-bold__cover { height: 20em; }
   .campaign__form { flex-direction: column; }
+  .header-structure { height: auto; min-height: 24rem; padding: 5rem 2rem 3rem; }
+  .collection-structure__grid { grid-template-columns: repeat(2, 1fr); }
+  .store-structure__grid { grid-template-columns: repeat(2, 1fr); }
+  .list-structure__item-title { font-size: clamp(2rem, 8vw, 3rem); }
 }
 `.trim()
 }
@@ -303,12 +434,27 @@ function renderButtons(buttons: ContentMediaButton[]): string {
 
 // ─── Header ───
 
-function renderHeader(section: Section, theme: LandTheme): string {
+function renderHeaderStructure(c: HeaderContent, land: Land): string {
+  const brand = c.logo
+    ? `<img src="${esc(c.logo)}" class="logo header-structure__brand" alt="Logo">`
+    : `<span class="header-structure__brand">${esc(land.title || land.handle)}</span>`
+  return `
+<section class="header-structure">
+  ${brand}
+  ${c.title       ? `<h1 class="header-structure__title">${esc(c.title)}</h1>` : ''}
+  ${c.subtitle    ? `<p class="header-structure__sub">${esc(c.subtitle)}</p>` : ''}
+  ${c.description ? `<p class="header-structure__desc">${esc(c.description)}</p>` : ''}
+  ${renderButtons(c.buttons ?? [])}
+</section>`
+}
+
+function renderHeader(section: Section, theme: LandTheme, land: Land): string {
   const c = (section.content ?? {}) as unknown as HeaderContent
   const s = section.settings_json as unknown as HeaderSettings
 
   if (theme.theme_preset === 'bold')      return renderHeaderBold(c, s)
   if (theme.theme_preset === 'editorial') return renderHeaderEditorial(c, s)
+  if (theme.theme_preset === 'structure') return renderHeaderStructure(c, land)
   return renderHeaderMinimal(c, s)
 }
 
@@ -384,7 +530,27 @@ function renderContentMedia(section: Section): string {
 
 // ─── List ───
 
-function renderList(section: Section): string {
+function renderListStructure(section: Section): string {
+  const c = (section.content ?? {}) as unknown as ListContent
+  const items = sortByPosition(c.items ?? [])
+  const compact = section.style_variant === 'compact'
+
+  const rows = items.map(item => `
+    <a href="${esc(item.url)}" class="list-structure__item${compact ? ' compact' : ''}">
+      <span class="list-structure__item-title">${esc(item.title)}</span>
+    </a>`).join('')
+
+  return `
+<section class="list-structure">
+  <div class="list-structure__inner">
+    ${c.title ? `<h2 class="list-structure__heading">${esc(c.title)}</h2>` : ''}
+    ${rows || '<p style="opacity:.3;padding:3rem 0;font-size:.875rem;">No links yet.</p>'}
+  </div>
+</section>`
+}
+
+function renderList(section: Section, theme: LandTheme): string {
+  if (theme.theme_preset === 'structure') return renderListStructure(section)
   const c = (section.content ?? {}) as unknown as ListContent
   const items = sortByPosition(c.items ?? [])
 
@@ -411,7 +577,37 @@ function renderList(section: Section): string {
 
 // ─── Collection ───
 
-function renderCollection(section: Section): string {
+function renderCollectionStructure(section: Section): string {
+  const c = (section.content ?? {}) as unknown as CollectionContent
+  const collection = c.collections?.[0]
+  if (!collection) return ''
+  const items = sortByPosition(collection.items ?? [])
+  const isList = section.style_variant === 'list'
+
+  const inner = isList
+    ? items.map(item => `
+        <div class="collection-structure__list-item">
+          <div class="collection-structure__list-thumb">${item.media_url ? `<img src="${esc(item.media_url)}" alt="">` : ''}</div>
+          <p class="collection-structure__list-name">${esc(item.title)}</p>
+        </div>`).join('')
+    : `<div class="collection-structure__grid">${items.map(item => `
+        <div>
+          <div class="collection-structure__item-img">${item.media_url ? `<img src="${esc(item.media_url)}" alt="">` : ''}</div>
+          <p class="collection-structure__item-title">${esc(item.title)}</p>
+          ${item.description ? `<p class="collection-structure__item-sub">${esc(item.description)}</p>` : ''}
+        </div>`).join('')}</div>`
+
+  return `
+<section class="collection-structure">
+  <div class="collection-structure__inner">
+    ${collection.title ? `<h2 class="collection-structure__title">${esc(collection.title)}</h2>` : ''}
+    ${inner}
+  </div>
+</section>`
+}
+
+function renderCollection(section: Section, theme: LandTheme): string {
+  if (theme.theme_preset === 'structure') return renderCollectionStructure(section)
   const c = (section.content ?? {}) as unknown as CollectionContent
   const s = section.settings_json as unknown as CollectionSettings
   const collection = c.collections?.[0]
@@ -451,7 +647,39 @@ function renderCollection(section: Section): string {
 
 // ─── Store ───
 
-function renderStore(section: Section): string {
+function renderStoreStructure(section: Section): string {
+  const c = (section.content ?? {}) as unknown as StoreContent
+  const store = c.stores?.[0]
+  if (!store) return ''
+  const items = sortByPosition(store.items ?? [])
+  const isList = section.style_variant === 'list'
+
+  const inner = isList
+    ? items.map(item => `
+        <div class="store-structure__list-item">
+          <div class="store-structure__list-thumb">${item.image ? `<img src="${esc(item.image)}" alt="">` : ''}</div>
+          <p class="store-structure__list-name">${esc(item.title)}</p>
+          ${item.price > 0 ? `<p class="store-structure__list-price">$${item.price.toFixed(2)}</p>` : ''}
+        </div>`).join('')
+    : `<div class="store-structure__grid">${items.map(item => `
+        <div>
+          <div class="store-structure__item-img">${item.image ? `<img src="${esc(item.image)}" alt="">` : ''}</div>
+          <p class="store-structure__item-name">${esc(item.title)}</p>
+          ${item.price > 0 ? `<p class="store-structure__item-price">$${item.price.toFixed(2)}</p>` : ''}
+          ${item.price > 0 ? `<button class="store-structure__item-btn">Buy</button>` : ''}
+        </div>`).join('')}</div>`
+
+  return `
+<section class="store-structure">
+  <div class="store-structure__inner">
+    ${store.title ? `<h2 class="store-structure__title">${esc(store.title)}</h2>` : ''}
+    ${inner}
+  </div>
+</section>`
+}
+
+function renderStore(section: Section, theme: LandTheme): string {
+  if (theme.theme_preset === 'structure') return renderStoreStructure(section)
   const c = (section.content ?? {}) as unknown as StoreContent
   const s = section.settings_json as unknown as StoreSettings
   const store = c.stores?.[0]
@@ -525,7 +753,23 @@ function renderMonetize(section: Section): string {
 
 // ─── Footer ───
 
-function renderFooter(section: Section): string {
+function renderFooterStructure(section: Section): string {
+  const c = (section.content ?? {}) as unknown as FooterContent
+  const links = (c.buttons ?? []).map(b =>
+    `<a href="${esc(b.url)}" class="footer-structure__link">${esc(b.label)}</a>`
+  ).join('')
+  return `
+<footer>
+  <div class="footer-structure__bar">
+    ${c.title    ? `<h2 class="footer-structure__title">${esc(c.title)}</h2>` : ''}
+    ${c.subtitle ? `<p class="footer-structure__sub">${esc(c.subtitle)}</p>` : ''}
+  </div>
+  ${links ? `<div class="footer-structure__links">${links}</div>` : ''}
+</footer>`
+}
+
+function renderFooter(section: Section, theme: LandTheme): string {
+  if (theme.theme_preset === 'structure') return renderFooterStructure(section)
   const c = (section.content ?? {}) as unknown as FooterContent
   const s = section.settings_json as unknown as FooterSettings
   return `
@@ -541,16 +785,16 @@ function renderFooter(section: Section): string {
 
 // ─── Dispatcher ───
 
-function renderSection(section: Section, theme: LandTheme): string {
+function renderSection(section: Section, theme: LandTheme, land: Land): string {
   switch (section.type) {
-    case 'header':        return renderHeader(section, theme)
+    case 'header':        return renderHeader(section, theme, land)
     case 'content_media': return renderContentMedia(section)
-    case 'list':          return renderList(section)
-    case 'collection':    return renderCollection(section)
-    case 'store':         return renderStore(section)
+    case 'list':          return renderList(section, theme)
+    case 'collection':    return renderCollection(section, theme)
+    case 'store':         return renderStore(section, theme)
     case 'campaign':      return renderCampaign(section)
     case 'monetize':      return renderMonetize(section)
-    case 'footer':        return renderFooter(section)
+    case 'footer':        return renderFooter(section, theme)
     default:              return ''
   }
 }
@@ -559,7 +803,7 @@ function renderSection(section: Section, theme: LandTheme): string {
 
 export function renderLand(land: Land): string {
   const sorted = sortByPosition(land.sections)
-  const body   = sorted.map(s => renderSection(s, land.theme)).join('\n')
+  const body   = sorted.map(s => renderSection(s, land.theme, land)).join('\n')
 
   return `<!DOCTYPE html>
 <html lang="en">

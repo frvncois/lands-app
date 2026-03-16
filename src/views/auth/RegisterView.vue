@@ -3,7 +3,6 @@ import { ref, computed, nextTick } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import LandsLoading from '@/components/shared/LandsLoading.vue'
 import authService from '@/services/auth.service'
 import { useAuthStore } from '@/stores/auth'
 
@@ -11,13 +10,23 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 // ─── Step 1: Registration form ───
-const step = ref<'register' | 'verify' | 'loading'>('register')
+const step = ref<'register' | 'verify'>('register')
 const firstName = ref('')
 const lastName = ref('')
 const email = ref('')
 const password = ref('')
 
+function validateForm(): string | null {
+  if (!firstName.value.trim() || !lastName.value.trim()) return 'Please enter your full name.'
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRe.test(email.value.trim())) return 'Please enter a valid email address.'
+  if (password.value.length < 8) return 'Password must be at least 8 characters.'
+  return null
+}
+
 async function handleRegister() {
+  const validationError = validateForm()
+  if (validationError) { authStore.setError(validationError); return }
   authStore.setLoading(true)
   authStore.clearError()
   try {
@@ -75,8 +84,7 @@ async function handleVerify() {
   authStore.clearError()
   try {
     await authService.verifyOtp(email.value, otpCode.value)
-    step.value = 'loading'
-    setTimeout(() => router.push('/onboarding'), 1500)
+    router.push('/onboarding')
   } catch (e) {
     authStore.setError((e as Error).message)
     digits.value = Array(DIGITS).fill('')
@@ -131,11 +139,6 @@ async function resendCode() {
         </div>
       </div>
 
-      <!-- ── Step 3: Loading ── -->
-      <div v-else-if="step === 'loading'" key="loading" class="flex flex-1 items-center justify-center">
-        <LandsLoading />
-      </div>
-
       <!-- ── Step 2: Verify OTP ── -->
       <div v-else key="verify" class="flex flex-col gap-16">
         <div class="space-y-1 auth-heading">
@@ -175,7 +178,7 @@ async function resendCode() {
 
     </Transition>
 
-    <div v-if="step !== 'loading'" class="text-sm text-neutral-400 auth-footer">
+    <div class="text-sm text-neutral-400 auth-footer">
       Already have an account?
       <RouterLink to="/auth" class="text-neutral-900 font-medium hover:underline">Sign in</RouterLink>
     </div>

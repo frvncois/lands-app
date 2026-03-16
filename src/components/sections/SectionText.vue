@@ -5,6 +5,7 @@ import type { Section, TextContent } from '@/types/section'
 import TextMinimal from './text/TextMinimal.vue'
 import TextBold from './text/TextBold.vue'
 import TextEditorial from './text/TextEditorial.vue'
+import TextStructure from './text/TextStructure.vue'
 import { MOCK_TEXT_CONTENT } from '@/lib/primitives/mockSectionContent'
 
 const props = defineProps<{ section: Section }>()
@@ -14,6 +15,7 @@ const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
     case 'bold': return TextBold
     case 'editorial': return TextEditorial
+    case 'structure': return TextStructure
     default: return TextMinimal
   }
 })

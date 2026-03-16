@@ -1,22 +1,49 @@
 <script setup lang="ts">
+import { watch, ref } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
+import { useAppModals } from '@/stores/appModals'
+import { useToast } from '@/composables/useToast'
 import EditorPreview from '@/components/editor/EditorPreview.vue'
 import LandsDashboard from '@/components/dashboard/LandsDashboard.vue'
 import LandsLoading from '@/components/shared/LandsLoading.vue'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import OnboardingTour from '@/components/shared/OnboardingTour.vue'
+import InviteAcceptModal from '@/components/modals/InviteAcceptModal.vue'
 
 const editorStore = useEditorStore()
 const landStore = useLandStore()
+const appModals = useAppModals()
+const { addToast, removeToast } = useToast()
+
+const unpublishedToastId = ref<string | null>(null)
+
+function syncUnpublishedToast() {
+  if (editorStore.hasUnpublishedChanges && !editorStore.isEditMode) {
+    if (unpublishedToastId.value) return // already showing
+    unpublishedToastId.value = addToast('Unpublished changes', 'warning', 0, {
+      persistent: true,
+      action: {
+        label: 'Publish',
+        onClick: () => { appModals.publishTrigger++ },
+      },
+    })
+  } else if (unpublishedToastId.value) {
+    removeToast(unpublishedToastId.value)
+    unpublishedToastId.value = null
+  }
+}
+
+watch(() => editorStore.hasUnpublishedChanges, syncUnpublishedToast)
+watch(() => editorStore.isEditMode, syncUnpublishedToast)
 </script>
 
 <template>
-  <div class="flex h-full">
+  <div class="flex h-full relative">
     <!-- Left: dashboard sidebar -->
     <div
       class="transition-[width] duration-500 ease-in-out overflow-hidden shrink-0 h-full"
-      :class="editorStore.isEditMode ? 'w-0' : 'w-72'"
+      :class="editorStore.isEditMode ? 'w-0' : (appModals.activeDashboardDetail === 'orders' || appModals.activeDashboardDetail === 'monetize') ? 'w-[420px]' : 'w-72'"
     >
       <LandsDashboard />
     </div>
@@ -36,9 +63,9 @@ const landStore = useLandStore()
     >
       <EditorSidebar />
     </div>
+    <OnboardingTour />
+    <InviteAcceptModal />
   </div>
-
-  <OnboardingTour />
 </template>
 
 <style scoped>

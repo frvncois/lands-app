@@ -5,7 +5,7 @@ type IntegrationId = 'analytics' | 'campaign' | 'collaborators' | 'sell_monetize
 type DashboardDetail = 'analytics' | 'orders' | 'sell' | 'campaign' | 'monetize'
 
 export const useAppModals = defineStore('appModals', () => {
-  const activeModal = ref<'integrations' | null>(null)
+  const activeModal = ref<'integrations' | 'upgrade' | null>(null)
   const activeIntegration = ref<IntegrationId | null>(null)
   const dashboardDetail = ref<DashboardDetail | null>(null)
   const publishTrigger = ref(0)
@@ -21,10 +21,17 @@ export const useAppModals = defineStore('appModals', () => {
     activeIntegration.value = null
   }
 
+  function openUpgrade() {
+    activeModal.value = 'upgrade'
+    activeIntegration.value = null
+  }
+
   function close() {
     activeModal.value = null
     activeIntegration.value = null
   }
 
-  return { activeModal, activeIntegration, dashboardDetail, publishTrigger, openIntegrations, openDashboardDetail, close }
+  const activeDashboardDetail = ref<DashboardDetail | null>(null)
+
+  return { activeModal, activeIntegration, dashboardDetail, activeDashboardDetail, publishTrigger, openIntegrations, openDashboardDetail, openUpgrade, close }
 })

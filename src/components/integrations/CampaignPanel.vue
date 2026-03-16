@@ -49,8 +49,8 @@ function disconnect() {
   <!-- Not connected state -->
   <template v-else-if="!campaignStore.isConnected">
     <div class="flex flex-col items-center gap-3 py-8 px-4 text-center">
-      <div class="h-10 w-10 rounded-2xl bg-gray-100 flex items-center justify-center">
-        <MegaphoneIcon class="h-4 w-4 text-gray-400" />
+      <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
+        <MegaphoneIcon class="h-4 w-4 text-gray-900" />
       </div>
       <div class="flex flex-col gap-1">
         <p class="text-sm font-semibold text-gray-900">Grow your audience</p>

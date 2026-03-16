@@ -5,6 +5,7 @@ import BaseButton from '../ui/BaseButton.vue'
 import BaseInput from '../ui/BaseInput.vue'
 import BaseModal from '../ui/BaseModal.vue'
 import { useLandStore } from '@/stores/land'
+import { collaboratorService } from '@/services/collaborator.service'
 import type { Land } from '@/types/land'
 
 const emit = defineEmits<{ confirm: [], cancel: [] }>()
@@ -12,6 +13,7 @@ const emit = defineEmits<{ confirm: [], cancel: [] }>()
 const landStore = useLandStore()
 const confirmText = ref('')
 const isSubmitting = ref(false)
+const error = ref('')
 
 // Track chosen new owner (collaborator email) per land id. Empty string = delete the project.
 const transferMap = ref<Record<string, string>>(
@@ -23,11 +25,12 @@ const canConfirm = computed(() => confirmText.value === 'DELETE')
 async function submit() {
   if (!canConfirm.value) return
   isSubmitting.value = true
+  error.value = ''
   try {
-    // TODO: Send confirmation email via SMTP (not yet configured)
-    // TODO: For lands with a chosen collaborator, transfer ownership
-    // TODO: Delete remaining lands and the account
+    await collaboratorService.deleteAccount(transferMap.value)
     emit('confirm')
+  } catch (e) {
+    error.value = (e as Error).message
   } finally {
     isSubmitting.value = false
   }
@@ -97,6 +100,8 @@ async function submit() {
         <p class="text-xs text-gray-500">Type <span class="font-semibold text-gray-800">DELETE</span> to confirm</p>
         <BaseInput size="md" label="" v-model="confirmText" placeholder="DELETE" />
       </div>
+
+      <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
 
       <!-- Actions -->
       <div class="flex justify-end gap-3">

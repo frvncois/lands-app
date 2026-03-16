@@ -5,6 +5,7 @@ import type { Section } from '@/types/section'
 import MediaMinimal from './media/MediaMinimal.vue'
 import MediaBold from './media/MediaBold.vue'
 import MediaEditorial from './media/MediaEditorial.vue'
+import MediaStructure from './media/MediaStructure.vue'
 import { MOCK_MEDIA_CONTENT } from '@/lib/primitives/mockSectionContent'
 
 const props = defineProps<{ section: Section }>()
@@ -14,6 +15,7 @@ const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
     case 'bold': return MediaBold
     case 'editorial': return MediaEditorial
+    case 'structure': return MediaStructure
     default: return MediaMinimal
   }
 })

@@ -3,7 +3,9 @@ import { ref } from 'vue'
 export interface Toast {
   id: string
   message: string
-  type: 'success' | 'error' | 'info'
+  type: 'success' | 'error' | 'info' | 'warning'
+  persistent?: boolean
+  action?: { label: string; onClick: () => void }
 }
 
 // Module-level singleton so all composable calls share the same list
@@ -14,10 +16,14 @@ export function useToast() {
     message: string,
     type: Toast['type'] = 'success',
     duration = 3000,
+    options?: { persistent?: boolean; action?: Toast['action'] },
   ) {
     const id = crypto.randomUUID()
-    toasts.value.push({ id, message, type })
-    setTimeout(() => removeToast(id), duration)
+    toasts.value.push({ id, message, type, ...options })
+    if (!options?.persistent) {
+      setTimeout(() => removeToast(id), duration)
+    }
+    return id
   }
 
   function removeToast(id: string) {

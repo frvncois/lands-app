@@ -5,6 +5,7 @@ import type { Section, ContentMediaContent } from '@/types/section'
 import ContentMediaMinimal from './content-media/ContentMediaMinimal.vue'
 import ContentMediaBold from './content-media/ContentMediaBold.vue'
 import ContentMediaEditorial from './content-media/ContentMediaEditorial.vue'
+import ContentMediaStructure from './content-media/ContentMediaStructure.vue'
 
 const props = defineProps<{ section: Section }>()
 const themeStore = useThemeStore()
@@ -13,6 +14,7 @@ const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
     case 'bold': return ContentMediaBold
     case 'editorial': return ContentMediaEditorial
+    case 'structure': return ContentMediaStructure
     default: return ContentMediaMinimal
   }
 })

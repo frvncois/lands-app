@@ -20,6 +20,7 @@ import { useEditorActions } from '@/composables/useEditorActions'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
 import { useCampaignStore } from '@/stores/campaign'
+import { useThemeStore } from '@/stores/theme'
 import { sortByPosition, generatePositionBefore, generatePositionAfter, generatePositionBetween } from '@/lib/utils/position'
 import { sectionPrimitives } from '@/sections/index'
 
@@ -27,12 +28,14 @@ const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p
 const landStore = useLandStore()
 const appModals = useAppModals()
 const campaignStore = useCampaignStore()
+const themeStore = useThemeStore()
+const isStructureTheme = computed(() => themeStore.theme?.theme_preset === 'structure')
 
 const props = defineProps<{ section: Section; hideHeader?: boolean }>()
 const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
 
 const {
-  updateSectionContent, updateSectionSettings, restoreSectionSnapshot,
+  updateSectionContent, updateSectionSettings, updateSectionStyleVariant, restoreSectionSnapshot,
   addListItem, updateListItem, deleteListItem, reorderListItem,
   updateCollection, addCollectionItem, updateCollectionItem, deleteCollectionItem, reorderCollectionItem,
   updateStore, addStoreItem, updateStoreItem, deleteStoreItem, reorderStoreItem,
@@ -41,6 +44,8 @@ const {
 // ─── Header ───
 const headerTitle = ref('')
 const headerSubtitle = ref('')
+const headerDescription = ref('')
+const headerButtons = ref<ContentMediaButton[]>([])
 const headerCoverMediaValue = ref('')
 const headerLogoUrl = ref('')
 function saveHeaderContent() {
@@ -48,7 +53,18 @@ function saveHeaderContent() {
     title: headerTitle.value,
     subtitle: headerSubtitle.value,
     logo: headerLogoUrl.value,
+    description: headerDescription.value,
+    buttons: headerButtons.value,
   })
+}
+function addHeaderButton() {
+  if (headerButtons.value.length >= 6) return
+  headerButtons.value.push({ id: crypto.randomUUID(), label: 'Button', url: '' })
+  saveHeaderContent()
+}
+function removeHeaderButton(id: string) {
+  headerButtons.value = headerButtons.value.filter((b) => b.id !== id)
+  saveHeaderContent()
 }
 
 function saveHeaderSettings() {
@@ -77,6 +93,7 @@ function saveCm() {
 }
 
 function addCmButton() {
+  if (cmButtons.value.length >= 6) return
   cmButtons.value.push({ id: crypto.randomUUID(), label: 'Button', url: '' })
   saveCm()
 }
@@ -217,11 +234,8 @@ function handleCollectionSettings(node: TreeNode) {
 const editingItem = ref<CollectionItem | null>(null)
 const editTitle = ref('')
 const editSubtitle = ref('')
-const editDescription = ref('')
 const editCollectionMediaUrl = ref('')
 const editContent = ref('')
-const editExternalUrl = ref('')
-const editRedirectEnabled = ref(false)
 const showContentEditor = ref(false)
 const showSetupCampaignModal = ref(false)
 
@@ -230,11 +244,8 @@ function openEditItem(item: CollectionItem) {
   editingItem.value = item
   editTitle.value = item.title
   editSubtitle.value = item.subtitle
-  editDescription.value = item.description
   editCollectionMediaUrl.value = item.media_url
   editContent.value = item.content
-  editExternalUrl.value = item.external_url
-  editRedirectEnabled.value = !!item.external_url
 }
 
 function closeEditItem() {
@@ -247,10 +258,8 @@ function syncCollectionItem() {
   updateCollectionItem(props.section.id, collection.value.id, editingItem.value.id, {
     title: editTitle.value,
     subtitle: editSubtitle.value,
-    description: editDescription.value,
     media_url: editCollectionMediaUrl.value,
     content: editContent.value,
-    external_url: editRedirectEnabled.value ? editExternalUrl.value : '',
   })
 }
 
@@ -258,7 +267,7 @@ function duplicateItem(item: CollectionItem) {
   if (!collection.value) return
   addCollectionItem(props.section.id, collection.value.id, {
     title: item.title, subtitle: item.subtitle, description: item.description, media_url: item.media_url,
-    content: item.content, external_url: item.external_url,
+    content: item.content,
   })
 }
 
@@ -270,7 +279,7 @@ function deleteItem(item: CollectionItem) {
 function addItem() {
   if (!collection.value) return
   takeSubItemSnapshot()
-  const newItem = addCollectionItem(props.section.id, collection.value.id, { title: 'New item', subtitle: '', description: '', media_url: '', content: '', external_url: '' })
+  const newItem = addCollectionItem(props.section.id, collection.value.id, { title: 'New item', subtitle: '', description: '', media_url: '', content: '' })
   if (newItem) {
     editingItem.value = newItem
     editTitle.value = newItem.title
@@ -278,8 +287,6 @@ function addItem() {
     editDescription.value = newItem.description
     editCollectionMediaUrl.value = newItem.media_url
     editContent.value = newItem.content
-    editExternalUrl.value = newItem.external_url
-    editRedirectEnabled.value = false
   }
 }
 
@@ -474,13 +481,25 @@ function saveCampaignSettings() {
 const footerTitle = ref('')
 const footerSubtitle = ref('')
 const footerCoverMediaValue = ref('')
+const footerButtons = ref<ContentMediaButton[]>([])
 
 function saveFooterContent() {
-  updateSectionContent(props.section.id, { title: footerTitle.value, subtitle: footerSubtitle.value })
+  updateSectionContent(props.section.id, { title: footerTitle.value, subtitle: footerSubtitle.value, buttons: footerButtons.value })
 }
 
 function saveFooterSettings() {
   updateSectionSettings(props.section.id, { cover_media_value: footerCoverMediaValue.value })
+}
+
+function addFooterButton() {
+  if (footerButtons.value.length >= 6) return
+  footerButtons.value.push({ id: crypto.randomUUID(), label: 'Button', url: '' })
+  saveFooterContent()
+}
+
+function removeFooterButton(id: string) {
+  footerButtons.value = footerButtons.value.filter((b) => b.id !== id)
+  saveFooterContent()
 }
 
 // ─── Snapshot ───
@@ -532,6 +551,8 @@ function syncFromSection() {
     headerTitle.value = c?.title ?? ''
     headerSubtitle.value = c?.subtitle ?? ''
     headerLogoUrl.value = c?.logo ?? ''
+    headerDescription.value = c?.description ?? ''
+    headerButtons.value = c?.buttons ? JSON.parse(JSON.stringify(c.buttons)) : []
     headerCoverMediaValue.value = s?.cover_media_value ?? ''
   }
   if (props.section.type === 'content_media') {
@@ -549,6 +570,7 @@ function syncFromSection() {
     footerTitle.value = c?.title ?? ''
     footerSubtitle.value = c?.subtitle ?? ''
     footerCoverMediaValue.value = s?.cover_media_value ?? ''
+    footerButtons.value = c?.buttons ? [...c.buttons] : []
   }
   if (props.section.type === 'campaign') {
     const c = props.section.content as CampaignContent | null
@@ -619,7 +641,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       </button>
       <Transition name="modal-fade" mode="out-in">
         <h2 :key="isEditingSubItem ? 'edit' : section.type" class="text-sm font-semibold text-gray-900">
-          {{ isEditingSubItem ? 'Edit item' : (sectionLabelMap[section.type] ?? section.type) }}
+          {{ isEditingSubItem ? `${sectionLabelMap[section.type] ?? section.type} item` : (sectionLabelMap[section.type] ?? section.type) }}
         </h2>
       </Transition>
     </div>
@@ -637,32 +659,35 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <template v-if="section.type === 'header'">
         <div class="flex flex-col gap-4 p-2 pr-0">
           <BaseUpload type="image" size="sm" label="Logo" v-model="headerLogoUrl" @update:modelValue="saveHeaderContent" />
-          <BaseUpload type="image" size="sm" label="Cover image" v-model="headerCoverMediaValue" @update:modelValue="saveHeaderSettings" />
+          <BaseUpload v-if="!isStructureTheme" type="image" size="sm" label="Cover image" v-model="headerCoverMediaValue" @update:modelValue="saveHeaderSettings" />
           <BaseInput size="sm" label="Title" v-model="headerTitle" @update:modelValue="saveHeaderContent" />
           <BaseInput size="sm" label="Subtitle" v-model="headerSubtitle" @update:modelValue="saveHeaderContent" />
+          <template v-if="isStructureTheme">
+            <BaseInput size="sm" type="textarea" label="Description" v-model="headerDescription" placeholder="A short description…" @update:modelValue="saveHeaderContent" />
+            <div class="flex flex-col gap-2">
+              <div class="flex justify-between items-center">
+                <p class="text-xs font-medium text-gray-500">Buttons</p>
+                <button v-if="headerButtons.length < 6" class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800" @click="addHeaderButton">
+                  <PlusIcon class="h-3.5 w-3.5" /> Add button
+                </button>
+              </div>
+              <p v-if="!headerButtons.length" class="text-xs text-gray-400">No buttons added</p>
+              <div v-for="btn in headerButtons" :key="btn.id" class="flex items-center gap-1">
+                <BaseInput size="sm" label="" v-model="btn.label" placeholder="Label" class="flex-1" @update:modelValue="saveHeaderContent" />
+                <BaseInput size="sm" label="" v-model="btn.url" placeholder="https://…" class="flex-1" @update:modelValue="saveHeaderContent" />
+                <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeHeaderButton(btn.id)">
+                  <TrashIcon class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </template>
         </div>
       </template>
 
       <!-- ── Content + Media ── -->
       <template v-else-if="section.type === 'content_media'">
-        <!-- Media type toggle -->
-         
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <div class="flex gap-2">
-            <button
-              v-for="opt in [{ value: 'image', label: 'Image' }, { value: 'video', label: 'Video' }]"
-              :key="opt.value"
-              class="flex-1 py-1 text-xs rounded-lg border transition-colors"
-              :class="cmMediaType === opt.value
-                ? 'border-gray-900 bg-gray-900 text-white'
-                : 'border-gray-200 text-gray-600 hover:border-gray-400'"
-              @click="cmMediaType = opt.value as 'image' | 'video'; saveCm()"
-            >
-              {{ opt.label }}
-            </button>
-          </div>
-          <BaseUpload v-if="cmMediaType === 'image'" type="image" size="sm" v-model="cmMediaUrl" @update:modelValue="saveCm" />
-          <BaseInput v-else size="sm" label="Video URL" v-model="cmMediaUrl" placeholder="YouTube or Vimeo URL" @update:modelValue="saveCm" />
+          <BaseUpload type="image" size="sm" v-model="cmMediaUrl" @update:modelValue="saveCm" />
           <BaseInput size="sm" label="Title" v-model="cmTitle" placeholder="Your headline" @update:modelValue="saveCm" />
           <BaseInput size="sm" label="Subtitle" v-model="cmSubtitle" placeholder="Eyebrow text" @update:modelValue="saveCm" />
           <BaseInput size="sm" type="textarea" label="Body" v-model="cmBody" placeholder="Supporting text" @update:modelValue="saveCm" />
@@ -670,6 +695,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             <div class="flex justify-between">
               <p class="text-xs font-medium text-gray-500">Links</p>
               <button
+                v-if="cmButtons.length < 6"
                 class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
                 @click="addCmButton"
               >
@@ -687,6 +713,12 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
               </div>
             </div>
           </div>
+          <BaseToggle
+            v-if="isStructureTheme"
+            label="Invert layout"
+            :modelValue="section.style_variant === 'reversed'"
+            @update:modelValue="updateSectionStyleVariant(section.id, $event ? 'reversed' : 'default')"
+          />
         </div>
       </template>
 
@@ -718,7 +750,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
           <BaseInput size="sm" label="Title" v-model="editListTitle" @update:modelValue="syncListItem" />
           <BaseInput size="sm" label="Subtitle" v-model="editListSubtitle" @update:modelValue="syncListItem" />
           <BaseInput size="sm" label="URL" v-model="editListUrl" placeholder="https://..." @update:modelValue="syncListItem" />
-          <BaseInput size="sm" type="textarea" label="Description" v-model="editListDescription" @update:modelValue="syncListItem" />
+          <BaseInput v-if="!isStructureTheme" size="sm" type="textarea" label="Description" v-model="editListDescription" @update:modelValue="syncListItem" />
         </div>
       </template>
 
@@ -751,14 +783,11 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
           <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" @update:modelValue="syncCollectionItem" />
           <BaseInput size="sm" label="Title" v-model="editTitle" @update:modelValue="syncCollectionItem" />
           <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" @update:modelValue="syncCollectionItem" />
-          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" @update:modelValue="syncCollectionItem" />
-          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = ''; syncCollectionItem() }">
-            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." @update:modelValue="syncCollectionItem" />
-          </BaseToggle>
-          <BaseItem v-if="!editRedirectEnabled" :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
+          <BaseItem :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
           <CollectionItemContentModal
             v-if="showContentEditor"
             v-model="editContent"
+            :title="editTitle"
             @close="showContentEditor = false; syncCollectionItem()"
           />
         </div>
@@ -871,12 +900,8 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
           <BaseUpload type="image" size="sm" label="Cover" v-model="editCollectionMediaUrl" @update:modelValue="syncCollectionItem" />
           <BaseInput size="sm" label="Title" v-model="editTitle" @update:modelValue="syncCollectionItem" />
           <BaseInput size="sm" label="Subtitle" v-model="editSubtitle" @update:modelValue="syncCollectionItem" />
-          <BaseInput size="sm" type="textarea" label="Description" v-model="editDescription" @update:modelValue="syncCollectionItem" />
-          <BaseToggle size="sm" label="Redirect to URL" v-model="editRedirectEnabled" @update:modelValue="(v) => { if (!v) editExternalUrl = ''; syncCollectionItem() }">
-            <BaseInput size="sm" label="URL" v-model="editExternalUrl" placeholder="https://..." @update:modelValue="syncCollectionItem" />
-          </BaseToggle>
-          <BaseItem v-if="!editRedirectEnabled" :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
-          <CollectionItemContentModal v-if="showContentEditor" v-model="editContent" @close="showContentEditor = false; syncCollectionItem()" />
+          <BaseItem :icon="DocumentTextIcon" title="Content" :description="editContent ? 'Has content' : 'Add rich text, images and more'" action="Edit" @action="showContentEditor = true" />
+          <CollectionItemContentModal v-if="showContentEditor" v-model="editContent" :title="editTitle" @close="showContentEditor = false; syncCollectionItem()" />
         </div>
       </template>
 
@@ -942,9 +967,26 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <!-- ── Footer ── -->
       <template v-else-if="section.type === 'footer'">
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <BaseUpload type="image" size="sm" label="Cover image" v-model="footerCoverMediaValue" @update:modelValue="saveFooterSettings" />
+          <BaseUpload v-if="!isStructureTheme" type="image" size="sm" label="Cover image" v-model="footerCoverMediaValue" @update:modelValue="saveFooterSettings" />
           <BaseInput size="sm" label="Title" v-model="footerTitle" @update:modelValue="saveFooterContent" />
           <BaseInput size="sm" label="Subtitle" v-model="footerSubtitle" @update:modelValue="saveFooterContent" />
+
+          <!-- Structure-only: Links -->
+          <template v-if="isStructureTheme">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Links</span>
+                <button v-if="footerButtons.length < 6" type="button" class="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800" @click="addFooterButton">
+                  <PlusIcon class="h-3.5 w-3.5" /> Add
+                </button>
+              </div>
+              <div v-for="btn in footerButtons" :key="btn.id" class="flex flex-col gap-1.5 p-2 rounded-lg border border-gray-100 bg-gray-50">
+                <BaseInput size="sm" label="Label" v-model="btn.label" @update:modelValue="saveFooterContent" />
+                <BaseInput size="sm" label="URL" v-model="btn.url" @update:modelValue="saveFooterContent" />
+                <button type="button" class="self-end text-xs text-red-400 hover:text-red-600" @click="removeFooterButton(btn.id)">Remove</button>
+              </div>
+            </div>
+          </template>
         </div>
       </template>
 

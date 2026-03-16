@@ -10,8 +10,8 @@ import {
   QuestionMarkCircleIcon,
 } from '@heroicons/vue/24/outline'
 import BaseMenu from '../ui/BaseMenu.vue';
-import LandsLoading from './LandsLoading.vue';
 import IntegrationsModal from '../modals/IntegrationsModal.vue';
+import CustomDomainModal from '../modals/CustomDomainModal.vue';
 import ConfirmLeaveModal from '../modals/ConfirmLeaveModal.vue';
 import ConfirmPublishedModal from '../modals/ConfirmPublishedModal.vue';
 import { useEditorStore } from '@/stores/editor'
@@ -24,6 +24,7 @@ import { publishService } from '@/services/publish.service'
 import authService from '@/services/auth.service'
 
 const appModals = useAppModals()
+const showCustomDomainModal = ref(false)
 const showLeaveModal = ref(false)
 const showPublishedModal = ref(false)
 const publishStatus = ref<'loading' | 'done' | 'error'>('loading')
@@ -131,7 +132,9 @@ async function publish() {
   try {
     await save()
     await publishService.publish(land)
+    await landService.updateLand(land.id, { is_published: true })
     landStore.updateLand(land.id, { is_published: true })
+    editorStore.markPublished()
     publishStatus.value = 'done'
   } catch {
     publishStatus.value = 'error'
@@ -147,12 +150,9 @@ function confirmPublished() {
   exitEditor()
 }
 
-const loggingOut = ref(false)
-
 async function handleLogout() {
-  loggingOut.value = true
   await authService.logout()
-  setTimeout(() => router.push('/auth'), 1500)
+  router.push('/auth')
 }
 </script>
 
@@ -216,7 +216,11 @@ async function handleLogout() {
         </Transition>
 
         <Transition name="modal-grow">
-          <IntegrationsModal v-if="appModals.activeModal === 'integrations'" @close="appModals.close()" />
+          <IntegrationsModal v-if="appModals.activeModal === 'integrations'" @close="appModals.close()" @open-custom-domain="appModals.close(); showCustomDomainModal = true" />
+        </Transition>
+
+        <Transition name="modal-center">
+          <CustomDomainModal v-if="showCustomDomainModal" @close="showCustomDomainModal = false" />
         </Transition>
 
         <Transition name="modal-center">
@@ -230,12 +234,5 @@ async function handleLogout() {
 
     </header>
 
-    <Teleport to="body">
-      <Transition name="modal-fade">
-        <div v-if="loggingOut" class="fixed inset-0 z-[9999] bg-white">
-          <LandsLoading />
-        </div>
-      </Transition>
-    </Teleport>
 
 </template>

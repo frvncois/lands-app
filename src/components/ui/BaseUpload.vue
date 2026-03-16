@@ -88,7 +88,7 @@ async function remove() {
 
     <!-- File row (file type with value) -->
     <div v-if="!isImage && modelValue" class="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl">
-      <DocumentIcon class="h-4 w-4 text-gray-400 shrink-0" />
+      <DocumentIcon class="h-4 w-4 text-gray-900 shrink-0" />
       <span class="flex-1 text-xs text-gray-700 truncate">{{ modelValue }}</span>
       <button type="button" class="text-gray-400 hover:text-red-500 transition-colors" @click="remove">
         <XMarkIcon class="h-3.5 w-3.5" />

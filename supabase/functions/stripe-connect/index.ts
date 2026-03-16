@@ -4,6 +4,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
+}
+
+function ok(body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), { status: 200, headers: corsHeaders })
+}
+
+function err(body: Record<string, unknown>, status = 400) {
+  return new Response(JSON.stringify(body), { status, headers: corsHeaders })
 }
 
 function getUserIdFromJwt(authHeader: string): string | null {
@@ -25,19 +34,17 @@ serve(async (req) => {
   try {
     const { code, landId } = await req.json()
 
+    if (!code) return err({ error: 'Missing OAuth code' })
+    if (!landId) return err({ error: 'Missing landId' })
+
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY')
-    if (!stripeSecretKey) {
-      return new Response(JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured' }), { status: 500, headers: corsHeaders })
-    }
+    if (!stripeSecretKey) return err({ error: 'STRIPE_SECRET_KEY not configured' }, 500)
 
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), { status: 401, headers: corsHeaders })
-    }
+    if (!authHeader) return err({ error: 'Missing Authorization header' }, 401)
+
     const userId = getUserIdFromJwt(authHeader)
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: corsHeaders })
-    }
+    if (!userId) return err({ error: 'Invalid token' }, 401)
 
     // Exchange OAuth code for Stripe access token
     const tokenRes = await fetch('https://connect.stripe.com/oauth/token', {
@@ -50,8 +57,10 @@ serve(async (req) => {
       }),
     })
     const tokenData = await tokenRes.json()
+
     if (tokenData.error) {
-      return new Response(JSON.stringify({ error: tokenData.error_description }), { status: 400, headers: corsHeaders })
+      console.error('Stripe OAuth error:', JSON.stringify(tokenData))
+      return err({ error: tokenData.error_description ?? tokenData.error, stripe_error: tokenData.error })
     }
 
     const stripe_user_id: string = tokenData.stripe_user_id
@@ -76,11 +85,13 @@ serve(async (req) => {
       .eq('user_id', userId)
 
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
+      console.error('Supabase update error:', error.message)
+      return err({ error: error.message }, 500)
     }
 
-    return new Response(JSON.stringify({ success: true }), { status: 200, headers: corsHeaders })
+    return ok({ success: true, stripe_account_name })
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: corsHeaders })
+    console.error('Unhandled error:', e)
+    return err({ error: String(e) }, 500)
   }
 })

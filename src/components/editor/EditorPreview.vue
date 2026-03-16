@@ -131,7 +131,6 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
     :animation="150"
     :move="onMove"
     tag="div"
-    class="space-y-8"
     filter=".section-actions"
     :prevent-on-filter="true"
     @start="onDragStart"
@@ -146,15 +145,15 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
         @click="handleSectionClick(section)"
         @contextmenu.prevent="onContextMenu($event, section, idx)"
       >
-        <component :is="sectionComponent(section)" :section="section" style="font-family: var(--theme-font)" />
+        <component :is="sectionComponent(section)" :section="section" class="theme-section" style="font-family: var(--theme-font)" />
 
         <template v-if="isInteractive">
           <!-- Active / hover border -->
           <div
-            class="absolute inset-0 border-2 transition-colors pointer-events-none rounded-xl"
+            class="absolute inset-0 border-1 transition-colors pointer-events-none rounded-xl"
             :class="editorStore.activeSection?.id === section.id
               ? 'border-blue-500'
-              : 'border-transparent group-hover:border-blue-400'"
+              : 'border-transparent group-hover:border-blue-200'"
           />
 
           <!-- Edit badge + action buttons -->

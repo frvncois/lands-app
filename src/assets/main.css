@@ -1,7 +1,21 @@
 @import "tailwindcss";
 
-/* ── Theme typography ── */
-h1, h2, h3, h4, h5, h6 {
+/* ── Theme CSS variable defaults ── */
+:root {
+  --theme-main:       #18181B;
+  --theme-accent:     #6366F1;
+  --theme-surface:    #F4F4F5;
+  --theme-font-title: ui-sans-serif, system-ui, sans-serif;
+  --theme-font-body:  ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Theme typography: scoped to preview sections only ── */
+.theme-section h1,
+.theme-section h2,
+.theme-section h3,
+.theme-section h4,
+.theme-section h5,
+.theme-section h6 {
   font-family: var(--theme-font-title);
 }
 

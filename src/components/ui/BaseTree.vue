@@ -53,7 +53,8 @@ function onAdd(event: { newIndex: number }) {
     const newIndex = event.newIndex
     // Remove the temporary node — parent will add the real section
     localNodes.value.splice(newIndex, 1)
-    emit('add', sectionType, newIndex)
+    // Never allow inserting before the header — clamp to position 1
+    emit('add', sectionType, Math.max(1, newIndex))
   }
 }
 

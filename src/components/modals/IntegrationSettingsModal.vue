@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { FunctionalComponent } from 'vue'
+import { SparklesIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseToggle from '../ui/BaseToggle.vue'
 import BaseInput from '../ui/BaseInput.vue'
@@ -38,7 +39,7 @@ function viewAnalytics() {
       <h2 class="text-sm font-semibold text-gray-900">{{ integration.title }}</h2>
     </div>
     <div class="flex items-center gap-1">
-      <template v-if="['analytics', 'collaborators', 'campaign', 'sell_monetize'].includes(integration.id)">
+      <template v-if="['analytics', 'collaborators', 'campaign', 'sell_monetize', 'custom_domain'].includes(integration.id)">
         <BaseButton variant="outline" size="xs" @click="$emit('back')">Back</BaseButton>
       </template>
       <template v-else>
@@ -54,7 +55,7 @@ function viewAnalytics() {
     <template v-if="integration.id === 'analytics'">
       <BaseToggle size="sm" label="Enable analytics" description="Track visits and engagement on your land" v-model="analyticsEnabled" />
       <BaseInput size="sm" label="Google Analytics ID" v-model="gaId" placeholder="G-XXXXXXXXXX" />
-      <BaseButton variant="outline" size="sm" class="w-full justify-center" @click="viewAnalytics">
+      <BaseButton variant="solid" size="sm" class="w-full justify-center" @click="viewAnalytics">
         View Analytics
       </BaseButton>
     </template>
@@ -72,6 +73,24 @@ function viewAnalytics() {
     <!-- ── Sell & Monetize ── -->
     <template v-else-if="integration.id === 'sell_monetize'">
       <StorePanel />
+    </template>
+
+    <!-- ── Custom Domain — plan gate ── -->
+    <template v-else-if="integration.id === 'custom_domain'">
+      <div class="flex flex-col items-center gap-4 py-6 text-center">
+          <div class="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center">
+            <SparklesIcon class="h-5 w-5 text-gray-100" />
+        </div>
+        <div class="space-y-1">
+          <p class="text-sm font-semibold text-gray-900">Upgrade to Pro</p>
+          <p class="text-xs text-gray-400 leading-relaxed max-w-[200px]">
+            Connect your own domain to this land with a Pro plan.
+          </p>
+        </div>
+        <BaseButton variant="solid" size="sm" @click="appModals.openUpgrade()">
+          View plans
+        </BaseButton>
+      </div>
     </template>
 
     <!-- ── Other integrations — placeholder ── -->

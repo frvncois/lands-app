@@ -2,6 +2,10 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '@/components/shared/AppHeader.vue'
+import PlanModal from '@/components/modals/PlanModal.vue'
+import { useAppModals } from '@/stores/appModals'
+
+const appModals = useAppModals()
 
 const route = useRoute()
 const transitionName = ref('modal-forward')
@@ -37,4 +41,10 @@ watch(() => route.path, (next, prev) => {
       </main>
     </Transition>
   </div>
+
+  <Teleport to="body">
+    <Transition name="modal-center">
+      <PlanModal v-if="appModals.activeModal === 'upgrade'" @close="appModals.close()" />
+    </Transition>
+  </Teleport>
 </template>

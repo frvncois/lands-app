@@ -3,14 +3,17 @@ import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import type { Section } from '@/types/section'
 import StoreMinimal from './store/StoreMinimal.vue'
+import StoreStructure from './store/StoreStructure.vue'
 import { MOCK_STORES } from '@/lib/primitives/mockSectionContent'
 
 const props = defineProps<{ section: Section }>()
 const themeStore = useThemeStore()
 
 const component = computed(() => {
-  // Future: switch on theme_preset for Bold/Editorial variants
-  return StoreMinimal
+  switch (themeStore.theme?.theme_preset) {
+    case 'structure': return StoreStructure
+    default: return StoreMinimal
+  }
 })
 
 const isMock = computed(() => ((props.section.content as any)?.stores ?? []).length === 0)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 
 export interface ChartPoint {
   label: string
@@ -12,12 +12,12 @@ const props = withDefaults(defineProps<{
   height?: number
 }>(), {
   color: '#18181B',
-  height: 80,
+  height: 50,
 })
 
 const W = 280
 const H = computed(() => props.height)
-const PAD = { top: 8, right: 4, bottom: 20, left: 4 }
+const PAD = { top: 8, right: 4, bottom: 20, left: 0 }
 
 const chartW = computed(() => W - PAD.left - PAD.right)
 const chartH = computed(() => H.value - PAD.top - PAD.bottom)
@@ -45,6 +45,26 @@ const areaPath = computed(() => {
   return `${start} ${line} ${end}`
 })
 
+// ─── Draw-on animation ───
+const lineEl = ref<SVGPathElement | null>(null)
+const pathLength = ref(1000)
+const drawn = ref(false)
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    if (lineEl.value) pathLength.value = lineEl.value.getTotalLength()
+    requestAnimationFrame(() => { drawn.value = true })
+  })
+})
+
+watch(() => props.data, () => {
+  drawn.value = false
+  requestAnimationFrame(() => {
+    if (lineEl.value) pathLength.value = lineEl.value.getTotalLength()
+    requestAnimationFrame(() => { drawn.value = true })
+  })
+})
+
 // Show x-axis labels: first, middle, last
 const xLabels = computed(() => {
   const n = props.data.length
@@ -63,10 +83,25 @@ const xLabels = computed(() => {
     </defs>
 
     <!-- Area fill -->
-    <path :d="areaPath" :fill="`url(#area-fill)`" />
+    <path
+      :d="areaPath"
+      :fill="`url(#area-fill)`"
+      :style="{ opacity: drawn ? 1 : 0, transition: 'opacity 0.6s ease 0.4s' }"
+    />
 
     <!-- Line -->
-    <path :d="linePath" fill="none" :stroke="color" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
+    <path
+      ref="lineEl"
+      :d="linePath"
+      fill="none"
+      :stroke="color"
+      stroke-width="1.5"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+      :stroke-dasharray="pathLength"
+      :stroke-dashoffset="drawn ? 0 : pathLength"
+      style="transition: stroke-dashoffset 0.7s cubic-bezier(0.16, 1, 0.3, 1)"
+    />
 
     <!-- X-axis labels -->
     <text

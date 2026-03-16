@@ -76,9 +76,9 @@ export function useEditorActions() {
     const existingCount = activeLand.value.sections.filter((s) => s.type === type).length
 
     const seeded = buildSectionContent(purpose, type, existingCount)
-    const content = Object.keys(seeded).length > 0
+    const content = (Object.keys(seeded).length > 0
       ? seeded
-      : (defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {})
+      : (defaults.content ? structuredClone(defaults.content) : {})) as unknown as Section['content']
 
     const newSection: Section = {
       id: crypto.randomUUID(),

@@ -123,10 +123,10 @@ function buildSections(types: SectionType[], landId: string, projectTitle: strin
 
     let content: Record<string, unknown>
     if (type === 'header') {
-      content = { ...(defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
+      content = { ...(defaults.content ? structuredClone(defaults.content) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
     } else {
       const seeded = buildSectionContent(purpose, type, existingCount)
-      content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? JSON.parse(JSON.stringify(defaults.content)) : {})
+      content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? structuredClone(defaults.content) : {})
     }
 
     const section: Section = {
@@ -313,7 +313,7 @@ const currentThemeDef = computed(() => THEME_PRESET_DEFINITIONS[selectedTheme.va
           </div>
 
           <div>
-            <p class="text-sm font-medium text-gray-700 mb-3">What's this land for?</p>
+            <p class="text-sm font-medium text-gray-700 mb-2">What's this land for?</p>
             <div class="grid grid-cols-1 gap-2">
               <button
                 v-for="option in PURPOSE_OPTIONS"

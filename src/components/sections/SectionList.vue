@@ -5,6 +5,7 @@ import type { Section } from '@/types/section'
 import ListMinimal from './list/ListMinimal.vue'
 import ListBold from './list/ListBold.vue'
 import ListEditorial from './list/ListEditorial.vue'
+import ListStructure from './list/ListStructure.vue'
 import { MOCK_LIST_ITEMS } from '@/lib/primitives/mockSectionContent'
 
 const props = defineProps<{ section: Section }>()
@@ -14,6 +15,7 @@ const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
     case 'bold': return ListBold
     case 'editorial': return ListEditorial
+    case 'structure': return ListStructure
     default: return ListMinimal
   }
 })

@@ -11,7 +11,7 @@ const landStore = useLandStore()
 
     <!-- Stripe status -->
     <div class="rounded-xl bg-white border border-gray-100 p-4">
-      <div class="flex items-center gap-3 mb-3">
+      <div class="flex items-center gap-3 mb-2">
         <div class="h-8 w-8 rounded-lg bg-gray-200 flex items-center justify-center shrink-0">
           <CreditCardIcon class="h-4 w-4 text-gray-600" />
         </div>
@@ -26,11 +26,11 @@ const landStore = useLandStore()
       </div>
 
       <template v-if="landStore.isStripeConnected">
-        <p class="text-xs text-gray-500 mb-3">{{ landStore.activeLand?.stripe_account_name }}</p>
+        <p class="text-xs text-gray-500 mb-2">{{ landStore.activeLand?.stripe_account_name }}</p>
         <BaseButton variant="outline" size="sm" class="w-full justify-center">Manage Stripe account</BaseButton>
       </template>
       <template v-else>
-        <p class="text-xs text-gray-400 leading-relaxed mb-3">
+        <p class="text-xs text-gray-400 leading-relaxed mb-2">
           Connect Stripe to start accepting payments and sell products directly on your land.
         </p>
         <BaseButton variant="solid" size="sm" class="w-full justify-center">Connect Stripe</BaseButton>

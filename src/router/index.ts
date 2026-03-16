@@ -8,11 +8,13 @@ import OnboardingLayout from '@/layouts/OnboardingLayout.vue'
 import ProjectView from '@/views/dashboard/ProjectView.vue'
 import AccountView from '@/views/dashboard/AccountView.vue'
 import PlansView from '@/views/dashboard/PlansView.vue'
+import PlansSuccessView from '@/views/dashboard/PlansSuccessView.vue'
 import SupportView from '@/views/dashboard/SupportView.vue'
 import LoginView from '@/views/auth/LoginView.vue'
 import RegisterView from '@/views/auth/RegisterView.vue'
 import LostPasswordView from '@/views/auth/LostPasswordView.vue'
 import StripeCallbackView from '@/views/auth/StripeCallbackView.vue'
+import AcceptInviteView from '@/views/auth/AcceptInviteView.vue'
 import OnboardingView from '@/views/onboarding/OnboardingView.vue'
 import HomeView from '@/views/storefront/HomeView.vue'
 import CheckoutSuccessView from '@/views/checkout/CheckoutSuccessView.vue'
@@ -72,6 +74,14 @@ const router = createRouter({
       component: StripeCallbackView,
     },
     {
+      path: '/auth/accept-invite',
+      component: AcceptInviteView,
+    },
+    {
+      path: '/plans/success',
+      component: PlansSuccessView,
+    },
+    {
       path: '/checkout/success',
       component: CheckoutSuccessView,
     },
@@ -107,10 +117,16 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !isAuthenticated) return '/auth'
   if (to.meta.requiresGuest && isAuthenticated) return '/dashboard'
 
-  // If authenticated user with lands tries to access onboarding, redirect to dashboard
-  if (to.path === '/onboarding' && isAuthenticated) {
+  if (isAuthenticated) {
     const landStore = useLandStore()
-    if (landStore.lands.length > 0) return '/dashboard'
+
+    // Onboarding: skip if user already has lands
+    if (to.path === '/onboarding' && landStore.lands.length > 0) return '/dashboard'
+
+    // Dashboard: redirect to onboarding if data is loaded and user has no lands.
+    // Skip when an invite is being processed (via query param or sessionStorage flag).
+    const hasInvite = !!to.query.invite || !!sessionStorage.getItem('lands_invite_land')
+    if (to.path.startsWith('/dashboard') && !landStore.isLoading && landStore.lands.length === 0 && !hasInvite) return '/onboarding'
   }
 })
 

@@ -5,7 +5,7 @@ withDefaults(defineProps<{
   icon?: FunctionalComponent
   title: string
   description?: string
-  variant?: 'default' | 'spaced' | 'danger'
+  variant?: 'default' | 'spaced' | 'danger' | 'naked'
 }>(), { variant: 'default' })
 </script>
 
@@ -20,7 +20,7 @@ withDefaults(defineProps<{
   >
 
     <!-- Header -->
-    <div class="flex items-center gap-2" :class="variant === 'spaced' ? 'p-4' : 'p-2'">
+    <div class="flex items-center gap-2" :class="variant === 'spaced' ? 'p-4' : variant === 'naked' ? 'pt-0' : 'p-2'">
       <div
         v-if="icon"
         class="shrink-0 flex items-center justify-center h-7 w-7 rounded-md"
@@ -35,12 +35,12 @@ withDefaults(defineProps<{
     </div>
 
     <!-- Content -->
-    <div v-if="description || $slots.default" class="text-xs text-gray-400 leading-relaxed" :class="variant === 'spaced' ? 'px-4 pb-4' : 'p-2'">
+    <div v-if="description || $slots.default" class="text-xs text-gray-400 leading-relaxed" :class="variant === 'spaced' ? 'px-4 pb-4' : variant === 'naked' ? 'py-4' : 'p-2'">
       <slot>{{ description }}</slot>
     </div>
 
     <!-- Actions -->
-    <div v-if="$slots.actions" class="flex items-center gap-2 border-gray-100" :class="variant === 'spaced' ? 'px-4 pb-4' : 'p-2'">
+    <div v-if="$slots.actions" class="flex items-center gap-2 border-gray-100" :class="variant === 'spaced' ? 'px-4 pb-4' : variant === 'naked' ? 'py-4' : 'p-2'">
       <slot name="actions" />
     </div>
 
