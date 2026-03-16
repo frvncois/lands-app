@@ -11,7 +11,7 @@ const minimal = props.section.style_variant === 'minimal'
   <div class="px-6 py-10">
     <div class="max-w-lg mx-auto flex flex-col gap-5">
       <div v-if="!minimal" class="flex flex-col gap-2 pb-4 border-b-2" style="border-color: var(--theme-accent)">
-        <p class="text-xs font-medium tracking-widest uppercase" style="color: var(--theme-accent)">Newsletter</p>
+        <p class="text-xs font-medium tracking-widest uppercase" style="color: var(--theme-accent)">Newsletter</p>fff
         <p class="text-xl font-semibold leading-snug" style="color: var(--theme-main)">{{ c?.title }}</p>
         <p class="text-sm leading-relaxed text-gray-500 italic">{{ c?.description }}</p>
       </div>

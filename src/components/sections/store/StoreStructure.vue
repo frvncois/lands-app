@@ -54,7 +54,7 @@ async function buyItem(store: Store, item: StoreItem) {
 
 <template>
   <div v-for="store in stores" :key="store.id" class="max-w-5xl mx-auto py-8 space-y-8">
-    <h2 class="text-4xl font-semibold" style="color: var(--theme-main)">{{ store.title }}</h2>
+    <h2 class="text-4xl font-medium" style="color: var(--theme-main)">{{ store.title }}</h2>
 
     <p v-if="checkoutError" class="text-sm text-red-500">{{ checkoutError }}</p>
 
@@ -83,7 +83,7 @@ async function buyItem(store: Store, item: StoreItem) {
     <!-- Grid layout (default) -->
     <ul v-else :class="gridClass">
       <li v-for="item in sortByPosition(store.items)" :key="item.id" class="flex flex-col gap-2 pb-4">
-        <div class="aspect-square overflow-hidden rounded-xl" style="background: var(--theme-main)">
+        <div class="aspect-square overflow-hidden rounded-xl" style="background: var(--theme-accent)">
           <img v-if="item.image" :src="item.image" class="w-full h-full object-cover" />
         </div>
         <div>

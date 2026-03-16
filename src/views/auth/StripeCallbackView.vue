@@ -29,7 +29,7 @@ onMounted(async () => {
     const lands = await landService.getMyLands()
     landStore.setLands(lands)
     if (landId) landStore.setActiveLand(landId)
-    router.replace('/dashboard')
+    router.replace('/dashboard?stripe=connected')
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Failed to connect Stripe'
   }

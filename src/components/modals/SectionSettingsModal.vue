@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { PlusIcon, TrashIcon, ArrowLeftIcon, DocumentTextIcon, ListBulletIcon, RectangleStackIcon, ShoppingBagIcon, CreditCardIcon, PuzzlePieceIcon } from '@heroicons/vue/24/outline'
+import { PlusIcon, TrashIcon, ArrowLeftIcon, DocumentTextIcon, ListBulletIcon, RectangleStackIcon, ShoppingBagIcon, CreditCardIcon, PuzzlePieceIcon, MegaphoneIcon } from '@heroicons/vue/24/outline'
 
 import BaseInput from '../ui/BaseInput.vue'
 import BaseToggle from '../ui/BaseToggle.vue'
@@ -9,6 +9,7 @@ import BaseUpload from '../ui/BaseUpload.vue'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseCard from '../ui/BaseCard.vue'
 import BaseTree from '../ui/BaseTree.vue'
+import BaseIconPicker from '../ui/BaseIconPicker.vue'
 import type { TreeNode } from '../ui/BaseTree.vue'
 import CollectionItemContentModal from './CollectionItemContentModal.vue'
 import SetupCampaignModal from './SetupCampaignModal.vue'
@@ -19,17 +20,23 @@ import type { ListItem } from '@/types/list'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
+import { stripeService } from '@/services/stripe.service'
+import { useToast } from '@/composables/useToast'
 import { useCampaignStore } from '@/stores/campaign'
 import { useThemeStore } from '@/stores/theme'
+import { usePlan } from '@/composables/usePlan'
 import { sortByPosition, generatePositionBefore, generatePositionAfter, generatePositionBetween } from '@/lib/utils/position'
 import { sectionPrimitives } from '@/sections/index'
 
 const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
+const sectionIconMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon]))
 const landStore = useLandStore()
 const appModals = useAppModals()
+const { addToast } = useToast()
 const campaignStore = useCampaignStore()
 const themeStore = useThemeStore()
 const isStructureTheme = computed(() => themeStore.theme?.theme_preset === 'structure')
+const { canUseCampaign } = usePlan()
 
 const props = defineProps<{ section: Section; hideHeader?: boolean }>()
 const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
@@ -156,6 +163,8 @@ const editListSubtitle = ref('')
 const editListUrl = ref('')
 const editListDescription = ref('')
 const editListIcon = ref('')
+const editListIconType = ref<'image' | 'lucide' | 'none'>('none')
+const editListIconName = ref('')
 
 function openEditListItem(item: ListItem) {
   takeSubItemSnapshot()
@@ -165,6 +174,8 @@ function openEditListItem(item: ListItem) {
   editListUrl.value = item.url
   editListDescription.value = item.description
   editListIcon.value = item.icon
+  editListIconType.value = item.icon_type ?? 'none'
+  editListIconName.value = item.icon_name ?? ''
 }
 
 function closeEditListItem() {
@@ -179,6 +190,8 @@ function syncListItem() {
     url: editListUrl.value,
     description: editListDescription.value,
     icon: editListIcon.value,
+    icon_type: editListIconType.value,
+    icon_name: editListIconName.value,
   })
 }
 
@@ -300,6 +313,8 @@ function addListItemAction() {
     editListUrl.value = newItem.url
     editListDescription.value = newItem.description
     editListIcon.value = newItem.icon
+    editListIconType.value = newItem.icon_type ?? 'none'
+    editListIconName.value = newItem.icon_name ?? ''
   }
 }
 
@@ -358,10 +373,46 @@ function handleStoreSettings(node: TreeNode) {
 }
 
 // ─── Monetize ───
+const isConnectingStripe = ref(false)
+
+function connectStripe() {
+  const landId = landStore.activeLand?.id
+  if (!landId) return
+  try {
+    isConnectingStripe.value = true
+    window.location.href = stripeService.connectUrl(landId)
+  } catch {
+    isConnectingStripe.value = false
+    addToast('Stripe is not configured — set VITE_STRIPE_CLIENT_ID', 'error')
+  }
+}
+
 const monetizePrice = ref('')
+const monetizeSubtitle = ref('')
+const monetizeDescription = ref('')
+const monetizeCoverUrl = ref('')
+const monetizeBillingPeriod = ref<'monthly' | 'yearly'>('monthly')
+
 function saveMonetizePrice() {
   if (!collection.value) return
   updateCollection(props.section.id, collection.value.id, { price: parseFloat(monetizePrice.value) || 0 })
+}
+function saveMonetizeSubtitle() {
+  if (!collection.value) return
+  updateCollection(props.section.id, collection.value.id, { subtitle: monetizeSubtitle.value })
+}
+function saveMonetizeDescription() {
+  if (!collection.value) return
+  updateCollection(props.section.id, collection.value.id, { description: monetizeDescription.value })
+}
+function saveMonetizeCover(url: string) {
+  if (!collection.value) return
+  updateCollection(props.section.id, collection.value.id, { cover_url: url })
+}
+function saveMonetizeBillingPeriod(period: 'monthly' | 'yearly') {
+  if (!collection.value) return
+  monetizeBillingPeriod.value = period
+  updateCollection(props.section.id, collection.value.id, { billing_period: period })
 }
 
 const editingStoreItem = ref<StoreItem | null>(null)
@@ -543,7 +594,11 @@ function syncFromSection() {
   if (props.section.type === 'monetize') {
     const c = (props.section.content as any)?.collections?.[0]
     collectionTitle.value = c?.title ?? ''
+    monetizeSubtitle.value = c?.subtitle ?? ''
+    monetizeDescription.value = c?.description ?? ''
+    monetizeCoverUrl.value = c?.cover_url ?? ''
     monetizePrice.value = c?.price != null ? c.price.toString() : ''
+    monetizeBillingPeriod.value = c?.billing_period ?? 'monthly'
   }
   if (props.section.type === 'header') {
     const c = props.section.content as HeaderContent | null
@@ -639,6 +694,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <button v-if="isEditingSubItem" class="text-gray-400 hover:text-gray-700" @click="closeSubItem">
         <ArrowLeftIcon class="h-4 w-4" />
       </button>
+      <component v-if="!isEditingSubItem" :is="sectionIconMap[section.type]" class="h-4 w-4 text-gray-400 shrink-0" />
       <Transition name="modal-fade" mode="out-in">
         <h2 :key="isEditingSubItem ? 'edit' : section.type" class="text-sm font-semibold text-gray-900">
           {{ isEditingSubItem ? `${sectionLabelMap[section.type] ?? section.type} item` : (sectionLabelMap[section.type] ?? section.type) }}
@@ -651,7 +707,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
     </div>
   </div>
 
-  <div class="max-h-[70vh] overflow-y-auto overflow-x-hidden">
+  <div class="overflow-y-auto overflow-x-hidden">
   <Transition :name="isEditingSubItem ? 'modal-forward' : 'modal-back'" mode="out-in">
   <div :key="isEditingSubItem ? 'edit' : 'list'" class="flex flex-col gap-2 p-2">
 
@@ -747,6 +803,14 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <!-- ── List — item edit form ── -->
       <template v-else-if="section.type === 'list' && editingListItem">
         <div class="flex flex-col gap-4 p-2 pr-0">
+          <BaseIconPicker
+            :icon-type="editListIconType"
+            :icon-name="editListIconName"
+            :image-url="editListIcon"
+            @update:iconType="editListIconType = $event; syncListItem()"
+            @update:iconName="editListIconName = $event; syncListItem()"
+            @update:imageUrl="editListIcon = $event; syncListItem()"
+          />
           <BaseInput size="sm" label="Title" v-model="editListTitle" @update:modelValue="syncListItem" />
           <BaseInput size="sm" label="Subtitle" v-model="editListSubtitle" @update:modelValue="syncListItem" />
           <BaseInput size="sm" label="URL" v-model="editListUrl" placeholder="https://..." @update:modelValue="syncListItem" />
@@ -796,7 +860,25 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <!-- ── Store — items list ── -->
       <template v-else-if="section.type === 'store' && !editingStoreItem">
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <template v-if="landStore.isStripeConnected">
+          <!-- Not connected: setup card -->
+          <template v-if="!landStore.isStripeConnected">
+            <div class="rounded-xl border border-gray-200 flex flex-col items-center gap-4 py-8 px-4 text-center">
+              <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                <ShoppingBagIcon class="h-5 w-5 text-gray-900" />
+              </div>
+              <p class="text-sm font-semibold text-gray-900">Store</p>
+              <p class="text-xs text-gray-400 leading-relaxed">Sell your products directly from your landing page. Connect your Stripe account and start adding your products.</p>
+              <BaseButton variant="solid" size="sm" :disabled="isConnectingStripe" @click="connectStripe">
+                <Transition name="stripe-btn" mode="out-in">
+                  <span v-if="isConnectingStripe" key="loading" class="flex items-center gap-1.5"><span class="stripe-spinner" /> Connecting…</span>
+                  <span v-else key="idle" class="flex items-center gap-1.5">Connect Stripe</span>
+                </Transition>
+              </BaseButton>
+            </div>
+          </template>
+
+          <!-- Connected: store content + stats -->
+          <template v-else>
             <BaseInput size="sm" label="Title" v-model="storeTitle" placeholder="My Store" @update:modelValue="saveStoreTitle" />
             <div class="flex flex-col gap-2">
               <span class="text-xs font-medium text-gray-500">Products</span>
@@ -813,42 +895,85 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
               />
             </div>
             <BaseButton variant="outline" size="sm" class="w-full" @click="addStoreItemAction">+ Add item</BaseButton>
+            <BaseCard :icon="ShoppingBagIcon" title="Store">
+              <template v-if="storeItems.length === 0">
+                Start adding your products to this store.
+              </template>
+              <template v-else>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                    <p class="text-xs text-gray-400">Orders</p>
+                    <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
+                    <p class="text-xs text-gray-400">total</p>
+                  </div>
+                  <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                    <p class="text-xs text-gray-400">Revenue</p>
+                    <p class="text-xl font-semibold text-gray-900 leading-tight">$0</p>
+                    <p class="text-xs text-gray-400">this month</p>
+                  </div>
+                </div>
+              </template>
+              <template #actions>
+                <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('orders')">View orders</BaseButton>
+              </template>
+            </BaseCard>
           </template>
-          <BaseCard :icon="ShoppingBagIcon" title="Store">
-            <template v-if="!landStore.isStripeConnected && storeItems.length === 0">
-              Sell your products directly from your landing page. Connect your Stripe account and start adding your products.
-            </template>
-            <template v-else-if="landStore.isStripeConnected && storeItems.length === 0">
-              Start adding your products to this store.
-            </template>
-            <template v-else>
-              <div class="grid grid-cols-2 gap-2">
-                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
-                  <p class="text-xs text-gray-400">Orders</p>
-                  <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
-                  <p class="text-xs text-gray-400">total</p>
-                </div>
-                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
-                  <p class="text-xs text-gray-400">Revenue</p>
-                  <p class="text-xl font-semibold text-gray-900 leading-tight">$0</p>
-                  <p class="text-xs text-gray-400">this month</p>
-                </div>
-              </div>
-            </template>
-            <template #actions>
-              <BaseButton v-if="!landStore.isStripeConnected" size="sm" variant="solid" class="w-full justify-center" @click="appModals.openIntegrations('sell_monetize')">Connect your Stripe account</BaseButton>
-              <BaseButton v-else size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('orders')">View orders</BaseButton>
-            </template>
-          </BaseCard>
         </div>
       </template>
 
       <!-- ── Monetize — items list ── -->
       <template v-else-if="section.type === 'monetize' && !editingItem">
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <template v-if="landStore.isStripeConnected">
-            <BaseInput size="sm" label="Collection title" v-model="collectionTitle" placeholder="Exclusive Content" @update:modelValue="saveCollectionTitle" />
-            <BaseInput size="sm" label="Price ($/month)" v-model="monetizePrice" placeholder="9.00" @update:modelValue="saveMonetizePrice" />
+          <!-- Not connected: setup card -->
+          <template v-if="!landStore.isStripeConnected">
+            <div class="rounded-xl border border-gray-200 flex flex-col items-center gap-4 py-8 px-4 text-center">
+              <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                <CreditCardIcon class="h-5 w-5 text-gray-900" />
+              </div>
+              <p class="text-sm font-semibold text-gray-900">Sell &amp; Monetize</p>
+              <p class="text-xs text-gray-400 leading-relaxed">Connect your Stripe account and start selling exclusive content and memberships.</p>
+              <BaseButton variant="solid" size="sm" :disabled="isConnectingStripe" @click="connectStripe">
+                <Transition name="stripe-btn" mode="out-in">
+                  <span v-if="isConnectingStripe" key="loading" class="flex items-center gap-1.5"><span class="stripe-spinner" /> Connecting…</span>
+                  <span v-else key="idle" class="flex items-center gap-1.5">Connect Stripe</span>
+                </Transition>
+              </BaseButton>
+            </div>
+          </template>
+
+          <!-- Connected: monetize content + stats -->
+          <template v-else>
+            <BaseUpload type="image" size="sm" label="Cover" v-model="monetizeCoverUrl" @update:modelValue="saveMonetizeCover" />
+            <BaseInput size="sm" label="Title" v-model="collectionTitle" placeholder="Exclusive Content" @update:modelValue="saveCollectionTitle" />
+            <BaseInput size="sm" label="Subtitle" v-model="monetizeSubtitle" placeholder="For your biggest fans" @update:modelValue="saveMonetizeSubtitle" />
+            <div class="flex flex-col gap-1.5">
+              <span class="text-xs font-medium text-gray-500">Description</span>
+              <textarea
+                v-model="monetizeDescription"
+                placeholder="What members get access to…"
+                rows="3"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 bg-gray-50 resize-none outline-none focus:border-gray-400 transition-colors placeholder:text-gray-300"
+                @input="saveMonetizeDescription"
+              />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <span class="text-xs font-medium text-gray-500">Price</span>
+              <div class="flex gap-2">
+                <BaseInput label="" size="sm" v-model="monetizePrice" placeholder="9.00" class="flex-1" @update:modelValue="saveMonetizePrice" />
+                <div class="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
+                  <button
+                    class="px-3 py-1.5 transition-colors"
+                    :class="monetizeBillingPeriod === 'monthly' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'"
+                    @click="saveMonetizeBillingPeriod('monthly')"
+                  >Monthly</button>
+                  <button
+                    class="px-3 py-1.5 transition-colors border-l border-gray-200"
+                    :class="monetizeBillingPeriod === 'yearly' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'"
+                    @click="saveMonetizeBillingPeriod('yearly')"
+                  >Yearly</button>
+                </div>
+              </div>
+            </div>
             <div class="flex flex-col gap-2">
               <span class="text-xs font-medium text-gray-500">Items</span>
               <div v-if="collectionItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
@@ -864,33 +989,29 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
               />
             </div>
             <BaseButton variant="outline" size="sm" class="w-full" @click="addItem">+ Add item</BaseButton>
+            <BaseCard :icon="CreditCardIcon" title="Monetize">
+              <template v-if="collectionItems.length === 0">
+                Start adding your exclusive content to this collection.
+              </template>
+              <template v-else>
+                <div class="grid grid-cols-2 gap-2">
+                  <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                    <p class="text-xs text-gray-400">Subscribers</p>
+                    <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
+                    <p class="text-xs text-gray-400">total</p>
+                  </div>
+                  <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
+                    <p class="text-xs text-gray-400">Revenue</p>
+                    <p class="text-xl font-semibold text-gray-900 leading-tight">$0</p>
+                    <p class="text-xs text-gray-400">this month</p>
+                  </div>
+                </div>
+              </template>
+              <template #actions>
+                <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('monetize')">View details</BaseButton>
+              </template>
+            </BaseCard>
           </template>
-          <BaseCard :icon="CreditCardIcon" title="Monetize">
-            <template v-if="!landStore.isStripeConnected && collectionItems.length === 0">
-              Earn money by offering monthly subscriptions to your visitors to access the content of this collection. Connect your Stripe account and start adding exclusive content to this collection.
-            </template>
-            <template v-else-if="landStore.isStripeConnected && collectionItems.length === 0">
-              Start adding your exclusive content to this collection.
-            </template>
-            <template v-else>
-              <div class="grid grid-cols-2 gap-2">
-                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
-                  <p class="text-xs text-gray-400">Subscribers</p>
-                  <p class="text-xl font-semibold text-gray-900 leading-tight">0</p>
-                  <p class="text-xs text-gray-400">total</p>
-                </div>
-                <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
-                  <p class="text-xs text-gray-400">Revenue</p>
-                  <p class="text-xl font-semibold text-gray-900 leading-tight">$0</p>
-                  <p class="text-xs text-gray-400">this month</p>
-                </div>
-              </div>
-            </template>
-            <template #actions>
-              <BaseButton v-if="!landStore.isStripeConnected" size="sm" variant="solid" class="w-full justify-center" @click="appModals.openIntegrations('sell_monetize')">Connect your Stripe account</BaseButton>
-              <BaseButton v-else size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('monetize')">View details</BaseButton>
-            </template>
-          </BaseCard>
         </div>
       </template>
 
@@ -993,7 +1114,21 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
       <!-- ── Campaign ── -->
       <template v-else-if="section.type === 'campaign'">
         <div class="flex flex-col gap-4 p-2 pr-0">
-          <template v-if="campaignStore.isConnected">
+          <!-- Not connected: setup card -->
+          <template v-if="!campaignStore.isConnected">
+            <div class="rounded-xl border border-gray-200 flex flex-col items-center gap-4 py-8 px-4 text-center">
+              <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                <MegaphoneIcon class="h-5 w-5 text-gray-900" />
+              </div>
+              <p class="text-sm font-semibold text-gray-900">Campaign</p>
+              <p class="text-xs text-gray-400 leading-relaxed">Grow your audience by connecting Mailchimp, FloDesk or Brevo to collect email subscribers.</p>
+              <BaseButton v-if="canUseCampaign" variant="solid" size="sm" @click="showSetupCampaignModal = true">Set up Campaign</BaseButton>
+              <BaseButton v-else variant="solid" size="sm" @click="appModals.openUpgrade()">Upgrade to Pro</BaseButton>
+            </div>
+          </template>
+
+          <!-- Connected: campaign content + stats -->
+          <template v-else>
             <BaseInput size="sm" label="Title" v-model="campaignTitle" @update:modelValue="saveCampaignContent" />
             <BaseInput size="sm" label="Description" v-model="campaignDescription" @update:modelValue="saveCampaignContent" />
             <BaseInput size="sm" label="Button label" v-model="campaignButtonLabel" @update:modelValue="saveCampaignContent" />
@@ -1001,12 +1136,7 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
             <div class="border-t border-gray-100 pt-3">
               <BaseToggle size="sm" label="Name field" description="Add a name field above the email" v-model="campaignShowNameField" @update:modelValue="saveCampaignSettings" />
             </div>
-          </template>
-          <BaseCard :icon="PuzzlePieceIcon" title="Campaign">
-            <template v-if="!campaignStore.isConnected">
-              Grow your audience by integrating Mailchimp, FloDesk or Brevo.
-            </template>
-            <template v-else>
+            <BaseCard :icon="PuzzlePieceIcon" title="Campaign">
               <div class="grid grid-cols-2 gap-2">
                 <div class="rounded-xl bg-white border border-gray-100 p-3 space-y-0.5">
                   <p class="text-xs text-gray-400">Subscribers</p>
@@ -1019,12 +1149,11 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
                   <p class="text-xs text-gray-400">this month</p>
                 </div>
               </div>
-            </template>
-            <template #actions>
-              <BaseButton v-if="!campaignStore.isConnected" size="sm" variant="solid" class="w-full justify-center" @click="showSetupCampaignModal = true">Set up Campaign</BaseButton>
-              <BaseButton v-else size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('campaign')">View details</BaseButton>
-            </template>
-          </BaseCard>
+              <template #actions>
+                <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('campaign')">View details</BaseButton>
+              </template>
+            </BaseCard>
+          </template>
         </div>
       </template>
 
@@ -1038,3 +1167,23 @@ defineExpose({ handleSave, handleCancel, cancelSubItem: closeSubItem, saveSubIte
     </Transition>
   </Teleport>
 </template>
+
+
+<style scoped>
+.stripe-btn-enter-active, .stripe-btn-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
+.stripe-btn-enter-from { opacity: 0; transform: scale(0.9); }
+.stripe-btn-leave-to   { opacity: 0; transform: scale(1.05); }
+
+.stripe-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  opacity: 0.6;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>

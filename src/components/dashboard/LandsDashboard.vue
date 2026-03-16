@@ -28,6 +28,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
+import SetupCampaignModal from '@/components/modals/SetupCampaignModal.vue'
 import { visitData, totalViews, avgPerDay } from '@/lib/mock/analytics'
 import { orderStats } from '@/lib/mock/orders'
 import { monetizeStats } from '@/lib/mock/monetize'
@@ -85,6 +86,7 @@ const campaignStore = useCampaignStore()
 const router = useRouter()
 const { addToast } = useToast()
 const showShare = ref(false)
+const showCampaignModal = ref(false)
 
 const activeDetail = ref<DetailKey | null>(null)
 const direction = ref<'forward' | 'back'>('forward')
@@ -174,6 +176,9 @@ function closeDetail() {
     </Transition>
     <Transition name="modal-grow">
       <ShareModal v-if="showShare" @close="showShare = false" />
+    </Transition>
+    <Transition name="modal-center">
+      <SetupCampaignModal v-if="showCampaignModal" @close="showCampaignModal = false" />
     </Transition>
     <Transition name="modal-fade">
       <div v-if="landStore.isLoading" class="absolute inset-0 bg-white z-10" />
@@ -376,8 +381,8 @@ function closeDetail() {
             <p class="text-sm font-semibold text-gray-900">Connect email provider</p>
             <p class="text-xs text-gray-400 leading-relaxed">Connect Mailchimp, Flodesk, Brevo and more to start capturing subscribers.</p>
           </div>
-          <BaseButton variant="solid" size="sm" @click="openDetail('campaign')">
-            <MegaphoneIcon class="h-3.5 w-3.5" /> Set up Campaign
+          <BaseButton variant="solid" size="sm" @click="showCampaignModal = true">
+            Set up Campaign
           </BaseButton>
         </div>
 

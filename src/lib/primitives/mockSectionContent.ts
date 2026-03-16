@@ -44,8 +44,11 @@ export const MOCK_MONETIZE_COLLECTIONS: Collection[] = [
     id: 'mock-monetize-1',
     section_id: '',
     title: '[ Collection Name ]',
+    subtitle: '[ For your biggest fans ]',
     description: '[ Exclusive content for paying members ]',
+    cover_url: '',
     price: 9,
+    billing_period: 'monthly',
     position: 'a',
     items: [
       { id: 'mock-mon-item-1', collection_id: 'mock-monetize-1', title: '[ Exclusive item ]', subtitle: '', description: '[ Description ]', media_url: '', content: '', external_url: '', position: 'a', created_at: '' },

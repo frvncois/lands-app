@@ -349,7 +349,7 @@ function handleAddSection(type: string) {
                       <BaseToggle
                         size="sm"
                         label="Published"
-                        description="Make this project accessible publicly"
+                        description="Accessible publicly"
                         :model-value="landStore.activeLand?.is_published ?? false"
                         @update:model-value="handlePublishedToggle"
                       />

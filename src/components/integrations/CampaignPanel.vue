@@ -16,7 +16,7 @@ const { canUseCampaign } = usePlan()
 const showSetupModal = ref(false)
 
 function disconnect() {
-  campaignStore.clearConnection()
+  campaignStore.clearIntegration()
   addToast('Campaign disconnected')
 }
 </script>
@@ -36,7 +36,7 @@ function disconnect() {
       <div class="flex items-center gap-2">
         <BaseBadge variant="success" size="xs" dot>Connected</BaseBadge>
         <span class="text-xs font-medium text-gray-700">
-          {{ CAMPAIGN_PROVIDERS.find(p => p.id === campaignStore.connection.provider)?.label }}
+          {{ CAMPAIGN_PROVIDERS.find(p => p.id === campaignStore.integration?.provider)?.label }}
         </span>
       </div>
       <div class="flex items-center gap-1">

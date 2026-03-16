@@ -1,5 +1,5 @@
 export interface LandTheme {
-  theme_preset: 'minimal' | 'bold' | 'editorial' | 'structure'
+  theme_preset: 'minimal' | 'bold' | 'editorial' | 'structure' | 'feed'
   color_main: string
   color_accent: string
   color_surface: string
@@ -122,6 +122,18 @@ export interface Section {
   content: Record<string, unknown> | null
 }
 
+export interface CampaignConfig {
+  api_key?: string
+  list_id?: string
+  webhook_url?: string
+  headers?: Record<string, string>
+}
+
+export interface CampaignIntegration {
+  provider: 'brevo' | 'flodesk' | 'webhook' | 'custom' | 'mailchimp'
+  config: CampaignConfig
+}
+
 export interface Land {
   id: string
   handle: string
@@ -130,4 +142,5 @@ export interface Land {
   avatar_image: string
   sections: Section[]
   theme: LandTheme
+  campaign_integration?: CampaignIntegration | null
 }

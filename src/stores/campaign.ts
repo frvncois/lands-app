@@ -1,19 +1,29 @@
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { CampaignConnection } from '@/types/campaign'
+import { useLandStore } from '@/stores/land'
+import type { CampaignIntegration } from '@/types/campaign'
 
 export const useCampaignStore = defineStore('campaign', () => {
-  const connection = ref<Partial<CampaignConnection>>({})
+  const landStore = useLandStore()
 
-  function setConnection(c: Partial<CampaignConnection>) {
-    connection.value = c
+  const integration = computed<CampaignIntegration | null>(
+    () => landStore.activeLand?.campaign_integration ?? null,
+  )
+
+  const isConnected = computed(() => !!integration.value)
+  const provider = computed(() => integration.value?.provider ?? null)
+
+  function setIntegration(data: CampaignIntegration) {
+    const id = landStore.activeLandId
+    if (!id) return
+    landStore.updateLand(id, { campaign_integration: data })
   }
 
-  function clearConnection() {
-    connection.value = {}
+  function clearIntegration() {
+    const id = landStore.activeLandId
+    if (!id) return
+    landStore.updateLand(id, { campaign_integration: null })
   }
 
-  const isConnected = computed(() => !!connection.value.provider)
-
-  return { connection, setConnection, clearConnection, isConnected }
+  return { integration, isConnected, provider, setIntegration, clearIntegration }
 })

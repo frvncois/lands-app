@@ -44,7 +44,7 @@ async function handleLogin() {
         <RouterLink to="/auth/reset" class="text-neutral-400 text-xs text-right hover:underline">Forgot password?</RouterLink>
       </div>
     </div>
-    <div class="text-sm text-neutral-400 auth-footer">
+    <div class="text-neutral-400 auth-footer">
       Don't have an account?
       <RouterLink to="/auth/register" class="text-neutral-900 font-medium hover:underline">Sign up</RouterLink>
     </div>

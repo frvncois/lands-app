@@ -75,7 +75,7 @@ async function share() {
 
           <!-- Done state -->
           <div v-else key="done" class="flex flex-col items-center gap-5">
-            <div class="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center">
+            <div class="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center">
               <svg class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>

@@ -178,7 +178,7 @@ async function resendCode() {
 
     </Transition>
 
-    <div class="text-sm text-neutral-400 auth-footer">
+    <div class="text-neutral-400 auth-footer">
       Already have an account?
       <RouterLink to="/auth" class="text-neutral-900 font-medium hover:underline">Sign in</RouterLink>
     </div>

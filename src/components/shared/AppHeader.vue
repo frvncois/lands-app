@@ -197,7 +197,7 @@ async function handleLogout() {
                 <BaseButton size="sm" variant="outline" :disabled="isSaving" @click="save">
                     {{ isSaving ? 'Saving…' : 'Save' }}
                 </BaseButton>
-                <BaseButton size="sm" variant="solid" :disabled="isSaving" @click="publish">
+                <BaseButton size="sm" variant="solid" class="bg-indigo-600":disabled="isSaving" @click="publish">
                     <CloudArrowUpIcon class="h-4 w-4" />
                     {{ isSaving ? 'Publishing…' : 'Publish' }}
                 </BaseButton>

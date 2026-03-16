@@ -27,14 +27,17 @@ Deno.serve(async (req) => {
     }
 
     const html = renderLand(land)
+    const version = Date.now().toString()
 
-    const kvUrl = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${CLOUDFLARE_KV_NS_ID}/values/${land.handle}`
+    // Write html as plain text body; pass metadata as query param (supported by KV REST API).
+    // The worker reads the metadata cheaply to build an ETag without hashing the full body.
+    const kvUrl = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${CLOUDFLARE_KV_NS_ID}/values/${land.handle}?metadata=${encodeURIComponent(JSON.stringify({ version }))}`
 
     const cfRes = await fetch(kvUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
-        'Content-Type': 'text/plain',
+        'Content-Type': 'text/html; charset=utf-8',
       },
       body: html,
     })

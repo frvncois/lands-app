@@ -49,7 +49,7 @@ function viewAnalytics() {
     </div>
   </div>
 
-  <div class="flex flex-col max-h-[70vh] overflow-y-auto" :class="!['collaborators', 'campaign', 'sell_monetize'].includes(integration.id) && 'p-4 gap-4'">
+  <div class="flex flex-col overflow-y-auto" :class="!['collaborators', 'campaign', 'sell_monetize'].includes(integration.id) && 'p-4 gap-4'">
 
     <!-- ── Analytics ── -->
     <template v-if="integration.id === 'analytics'">

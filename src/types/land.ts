@@ -2,6 +2,7 @@ import type { Section } from './section'
 import type { LandTheme } from './theme'
 import type { LandPlan } from './plan'
 import type { Collaborator } from './collaborator'
+import type { CampaignIntegration } from './campaign'
 
 export interface Land {
   id: string
@@ -21,6 +22,7 @@ export interface Land {
   stripe_subscription_id: string | null
   custom_domain: string | null
   custom_domain_status: 'pending' | 'active' | 'error' | null
+  campaign_integration: CampaignIntegration | null
   is_published: boolean
   is_private: boolean
   private_password: string | null

@@ -10,7 +10,7 @@ const minimal = props.section.style_variant === 'minimal'
 <template>
   <div class="overflow-hidden rounded-4xl mx-10 py-16" style="background: var(--theme-surface)">
     <div class="max-w-3xl mx-auto flex flex-col gap-8 text-center px-8">
-      <h1 v-if="!minimal" class="text-6xl font-bold leading-none tracking-tight" style="color: var(--theme-main)">{{ c?.title }}</h1>
+      <h1 v-if="!minimal" class="text-6xl font-bold leading-none tracking-tight" style="color: var(--theme-main)">{{ c?.title }}</h1>wef
       <div class="flex flex-col gap-2 max-w-sm mx-auto w-full">
         <input v-if="s?.show_name_field" type="text" placeholder="Your name" class="w-full px-4 py-3 text-sm border-2 rounded-2xl outline-none" style="border-color: var(--theme-main)" />
         <div class="flex gap-2">

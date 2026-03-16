@@ -1,32 +1,56 @@
 <script setup lang="ts">
-import type { Section, CampaignContent } from '@/types/section'
+import { computed } from 'vue'
+import type { Section, CampaignContent, CampaignSettings } from '@/types/section'
+import { useThemeStore } from '@/stores/theme'
+import { getContrastColor } from '@/lib/utils/color'
 
 const props = defineProps<{ section: Section }>()
-const c = props.section.content as CampaignContent | null
-const minimal = props.section.style_variant === 'minimal'
+const c = computed(() => props.section.content as CampaignContent | null)
+const settings = computed(() => props.section.settings_json as CampaignSettings | null)
+
+const themeStore = useThemeStore()
+
+// Returns a tinted version of the accent: light tint for dark accents, dark shade for light accents
+const textColor = computed(() => {
+  const accent = themeStore.theme?.color_accent
+  if (!accent) return 'color-mix(in srgb, var(--theme-accent) 15%, white)'
+  const isLight = getContrastColor(accent) === 'black'
+  return isLight
+    ? 'color-mix(in srgb, var(--theme-accent) 50%, black)'
+    : 'color-mix(in srgb, var(--theme-accent) 15%, white)'
+})
 </script>
 
 <template>
-  <div v-if="minimal" class="px-6 py-6 flex justify-center">
-    <div class="flex gap-2 max-w-sm w-full">
+  <div
+    class="max-w-5xl mx-auto p-24 my-16 rounded-2xl text-center space-y-6"
+    style="background-color: var(--theme-accent)"
+  >
+    <div class="space-y-3">
+      <h1 class="text-8xl leading-none tracking-tight" :style="{ color: textColor }">{{ c?.title }}</h1>
+      <p v-if="c?.description" class="text-sm leading-relaxed opacity-70 max-w-md mx-auto" :style="{ color: textColor }">{{ c.description }}</p>
+    </div>
+
+    <div class="flex flex-col items-center gap-3 max-w-sm mx-auto">
+      <input
+        v-if="settings?.show_name_field"
+        type="text"
+        placeholder="Your name"
+        class="w-full px-4 py-2.5 rounded-xl text-sm outline-none border"
+        :style="{ borderColor: `color-mix(in srgb, ${textColor} 30%, transparent)`, color: textColor, background: 'transparent' }"
+      />
       <input
         type="email"
-        :placeholder="c?.placeholder || 'email@example.com'"
-        class="flex-1 border-b bg-transparent outline-none text-sm pb-1"
-        style="border-color: var(--theme-main); color: var(--theme-main)"
+        :placeholder="c?.placeholder || 'your@email.com'"
+        class="w-full px-4 py-2.5 rounded-xl text-sm outline-none border"
+        :style="{ borderColor: `color-mix(in srgb, ${textColor} 30%, transparent)`, color: textColor, background: 'transparent' }"
       />
-      <button class="text-sm font-medium pb-1 shrink-0" style="color: var(--theme-accent)">
+      <button
+        class="w-full px-6 py-2.5 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+        :style="{ backgroundColor: textColor, color: 'var(--theme-accent)' }"
+      >
         {{ c?.button_label || 'Subscribe' }}
       </button>
     </div>
-  </div>
-  <div v-else class="flex flex-1 gap-8 justify-between items-end border-y py-4 px-6" style="border-color: var(--theme-main)">
-    <h1 class="text-6xl font-bold leading-none tracking-tight" style="color: var(--theme-main)">{{ c?.title }}</h1>
-    <input
-      type="email"
-      :placeholder="c?.placeholder || 'email@example.com'"
-      class="border-b bg-transparent outline-none text-sm pb-1 shrink-0"
-      style="border-color: var(--theme-main); color: var(--theme-main)"
-    />
   </div>
 </template>

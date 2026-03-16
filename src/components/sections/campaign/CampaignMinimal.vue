@@ -8,7 +8,7 @@ const minimal = props.section.style_variant === 'minimal'
 
 <template>
   <div v-if="minimal" class="px-6 py-6 flex justify-center">
-    <div class="flex gap-2 max-w-sm w-full">
+    <div class="flex gap-2 max-w-sm w-full">wer
       <input
         type="email"
         :placeholder="c?.placeholder || 'email@example.com'"

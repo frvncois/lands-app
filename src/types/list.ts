@@ -6,6 +6,8 @@ export interface ListItem {
   url: string
   description: string
   icon: string // URL to favicon or custom icon, empty string if none
+  icon_type?: 'image' | 'lucide' | 'none'
+  icon_name?: string // lucide icon component name
   position: string // fractional index
 }
 

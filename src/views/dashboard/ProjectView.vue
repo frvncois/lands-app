@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { watch, ref } from 'vue'
+import { watch, ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
@@ -10,13 +11,29 @@ import LandsLoading from '@/components/shared/LandsLoading.vue'
 import EditorSidebar from '@/components/editor/EditorSidebar.vue'
 import OnboardingTour from '@/components/shared/OnboardingTour.vue'
 import InviteAcceptModal from '@/components/modals/InviteAcceptModal.vue'
+import StripeConnectedModal from '@/components/modals/StripeConnectedModal.vue'
 
+const route = useRoute()
+const router = useRouter()
 const editorStore = useEditorStore()
 const landStore = useLandStore()
 const appModals = useAppModals()
 const { addToast, removeToast } = useToast()
 
 const unpublishedToastId = ref<string | null>(null)
+const showStripeConnectedModal = ref(false)
+
+onMounted(() => {
+  if (route.query.stripe === 'connected') {
+    showStripeConnectedModal.value = true
+    router.replace('/dashboard')
+  }
+})
+
+function handleStartSelling() {
+  showStripeConnectedModal.value = false
+  editorStore.enterEditMode()
+}
 
 function syncUnpublishedToast() {
   if (editorStore.hasUnpublishedChanges && !editorStore.isEditMode) {
@@ -65,6 +82,9 @@ watch(() => editorStore.isEditMode, syncUnpublishedToast)
     </div>
     <OnboardingTour />
     <InviteAcceptModal />
+    <Transition name="modal-center">
+      <StripeConnectedModal v-if="showStripeConnectedModal" @close="showStripeConnectedModal = false" @start-selling="handleStartSelling" />
+    </Transition>
   </div>
 </template>
 

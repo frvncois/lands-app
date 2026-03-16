@@ -404,6 +404,82 @@ a   { color: inherit; text-decoration: none; }
 .footer-structure__link  { font-size: .875rem; color: var(--main); transition: opacity .15s; }
 .footer-structure__link:hover { opacity: .6; }
 
+/* ── Feed Theme ── */
+.feed-hero {
+  position: relative;
+  height: 380px;
+  overflow: hidden;
+  background: var(--accent);
+}
+.feed-hero img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.feed-hero__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.65) 100%);
+}
+.feed-hero__content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 2rem;
+}
+.feed-hero__logo { height: 2rem; width: auto; object-fit: contain; object-position: left; filter: brightness(0) invert(1); margin-bottom: 0.5rem; }
+.feed-hero__title { font-size: clamp(1.75rem, 5vw, 2.5rem); font-weight: 700; color: #fff; line-height: 1.2; margin: 0; }
+.feed-hero__sub   { font-size: 0.875rem; color: rgba(255,255,255,0.7); margin-top: 0.375rem; }
+
+.feed-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+  border-bottom: 1px solid var(--surface);
+  display: flex;
+  gap: 0;
+  padding: 0 1.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.feed-tab {
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--main);
+  opacity: 0.5;
+  cursor: pointer;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: var(--font);
+  transition: opacity 0.15s;
+}
+.feed-tab.active {
+  opacity: 1;
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+.feed-panel { display: none; }
+.feed-panel.active { display: block; }
+.feed-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 2rem;
+  font-size: 0.875rem;
+  color: var(--main);
+  opacity: 0.4;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .cm__inner { grid-template-columns: 1fr; gap: 2rem; }
@@ -783,6 +859,71 @@ function renderFooter(section: Section, theme: LandTheme): string {
 </footer>`
 }
 
+// ─── Feed Layout ───
+
+function renderFeedLayout(land: Land): string {
+  const sorted = sortByPosition(land.sections)
+  const header = sorted.find(s => s.type === 'header')
+  const hc = (header?.content ?? {}) as unknown as HeaderContent
+  const hs = (header?.settings_json ?? {}) as unknown as HeaderSettings
+
+  const footerSection        = sorted.find(s => s.type === 'footer')
+  const collectionSections  = sorted.filter(s => s.type === 'collection')
+  const listSections        = sorted.filter(s => s.type === 'list')
+  const monetizeSections    = sorted.filter(s => s.type === 'monetize')
+  const storeSections       = sorted.filter(s => s.type === 'store')
+  const contentMediaSections = sorted.filter(s => s.type === 'content_media')
+
+  const tabs: { id: string; label: string; html: string }[] = []
+
+  const feedHtml = collectionSections.map(s => renderCollection(s, land.theme)).join('') ||
+    '<div class="feed-empty">No collections yet</div>'
+  tabs.push({ id: 'feed', label: 'Feed', html: feedHtml })
+
+  if (listSections.length)
+    tabs.push({ id: 'links', label: 'Links', html: listSections.map(s => renderList(s, land.theme)).join('') })
+
+  if (monetizeSections.length)
+    tabs.push({ id: 'subscription', label: 'Subscription', html: monetizeSections.map(s => renderMonetize(s)).join('') })
+
+  if (storeSections.length)
+    tabs.push({ id: 'store', label: 'Store', html: storeSections.map(s => renderStore(s, land.theme)).join('') })
+
+  if (contentMediaSections.length)
+    tabs.push({ id: 'about', label: 'About', html: contentMediaSections.map(s => renderContentMedia(s)).join('') })
+
+  const tabButtons = tabs.map((t, i) =>
+    `<button class="feed-tab${i === 0 ? ' active' : ''}" onclick="switchTab(event, '${t.id}')">${esc(t.label)}</button>`
+  ).join('')
+
+  const tabPanels = tabs.map((t, i) =>
+    `<div id="feed-panel-${t.id}" class="feed-panel${i === 0 ? ' active' : ''}">${t.html}</div>`
+  ).join('')
+
+  return `
+<div class="feed-hero">
+  ${hs?.cover_media_value ? `<img src="${esc(hs.cover_media_value)}" alt="">` : ''}
+  <div class="feed-hero__scrim"></div>
+  <div class="feed-hero__content">
+    ${hc.logo    ? `<img src="${esc(hc.logo)}" class="feed-hero__logo" alt="Logo">` : ''}
+    ${hc.title   ? `<h1 class="feed-hero__title">${esc(hc.title)}</h1>` : `<h1 class="feed-hero__title">${esc(land.title || land.handle)}</h1>`}
+    ${hc.subtitle ? `<p class="feed-hero__sub">${esc(hc.subtitle)}</p>` : ''}
+  </div>
+</div>
+<div class="feed-tabs">${tabButtons}</div>
+<div class="feed-content">${tabPanels}</div>
+${footerSection ? renderFooter(footerSection, land.theme) : ''}
+<script>
+function switchTab(event, id) {
+  document.querySelectorAll('.feed-tab').forEach(function(el) { el.classList.remove('active') })
+  document.querySelectorAll('.feed-panel').forEach(function(el) { el.classList.remove('active') })
+  event.currentTarget.classList.add('active')
+  var panel = document.getElementById('feed-panel-' + id)
+  if (panel) panel.classList.add('active')
+}
+<\/script>`
+}
+
 // ─── Dispatcher ───
 
 function renderSection(section: Section, theme: LandTheme, land: Land): string {
@@ -802,8 +943,15 @@ function renderSection(section: Section, theme: LandTheme, land: Land): string {
 // ─── Main ───
 
 export function renderLand(land: Land): string {
-  const sorted = sortByPosition(land.sections)
-  const body   = sorted.map(s => renderSection(s, land.theme, land)).join('\n')
+  const isFeed = land.theme?.theme_preset === 'feed'
+
+  let body: string
+  if (isFeed) {
+    body = renderFeedLayout(land)
+  } else {
+    const sorted = sortByPosition(land.sections)
+    body = sorted.map(s => renderSection(s, land.theme, land)).join('\n')
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">

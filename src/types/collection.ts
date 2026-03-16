@@ -15,8 +15,11 @@ export interface Collection {
   id: string
   section_id: string
   title: string
-  description: string
+  subtitle?: string
+  description?: string
+  cover_url?: string
   price?: number
+  billing_period?: 'monthly' | 'yearly'
   position: string // fractional index
   items: CollectionItem[]
 }

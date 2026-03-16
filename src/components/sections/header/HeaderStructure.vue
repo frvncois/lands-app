@@ -17,9 +17,9 @@ const projectName = computed(() => landStore.activeLand?.title ?? '')
         <span v-else class="text-2xl font-semibold" style="color: var(--theme-main)">{{ projectName }}</span>
       </div>
       <div class="flex flex-col pt-12 gap-6 items-center">
-        <h1 class="text-xs uppsercase border rounded-xl px-2" style="color: var(--theme-main)">{{ content?.title }}</h1>
-        <h2 class="text-6xl w-[15ch]" style="color: var(--theme-main);">{{ content?.subtitle }}</h2>
-        <p v-if="content?.description" class="w-[35ch] leading-tight" style="color: var(--theme-main); opacity: 0.5">{{ content.description }}</p>
+        <h1 class="text-xs uppsercase border rounded-xl px-2 tracking-widest uppercase" style="color: var(--theme-accent)">{{ content?.title }}</h1>
+        <h2 class="text-6xl w-[15ch]" style="color: var(--theme-accent);">{{ content?.subtitle }}</h2>
+        <p v-if="content?.description" class="w-[35ch] leading-tight" style="color: var(--theme-main);">{{ content.description }}</p>
         <div v-if="content?.buttons?.length" class="flex flex-wrap items-center justify-center gap-3">
           <a
             v-for="btn in content.buttons"
