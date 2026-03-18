@@ -21,6 +21,7 @@ export interface StoreItem {
   variants: StoreVariant[]
   inventory: number
   file_url: string
+  content: string
   position: string
   created_at: string
 }
@@ -29,6 +30,7 @@ export interface Store {
   id: string
   section_id: string
   title: string
+  description: string
   mode: 'products' | 'membership'
   membership_price: number
   position: string

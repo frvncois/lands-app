@@ -1,9 +1,10 @@
 export interface LandTheme {
-  theme_preset: 'minimal' | 'bold' | 'editorial' | 'structure' | 'feed'
+  theme_preset: 'minimal' | 'baseline' | 'structure' | 'feed'
   color_main: string
   color_accent: string
   color_surface: string
-  typography_style: 'sans' | 'serif' | 'mono'
+  font_title: string  // Full CSS font-family stack for headings
+  font_body: string   // Full CSS font-family stack for body text
 }
 
 export interface ContentMediaButton {
@@ -62,6 +63,11 @@ export interface CollectionItem {
 export interface Collection {
   id: string
   title: string
+  subtitle?: string
+  description?: string
+  cover_url?: string
+  price?: number
+  billing_period?: 'monthly' | 'yearly'
   items: CollectionItem[]
 }
 
@@ -79,6 +85,7 @@ export interface StoreItem {
   description: string
   image: string
   price: number
+  content?: string
   position: string
 }
 
@@ -103,10 +110,26 @@ export interface CampaignContent {
   placeholder: string
 }
 
-export interface FooterContent {
-  title: string
-  subtitle: string
+export interface TextContent {
+  title?: string
+  subtitle?: string
+  body?: string
   buttons?: ContentMediaButton[]
+}
+
+export interface MediaContent {
+  media_type?: 'image' | 'video'
+  url?: string
+  caption?: string
+}
+
+export interface FooterContent {
+  title?: string
+  subtitle?: string
+  description?: string
+  buttons?: ContentMediaButton[]
+  privacy_policy?: string
+  terms_conditions?: string
 }
 
 export interface FooterSettings {
@@ -130,7 +153,7 @@ export interface CampaignConfig {
 }
 
 export interface CampaignIntegration {
-  provider: 'brevo' | 'flodesk' | 'webhook' | 'custom' | 'mailchimp'
+  provider: 'brevo' | 'flodesk' | 'kit' | 'loops' | 'resend' | 'mailchimp' | 'webhook' | 'custom'
   config: CampaignConfig
 }
 
@@ -143,4 +166,7 @@ export interface Land {
   sections: Section[]
   theme: LandTheme
   campaign_integration?: CampaignIntegration | null
+  meta_title?: string
+  meta_description?: string
+  og_image?: string
 }

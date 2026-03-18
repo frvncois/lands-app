@@ -1,9 +1,9 @@
 import { renderLand } from './renderer.ts'
 import type { Land } from './types.ts'
 
-const CLOUDFLARE_ACCOUNT_ID = Deno.env.get('CLOUDFLARE_ACCOUNT_ID')!
-const CLOUDFLARE_API_TOKEN  = Deno.env.get('CLOUDFLARE_API_TOKEN')!
-const CLOUDFLARE_KV_NS_ID   = Deno.env.get('CLOUDFLARE_KV_NS_ID')!
+const CLOUDFLARE_ACCOUNT_ID = Deno.env.get('CLOUDFLARE_ACCOUNT_ID')
+const CLOUDFLARE_API_TOKEN  = Deno.env.get('CLOUDFLARE_API_TOKEN')
+const CLOUDFLARE_KV_NS_ID   = Deno.env.get('CLOUDFLARE_KV_NS_ID')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +17,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN || !CLOUDFLARE_KV_NS_ID) {
+      return new Response(JSON.stringify({ error: 'Cloudflare env vars not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const { land } = await req.json() as { land: Land }
 
     if (!land?.handle) {
@@ -36,7 +43,7 @@ Deno.serve(async (req) => {
     const cfRes = await fetch(kvUrl, {
       method: 'PUT',
       headers: {
-        'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+        'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN!}`,
         'Content-Type': 'text/html; charset=utf-8',
       },
       body: html,

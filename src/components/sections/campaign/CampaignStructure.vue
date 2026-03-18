@@ -24,11 +24,11 @@ const textColor = computed(() => {
 <template>
   <div
     class="max-w-5xl mx-auto p-24 my-16 rounded-2xl text-center space-y-6"
-    style="background-color: var(--theme-accent)"
+    style="background-color: var(--theme-accent)" 
   >
     <div class="space-y-3">
       <h1 class="text-8xl leading-none tracking-tight" :style="{ color: textColor }">{{ c?.title }}</h1>
-      <p v-if="c?.description" class="text-sm leading-relaxed opacity-70 max-w-md mx-auto" :style="{ color: textColor }">{{ c.description }}</p>
+      <p v-if="c?.description" class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">{{ c.description }}</p>
     </div>
 
     <div class="flex flex-col items-center gap-3 max-w-sm mx-auto">

@@ -3,8 +3,7 @@ import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import type { Section, TextContent } from '@/types/section'
 import TextMinimal from './text/TextMinimal.vue'
-import TextBold from './text/TextBold.vue'
-import TextEditorial from './text/TextEditorial.vue'
+import TextBaseline from './text/TextBaseline.vue'
 import TextStructure from './text/TextStructure.vue'
 import { MOCK_TEXT_CONTENT } from '@/lib/primitives/mockSectionContent'
 
@@ -13,9 +12,8 @@ const themeStore = useThemeStore()
 
 const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
-    case 'bold': return TextBold
-    case 'editorial': return TextEditorial
     case 'structure': return TextStructure
+    case 'baseline': return TextBaseline
     default: return TextMinimal
   }
 })

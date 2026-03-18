@@ -124,8 +124,8 @@ router.beforeEach(async (to) => {
     if (to.path === '/onboarding' && landStore.lands.length > 0) return '/dashboard'
 
     // Dashboard: redirect to onboarding if data is loaded and user has no lands.
-    // Skip when an invite is being processed (via query param or sessionStorage flag).
-    const hasInvite = !!to.query.invite || !!sessionStorage.getItem('lands_invite_land')
+    // Skip when an invite is being processed (via URL query param — survives tab refresh).
+    const hasInvite = !!to.query.invite
     if (to.path.startsWith('/dashboard') && !landStore.isLoading && landStore.lands.length === 0 && !hasInvite) return '/onboarding'
   }
 })

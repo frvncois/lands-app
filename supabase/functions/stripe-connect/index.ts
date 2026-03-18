@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'https://lands.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Content-Type': 'application/json',
 }
@@ -13,17 +13,6 @@ function ok(body: Record<string, unknown>) {
 
 function err(body: Record<string, unknown>, status = 400) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders })
-}
-
-function getUserIdFromJwt(authHeader: string): string | null {
-  try {
-    const token = authHeader.replace('Bearer ', '')
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    const payload = JSON.parse(atob(base64))
-    return payload.sub ?? null
-  } catch {
-    return null
-  }
 }
 
 serve(async (req) => {
@@ -43,8 +32,15 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return err({ error: 'Missing Authorization header' }, 401)
 
-    const userId = getUserIdFromJwt(authHeader)
-    if (!userId) return err({ error: 'Invalid token' }, 401)
+    // Validate JWT server-side via Supabase — avoids fragile manual atob() parsing
+    const supabaseForAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    )
+    const { data: { user }, error: authError } = await supabaseForAuth.auth.getUser()
+    if (authError || !user) return err({ error: 'Invalid or expired token' }, 401)
+    const userId = user.id
 
     // Exchange OAuth code for Stripe access token
     const tokenRes = await fetch('https://connect.stripe.com/oauth/token', {
@@ -64,6 +60,10 @@ serve(async (req) => {
     }
 
     const stripe_user_id: string = tokenData.stripe_user_id
+    if (!stripe_user_id) {
+      console.error('Missing stripe_user_id in OAuth response:', JSON.stringify(tokenData))
+      return err({ error: 'stripe_user_id missing from OAuth response' }, 502)
+    }
 
     // Fetch account name from Stripe
     const accountRes = await fetch(`https://api.stripe.com/v1/accounts/${stripe_user_id}`, {

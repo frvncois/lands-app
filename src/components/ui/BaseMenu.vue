@@ -111,7 +111,7 @@ const navButtonClass = 'w-full !justify-start text-gray-700'
             :active="landStore.activeLandId === land.id && route.path === '/dashboard'"
             @click="navigate(() => switchProject(land.id))"
           />
-          <BaseButton size="sm" variant="outline" :class="navButtonClass" @click="showCreateModal = true; open = false">
+          <BaseButton size="sm" class="w-full" variant="outline" @click="showCreateModal = true; open = false">
             + Create new project
           </BaseButton>
         </div>

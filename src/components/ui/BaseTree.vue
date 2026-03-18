@@ -9,6 +9,7 @@ export interface TreeNode {
   id: string
   label: string
   icon?: FunctionalComponent
+  imageUrl?: string
   locked?: boolean
   sectionType?: string
   children?: TreeNode[]
@@ -79,20 +80,21 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
     <template #item="{ element: node }">
       <li class="group/node">
         <div class="flex items-center rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors p-1.5 gap-2">
-          <!-- Icon acts as drag handle -->
+          <!-- Icon / cover image acts as drag handle -->
           <span
-            class="drag-handle shrink-0 flex items-center justify-center h-7 w-7 rounded-lg bg-gray-900 text-gray-100"
-            :class="node.locked ? 'cursor-default' : 'cursor-grab'"
+            class="drag-handle shrink-0 flex items-center justify-center h-7 w-7 rounded-lg overflow-hidden"
+            :class="[node.locked ? 'cursor-default' : 'cursor-grab', node.imageUrl ? '' : 'bg-gray-900 text-gray-100']"
           >
-            <component :is="node.icon" v-if="node.icon" class="h-3.5 w-3.5" />
+            <img v-if="node.imageUrl" :src="node.imageUrl" class="h-full w-full object-cover" />
+            <component v-else-if="node.icon" :is="node.icon" class="h-3.5 w-3.5" />
           </span>
 
           <!-- Label -->
           <button
-            class="flex-1 text-left text-sm text-gray-700 font-medium py-0.5"
+            class="flex-1 text-left text-sm text-gray-700 font-medium py-0.5 truncate"
             @click="node.children?.length ? toggle(node.id) : $emit('settings', node)"
           >
-            {{ node.label }}
+            {{ node.label.length > 15 ? node.label.slice(0, 15) + '…' : node.label }}
           </button>
 
           <!-- Action icons -->

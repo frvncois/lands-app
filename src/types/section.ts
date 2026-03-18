@@ -161,7 +161,10 @@ export interface CampaignContent {
 export interface FooterContent {
   title: string
   subtitle: string
+  description?: string
   buttons?: ContentMediaButton[]
+  privacy_policy?: string
+  terms_conditions?: string
 }
 
 export interface ContentMediaButton {

@@ -10,40 +10,54 @@ export function useCollaboratorActions() {
   }
 
   async function invite(email: string, role: CollaboratorRole): Promise<Collaborator | null> {
-    if (!landStore.activeLand) return null
+    const land = landStore.activeLand
+    if (!land) return null
 
-    const collaborator = await collaboratorService.invite(landStore.activeLand.id, email, role)
+    // Prevent duplicate invites locally before hitting the API
+    if (land.collaborators.some(c => c.email === email)) return null
 
-    // Optimistically update local store
-    landStore.activeLand.collaborators.push(collaborator)
+    const collaborator = await collaboratorService.invite(land.id, email, role)
+
+    landStore.updateLand(land.id, {
+      collaborators: [...land.collaborators, collaborator],
+    })
     return collaborator
   }
 
   async function updateRole(collaboratorId: string, role: CollaboratorRole): Promise<void> {
+    const land = landStore.activeLand
+    if (!land) return
+
     await collaboratorService.updateRole(collaboratorId, role)
 
-    // Update local store
-    const c = landStore.activeLand?.collaborators.find(c => c.id === collaboratorId)
-    if (c) c.role = role
+    landStore.updateLand(land.id, {
+      collaborators: land.collaborators.map(c => c.id === collaboratorId ? { ...c, role } : c),
+    })
   }
 
   async function remove(collaboratorId: string): Promise<void> {
+    const land = landStore.activeLand
+    if (!land) return
+
     await collaboratorService.remove(collaboratorId)
 
-    // Update local store
-    if (!landStore.activeLand) return
-    const idx = landStore.activeLand.collaborators.findIndex(c => c.id === collaboratorId)
-    if (idx !== -1) landStore.activeLand.collaborators.splice(idx, 1)
+    landStore.updateLand(land.id, {
+      collaborators: land.collaborators.filter(c => c.id !== collaboratorId),
+    })
   }
 
   async function resendInvite(collaboratorId: string): Promise<void> {
-    const c = landStore.activeLand?.collaborators.find(c => c.id === collaboratorId)
-    if (!c || !landStore.activeLand) return
+    const land = landStore.activeLand
+    const c = land?.collaborators.find(c => c.id === collaboratorId)
+    if (!c || !land) return
 
-    await collaboratorService.resendInvite(landStore.activeLand.id, c.email, c.role)
+    await collaboratorService.resendInvite(land.id, c.email, c.role)
 
-    // Update invited_at locally
-    c.invited_at = new Date().toISOString()
+    landStore.updateLand(land.id, {
+      collaborators: land.collaborators.map(col =>
+        col.id === collaboratorId ? { ...col, invited_at: new Date().toISOString() } : col
+      ),
+    })
   }
 
   return {

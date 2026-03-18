@@ -3,8 +3,7 @@ import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import type { Section } from '@/types/section'
 import MonetizeMinimal from './monetize/MonetizeMinimal.vue'
-import MonetizeBold from './monetize/MonetizeBold.vue'
-import MonetizeEditorial from './monetize/MonetizeEditorial.vue'
+import MonetizeBaseline from './monetize/MonetizeBaseline.vue'
 import MonetizeStructure from './monetize/MonetizeStructure.vue'
 import { MOCK_MONETIZE_COLLECTIONS } from '@/lib/primitives/mockSectionContent'
 
@@ -13,9 +12,8 @@ const themeStore = useThemeStore()
 
 const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
-    case 'bold': return MonetizeBold
-    case 'editorial': return MonetizeEditorial
     case 'structure': return MonetizeStructure
+    case 'baseline': return MonetizeBaseline
     default: return MonetizeMinimal
   }
 })

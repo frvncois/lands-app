@@ -7,7 +7,7 @@ import BaseModal from '../ui/BaseModal.vue'
 import { CAMPAIGN_PROVIDERS, type CampaignProviderMeta, type CampaignConfig } from '@/types/campaign'
 import { useCampaignStore } from '@/stores/campaign'
 import { useLandStore } from '@/stores/land'
-import { integrationService } from '@/services/integration.service'
+import { integrationService, type ProviderList } from '@/services/integration.service'
 import { useToast } from '@/composables/useToast'
 
 const emit = defineEmits<{ close: [] }>()
@@ -34,6 +34,10 @@ function pickProvider(p: CampaignProviderMeta) {
   }
   customHeaders.value = []
   formError.value = ''
+  fetchedLists.value = []
+  fetchListsError.value = ''
+  // Pre-fill list selection if reconnecting with same provider
+  selectedListId.value = existing?.provider === p.id ? (existing.config.list_id ?? '') : ''
   step.value = 'connect'
 }
 
@@ -41,6 +45,9 @@ function back() {
   step.value = 'pick'
   selectedProvider.value = null
   formError.value = ''
+  fetchedLists.value = []
+  fetchListsError.value = ''
+  selectedListId.value = ''
 }
 
 // ─── Form state ───────────────────────────────────────────────────────────────
@@ -50,7 +57,37 @@ const customHeaders = ref<{ key: string; value: string }[]>([])
 const formError = ref('')
 const isSaving = ref(false)
 
+const isWebhookProvider = computed(() => selectedProvider.value?.id === 'webhook' || selectedProvider.value?.id === 'custom')
 const isCustomProvider = computed(() => selectedProvider.value?.id === 'custom')
+const hasListPicker = computed(() => !isWebhookProvider.value && !!selectedProvider.value?.listLabel)
+
+// ─── List picker state ────────────────────────────────────────────────────────
+
+const fetchedLists = ref<ProviderList[]>([])
+const selectedListId = ref('')
+const isFetchingLists = ref(false)
+const fetchListsError = ref('')
+
+async function fetchLists() {
+  if (!formConfig.value.api_key?.trim()) return
+  isFetchingLists.value = true
+  fetchListsError.value = ''
+  fetchedLists.value = []
+  selectedListId.value = ''
+  try {
+    fetchedLists.value = await integrationService.fetchProviderLists(
+      selectedProvider.value!.id,
+      formConfig.value.api_key.trim(),
+    )
+    if (!fetchedLists.value.length) {
+      fetchListsError.value = `No ${selectedProvider.value!.listLabel?.toLowerCase()}s found.`
+    }
+  } catch (err: unknown) {
+    fetchListsError.value = err instanceof Error ? err.message : 'Failed to load lists.'
+  } finally {
+    isFetchingLists.value = false
+  }
+}
 
 function addHeader() {
   customHeaders.value.push({ key: '', value: '' })
@@ -66,22 +103,34 @@ async function connect() {
   const p = selectedProvider.value!
   formError.value = ''
 
-  for (const field of p.fields) {
-    if (field.required) {
-      const val = formConfig.value[field.key] as string | undefined
-      if (!val?.trim()) {
-        formError.value = `${field.label} is required.`
-        return
+  if (isWebhookProvider.value) {
+    if (!formConfig.value.webhook_url?.trim()) {
+      formError.value = 'Endpoint URL is required.'
+      return
+    }
+    if (isCustomProvider.value) {
+      const headers: Record<string, string> = {}
+      for (const h of customHeaders.value) {
+        if (h.key.trim()) headers[h.key.trim()] = h.value
       }
+      formConfig.value.headers = Object.keys(headers).length ? headers : undefined
     }
-  }
-
-  if (isCustomProvider.value) {
-    const headers: Record<string, string> = {}
-    for (const h of customHeaders.value) {
-      if (h.key.trim()) headers[h.key.trim()] = h.value
+  } else {
+    if (!formConfig.value.api_key?.trim()) {
+      formError.value = 'API Key is required.'
+      return
     }
-    formConfig.value.headers = Object.keys(headers).length ? headers : undefined
+    if (p.listRequired && !selectedListId.value) {
+      formError.value = `Please select a ${p.listLabel?.toLowerCase()}.`
+      return
+    }
+    if (selectedListId.value) {
+      formConfig.value.list_id = selectedListId.value
+      formConfig.value.list_name = fetchedLists.value.find(l => l.id === selectedListId.value)?.name
+    } else {
+      formConfig.value.list_id = undefined
+      formConfig.value.list_name = undefined
+    }
   }
 
   isSaving.value = true
@@ -237,9 +286,9 @@ async function disconnect() {
 
           <!-- Instructions -->
           <div class="bg-gray-50 rounded-xl p-3 space-y-1.5">
-            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">How to get your credentials</p>
+            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">How to get your API key</p>
             <div
-              v-for="(step, i) in selectedProvider!.instructions"
+              v-for="(instruction, i) in selectedProvider!.instructions"
               :key="i"
               class="flex items-start gap-2"
             >
@@ -247,10 +296,10 @@ async function disconnect() {
                 {{ i + 1 }}
               </span>
               <p class="text-xs text-gray-500 leading-relaxed">
-                {{ step.text }}
+                {{ instruction.text }}
                 <a
-                  v-if="step.url"
-                  :href="step.url"
+                  v-if="instruction.url"
+                  :href="instruction.url"
                   target="_blank"
                   rel="noopener"
                   class="text-blue-500 hover:underline ml-1"
@@ -259,20 +308,15 @@ async function disconnect() {
             </div>
           </div>
 
-          <!-- Fields -->
-          <div class="space-y-3">
+          <!-- Webhook / Custom fields -->
+          <div v-if="isWebhookProvider" class="space-y-3">
             <BaseInput
-              v-for="field in selectedProvider!.fields"
-              :key="field.key"
-              :label="field.label"
-              :placeholder="field.placeholder"
-              :type="field.type === 'password' ? 'password' : 'text'"
+              label="Endpoint URL"
+              placeholder="https://your-app.com/subscribe"
+              type="text"
               size="sm"
-              :modelValue="(formConfig[field.key] as string | undefined) ?? ''"
-              @update:modelValue="(formConfig as Record<string, string>)[field.key] = $event"
+              v-model="formConfig.webhook_url"
             />
-
-            <!-- Custom headers (custom provider only) -->
             <template v-if="isCustomProvider">
               <div class="space-y-2">
                 <div class="flex items-center justify-between">
@@ -285,21 +329,63 @@ async function disconnect() {
                   </button>
                 </div>
                 <div v-for="(h, i) in customHeaders" :key="i" class="flex items-center gap-1.5">
-                  <input
-                    v-model="h.key"
-                    placeholder="Key"
-                    class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400 bg-white"
-                  />
-                  <input
-                    v-model="h.value"
-                    placeholder="Value"
-                    class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400 bg-white"
-                  />
+                  <input v-model="h.key" placeholder="Key" class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400 bg-white" />
+                  <input v-model="h.value" placeholder="Value" class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400 bg-white" />
                   <button class="text-gray-300 hover:text-red-400 transition-colors shrink-0" @click="removeHeader(i)">
                     <TrashIcon class="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
+            </template>
+          </div>
+
+          <!-- API key providers -->
+          <div v-else class="space-y-3">
+            <BaseInput
+              label="API Key"
+              placeholder="Paste your API key…"
+              type="password"
+              size="sm"
+              v-model="formConfig.api_key"
+            />
+
+            <!-- List picker -->
+            <template v-if="hasListPicker">
+              <div class="flex items-center justify-between">
+                <p class="text-xs font-medium text-gray-500">
+                  {{ selectedProvider!.listLabel }}
+                  <span v-if="!selectedProvider!.listRequired" class="font-normal text-gray-400">(optional)</span>
+                </p>
+                <button
+                  class="flex items-center gap-1 text-xs transition-colors"
+                  :class="formConfig.api_key?.trim() && !isFetchingLists ? 'text-gray-500 hover:text-gray-800' : 'text-gray-300 cursor-not-allowed'"
+                  :disabled="!formConfig.api_key?.trim() || isFetchingLists"
+                  @click="fetchLists"
+                >
+                  <span v-if="isFetchingLists" class="flex items-center gap-1">
+                    <svg class="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    Loading…
+                  </span>
+                  <span v-else>Load {{ selectedProvider!.listLabel?.toLowerCase() }}s</span>
+                </button>
+              </div>
+
+              <!-- Previously connected list (before loading) -->
+              <p v-if="!fetchedLists.length && !isFetchingLists && formConfig.list_name" class="text-xs text-gray-400">
+                Currently: {{ formConfig.list_name }}
+              </p>
+
+              <!-- Picker -->
+              <select
+                v-if="fetchedLists.length"
+                v-model="selectedListId"
+                class="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gray-400 bg-white text-gray-700"
+              >
+                <option v-if="!selectedProvider!.listRequired" value="">No {{ selectedProvider!.listLabel?.toLowerCase() }}</option>
+                <option v-for="l in fetchedLists" :key="l.id" :value="l.id">{{ l.name }}</option>
+              </select>
+
+              <p v-if="fetchListsError" class="text-xs text-red-500">{{ fetchListsError }}</p>
             </template>
           </div>
 

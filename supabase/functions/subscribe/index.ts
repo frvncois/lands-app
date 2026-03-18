@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'https://lands.app',
   'Access-Control-Allow-Headers': 'content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
@@ -37,8 +37,12 @@ Deno.serve(async (req) => {
     const integration = land.campaign_integration as CampaignIntegration
 
     switch (integration.provider) {
+      case 'kit':       return await subscribeKit(integration, email, name)
+      case 'loops':     return await subscribeLoops(integration, email, name)
       case 'brevo':     return await subscribeBrevo(integration, email, name)
       case 'flodesk':   return await subscribeFlodesk(integration, email, name)
+      case 'resend':    return await subscribeResend(integration, email, name)
+      case 'mailchimp': return await subscribeMailchimp(integration, email, name)
       case 'webhook':
       case 'custom':    return await subscribeWebhook(integration, email, name)
       default:          return json({ error: 'Unsupported provider' }, 400)
@@ -50,6 +54,101 @@ Deno.serve(async (req) => {
 })
 
 // ─── Provider implementations ─────────────────────────────────────────────────
+
+async function subscribeKit(
+  { config }: CampaignIntegration,
+  email: string,
+  name?: string,
+): Promise<Response> {
+  const res = await fetch(`https://api.convertkit.com/v3/forms/${config.list_id}/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      api_secret: config.api_key,
+      email,
+      ...(name ? { first_name: name } : {}),
+    }),
+  })
+  if (!res.ok) {
+    console.error('Kit error:', await res.text())
+    return json({ error: 'Failed to subscribe via Kit' }, 502)
+  }
+  return json({ ok: true })
+}
+
+async function subscribeLoops(
+  { config }: CampaignIntegration,
+  email: string,
+  name?: string,
+): Promise<Response> {
+  const body: Record<string, unknown> = {
+    email,
+    ...(name ? { firstName: name } : {}),
+    ...(config.list_id ? { mailingLists: { [config.list_id]: true } } : {}),
+  }
+  const res = await fetch('https://app.loops.so/api/v1/contacts/create', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.api_key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    console.error('Loops error:', await res.text())
+    return json({ error: 'Failed to subscribe via Loops' }, 502)
+  }
+  return json({ ok: true })
+}
+
+async function subscribeResend(
+  { config }: CampaignIntegration,
+  email: string,
+  name?: string,
+): Promise<Response> {
+  const firstName = name?.split(' ')[0]
+  const lastName = name?.split(' ').slice(1).join(' ') || undefined
+  const res = await fetch(`https://api.resend.com/audiences/${config.list_id}/contacts`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.api_key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, first_name: firstName, last_name: lastName, unsubscribed: false }),
+  })
+  if (!res.ok) {
+    console.error('Resend error:', await res.text())
+    return json({ error: 'Failed to subscribe via Resend' }, 502)
+  }
+  return json({ ok: true })
+}
+
+async function subscribeMailchimp(
+  { config }: CampaignIntegration,
+  email: string,
+  name?: string,
+): Promise<Response> {
+  const dc = config.api_key!.split('-').pop()
+  const credentials = btoa(`anystring:${config.api_key}`)
+  const res = await fetch(`https://${dc}.api.mailchimp.com/3.0/lists/${config.list_id}/members`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      email_address: email,
+      status: 'subscribed',
+      ...(name ? { merge_fields: { FNAME: name.split(' ')[0], LNAME: name.split(' ').slice(1).join(' ') } } : {}),
+    }),
+  })
+  // 400 with title "Member Exists" is acceptable
+  if (!res.ok && res.status !== 400) {
+    console.error('Mailchimp error:', await res.text())
+    return json({ error: 'Failed to subscribe via Mailchimp' }, 502)
+  }
+  return json({ ok: true })
+}
 
 async function subscribeBrevo(
   { config }: CampaignIntegration,

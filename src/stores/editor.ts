@@ -12,7 +12,8 @@ export const useEditorStore = defineStore('editor', () => {
   const hasUnpublishedChanges = ref(false)
   const landSnapshot = ref<Land | null>(null)
   const themeSnapshot = ref<LandTheme | null>(null)
-  const panelPos = ref({ x: (typeof window !== 'undefined' ? window.innerWidth : 1280) - 336, y: 80 })
+  // Default to 944px (1280 - 336) — consuming component should call setPanelPos on mount
+  const panelPos = ref({ x: 944, y: 80 })
 
   function enterEditMode() {
     isEditMode.value = true

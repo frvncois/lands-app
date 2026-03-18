@@ -310,6 +310,7 @@ function onAfterEnter() {
 
           <!-- Steps -->
           <ol class="flex flex-col gap-2 list-decimal pl-4">
+            <!-- SAFE: steps are hardcoded static strings in SHARE_PLATFORMS, not user input -->
             <li
               v-for="(step, i) in activePlatform.steps"
               :key="i"

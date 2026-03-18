@@ -9,7 +9,18 @@ import type { Store, StoreItem } from '@/types/store'
 
 const props = defineProps<{ section: Section }>()
 const stores = computed<Store[]>(() => sortByPosition((props.section.content as any)?.stores ?? []))
-const isList = computed(() => props.section.style_variant === 'list')
+
+function smartColumns(count: number): number {
+  if (count <= 0) return 2
+  if (count <= 4) return count
+  const score = (cols: number) => count % cols === 0 ? cols : count % cols
+  return [4, 3, 2].reduce((a, b) => score(a) >= score(b) ? a : b)
+}
+
+const gridClass = computed(() => {
+  const count = stores.value.flatMap(s => s.items).length
+  return `grid grid-cols-${smartColumns(count)} gap-8`
+})
 
 const editorStore = useEditorStore()
 const landStore = useLandStore()
@@ -49,50 +60,31 @@ async function buyItem(store: Store, item: StoreItem) {
 </script>
 
 <template>
-  <div v-for="store in stores" :key="store.id" class="max-w-5xl mx-auto py-8 space-y-8">
-    <h2 class="text-4xl font-semibold" style="color: var(--theme-main)">{{ store.title }}</h2>
+  <div v-for="store in stores" :key="store.id" class="flex flex-col mx-auto px-8 py-32 gap-16">
+    <div class="flex flex-col gap-4">
+      <h2 class="text-4xl font-semibold" style="color: var(--theme-main)">{{ store.title }}</h2>
+      <p v-if="store.description" class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">{{ store.description }}</p>
+    </div>
 
     <p v-if="checkoutError" class="text-sm text-red-500">{{ checkoutError }}</p>
 
-    <!-- List layout -->
-    <ul v-if="isList" class="flex flex-col divide-y">
-      <li v-for="item in sortByPosition(store.items)" :key="item.id" class="flex gap-4 py-4 items-center">
-        <div class="h-16 w-24 shrink-0 overflow-hidden rounded-lg" style="background: var(--theme-surface)">
+    <ul :class="gridClass">
+      <li v-for="item in sortByPosition(store.items)" :key="item.id" class="flex flex-col gap-4">
+        <div class="aspect-square overflow-hidden rounded-md" style="background: var(--theme-main)">
           <img v-if="item.image" :src="item.image" class="w-full h-full object-cover" />
         </div>
-        <div class="flex flex-col gap-1 flex-1">
-          <h3 class="text-base font-medium" style="color: var(--theme-main)">{{ item.title }}</h3>
+        <div class="flex flex-col gap-4">
+          <div class="flex justify-between items-start">
+            <h3 class="text-2xl font-semibold" style="color: var(--theme-main)">{{ item.title }}</h3>
+            <p class="text-sm font-medium" style="color: var(--theme-main)">${{ item.price.toFixed(2) }}</p>
+          </div>
           <p v-if="item.description" class="text-sm" style="color: var(--theme-main); opacity: 0.5">{{ item.description }}</p>
-          <p class="text-sm font-semibold" style="color: var(--theme-main)">${{ item.price.toFixed(2) }}</p>
-        </div>
-        <button
-          v-if="!isEditMode && item.price > 0"
-          class="shrink-0 px-4 py-2 text-sm font-medium rounded-lg transition-opacity disabled:opacity-50"
-          style="background: var(--theme-main); color: var(--theme-surface)"
-          :disabled="loadingItemId === item.id"
-          @click.stop="buyItem(store, item)"
-        >
-          {{ loadingItemId === item.id ? 'Loading…' : 'Buy' }}
-        </button>
-      </li>
-    </ul>
-
-    <!-- Grid layout (default) -->
-    <ul v-else class="grid grid-cols-3 gap-8">
-      <li v-for="item in sortByPosition(store.items)" :key="item.id" class="flex flex-col gap-3">
-        <div class="aspect-square overflow-hidden" style="background: var(--theme-surface)">
-          <img v-if="item.image" :src="item.image" class="w-full h-full object-cover" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <h3 class="text-base font-medium" style="color: var(--theme-main)">{{ item.title }}</h3>
-          <p v-if="item.description" class="text-sm" style="color: var(--theme-main); opacity: 0.5">{{ item.description }}</p>
-          <p class="text-sm font-semibold mt-1" style="color: var(--theme-main)">${{ item.price.toFixed(2) }}</p>
           <button
-            v-if="!isEditMode && item.price > 0"
-            class="mt-2 w-full py-2 text-sm font-medium rounded-lg transition-opacity disabled:opacity-50"
-            style="background: var(--theme-main); color: var(--theme-surface)"
+            v-if="item.price > 0"
+            class="mt-2 py-2 text-sm font-medium rounded-lg transition-opacity disabled:opacity-50 text-gray-100"
+            style="background: var(--theme-accent);"
             :disabled="loadingItemId === item.id"
-            @click.stop="buyItem(store, item)"
+            @click.stop="!isEditMode && buyItem(store, item)"
           >
             {{ loadingItemId === item.id ? 'Loading…' : 'Buy' }}
           </button>

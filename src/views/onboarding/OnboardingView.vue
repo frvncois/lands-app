@@ -206,7 +206,7 @@ function back() {
 
 // ─── Feature highlights (Step 1 right panel) ───
 const FEATURES = [
-  { icon: SparklesIcon, title: 'Beautiful themes', description: 'Choose from Minimal, Bold, or Editorial and make it yours.' },
+  { icon: SparklesIcon, title: 'Beautiful themes', description: 'Choose from Minimal, Structure, or Feed and make it yours.' },
   { icon: CurrencyDollarIcon, title: 'Sell & Monetize', description: 'Sell products, digital goods, and exclusive content.' },
   { icon: LinkIcon, title: 'Links in bio', description: 'Centralise all your links in one beautiful place.' },
   { icon: MegaphoneIcon, title: 'Campaign tools', description: 'Grow your audience with newsletter and campaign sections.' },

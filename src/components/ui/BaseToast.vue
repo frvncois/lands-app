@@ -18,10 +18,17 @@ const iconColorMap = {
   info: 'text-gray-400',
   warning: 'text-amber-400',
 }
+
+const styleMap = {
+  success: 'bg-green-50 border-green-200',
+  error: 'bg-red-50 border-red-200',
+  info: 'bg-white border-gray-200',
+  warning: 'bg-amber-50 border-amber-200',
+}
 </script>
 
 <template>
-  <div class="flex items-center gap-3 bg-white border border-gray-100 rounded-2xl shadow-lg px-4 py-3 w-80 pointer-events-auto">
+  <div class="flex items-center gap-3 border rounded-2xl shadow-lg px-4 py-3 w-80 pointer-events-auto" :class="styleMap[toast.type]">
     <component
       :is="iconMap[toast.type]"
       class="h-4 w-4 shrink-0"
@@ -36,7 +43,7 @@ const iconColorMap = {
       {{ toast.action.label }}
     </button>
     <button
-      class="text-gray-300 hover:text-gray-500 transition-colors shrink-0 -mr-1"
+      class="text-gray-300 hover:text-gray-900 transition-colors shrink-0 -mr-1"
       @click="$emit('dismiss')"
     >
       <XMarkIcon class="h-3.5 w-3.5" />

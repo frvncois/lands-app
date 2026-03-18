@@ -49,7 +49,7 @@ const articles: DocArticle[] = [
 
   // Editor
   { id: 'ed-1', category: 'Editor', title: 'Adding and reordering sections', description: 'Add sections from the picker and drag to reorder.' },
-  { id: 'ed-2', category: 'Editor', title: 'Choosing a theme', description: 'Apply Minimal, Bold, or Editorial presets and customize colors.' },
+  { id: 'ed-2', category: 'Editor', title: 'Choosing a theme', description: 'Apply Minimal, Structure, or Feed presets and customize colors.' },
   { id: 'ed-3', category: 'Editor', title: 'Typography options', description: 'Change the font style of your land.' },
   { id: 'ed-4', category: 'Editor', title: 'Saving and discarding changes', description: 'How auto-save, manual save, and discard work.' },
   { id: 'ed-5', category: 'Editor', title: 'Previewing your land', description: 'Switch between editor and preview modes.' },

@@ -15,9 +15,10 @@ async function handleReset() {
   try {
     await authService.forgotPassword(email.value)
     sent.value = true
-    authStore.setLoading(false)
   } catch (e) {
     authStore.setError((e as Error).message)
+  } finally {
+    authStore.setLoading(false)
   }
 }
 </script>

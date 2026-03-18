@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BaseButton from '../ui/BaseButton.vue';
 import {
@@ -39,6 +39,25 @@ const route = useRoute()
 const router = useRouter()
 
 const isSaving = ref(false)
+const isPublishing = ref(false)
+const hasPublishedClean = ref(false)
+const showUpToDate = ref(false)
+let upToDateTimer: ReturnType<typeof setTimeout> | null = null
+
+function showUpToDateHint() {
+  if (upToDateTimer) clearTimeout(upToDateTimer)
+  showUpToDate.value = true
+  upToDateTimer = setTimeout(() => { showUpToDate.value = false }, 2500)
+}
+
+const canPublish = computed(() =>
+  !isSaving.value && !isPublishing.value &&
+  !(hasPublishedClean.value && !editorStore.isDirty && !editorStore.hasUnpublishedChanges)
+)
+
+watch([() => editorStore.isDirty, () => editorStore.hasUnpublishedChanges], ([dirty, unpub]) => {
+  if (dirty || unpub) hasPublishedClean.value = false
+})
 
 async function save() {
   const land = landStore.activeLand
@@ -129,15 +148,19 @@ async function publish() {
   if (!land) return
   publishStatus.value = 'loading'
   showPublishedModal.value = true
+  isPublishing.value = true
   try {
     await save()
     await publishService.publish(land)
     await landService.updateLand(land.id, { is_published: true })
     landStore.updateLand(land.id, { is_published: true })
     editorStore.markPublished()
+    hasPublishedClean.value = true
     publishStatus.value = 'done'
   } catch {
     publishStatus.value = 'error'
+  } finally {
+    isPublishing.value = false
   }
 }
 
@@ -168,7 +191,7 @@ async function handleLogout() {
           <div v-if="!editorStore.isEditMode && route.path === '/dashboard'" class="flex space-x-2 items-center">
               <BaseButton size="sm" variant="outline" :active="appModals.activeModal === 'integrations'" @click="appModals.activeModal === 'integrations' ? appModals.close() : appModals.openIntegrations()">
                   <PuzzlePieceIcon class="h-4 w-4" />
-                  Integrations
+                  Tools
               </BaseButton>
               <BaseButton size="sm" variant="solid" @click="enterEditor">
                   <PencilSquareIcon class="h-4 w-4" />
@@ -187,7 +210,7 @@ async function handleLogout() {
           <!--Editor state-->
           <div v-else-if="editorStore.isEditMode" class="flex">
               <div class="flex justify-end gap-2">
-              <BaseButton size="sm" variant="ghost" class="text-gray-400 bg-gray-50">
+              <BaseButton size="sm" variant="ghost" class="hidden lg:flex text-gray-400 bg-gray-50">
                   <LinkIcon class="h-3.5 w-3.5" />
                   {{ landStore.activeLand?.handle }}.lands.app
               </BaseButton>
@@ -197,10 +220,17 @@ async function handleLogout() {
                 <BaseButton size="sm" variant="outline" :disabled="isSaving" @click="save">
                     {{ isSaving ? 'Saving…' : 'Save' }}
                 </BaseButton>
-                <BaseButton size="sm" variant="solid" class="bg-indigo-600":disabled="isSaving" @click="publish">
+                <div class="relative">
+                  <BaseButton size="sm" variant="solid" :class="canPublish ? 'bg-indigo-600' : 'bg-gray-900'" @click="canPublish ? publish() : showUpToDateHint()">
                     <CloudArrowUpIcon class="h-4 w-4" />
-                    {{ isSaving ? 'Publishing…' : 'Publish' }}
-                </BaseButton>
+                    {{ isPublishing ? 'Publishing…' : 'Publish' }}
+                  </BaseButton>
+                  <Transition name="hint-fade">
+                    <div v-if="showUpToDate" class="absolute top-full right-0 mt-2 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-xs text-white shadow-lg">
+                      Already up to date
+                    </div>
+                  </Transition>
+                </div>
               </div>
           </div>
 
@@ -236,3 +266,8 @@ async function handleLogout() {
 
 
 </template>
+
+<style scoped>
+.hint-fade-enter-active, .hint-fade-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.hint-fade-enter-from, .hint-fade-leave-to { opacity: 0; transform: translateY(-4px); }
+</style>

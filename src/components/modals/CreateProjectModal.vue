@@ -68,8 +68,16 @@ const selectedTheme = ref<ThemePreset | null>(null)
 const THEME_OPTIONS = Object.values(THEME_PRESETS)
 
 // ─── Validation ───
+const handleError = computed(() => {
+  const h = handle.value.trim()
+  if (h.length === 0) return ''
+  if (h.length < 2) return 'Handle must be at least 2 characters'
+  if (h.length > 63) return 'Handle must be 63 characters or fewer'
+  return ''
+})
+
 const stepValid = computed(() => {
-  if (step.value === 1) return title.value.trim().length > 0 && handle.value.trim().length > 0
+  if (step.value === 1) return title.value.trim().length > 0 && handle.value.trim().length >= 2 && handle.value.trim().length <= 63 && !handleError.value
   if (step.value === 2) return selectedPurpose.value !== null
   if (step.value === 3) return selectedTheme.value !== null
   if (step.value === 4) return selectedPalette.value !== null
@@ -230,7 +238,10 @@ function back() {
         </div>
         <div class="flex flex-col gap-1.5">
           <label class="text-sm font-medium text-gray-700">URL handle</label>
-          <div class="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-gray-400 focus-within:ring-4 focus-within:ring-black/[0.04] transition-all">
+          <div
+            class="flex items-center border rounded-xl overflow-hidden focus-within:ring-4 transition-all"
+            :class="handleError ? 'border-red-300 focus-within:border-red-400 focus-within:ring-red-100' : 'border-gray-200 focus-within:border-gray-400 focus-within:ring-black/[0.04]'"
+          >
             <input
               :value="handle"
               type="text"
@@ -240,6 +251,7 @@ function back() {
             />
             <span class="px-3 py-3 text-sm text-gray-400 bg-gray-50 border-l border-gray-200 shrink-0">.lands.app</span>
           </div>
+          <p v-if="handleError" class="text-xs text-red-500">{{ handleError }}</p>
         </div>
       </div>
 

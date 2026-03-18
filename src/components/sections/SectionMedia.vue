@@ -3,8 +3,7 @@ import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import type { Section } from '@/types/section'
 import MediaMinimal from './media/MediaMinimal.vue'
-import MediaBold from './media/MediaBold.vue'
-import MediaEditorial from './media/MediaEditorial.vue'
+import MediaBaseline from './media/MediaBaseline.vue'
 import MediaStructure from './media/MediaStructure.vue'
 import { MOCK_MEDIA_CONTENT } from '@/lib/primitives/mockSectionContent'
 
@@ -13,9 +12,8 @@ const themeStore = useThemeStore()
 
 const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
-    case 'bold': return MediaBold
-    case 'editorial': return MediaEditorial
     case 'structure': return MediaStructure
+    case 'baseline': return MediaBaseline
     default: return MediaMinimal
   }
 })

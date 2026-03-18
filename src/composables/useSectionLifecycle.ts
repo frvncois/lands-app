@@ -1,0 +1,150 @@
+import { computed } from 'vue'
+import { useLandStore } from '@/stores/land'
+import { useEditorStore } from '@/stores/editor'
+import { useToast } from '@/composables/useToast'
+import { usePlan } from '@/composables/usePlan'
+import { sortByPosition, generatePositionBetween } from '@/lib/utils/position'
+import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
+import { buildSectionContent } from '@/lib/primitives/purposeDefaults'
+import { storageService, extractSectionUrls } from '@/services/storage.service'
+import type { Section, SectionType, SectionSettings } from '@/types/section'
+import type { Collection } from '@/types/collection'
+import type { Store } from '@/types/store'
+
+export function useSectionLifecycle() {
+  const landStore = useLandStore()
+  const editorStore = useEditorStore()
+  const { addToast } = useToast()
+  const { withinSectionLimit, withinCollectionSectionLimit, canAddSectionType, maxSections, maxCollectionSections } = usePlan()
+
+  const activeLand = computed(() => landStore.activeLand)
+
+  function addSection(type: SectionType, position: string) {
+    if (!activeLand.value) return
+    if (type === 'header' || type === 'footer') return
+
+    // Plan gates
+    if (!canAddSectionType(type)) {
+      addToast('Campaign sections require a paid plan — upgrade to unlock', 'error')
+      return
+    }
+    const contentSections = activeLand.value.sections.filter((s) => s.type !== 'header' && s.type !== 'footer')
+    if (!withinSectionLimit(contentSections.length)) {
+      addToast(`Free plan allows up to ${maxSections.value} sections — upgrade to add more`, 'error')
+      return
+    }
+
+    // Collection-type section limit: max per type (collection / store / monetize each capped separately)
+    const COLLECTION_TYPES: SectionType[] = ['collection', 'store', 'monetize']
+    if (COLLECTION_TYPES.includes(type)) {
+      const existing = activeLand.value.sections.filter((s) => s.type === type).length
+      if (!withinCollectionSectionLimit(existing)) {
+        addToast(`Free plan allows up to ${maxCollectionSections.value} ${type} sections — upgrade to add more`, 'error')
+        return
+      }
+    }
+
+    const defaults = SECTION_DEFAULTS[type]
+    const purpose = activeLand.value.purpose
+
+    // Count existing sections of this type to cycle through content variants
+    const existingCount = activeLand.value.sections.filter((s) => s.type === type).length
+
+    const seeded = buildSectionContent(purpose, type, existingCount)
+    const content = (Object.keys(seeded).length > 0
+      ? seeded
+      : (defaults.content ? structuredClone(defaults.content) : {})) as unknown as Section['content']
+
+    const newSection: Section = {
+      id: crypto.randomUUID(),
+      land_id: activeLand.value.id,
+      type,
+      position,
+      style_variant: defaults.style_variant,
+      settings_json: defaults.settings_json as unknown as SectionSettings,
+      content,
+      created_at: new Date().toISOString(),
+    }
+
+    // Patch section_id into seeded content
+    if (type === 'collection' || type === 'monetize') {
+      const col = (newSection.content as unknown as { collections: Collection[] }).collections?.[0]
+      if (col) col.section_id = newSection.id
+    }
+    if (type === 'store') {
+      const store = (newSection.content as unknown as { stores: Store[] }).stores?.[0]
+      if (store) store.section_id = newSection.id
+    }
+    if (type === 'list') {
+      const items = (newSection.content as unknown as { items: { section_id: string }[] }).items
+      if (items) items.forEach((item) => { item.section_id = newSection.id })
+    }
+
+    landStore.updateLand(activeLand.value.id, {
+      sections: [...activeLand.value.sections, newSection],
+    })
+    editorStore.setActiveSection(newSection)
+    editorStore.markDirty()
+    addToast(`${type.charAt(0).toUpperCase() + type.slice(1)} section added`)
+  }
+
+  function deleteSection(sectionId: string) {
+    if (!activeLand.value) return
+    const section = activeLand.value.sections.find((s) => s.id === sectionId)
+    if (section?.type === 'header' || section?.type === 'footer') return
+    if (section) {
+      const urls = extractSectionUrls(section)
+      Promise.all(urls.map((url) => storageService.remove(url))).catch((e) => {
+        console.error('[storage] Failed to clean up section assets:', e)
+      })
+    }
+    const updatedSections = activeLand.value.sections.filter((s) => s.id !== sectionId)
+    landStore.updateLand(activeLand.value.id, { sections: updatedSections })
+    if (editorStore.activeSection?.id === sectionId) editorStore.setActiveSection(null)
+    editorStore.markDirty()
+    addToast('Section deleted')
+  }
+
+  function duplicateSection(sectionId: string) {
+    if (!activeLand.value) return
+    const sorted = sortByPosition(activeLand.value.sections)
+    const idx = sorted.findIndex((s) => s.id === sectionId)
+    if (idx === -1) return
+    const original = sorted[idx]!
+    if (original.type === 'header' || original.type === 'footer') return
+    const contentSections = activeLand.value.sections.filter((s) => s.type !== 'header' && s.type !== 'footer')
+    if (!withinSectionLimit(contentSections.length)) {
+      addToast(`Free plan allows up to ${maxSections.value} sections — upgrade to add more`, 'error')
+      return
+    }
+    const next = sorted[idx + 1] ?? null
+    const position = generatePositionBetween(original.position, next?.position ?? null)
+    // Header always first, footer always last
+    const copy: Section = {
+      ...JSON.parse(JSON.stringify(original)),
+      id: crypto.randomUUID(),
+      position,
+      created_at: new Date().toISOString(),
+    }
+    landStore.updateLand(activeLand.value.id, {
+      sections: [...activeLand.value.sections, copy],
+    })
+    editorStore.markDirty()
+  }
+
+  function reorderSection(sectionId: string, newPosition: string) {
+    if (!activeLand.value) return
+    const updatedSections = activeLand.value.sections.map((s) =>
+      s.id === sectionId ? { ...s, position: newPosition } : s
+    )
+    landStore.updateLand(activeLand.value.id, { sections: updatedSections })
+    editorStore.markDirty()
+  }
+
+  return {
+    addSection,
+    deleteSection,
+    duplicateSection,
+    reorderSection,
+  }
+}

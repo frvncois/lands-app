@@ -84,6 +84,7 @@ async function share() {
             <div>
               <h3 class="text-lg font-semibold text-gray-900">Published!</h3>
               <p class="text-sm text-gray-400 mt-1">{{ handle }}.lands.app</p>
+              <p class="text-xs text-gray-400 mt-3 leading-relaxed">Changes may take a few minutes to appear on your live page.</p>
             </div>
 
             <div class="flex flex-col gap-2 w-full">

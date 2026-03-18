@@ -2,15 +2,27 @@ import type {
   Land, LandTheme, Section,
   HeaderContent, HeaderSettings,
   ContentMediaContent,
-  ListContent,
-  CollectionContent, CollectionSettings,
-  StoreContent, StoreSettings,
+  CollectionContent,
+  StoreContent,
   CampaignContent,
   FooterContent, FooterSettings,
   ContentMediaButton,
 } from './types.ts'
 
 // ─── Utilities ───
+
+function getTextColorForAccent(theme: LandTheme): string {
+  const c = theme.color_accent.replace('#', '')
+  const m = c.match(/[0-9a-f]{2}/gi)
+  if (!m || m.length < 3) return 'color-mix(in srgb, var(--theme-accent) 15%, white)'
+  const r = parseInt(m[0], 16) / 255
+  const g = parseInt(m[1], 16) / 255
+  const b = parseInt(m[2], 16) / 255
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b
+  return lum > 0.5
+    ? 'color-mix(in srgb, var(--theme-accent) 50%, black)'
+    : 'color-mix(in srgb, var(--theme-accent) 15%, white)'
+}
 
 function esc(s: unknown): string {
   if (s == null) return ''
@@ -25,838 +37,608 @@ function sortByPosition<T extends { position: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => a.position.localeCompare(b.position))
 }
 
-const FONT_MAP: Record<string, string> = {
-  sans:  'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-  serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
-  mono:  'ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace',
+function smartColumns(count: number): number {
+  if (count <= 0) return 2
+  if (count <= 4) return count
+  const score = (cols: number) => count % cols === 0 ? cols : count % cols
+  return [4, 3, 2].reduce((a, b) => score(a) >= score(b) ? a : b)
 }
 
-// ─── Stylesheet ───
+function extractFontName(stack: string): string | null {
+  const m = stack.match(/["']([^"']+)["']/)
+  return m ? m[1] : null
+}
 
-function buildCSS(theme: LandTheme): string {
-  const font = FONT_MAP[theme.typography_style] ?? FONT_MAP.sans
+function buildFontLinks(theme: LandTheme): string {
+  const fonts = new Set<string>()
+  const t = extractFontName(theme.font_title)
+  const b = extractFontName(theme.font_body)
+  if (t) fonts.add(t)
+  if (b) fonts.add(b)
+  if (!fonts.size) return ''
+  const families = Array.from(fonts)
+    .map(f => `family=${encodeURIComponent(f)}:ital,wght@0,400;0,500;0,600;0,700`)
+    .join('&')
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?${families}&display=swap" rel="stylesheet">`
+}
+
+function buildBaseStyles(theme: LandTheme): string {
   return `
-:root {
-  --main:    ${theme.color_main};
-  --accent:  ${theme.color_accent};
-  --surface: ${theme.color_surface};
-  --font:    ${font};
+<style>
+  :root {
+    --theme-main:    ${theme.color_main};
+    --theme-accent:  ${theme.color_accent};
+    --theme-surface: ${theme.color_surface};
+  }
+  body {
+    font-family: ${theme.font_body};
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    color: ${theme.color_main};
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: ${theme.font_title};
+    margin: 0;
+  }
+  a { text-decoration: none; }
+  * { box-sizing: border-box; }
+</style>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        lineHeight: { '22': '5.5rem' },
+      }
+    }
+  }
+</script>
+<script src="https://cdn.tailwindcss.com"></script>`.trim()
 }
 
-*, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+// ─── Header nav (shared) ───
 
-body {
-  margin: 0;
-  font-family: var(--font);
-  color: var(--main);
-  background: #fff;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
+function renderNav(c: HeaderContent, land: Land): string {
+  const brand = c.logo
+    ? `<img src="${esc(c.logo)}" class="h-8 w-auto object-contain object-left" alt="logo">`
+    : `<span class="text-sm font-semibold uppercase tracking-widest" style="color: var(--theme-main); opacity: 0.6">${esc(land.title || land.handle)}</span>`
 
-img { display: block; max-width: 100%; }
-a   { color: inherit; text-decoration: none; }
+  const links = (c.buttons ?? []).length
+    ? `<div class="flex items-center gap-4">${(c.buttons ?? []).map(b =>
+        `<a href="${esc(b.url)}" class="text-sm font-medium underline underline-offset-4 transition-opacity hover:opacity-60" style="color: var(--theme-main)">${esc(b.label)}</a>`
+      ).join('')}</div>`
+    : ''
 
-/* ── Buttons ── */
-.btns { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.25rem; }
-.btn {
-  display: inline-block;
-  padding: .625rem 1.375rem;
-  border: 1.5px solid var(--main);
-  border-radius: 9999px;
-  font-size: .875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity .15s;
-}
-.btn:hover { opacity: .65; }
-.btn-solid {
-  background: var(--main);
-  color: #fff;
-  border-color: var(--main);
+  return `<div class="flex justify-between">${brand}${links}</div>`
 }
 
-/* ── Header: Minimal ── */
-.header-minimal { display: flex; flex-direction: column; }
-.header-minimal__text {
-  height: 40em;
-  padding: 4rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 1.25rem;
-}
-.header-minimal__cover {
-  position: relative;
-  height: 40em;
-  overflow: hidden;
-  background: var(--accent);
-}
-.header-minimal__cover img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+// ─── Header: Minimal ───
+
+function renderHeaderMinimal(c: HeaderContent, s: HeaderSettings, land: Land): string {
+  const cover = s.cover_media_value
+    ? `<img src="${esc(s.cover_media_value)}" class="absolute inset-0 w-full h-full object-cover" alt="">`
+    : ''
+  return `
+<div class="flex flex-col p-8 gap-8">
+  <div class="flex flex-col justify-between h-[40em]">
+    ${renderNav(c, land)}
+    <div class="space-y-6">
+      ${c.title       ? `<h1 class="text-8xl font-semibold max-w-[15ch] leading-[5.5rem]" style="color: var(--theme-main)">${esc(c.title)}</h1>` : ''}
+      ${c.description ? `<p class="max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.description)}</p>` : c.subtitle ? `<p class="max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.subtitle)}</p>` : ''}
+    </div>
+  </div>
+  <div class="relative h-[40em] overflow-hidden rounded-md" style="background: var(--theme-accent)">
+    ${cover}
+  </div>
+</div>`
 }
 
-/* ── Header: Bold ── */
-.header-bold { display: flex; flex-direction: column; padding: 2.5rem; }
-.header-bold__cover {
-  position: relative;
-  height: 40em;
-  overflow: hidden;
-  border-radius: 2rem;
-  background: var(--accent);
-}
-.header-bold__cover img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.header-bold__text { padding: 2rem 0; display: flex; flex-direction: column; gap: 1rem; }
+// ─── Header: Baseline ───
 
-/* ── Header: Editorial ── */
-.header-editorial {
-  padding: 3rem 1.5rem 2.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.header-editorial__cover {
-  width: 100%;
-  height: 10rem;
-  overflow: hidden;
-  border-radius: .5rem;
-}
-.header-editorial__cover img { width: 100%; height: 100%; object-fit: cover; }
-.header-editorial__meta { display: flex; align-items: center; gap: 1rem; }
-.header-editorial__divider { width: 3rem; height: 1px; background: var(--accent); }
-
-/* ── Typography ── */
-.h-huge  { font-size: clamp(3rem, 8vw, 5rem); font-weight: 600; line-height: 1; color: var(--main); }
-.h-bold  { font-size: clamp(3rem, 8vw, 5rem); font-weight: 700; line-height: 1; color: var(--main); }
-.h-edit  { font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; line-height: 1.2; color: var(--main); }
-.sub     { font-size: clamp(1rem, 3vw, 1.5rem); color: var(--main); opacity: .5; }
-.eyebrow { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: #9ca3af; }
-.logo    { height: 2rem; width: auto; object-fit: contain; object-position: left; }
-
-/* ── Content + Media ── */
-.cm { padding: 4rem 2rem; }
-.cm__inner {
-  max-width: 72rem;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
-  align-items: center;
-}
-.cm__inner.reversed .cm__media { order: 2; }
-.cm__inner.reversed .cm__text  { order: 1; }
-.cm__media { border-radius: .75rem; overflow: hidden; }
-.cm__media img  { width: 100%; border-radius: .75rem; }
-.cm__media-placeholder { width: 100%; aspect-ratio: 4/3; background: var(--surface); border-radius: .75rem; }
-.cm__video { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: .75rem; }
-.cm__video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
-.cm__text { display: flex; flex-direction: column; gap: .875rem; }
-.cm__eyebrow  { font-size: .875rem; font-weight: 500; color: var(--accent); }
-.cm__title    { font-size: 2rem; font-weight: 700; line-height: 1.2; color: var(--main); }
-.cm__body     { color: var(--main); opacity: .7; line-height: 1.7; }
-
-/* ── List ── */
-.list { padding: 4rem 2rem; }
-.list__inner { max-width: 40rem; margin: 0 auto; }
-.list__title  { font-size: 1.25rem; font-weight: 600; color: var(--main); margin-bottom: 1.5rem; }
-.list__item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: .875rem 0;
-  border-bottom: 1px solid var(--surface);
-  color: inherit;
-}
-.list__item:hover { opacity: .75; }
-.list__icon {
-  width: 2rem; height: 2rem;
-  border-radius: .375rem;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-.list__icon-placeholder {
-  width: 2rem; height: 2rem;
-  border-radius: .375rem;
-  background: var(--surface);
-  flex-shrink: 0;
-}
-.list__label { font-size: .875rem; font-weight: 500; color: var(--main); }
-.list__desc  { font-size: .75rem; color: var(--main); opacity: .5; margin-top: .125rem; }
-.list__arrow { margin-left: auto; opacity: .3; flex-shrink: 0; }
-
-/* ── Collection ── */
-.collection { padding: 4rem 2rem; }
-.collection__inner { max-width: 72rem; margin: 0 auto; }
-.collection__title { font-size: 1.25rem; font-weight: 600; color: var(--main); margin-bottom: 2rem; }
-.collection__grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1.5rem; }
-.collection__card  { border-radius: .75rem; overflow: hidden; background: var(--surface); }
-.collection__card img       { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
-.collection__card-placeholder { width: 100%; aspect-ratio: 4/3; background: var(--surface); filter: brightness(.93); }
-.collection__card-body { padding: 1rem; }
-.collection__card-title { font-size: .9375rem; font-weight: 500; color: var(--main); }
-.collection__card-desc  { font-size: .8125rem; color: var(--main); opacity: .5; margin-top: .25rem; }
-
-.collection__list-item { display: flex; align-items: center; gap: 1.5rem; padding: 1rem 0; border-bottom: 1px solid var(--surface); }
-.collection__list-item img { width: 4rem; height: 4rem; border-radius: .5rem; object-fit: cover; flex-shrink: 0; }
-
-/* ── Store ── */
-.store { padding: 4rem 2rem; }
-.store__inner { max-width: 72rem; margin: 0 auto; }
-.store__title { font-size: 1.25rem; font-weight: 600; color: var(--main); margin-bottom: 2rem; }
-.store__grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1.5rem; }
-.store__card  { border-radius: .75rem; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; }
-.store__card img            { width: 100%; aspect-ratio: 1; object-fit: cover; }
-.store__card-placeholder    { width: 100%; aspect-ratio: 1; background: var(--surface); filter: brightness(.93); }
-.store__card-body  { padding: 1rem; flex: 1; display: flex; flex-direction: column; gap: .375rem; }
-.store__card-name  { font-size: .9375rem; font-weight: 500; color: var(--main); }
-.store__card-desc  { font-size: .8125rem; color: var(--main); opacity: .5; }
-.store__card-price { font-size: 1rem; font-weight: 600; color: var(--main); margin-top: auto; padding-top: .5rem; }
-
-.store__list-item  { display: flex; align-items: center; gap: 1.5rem; padding: 1rem 0; border-bottom: 1px solid var(--surface); }
-.store__list-item img { width: 4rem; height: 4rem; border-radius: .5rem; object-fit: cover; flex-shrink: 0; }
-.store__list-body  { flex: 1; }
-.store__list-name  { font-size: .9375rem; font-weight: 500; color: var(--main); }
-.store__list-desc  { font-size: .8125rem; color: var(--main); opacity: .5; margin-top: .25rem; }
-.store__list-price { font-size: .9375rem; font-weight: 600; color: var(--main); flex-shrink: 0; }
-
-/* ── Campaign ── */
-.campaign {
-  padding: 5rem 2rem;
-  background: var(--surface);
-  text-align: center;
-}
-.campaign__inner {
-  max-width: 36rem;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.25rem;
-}
-.campaign__title { font-size: 2rem; font-weight: 700; color: var(--main); }
-.campaign__desc  { color: var(--main); opacity: .6; line-height: 1.7; }
-.campaign__form  { display: flex; gap: .75rem; width: 100%; max-width: 28rem; }
-.campaign__input {
-  flex: 1;
-  padding: .75rem 1rem;
-  border: 1.5px solid var(--main);
-  border-radius: .5rem;
-  font-size: .875rem;
-  font-family: var(--font);
-  background: transparent;
-  color: var(--main);
-  outline: none;
-}
-.campaign__input::placeholder { opacity: .4; }
-
-/* ── Footer ── */
-.footer { padding: 4rem 2rem; background: var(--surface); }
-.footer__cover { width: 100%; height: 16rem; overflow: hidden; border-radius: .75rem; margin-bottom: 2rem; }
-.footer__cover img { width: 100%; height: 100%; object-fit: cover; }
-.footer__inner { max-width: 72rem; margin: 0 auto; }
-.footer__title  { font-size: 1.5rem; font-weight: 600; color: var(--main); }
-.footer__sub    { font-size: .9375rem; color: var(--main); opacity: .5; margin-top: .5rem; }
-.footer__credit { font-size: .75rem; color: var(--main); opacity: .3; margin-top: 2rem; }
-.footer__credit a { opacity: 1; }
-
-/* ── Monetize ── */
-.monetize { padding: 5rem 2rem; background: var(--surface); text-align: center; }
-.monetize__inner { max-width: 32rem; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1.5rem; }
-.monetize__title { font-size: 1.75rem; font-weight: 700; color: var(--main); }
-.monetize__price { font-size: 2.5rem; font-weight: 700; color: var(--main); }
-.monetize__price span { font-size: 1rem; font-weight: 400; opacity: .5; }
-
-/* ── Header: Structure ── */
-.header-structure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  height: 40em;
-  padding: 4rem;
-  position: relative;
-}
-.header-structure__brand {
-  position: absolute;
-  top: 3rem;
-  font-size: .875rem;
-  font-weight: 600;
-  color: var(--main);
-}
-.header-structure__title { font-size: clamp(3rem, 9vw, 6rem); font-weight: 600; line-height: 1; color: var(--main); }
-.header-structure__sub   { font-size: clamp(1.25rem, 3vw, 2rem); color: var(--main); opacity: .5; margin-top: .75rem; }
-.header-structure__desc  { font-size: 1rem; color: var(--main); opacity: .65; max-width: 38rem; line-height: 1.7; margin-top: 1rem; }
-
-/* ── List: Structure ── */
-.list-structure { padding: 4rem 2rem; }
-.list-structure__inner { max-width: 72rem; margin: 0 auto; }
-.list-structure__heading {
-  font-size: .75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  color: var(--main);
-  opacity: .4;
-  margin-bottom: 1.5rem;
-}
-.list-structure__item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 2rem;
-  padding: 2rem 0;
-  border-bottom: 1px solid var(--main);
-  text-decoration: none;
-  color: inherit;
-  transition: opacity .15s;
-}
-.list-structure__item:hover { opacity: .6; }
-.list-structure__item-title { font-size: clamp(2.5rem, 6vw, 5rem); font-weight: 700; line-height: 1; color: var(--main); }
-.list-structure__item.compact .list-structure__item-title { font-size: clamp(1.5rem, 3vw, 2rem); }
-
-/* ── Collection: Structure ── */
-.collection-structure { padding: 4rem 2rem; }
-.collection-structure__inner { max-width: 72rem; margin: 0 auto; }
-.collection-structure__title { font-size: 2.5rem; font-weight: 600; color: var(--main); margin-bottom: 2rem; }
-.collection-structure__grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
-.collection-structure__item-img {
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: .75rem;
-  background: var(--main);
-}
-.collection-structure__item-img img { width: 100%; height: 100%; object-fit: cover; }
-.collection-structure__item-title { font-size: 1.5rem; font-weight: 500; color: var(--main); margin-top: .5rem; }
-.collection-structure__item-sub   { font-size: .875rem; color: var(--main); opacity: .5; }
-.collection-structure__list-item  { display: flex; gap: 1.25rem; padding: .75rem 0; border-bottom: 1px solid var(--main); align-items: center; }
-.collection-structure__list-thumb {
-  width: 5rem; height: 3.5rem;
-  flex-shrink: 0;
-  overflow: hidden;
-  background: var(--main);
-  opacity: .15;
-}
-.collection-structure__list-thumb img { width: 100%; height: 100%; object-fit: cover; opacity: 6.67; }
-.collection-structure__list-name { font-size: 1rem; font-weight: 500; color: var(--main); }
-
-/* ── Store: Structure ── */
-.store-structure { padding: 4rem 2rem; }
-.store-structure__inner { max-width: 72rem; margin: 0 auto; }
-.store-structure__title { font-size: 2.5rem; font-weight: 600; color: var(--main); margin-bottom: 2rem; }
-.store-structure__grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
-.store-structure__item-img {
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: .75rem;
-  background: var(--main);
-}
-.store-structure__item-img img { width: 100%; height: 100%; object-fit: cover; }
-.store-structure__item-name  { font-size: 1.5rem; font-weight: 500; color: var(--main); margin-top: .5rem; }
-.store-structure__item-price { font-size: .875rem; color: var(--main); opacity: .5; }
-.store-structure__item-btn   {
-  display: inline-block;
-  margin-top: .75rem;
-  padding: .5rem 1rem;
-  border: 1.5px solid var(--main);
-  font-size: .875rem;
-  font-weight: 500;
-  color: var(--main);
-  cursor: pointer;
-  transition: opacity .15s;
-}
-.store-structure__item-btn:hover { opacity: .65; }
-.store-structure__list-item  { display: flex; gap: 1.25rem; padding: .75rem 0; border-bottom: 1px solid var(--main); align-items: center; }
-.store-structure__list-thumb {
-  width: 5rem; height: 3.5rem;
-  flex-shrink: 0;
-  overflow: hidden;
-  background: var(--main);
-  opacity: .15;
-}
-.store-structure__list-thumb img { width: 100%; height: 100%; object-fit: cover; opacity: 6.67; }
-.store-structure__list-name  { font-size: 1rem; font-weight: 500; color: var(--main); flex: 1; }
-.store-structure__list-price { font-size: .875rem; color: var(--main); opacity: .5; }
-
-/* ── Footer: Structure ── */
-.footer-structure__bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--main);
-}
-.footer-structure__title { font-size: 1.5rem; font-weight: 600; color: var(--main); }
-.footer-structure__sub   { font-size: 1.5rem; color: var(--main); opacity: .5; }
-.footer-structure__links { display: flex; flex-wrap: wrap; gap: 1.5rem; padding: 1rem 1.5rem; }
-.footer-structure__link  { font-size: .875rem; color: var(--main); transition: opacity .15s; }
-.footer-structure__link:hover { opacity: .6; }
-
-/* ── Feed Theme ── */
-.feed-hero {
-  position: relative;
-  height: 380px;
-  overflow: hidden;
-  background: var(--accent);
-}
-.feed-hero img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.feed-hero__scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.65) 100%);
-}
-.feed-hero__content {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 2rem;
-}
-.feed-hero__logo { height: 2rem; width: auto; object-fit: contain; object-position: left; filter: brightness(0) invert(1); margin-bottom: 0.5rem; }
-.feed-hero__title { font-size: clamp(1.75rem, 5vw, 2.5rem); font-weight: 700; color: #fff; line-height: 1.2; margin: 0; }
-.feed-hero__sub   { font-size: 0.875rem; color: rgba(255,255,255,0.7); margin-top: 0.375rem; }
-
-.feed-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #fff;
-  border-bottom: 1px solid var(--surface);
-  display: flex;
-  gap: 0;
-  padding: 0 1.5rem;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.feed-tab {
-  padding: 0.875rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  color: var(--main);
-  opacity: 0.5;
-  cursor: pointer;
-  background: none;
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  font-family: var(--font);
-  transition: opacity 0.15s;
-}
-.feed-tab.active {
-  opacity: 1;
-  border-bottom-color: var(--accent);
-  color: var(--accent);
-}
-.feed-panel { display: none; }
-.feed-panel.active { display: block; }
-.feed-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6rem 2rem;
-  font-size: 0.875rem;
-  color: var(--main);
-  opacity: 0.4;
+function renderHeaderBaseline(c: HeaderContent, s: HeaderSettings, land: Land): string {
+  const cover = s.cover_media_value
+    ? `<img src="${esc(s.cover_media_value)}" class="absolute inset-0 w-full h-full object-cover" alt="">`
+    : ''
+  return `
+<div class="flex h-screen">
+  <div class="flex flex-1 flex-col justify-between p-8">
+    ${renderNav(c, land)}
+    <div class="space-y-6">
+      ${c.title       ? `<h1 class="text-8xl font-semibold max-w-[15ch] leading-[5.5rem]" style="color: var(--theme-main)">${esc(c.title)}</h1>` : ''}
+      ${c.description ? `<p class="max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.description)}</p>` : c.subtitle ? `<p class="max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.subtitle)}</p>` : ''}
+    </div>
+  </div>
+  <div class="relative flex-1 overflow-hidden" style="background: var(--theme-accent)">
+    ${cover}
+  </div>
+</div>`
 }
 
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .cm__inner { grid-template-columns: 1fr; gap: 2rem; }
-  .cm__inner.reversed .cm__media { order: unset; }
-  .cm__inner.reversed .cm__text  { order: unset; }
-  .header-minimal__text { height: auto; padding: 3rem 2rem; }
-  .header-minimal__cover { height: 20em; }
-  .header-bold { padding: 1.5rem; }
-  .header-bold__cover { height: 20em; }
-  .campaign__form { flex-direction: column; }
-  .header-structure { height: auto; min-height: 24rem; padding: 5rem 2rem 3rem; }
-  .collection-structure__grid { grid-template-columns: repeat(2, 1fr); }
-  .store-structure__grid { grid-template-columns: repeat(2, 1fr); }
-  .list-structure__item-title { font-size: clamp(2rem, 8vw, 3rem); }
-}
-`.trim()
-}
-
-// ─── Shared helpers ───
-
-function renderButtons(buttons: ContentMediaButton[]): string {
-  if (!buttons?.length) return ''
-  const items = buttons.map(b =>
-    `<a href="${esc(b.url)}" class="btn">${esc(b.label)}</a>`
-  ).join('')
-  return `<div class="btns">${items}</div>`
-}
-
-// ─── Header ───
+// ─── Header: Structure ───
 
 function renderHeaderStructure(c: HeaderContent, land: Land): string {
   const brand = c.logo
-    ? `<img src="${esc(c.logo)}" class="logo header-structure__brand" alt="Logo">`
-    : `<span class="header-structure__brand">${esc(land.title || land.handle)}</span>`
+    ? `<img src="${esc(c.logo)}" class="h-8 w-auto object-contain" alt="logo">`
+    : `<span class="text-2xl font-semibold" style="color: var(--theme-main)">${esc(land.title || land.handle)}</span>`
+  const btns = (c.buttons ?? []).length
+    ? `<div class="flex flex-wrap items-center justify-center gap-3">${(c.buttons ?? []).map(b =>
+        `<a href="${esc(b.url)}" class="inline-flex items-center px-6 py-2.5 text-sm font-medium rounded-xl border-2 transition-opacity hover:opacity-80" style="border-color: var(--theme-main); color: var(--theme-main)">${esc(b.label)}</a>`
+      ).join('')}</div>`
+    : ''
   return `
-<section class="header-structure">
-  ${brand}
-  ${c.title       ? `<h1 class="header-structure__title">${esc(c.title)}</h1>` : ''}
-  ${c.subtitle    ? `<p class="header-structure__sub">${esc(c.subtitle)}</p>` : ''}
-  ${c.description ? `<p class="header-structure__desc">${esc(c.description)}</p>` : ''}
-  ${renderButtons(c.buttons ?? [])}
-</section>`
+<div class="flex flex-col">
+  <div class="flex flex-col gap-6 justify-center items-center text-center h-[40em] p-16 relative">
+    <div class="absolute top-12">${brand}</div>
+    <div class="flex flex-col pt-12 gap-6 items-center">
+      ${c.subtitle    ? `<h1 class="text-xs border rounded-xl px-2 tracking-widest uppercase" style="color: var(--theme-accent)">${esc(c.subtitle)}</h1>` : ''}
+      ${c.title       ? `<h2 class="text-6xl w-[15ch]" style="color: var(--theme-accent)">${esc(c.title)}</h2>` : ''}
+      ${c.description ? `<p class="w-[35ch] leading-tight" style="color: var(--theme-main)">${esc(c.description)}</p>` : ''}
+      ${btns}
+    </div>
+  </div>
+</div>`
 }
 
 function renderHeader(section: Section, theme: LandTheme, land: Land): string {
   const c = (section.content ?? {}) as unknown as HeaderContent
   const s = section.settings_json as unknown as HeaderSettings
-
-  if (theme.theme_preset === 'bold')      return renderHeaderBold(c, s)
-  if (theme.theme_preset === 'editorial') return renderHeaderEditorial(c, s)
   if (theme.theme_preset === 'structure') return renderHeaderStructure(c, land)
-  return renderHeaderMinimal(c, s)
+  if (theme.theme_preset === 'baseline')  return renderHeaderBaseline(c, s, land)
+  return renderHeaderMinimal(c, s, land)
 }
 
-function renderHeaderMinimal(c: HeaderContent, s: HeaderSettings): string {
-  return `
-<section class="header-minimal">
-  <div class="header-minimal__text">
-    ${c.logo ? `<img src="${esc(c.logo)}" class="logo" alt="Logo">` : ''}
-    ${c.title    ? `<h1 class="h-huge">${esc(c.title)}</h1>` : ''}
-    ${c.subtitle ? `<p class="sub">${esc(c.subtitle)}</p>` : ''}
-    ${renderButtons(c.buttons ?? [])}
-  </div>
-  <div class="header-minimal__cover">
-    ${s.cover_media_value ? `<img src="${esc(s.cover_media_value)}" alt="">` : ''}
-  </div>
-</section>`
+// ─── Text ───
+
+interface TextContent {
+  title?: string; subtitle?: string; body?: string; buttons?: ContentMediaButton[]
 }
 
-function renderHeaderBold(c: HeaderContent, s: HeaderSettings): string {
+function renderText(section: Section): string {
+  const c = (section.content ?? {}) as TextContent
+  const v = section.style_variant ?? 'default'
+
+  const containerClass = v === 'wide' ? 'py-5 max-w-none px-0' : v === 'centered' ? 'py-5 max-w-2xl mx-auto px-6' : 'py-5 max-w-none px-6'
+  const innerClass = v === 'centered' ? 'flex flex-col gap-3 items-center text-center' : 'flex flex-col gap-3 items-start'
+
+  const btns = (c.buttons ?? []).length
+    ? `<div class="flex flex-wrap gap-2 pt-1">${(c.buttons ?? []).map(b =>
+        `<a href="${esc(b.url)}" class="inline-flex items-center px-4 py-1.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80" style="background: var(--theme-accent); color: var(--theme-surface)">${esc(b.label)}</a>`
+      ).join('')}</div>`
+    : ''
+
   return `
-<section class="header-bold">
-  <div class="header-bold__cover">
-    ${s.cover_media_value ? `<img src="${esc(s.cover_media_value)}" alt="">` : ''}
+<div class="${containerClass}">
+  <div class="${innerClass}">
+    ${c.subtitle ? `<p class="text-xs font-medium tracking-wide uppercase" style="color: var(--theme-accent)">${esc(c.subtitle)}</p>` : ''}
+    ${c.title    ? `<h2 class="text-xl font-semibold leading-tight" style="color: var(--theme-main)">${esc(c.title)}</h2>` : ''}
+    ${c.body     ? `<div class="prose prose-sm max-w-none text-sm leading-relaxed" style="--tw-prose-headings: var(--theme-main); --tw-prose-links: var(--theme-accent)">${c.body}</div>` : ''}
+    ${btns}
   </div>
-  <div class="header-bold__text">
-    ${c.logo    ? `<img src="${esc(c.logo)}" class="logo" alt="Logo">` : ''}
-    ${c.title   ? `<h1 class="h-bold">${esc(c.title)}</h1>` : ''}
-    ${c.subtitle ? `<p class="sub">${esc(c.subtitle)}</p>` : ''}
-    ${renderButtons(c.buttons ?? [])}
-  </div>
-</section>`
+</div>`
 }
 
-function renderHeaderEditorial(c: HeaderContent, s: HeaderSettings): string {
+// ─── Media ───
+
+interface MediaContent {
+  media_type?: 'image' | 'video'; url?: string; caption?: string
+}
+
+function getVideoEmbed(url: string): string | null {
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/)
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`
+  const vm = url.match(/vimeo\.com\/(\d+)/)
+  if (vm) return `https://player.vimeo.com/video/${vm[1]}`
+  return null
+}
+
+function renderMedia(section: Section): string {
+  const m = (section.content ?? {}) as MediaContent
+  const v = section.style_variant ?? 'default'
+  const containerClass = v === 'fullwidth' ? 'p-0' : 'px-6 py-4'
+  const mediaClass = v === 'fullwidth'
+    ? 'overflow-hidden bg-gray-200 aspect-video'
+    : v === 'compact'
+      ? 'rounded-xl overflow-hidden bg-gray-200 max-h-48'
+      : 'rounded-xl overflow-hidden bg-gray-200 aspect-video'
+
+  let inner = ''
+  if (m.media_type === 'image' && m.url) {
+    inner = `<img src="${esc(m.url)}" class="w-full h-full object-cover" alt="${esc(m.caption ?? '')}">`
+  } else if (m.media_type === 'video' && m.url) {
+    const embed = getVideoEmbed(m.url)
+    if (embed) {
+      inner = `<iframe src="${esc(embed)}" class="w-full h-full" frameborder="0" allowfullscreen></iframe>`
+    }
+  }
+
   return `
-<section class="header-editorial">
-  ${s.cover_media_value ? `<div class="header-editorial__cover"><img src="${esc(s.cover_media_value)}" alt=""></div>` : ''}
-  <div class="header-editorial__meta">
-    ${c.logo     ? `<img src="${esc(c.logo)}" class="logo" alt="Logo">` : ''}
-    ${c.subtitle ? `<p class="eyebrow">${esc(c.subtitle)}</p>` : ''}
-  </div>
-  ${c.title ? `<h1 class="h-edit">${esc(c.title)}</h1>` : ''}
-  <div class="header-editorial__divider"></div>
-  ${renderButtons(c.buttons ?? [])}
-</section>`
+<div class="${containerClass}">
+  <div class="${mediaClass}">${inner}</div>
+  ${m.caption ? `<p class="mt-2 text-xs text-gray-400">${esc(m.caption)}</p>` : ''}
+</div>`
 }
 
 // ─── Content + Media ───
 
-function renderContentMedia(section: Section): string {
-  const c = (section.content ?? {}) as unknown as ContentMediaContent
-  const reversed = section.style_variant === 'reversed' ? ' reversed' : ''
+function renderContentMediaEmbed(url: string, mediaType: string): string {
+  if (mediaType === 'video') {
+    const embed = getVideoEmbed(url)
+    if (embed) return `<iframe src="${esc(embed)}" class="w-full h-full pointer-events-none" frameborder="0" allowfullscreen></iframe>`
+  }
+  if (url) return `<img src="${esc(url)}" class="w-full h-full object-cover" alt="">`
+  return ''
+}
 
-  const media = c.media_type === 'video'
-    ? `<div class="cm__video"><iframe src="${esc(c.media_url)}" allowfullscreen></iframe></div>`
+function renderContentMedia(section: Section, theme: LandTheme): string {
+  const c = (section.content ?? {}) as unknown as ContentMediaContent
+
+  // Structure theme: side-by-side
+  if (theme.theme_preset === 'structure') {
+    const rev = section.style_variant === 'reversed'
+    const mediaInner = c.media_type === 'image' && c.media_url
+      ? `<img src="${esc(c.media_url)}" class="w-full h-full object-cover" alt="">`
+      : ''
+    const btns = (c.buttons ?? []).length
+      ? `<div class="flex flex-wrap gap-2">${(c.buttons ?? []).map(b => `<a href="${esc(b.url)}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-xl border transition-colors" style="border-color: var(--theme-accent); color: var(--theme-accent)">${esc(b.label)}</a>`).join('')}</div>`
+      : ''
+    return `
+<div class="py-16 grid grid-cols-2 gap-16 items-center max-w-5xl mx-auto">
+  <div class="${rev ? 'order-2' : 'order-1'} rounded-xl overflow-hidden aspect-square" style="background: color-mix(in srgb, var(--theme-accent) 8%, transparent)">${mediaInner}</div>
+  <div class="${rev ? 'order-1' : 'order-2'} flex flex-col gap-4">
+    <div class="flex flex-col gap-2">
+      ${c.subtitle ? `<p class="text-xs uppercase tracking-widest" style="color: var(--theme-main)">${esc(c.subtitle)}</p>` : ''}
+      ${c.title    ? `<h2 class="text-4xl font-medium" style="color: var(--theme-main)">${esc(c.title)}</h2>` : ''}
+      ${c.body     ? `<p class="text-sm leading-relaxed opacity-60" style="color: var(--theme-main)">${esc(c.body)}</p>` : ''}
+    </div>
+    ${btns}
+  </div>
+</div>`
+  }
+
+  // Minimal / Baseline: stacked (text then media below)
+  const btns = (c.buttons ?? []).length
+    ? `<div class="flex flex-wrap gap-4">${(c.buttons ?? []).map(b => `<a href="${esc(b.url)}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-xl border border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white transition-colors">${esc(b.label)}</a>`).join('')}</div>`
+    : ''
+
+  const mediaEl = c.media_type === 'video' && c.media_url
+    ? `<iframe src="${esc(getVideoEmbed(c.media_url) ?? c.media_url)}" class="w-full h-full pointer-events-none" frameborder="0" allowfullscreen></iframe>`
     : c.media_url
-      ? `<div class="cm__media"><img src="${esc(c.media_url)}" alt=""></div>`
-      : `<div class="cm__media-placeholder"></div>`
+      ? `<img src="${esc(c.media_url)}" class="w-full h-full object-cover" alt="">`
+      : ''
 
   return `
-<section class="cm">
-  <div class="cm__inner${reversed}">
-    ${media}
-    <div class="cm__text">
-      ${c.subtitle ? `<p class="cm__eyebrow">${esc(c.subtitle)}</p>` : ''}
-      ${c.title    ? `<h2 class="cm__title">${esc(c.title)}</h2>` : ''}
-      ${c.body     ? `<p class="cm__body">${esc(c.body)}</p>` : ''}
-      ${renderButtons(c.buttons ?? [])}
+<div class="flex flex-col p-8 gap-8">
+  <div class="flex flex-col gap-16">
+    <div class="flex flex-col gap-8">
+      <div class="space-y-2">
+        ${c.subtitle ? `<p class="text-xs font-medium uppercase tracking-widest text-gray-400">${esc(c.subtitle)}</p>` : ''}
+        ${c.title    ? `<h2 class="text-4xl font-semibold text-gray-900">${esc(c.title)}</h2>` : ''}
+      </div>
+      ${c.body ? `<p class="text-sm leading-relaxed max-w-[70ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.body)}</p>` : ''}
+      ${btns}
     </div>
   </div>
-</section>`
+  <div class="rounded-md overflow-hidden bg-gray-200 aspect-video">${mediaEl}</div>
+</div>`
 }
 
 // ─── List ───
 
-function renderListStructure(section: Section): string {
-  const c = (section.content ?? {}) as unknown as ListContent
+function renderList(section: Section, theme: LandTheme): string {
+  const c = (section.content ?? {}) as any
   const items = sortByPosition(c.items ?? [])
+  const title: string = c.title ?? ''
+  const description: string = c.description ?? ''
   const compact = section.style_variant === 'compact'
 
-  const rows = items.map(item => `
-    <a href="${esc(item.url)}" class="list-structure__item${compact ? ' compact' : ''}">
-      <span class="list-structure__item-title">${esc(item.title)}</span>
-    </a>`).join('')
+  // Structure theme
+  if (theme.theme_preset === 'structure') {
+    const rows = items.map((item: any) => `
+      <a href="${esc(item.url)}" target="_blank" class="flex items-center gap-4 rounded-2xl ${compact ? 'p-4' : 'p-6'} transition-opacity hover:opacity-80" style="background-color: color-mix(in srgb, var(--theme-accent) 10%, transparent)">
+        ${item.icon ? `<div class="${compact ? 'h-9 w-9' : 'h-12 w-12'} shrink-0 rounded-xl overflow-hidden bg-gray-100"><img src="${esc(item.icon)}" class="w-full h-full object-cover"></div>` : ''}
+        <div class="flex flex-col gap-0.5 min-w-0 flex-1">
+          <p class="${compact ? 'text-sm' : 'text-base'} font-medium leading-tight truncate" style="color: var(--theme-main)">${esc(item.title)}</p>
+          ${item.subtitle ? `<p class="text-xs opacity-60 truncate" style="color: var(--theme-main)">${esc(item.subtitle)}</p>` : ''}
+        </div>
+      </a>`).join('')
+    return `
+<div class="max-w-5xl py-16 mx-auto">
+  ${title ? `<h2 class="text-4xl font-medium mb-8" style="color: var(--theme-main)">${esc(title)}</h2>` : ''}
+  <div class="flex flex-col gap-2">${rows}</div>
+</div>`
+  }
+
+  // Minimal / Baseline
+  const rows = items.map((item: any) => `
+    <li class="border-b" style="border-color: var(--theme-main)">
+      <a href="${esc(item.url)}" target="_blank" class="${compact ? 'py-3 flex justify-between items-end gap-4' : 'py-8 flex justify-between items-end gap-8'} group">
+        <h1 class="${compact ? 'text-2xl font-semibold leading-tight tracking-tight' : 'text-8xl font-bold leading-none tracking-tight'}" style="color: var(--theme-main)">${esc(item.title)}</h1>
+        ${item.description ? `<p class="text-sm text-gray-400 shrink-0 pb-1">${esc(item.description)}</p>` : ''}
+      </a>
+    </li>`).join('')
 
   return `
-<section class="list-structure">
-  <div class="list-structure__inner">
-    ${c.title ? `<h2 class="list-structure__heading">${esc(c.title)}</h2>` : ''}
-    ${rows || '<p style="opacity:.3;padding:3rem 0;font-size:.875rem;">No links yet.</p>'}
-  </div>
-</section>`
-}
-
-function renderList(section: Section, theme: LandTheme): string {
-  if (theme.theme_preset === 'structure') return renderListStructure(section)
-  const c = (section.content ?? {}) as unknown as ListContent
-  const items = sortByPosition(c.items ?? [])
-
-  const rows = items.map(item => `
-    <a href="${esc(item.url)}" class="list__item">
-      ${item.icon
-        ? `<img src="${esc(item.icon)}" class="list__icon" alt="">`
-        : `<div class="list__icon-placeholder"></div>`}
-      <div>
-        <p class="list__label">${esc(item.title)}</p>
-        ${item.description ? `<p class="list__desc">${esc(item.description)}</p>` : ''}
-      </div>
-      <svg class="list__arrow" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-    </a>`).join('')
-
-  return `
-<section class="list">
-  <div class="list__inner">
-    ${c.title ? `<h2 class="list__title">${esc(c.title)}</h2>` : ''}
-    ${rows || '<p style="text-align:center;opacity:.4;padding:3rem 0;font-size:.875rem;">No links yet.</p>'}
-  </div>
-</section>`
+<div class="flex flex-col mx-auto px-8 py-32 gap-16">
+  ${(title || description) ? `<div class="flex flex-col gap-4">${title ? `<h2 class="text-4xl font-semibold" style="color: var(--theme-main)">${esc(title)}</h2>` : ''}${description ? `<p class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(description)}</p>` : ''}</div>` : ''}
+  <ul>${rows}</ul>
+</div>`
 }
 
 // ─── Collection ───
 
-function renderCollectionStructure(section: Section): string {
-  const c = (section.content ?? {}) as unknown as CollectionContent
-  const collection = c.collections?.[0]
-  if (!collection) return ''
-  const items = sortByPosition(collection.items ?? [])
-  const isList = section.style_variant === 'list'
-
-  const inner = isList
-    ? items.map(item => `
-        <div class="collection-structure__list-item">
-          <div class="collection-structure__list-thumb">${item.media_url ? `<img src="${esc(item.media_url)}" alt="">` : ''}</div>
-          <p class="collection-structure__list-name">${esc(item.title)}</p>
-        </div>`).join('')
-    : `<div class="collection-structure__grid">${items.map(item => `
-        <div>
-          <div class="collection-structure__item-img">${item.media_url ? `<img src="${esc(item.media_url)}" alt="">` : ''}</div>
-          <p class="collection-structure__item-title">${esc(item.title)}</p>
-          ${item.description ? `<p class="collection-structure__item-sub">${esc(item.description)}</p>` : ''}
-        </div>`).join('')}</div>`
-
-  return `
-<section class="collection-structure">
-  <div class="collection-structure__inner">
-    ${collection.title ? `<h2 class="collection-structure__title">${esc(collection.title)}</h2>` : ''}
-    ${inner}
-  </div>
-</section>`
-}
-
 function renderCollection(section: Section, theme: LandTheme): string {
-  if (theme.theme_preset === 'structure') return renderCollectionStructure(section)
   const c = (section.content ?? {}) as unknown as CollectionContent
-  const s = section.settings_json as unknown as CollectionSettings
-  const collection = c.collections?.[0]
-  if (!collection) return ''
+  const collections = sortByPosition(c.collections ?? [])
+  if (!collections.length) return ''
 
-  const items = sortByPosition(collection.items ?? [])
-  const isList = s?.style === 'list'
+  // Structure theme
+  if (theme.theme_preset === 'structure') {
+    const variant = section.style_variant
+    return collections.map(col => {
+      const items = sortByPosition(col.items ?? [])
+      const isList = variant === 'list'
+      const gridClass = isList ? 'flex flex-col divide-y' : variant === 'cards' ? 'grid grid-cols-2 gap-8' : 'grid grid-cols-3 gap-8'
+      const rows = isList
+        ? items.map(item => `
+            <li class="flex gap-4 py-3">
+              <div class="h-14 w-20 shrink-0 overflow-hidden" style="background: var(--theme-main); opacity: 0.15">
+                ${item.media_url ? `<img src="${esc(item.media_url)}" class="w-full h-full object-cover" style="opacity: 100%">` : ''}
+              </div>
+              <div>
+                <h3 class="text-base font-medium" style="color: var(--theme-main)">${esc(item.title)}</h3>
+                ${item.description ? `<p class="text-xs mt-1" style="color: var(--theme-main); opacity: 0.5">${esc(item.description)}</p>` : ''}
+              </div>
+            </li>`).join('')
+        : items.map(item => `
+            <li class="flex flex-col gap-2 pb-4">
+              <div class="overflow-hidden rounded-xl ${variant === 'cards' ? 'aspect-video' : 'flex-1 aspect-square'}" style="background: var(--theme-main)">
+                ${item.media_url ? `<img src="${esc(item.media_url)}" class="w-full h-full object-cover">` : ''}
+              </div>
+              <div>
+                <h3 class="text-2xl font-medium" style="color: var(--theme-main)">${esc(item.title)}</h3>
+                ${(item as any).subtitle ? `<p class="text-sm" style="color: var(--theme-main); opacity: 0.5">${esc((item as any).subtitle)}</p>` : ''}
+              </div>
+            </li>`).join('')
+      return `
+<div class="max-w-5xl mx-auto py-8 space-y-8">
+  <h2 class="text-4xl font-semibold" style="color: var(--theme-main)">${esc(col.title)}</h2>
+  <ul class="${gridClass}">${rows}</ul>
+</div>`
+    }).join('')
+  }
 
-  const inner = isList
-    ? items.map(item => `
-        <div class="collection__list-item">
-          ${item.media_url ? `<img src="${esc(item.media_url)}" alt="">` : ''}
-          <div>
-            <p class="collection__card-title">${esc(item.title)}</p>
-            ${item.description ? `<p class="collection__card-desc">${esc(item.description)}</p>` : ''}
-          </div>
-        </div>`).join('')
-    : `<div class="collection__grid">${items.map(item => `
-        <div class="collection__card">
-          ${item.media_url
-            ? `<img src="${esc(item.media_url)}" alt="">`
-            : `<div class="collection__card-placeholder"></div>`}
-          <div class="collection__card-body">
-            <p class="collection__card-title">${esc(item.title)}</p>
-            ${item.description ? `<p class="collection__card-desc">${esc(item.description)}</p>` : ''}
-          </div>
-        </div>`).join('')}</div>`
-
-  return `
-<section class="collection">
-  <div class="collection__inner">
-    ${collection.title ? `<h2 class="collection__title">${esc(collection.title)}</h2>` : ''}
-    ${inner}
-  </div>
-</section>`
-}
-
-// ─── Store ───
-
-function renderStoreStructure(section: Section): string {
-  const c = (section.content ?? {}) as unknown as StoreContent
-  const store = c.stores?.[0]
-  if (!store) return ''
-  const items = sortByPosition(store.items ?? [])
-  const isList = section.style_variant === 'list'
-
-  const inner = isList
-    ? items.map(item => `
-        <div class="store-structure__list-item">
-          <div class="store-structure__list-thumb">${item.image ? `<img src="${esc(item.image)}" alt="">` : ''}</div>
-          <p class="store-structure__list-name">${esc(item.title)}</p>
-          ${item.price > 0 ? `<p class="store-structure__list-price">$${item.price.toFixed(2)}</p>` : ''}
-        </div>`).join('')
-    : `<div class="store-structure__grid">${items.map(item => `
+  // Minimal / Baseline — grid cols computed from total items across all collections (matches Vue)
+  const variant = section.style_variant
+  const totalItems = collections.reduce((sum, col) => sum + (col.items ?? []).length, 0)
+  const totalCols = smartColumns(totalItems)
+  return collections.map(col => {
+    const items = sortByPosition(col.items ?? [])
+    const cols = totalCols
+    const imgCls = variant === 'cards' ? 'aspect-video' : 'flex-1 aspect-square'
+    const rows = items.map(item => `
+      <li class="flex flex-col gap-8">
+        <div class="overflow-hidden rounded-md ${imgCls}" style="background: var(--theme-main)">
+          ${item.media_url ? `<img src="${esc(item.media_url)}" class="w-full h-full object-cover">` : ''}
+        </div>
         <div>
-          <div class="store-structure__item-img">${item.image ? `<img src="${esc(item.image)}" alt="">` : ''}</div>
-          <p class="store-structure__item-name">${esc(item.title)}</p>
-          ${item.price > 0 ? `<p class="store-structure__item-price">$${item.price.toFixed(2)}</p>` : ''}
-          ${item.price > 0 ? `<button class="store-structure__item-btn">Buy</button>` : ''}
-        </div>`).join('')}</div>`
-
-  return `
-<section class="store-structure">
-  <div class="store-structure__inner">
-    ${store.title ? `<h2 class="store-structure__title">${esc(store.title)}</h2>` : ''}
-    ${inner}
+          <h3 class="text-2xl font-medium" style="color: var(--theme-main)">${esc(item.title)}</h3>
+          ${(item as any).subtitle ? `<p class="text-sm" style="color: var(--theme-main); opacity: 0.5">${esc((item as any).subtitle)}</p>` : ''}
+        </div>
+      </li>`).join('')
+    return `
+<div class="flex flex-col mx-auto px-8 py-32 gap-16">
+  <div class="flex flex-col gap-4">
+    <h2 class="text-4xl font-semibold" style="color: var(--theme-main)">${esc(col.title)}</h2>
+    ${col.description ? `<p class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(col.description)}</p>` : ''}
   </div>
-</section>`
-}
-
-function renderStore(section: Section, theme: LandTheme): string {
-  if (theme.theme_preset === 'structure') return renderStoreStructure(section)
-  const c = (section.content ?? {}) as unknown as StoreContent
-  const s = section.settings_json as unknown as StoreSettings
-  const store = c.stores?.[0]
-  if (!store) return ''
-
-  const items = sortByPosition(store.items ?? [])
-  const isList = s?.style === 'list'
-
-  const inner = isList
-    ? items.map(item => `
-        <div class="store__list-item">
-          ${item.image ? `<img src="${esc(item.image)}" alt="">` : ''}
-          <div class="store__list-body">
-            <p class="store__list-name">${esc(item.title)}</p>
-            ${item.description ? `<p class="store__list-desc">${esc(item.description)}</p>` : ''}
-          </div>
-          ${item.price > 0 ? `<p class="store__list-price">$${item.price.toFixed(2)}</p>` : ''}
-        </div>`).join('')
-    : `<div class="store__grid">${items.map(item => `
-        <div class="store__card">
-          ${item.image
-            ? `<img src="${esc(item.image)}" alt="">`
-            : `<div class="store__card-placeholder"></div>`}
-          <div class="store__card-body">
-            <p class="store__card-name">${esc(item.title)}</p>
-            ${item.description ? `<p class="store__card-desc">${esc(item.description)}</p>` : ''}
-            ${item.price > 0 ? `<p class="store__card-price">$${item.price.toFixed(2)}</p>` : ''}
-          </div>
-        </div>`).join('')}</div>`
-
-  return `
-<section class="store">
-  <div class="store__inner">
-    ${store.title ? `<h2 class="store__title">${esc(store.title)}</h2>` : ''}
-    ${inner}
-  </div>
-</section>`
-}
-
-// ─── Campaign ───
-
-function renderCampaign(section: Section): string {
-  const c = (section.content ?? {}) as unknown as CampaignContent
-  return `
-<section class="campaign">
-  <div class="campaign__inner">
-    ${c.title       ? `<h2 class="campaign__title">${esc(c.title)}</h2>` : ''}
-    ${c.description ? `<p class="campaign__desc">${esc(c.description)}</p>` : ''}
-    <form class="campaign__form" onsubmit="return false">
-      <input class="campaign__input" type="email" placeholder="${esc(c.placeholder || 'Your email address')}">
-      <button type="submit" class="btn btn-solid">${esc(c.button_label || 'Subscribe')}</button>
-    </form>
-  </div>
-</section>`
+  <ul class="grid grid-cols-${cols} gap-8">${rows}</ul>
+</div>`
+  }).join('')
 }
 
 // ─── Monetize ───
 
-function renderMonetize(section: Section): string {
-  const c = (section.content ?? {}) as Record<string, unknown>
-  const col = (c.collections as Array<{ title?: string; price?: number }>)?.[0]
-  return `
-<section class="monetize">
-  <div class="monetize__inner">
-    ${col?.title ? `<h2 class="monetize__title">${esc(col.title)}</h2>` : ''}
-    ${col?.price ? `<p class="monetize__price">$${(col.price as number).toFixed(2)}<span>/month</span></p>` : ''}
-    <button class="btn btn-solid">Subscribe</button>
+function renderMonetize(section: Section, theme: LandTheme): string {
+  const c = (section.content ?? {}) as any
+  const collections = sortByPosition(c.collections ?? [])
+  if (!collections.length) return ''
+
+  // Structure theme: same gradient card layout as minimal/baseline (matches MonetizeStructure.vue)
+
+  // Minimal / Baseline: big card with gradient
+  return collections.map(col => {
+    const period = col.billing_period === 'yearly' ? '/ year' : '/ month'
+    const priceLabel = col.price ? `$${(col.price as number).toFixed(2)} ${period}` : 'Free'
+    return `
+<div class="py-4 px-6">
+  <div class="max-w-5xl mx-auto my-16 rounded-2xl overflow-hidden relative" style="min-height: 600px; background-color: color-mix(in srgb, var(--theme-accent) 50%, transparent)">
+    ${col.cover_url ? `<img src="${esc(col.cover_url)}" class="absolute inset-0 w-full h-full object-cover">` : ''}
+    <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent 5%, color-mix(in srgb, var(--theme-accent) 95%, black 5%) 100%)"></div>
+    <div class="absolute bottom-0 left-0 right-0 p-10 flex items-end justify-between gap-8">
+      <div class="flex flex-col gap-1.5 min-w-0">
+        ${col.subtitle    ? `<p class="text-xs uppercase tracking-widest font-medium text-white" style="opacity: 0.7">${esc(col.subtitle)}</p>` : ''}
+        <h2 class="text-3xl font-bold text-white leading-tight">${esc(col.title || 'Untitled')}</h2>
+        ${col.description ? `<p class="text-sm text-white leading-relaxed max-w-md" style="opacity: 0.7">${esc(col.description)}</p>` : ''}
+        <p class="text-lg font-semibold text-white mt-1">${esc(priceLabel)}</p>
+      </div>
+      <button class="shrink-0 px-6 py-3 rounded-xl text-sm font-semibold whitespace-nowrap" style="background: white; color: var(--theme-accent)">Access content</button>
+    </div>
   </div>
-</section>`
+</div>`
+  }).join('')
+}
+
+// ─── Store ───
+
+function renderStore(section: Section, theme: LandTheme): string {
+  const c = (section.content ?? {}) as unknown as StoreContent
+  const stores = sortByPosition(c.stores ?? [])
+  if (!stores.length) return ''
+
+  // Structure theme
+  if (theme.theme_preset === 'structure') {
+    const isList = section.style_variant === 'list'
+    return stores.map(store => {
+      const items = sortByPosition(store.items ?? [])
+      const inner = isList
+        ? `<ul class="flex flex-col divide-y">${items.map(item => `
+          <li class="flex gap-4 py-3 items-center">
+            <div class="h-14 w-20 shrink-0 overflow-hidden" style="background: var(--theme-main); opacity: 0.15">
+              ${item.image ? `<img src="${esc(item.image)}" class="w-full h-full object-cover" style="opacity: 100%">` : ''}
+            </div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-base font-medium" style="color: var(--theme-main)">${esc(item.title)}</h3>
+              ${item.price > 0 ? `<p class="text-sm font-semibold mt-0.5" style="color: var(--theme-main)">$${item.price.toFixed(2)}</p>` : ''}
+            </div>
+            ${item.price > 0 ? `<button class="shrink-0 px-4 py-2 text-sm font-medium" style="color: var(--theme-main); border: 1.5px solid var(--theme-main)">Buy</button>` : ''}
+          </li>`).join('')}</ul>`
+        : `<ul class="grid grid-cols-3 gap-8">${items.map(item => `
+          <li class="flex flex-col gap-2 pb-4">
+            <div class="aspect-square overflow-hidden rounded-xl" style="background: var(--theme-accent)">
+              ${item.image ? `<img src="${esc(item.image)}" class="w-full h-full object-cover">` : ''}
+            </div>
+            <div>
+              <h3 class="text-2xl font-medium" style="color: var(--theme-main)">${esc(item.title)}</h3>
+              ${item.price > 0 ? `<p class="text-sm mt-0.5" style="color: var(--theme-main); opacity: 0.5">$${item.price.toFixed(2)}</p>` : ''}
+              ${item.price > 0 ? `<button class="mt-3 px-4 py-2 text-sm font-medium" style="color: var(--theme-main); border: 1.5px solid var(--theme-main)">Buy</button>` : ''}
+            </div>
+          </li>`).join('')}</ul>`
+      return `
+<div class="max-w-5xl mx-auto py-8 space-y-8">
+  <h2 class="text-4xl font-medium" style="color: var(--theme-main)">${esc(store.title)}</h2>
+  ${inner}
+</div>`
+    }).join('')
+  }
+
+  // Minimal / Baseline — grid cols computed from total items across all stores (matches Vue)
+  const totalStoreItems = stores.reduce((sum, s) => sum + (s.items ?? []).length, 0)
+  const storeCols = smartColumns(totalStoreItems)
+  return stores.map(store => {
+    const items = sortByPosition(store.items ?? [])
+    const cols = storeCols
+    const rows = items.map(item => `
+      <li class="flex flex-col gap-4">
+        <div class="aspect-square overflow-hidden rounded-md" style="background: var(--theme-main)">
+          ${item.image ? `<img src="${esc(item.image)}" class="w-full h-full object-cover">` : ''}
+        </div>
+        <div class="flex flex-col gap-4">
+          <div class="flex justify-between items-start">
+            <h3 class="text-2xl font-semibold" style="color: var(--theme-main)">${esc(item.title)}</h3>
+            ${item.price > 0 ? `<p class="text-sm font-medium" style="color: var(--theme-main)">$${item.price.toFixed(2)}</p>` : ''}
+          </div>
+          ${item.description ? `<p class="text-sm" style="color: var(--theme-main); opacity: 0.5">${esc(item.description)}</p>` : ''}
+          ${item.price > 0 ? `<button class="mt-2 py-2 text-sm font-medium rounded-lg text-gray-100" style="background: var(--theme-accent)">Buy</button>` : ''}
+        </div>
+      </li>`).join('')
+    return `
+<div class="flex flex-col mx-auto px-8 py-32 gap-16">
+  <div class="flex flex-col gap-4">
+    <h2 class="text-4xl font-semibold" style="color: var(--theme-main)">${esc(store.title)}</h2>
+    ${(store as any).description ? `<p class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc((store as any).description)}</p>` : ''}
+  </div>
+  <ul class="grid grid-cols-${cols} gap-8">${rows}</ul>
+</div>`
+  }).join('')
+}
+
+// ─── Campaign ───
+
+function renderCampaign(section: Section, theme: LandTheme): string {
+  const c = (section.content ?? {}) as unknown as CampaignContent
+
+  // Structure theme
+  if (theme.theme_preset === 'structure') {
+    const tc = getTextColorForAccent(theme)
+    return `
+<div class="max-w-5xl mx-auto p-24 my-16 rounded-2xl text-center space-y-6" style="background-color: var(--theme-accent)">
+  <div class="space-y-3">
+    ${c.title       ? `<h1 class="text-8xl leading-none tracking-tight" style="color: ${tc}">${esc(c.title)}</h1>` : ''}
+    ${c.description ? `<p class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.description)}</p>` : ''}
+  </div>
+  <div class="flex flex-col items-center gap-3 max-w-sm mx-auto">
+    <input type="email" placeholder="${esc(c.placeholder || 'your@email.com')}" class="w-full px-4 py-2.5 rounded-xl text-sm outline-none border" style="border-color: color-mix(in srgb, ${tc} 30%, transparent); color: ${tc}; background: transparent">
+    <button class="w-full px-6 py-2.5 rounded-xl text-sm font-medium" style="background-color: ${tc}; color: var(--theme-accent)">${esc(c.button_label || 'Subscribe')}</button>
+  </div>
+</div>`
+  }
+
+  // Minimal / Baseline
+  return `
+<div class="flex flex-1 flex-col gap-8 items-center py-36 px-6">
+  ${c.title       ? `<h1 class="text-8xl font-bold leading-none tracking-tight" style="color: var(--theme-main)">${esc(c.title)}</h1>` : ''}
+  ${c.description ? `<p class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.description)}</p>` : ''}
+  <form class="flex items-center gap-2 shrink-0" onsubmit="return false">
+    <input type="email" placeholder="${esc(c.placeholder || 'email@example.com')}" class="border bg-transparent outline-none text-sm p-4 rounded-xl h-14 w-96" style="border-color: var(--theme-main); color: var(--theme-main)">
+    <button type="submit" class="py-4 px-8 text-sm font-medium rounded-xl h-14 text-gray-100" style="background: var(--theme-accent)">${esc(c.button_label || 'Subscribe')}</button>
+  </form>
+</div>`
 }
 
 // ─── Footer ───
 
-function renderFooterStructure(section: Section): string {
+function renderFooter(section: Section, theme: LandTheme, land: Land): string {
   const c = (section.content ?? {}) as unknown as FooterContent
-  const links = (c.buttons ?? []).map(b =>
-    `<a href="${esc(b.url)}" class="footer-structure__link">${esc(b.label)}</a>`
-  ).join('')
-  return `
-<footer>
-  <div class="footer-structure__bar">
-    ${c.title    ? `<h2 class="footer-structure__title">${esc(c.title)}</h2>` : ''}
-    ${c.subtitle ? `<p class="footer-structure__sub">${esc(c.subtitle)}</p>` : ''}
-  </div>
-  ${links ? `<div class="footer-structure__links">${links}</div>` : ''}
-</footer>`
-}
+  const s = (section.settings_json ?? {}) as unknown as FooterSettings
 
-function renderFooter(section: Section, theme: LandTheme): string {
-  if (theme.theme_preset === 'structure') return renderFooterStructure(section)
-  const c = (section.content ?? {}) as unknown as FooterContent
-  const s = section.settings_json as unknown as FooterSettings
-  return `
-<footer class="footer">
-  ${s?.cover_media_value ? `<div class="footer__cover"><img src="${esc(s.cover_media_value)}" alt=""></div>` : ''}
-  <div class="footer__inner">
-    ${c.title    ? `<h2 class="footer__title">${esc(c.title)}</h2>` : ''}
-    ${c.subtitle ? `<p class="footer__sub">${esc(c.subtitle)}</p>` : ''}
-    <p class="footer__credit">Made with <a href="https://lands.app">Lands</a></p>
+  // Structure theme
+  if (theme.theme_preset === 'structure') {
+    const tc = getTextColorForAccent(theme)
+    const links = (c.buttons ?? []).length
+      ? `<div class="flex flex-wrap gap-x-6 gap-y-2 justify-end shrink-0">${(c.buttons ?? []).map(b =>
+          `<a href="${esc(b.url)}" class="text-sm font-medium transition-opacity hover:opacity-60" style="color: ${tc}">${esc(b.label)}</a>`
+        ).join('')}</div>`
+      : ''
+    return `
+<div class="mx-auto mt-16 overflow-hidden relative" style="background-color: var(--theme-accent); min-height: 280px">
+  ${s?.cover_media_value ? `<img src="${esc(s.cover_media_value)}" class="absolute inset-0 w-full h-full object-cover opacity-20">` : ''}
+  <div class="relative flex flex-col justify-between h-full p-14" style="min-height: 280px">
+    <p class="text-xs uppercase tracking-widest font-medium opacity-60" style="color: ${tc}">${esc(land.title || land.handle)}</p>
+    <div class="flex items-end justify-between gap-8 mt-auto pt-12">
+      <div class="flex flex-col gap-1">
+        <h2 class="text-4xl font-bold leading-tight" style="color: ${tc}">${esc(c.title || '')}</h2>
+        ${c.subtitle ? `<p class="text-sm opacity-60" style="color: ${tc}">${esc(c.subtitle)}</p>` : ''}
+      </div>
+      ${links}
+    </div>
   </div>
-</footer>`
+</div>
+<div class="mx-auto flex items-center justify-between px-10 py-4 gap-4" style="background-color: color-mix(in srgb, var(--theme-accent) 85%, black)">
+  <div class="flex items-center gap-6">
+    <a href="#" class="text-xs transition-opacity hover:opacity-80" style="color: ${tc}; opacity: 0.5">Privacy Policy</a>
+    <a href="#" class="text-xs transition-opacity hover:opacity-80" style="color: ${tc}; opacity: 0.5">Terms &amp; Conditions</a>
+  </div>
+  <a href="https://lands.app" target="_blank" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition-opacity hover:opacity-80" style="background-color: color-mix(in srgb, ${tc} 10%, transparent)">
+    <span class="text-[10px] uppercase tracking-widest" style="color: ${tc}; opacity: 0.5">Made with</span>
+    <span class="text-[10px] font-bold uppercase tracking-widest" style="color: ${tc}">Lands</span>
+  </a>
+</div>`
+  }
+
+  // Minimal / Baseline
+  const navLinks = (c.buttons ?? []).length
+    ? `<div class="flex items-center gap-6">${(c.buttons ?? []).map(b =>
+        `<a href="${esc(b.url)}" class="text-sm font-medium transition-opacity hover:opacity-60" style="color: var(--theme-main)">${esc(b.label)}</a>`
+      ).join('')}</div>`
+    : ''
+
+  return `
+<div class="flex flex-col px-8 py-16 gap-12" style="background: var(--theme-surface)">
+  <div class="flex items-center justify-between">
+    <span class="text-sm font-semibold uppercase tracking-widest" style="color: var(--theme-main); opacity: 0.6">${esc(land.title || land.handle)}</span>
+    ${navLinks}
+  </div>
+  ${c.description ? `<p class="text-sm leading-relaxed max-w-[60ch]" style="color: var(--theme-main); opacity: 0.5">${esc(c.description)}</p>` : ''}
+  <div class="flex items-center justify-between border-t pt-6" style="border-color: var(--theme-main); opacity: 0.2"></div>
+  <div class="flex items-center justify-between -mt-6">
+    <div class="flex items-center gap-6">
+      <span class="text-xs" style="color: var(--theme-main); opacity: 0.4">Privacy Policy</span>
+      <span class="text-xs" style="color: var(--theme-main); opacity: 0.4">Terms &amp; Conditions</span>
+    </div>
+    <a href="https://lands.app" target="_blank" class="text-xs" style="color: var(--theme-main); opacity: 0.4">Made with Lands</a>
+  </div>
+</div>`
 }
 
 // ─── Feed Layout ───
@@ -868,58 +650,55 @@ function renderFeedLayout(land: Land): string {
   const hs = (header?.settings_json ?? {}) as unknown as HeaderSettings
 
   const footerSection        = sorted.find(s => s.type === 'footer')
-  const collectionSections  = sorted.filter(s => s.type === 'collection')
-  const listSections        = sorted.filter(s => s.type === 'list')
-  const monetizeSections    = sorted.filter(s => s.type === 'monetize')
-  const storeSections       = sorted.filter(s => s.type === 'store')
+  const collectionSections   = sorted.filter(s => s.type === 'collection')
+  const listSections         = sorted.filter(s => s.type === 'list')
+  const monetizeSections     = sorted.filter(s => s.type === 'monetize')
+  const storeSections        = sorted.filter(s => s.type === 'store')
   const contentMediaSections = sorted.filter(s => s.type === 'content_media')
 
   const tabs: { id: string; label: string; html: string }[] = []
+  tabs.push({ id: 'feed', label: 'Feed', html: collectionSections.map(s => renderCollection(s, land.theme)).join('') || '<div class="flex items-center justify-center p-24 text-sm" style="color: var(--theme-main); opacity: 0.4">No collections yet</div>' })
+  if (listSections.length)         tabs.push({ id: 'links', label: 'Links', html: listSections.map(s => renderList(s, land.theme)).join('') })
+  if (monetizeSections.length)     tabs.push({ id: 'sub', label: 'Subscription', html: monetizeSections.map(s => renderMonetize(s, land.theme)).join('') })
+  if (storeSections.length)        tabs.push({ id: 'store', label: 'Store', html: storeSections.map(s => renderStore(s, land.theme)).join('') })
+  if (contentMediaSections.length) tabs.push({ id: 'about', label: 'About', html: contentMediaSections.map(s => renderContentMedia(s, land.theme)).join('') })
 
-  const feedHtml = collectionSections.map(s => renderCollection(s, land.theme)).join('') ||
-    '<div class="feed-empty">No collections yet</div>'
-  tabs.push({ id: 'feed', label: 'Feed', html: feedHtml })
-
-  if (listSections.length)
-    tabs.push({ id: 'links', label: 'Links', html: listSections.map(s => renderList(s, land.theme)).join('') })
-
-  if (monetizeSections.length)
-    tabs.push({ id: 'subscription', label: 'Subscription', html: monetizeSections.map(s => renderMonetize(s)).join('') })
-
-  if (storeSections.length)
-    tabs.push({ id: 'store', label: 'Store', html: storeSections.map(s => renderStore(s, land.theme)).join('') })
-
-  if (contentMediaSections.length)
-    tabs.push({ id: 'about', label: 'About', html: contentMediaSections.map(s => renderContentMedia(s)).join('') })
-
-  const tabButtons = tabs.map((t, i) =>
-    `<button class="feed-tab${i === 0 ? ' active' : ''}" onclick="switchTab(event, '${t.id}')">${esc(t.label)}</button>`
+  const tabBtns = tabs.map((t, i) =>
+    `<button class="feed-tab px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-opacity${i === 0 ? ' active' : ''}" data-tab="${t.id}" onclick="switchTab(this,'${t.id}')" style="${i === 0 ? `opacity:1;border-color:var(--theme-accent);color:var(--theme-accent)` : `opacity:0.5;border-color:transparent;color:var(--theme-main)`}">${esc(t.label)}</button>`
   ).join('')
 
   const tabPanels = tabs.map((t, i) =>
-    `<div id="feed-panel-${t.id}" class="feed-panel${i === 0 ? ' active' : ''}">${t.html}</div>`
+    `<div id="fp-${t.id}" class="feed-panel"${i > 0 ? ' style="display:none"' : ''}>${t.html}</div>`
   ).join('')
 
   return `
-<div class="feed-hero">
-  ${hs?.cover_media_value ? `<img src="${esc(hs.cover_media_value)}" alt="">` : ''}
-  <div class="feed-hero__scrim"></div>
-  <div class="feed-hero__content">
-    ${hc.logo    ? `<img src="${esc(hc.logo)}" class="feed-hero__logo" alt="Logo">` : ''}
-    ${hc.title   ? `<h1 class="feed-hero__title">${esc(hc.title)}</h1>` : `<h1 class="feed-hero__title">${esc(land.title || land.handle)}</h1>`}
-    ${hc.subtitle ? `<p class="feed-hero__sub">${esc(hc.subtitle)}</p>` : ''}
+<div class="relative h-[380px] overflow-hidden" style="background: var(--theme-accent)">
+  ${hs?.cover_media_value ? `<img src="${esc(hs.cover_media_value)}" class="absolute inset-0 w-full h-full object-cover">` : ''}
+  <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.65) 100%)"></div>
+  <div class="absolute bottom-0 left-0 right-0 p-8">
+    ${hc.logo    ? `<img src="${esc(hc.logo)}" class="h-8 w-auto mb-2" style="filter: brightness(0) invert(1)" alt="">` : ''}
+    ${hc.title   ? `<h1 class="text-4xl font-bold text-white leading-tight">${esc(hc.title)}</h1>` : `<h1 class="text-4xl font-bold text-white leading-tight">${esc(land.title || land.handle)}</h1>`}
+    ${hc.subtitle ? `<p class="text-sm mt-1.5" style="color: rgba(255,255,255,0.7)">${esc(hc.subtitle)}</p>` : ''}
   </div>
 </div>
-<div class="feed-tabs">${tabButtons}</div>
-<div class="feed-content">${tabPanels}</div>
-${footerSection ? renderFooter(footerSection, land.theme) : ''}
+<div class="sticky top-0 z-10 bg-white border-b flex gap-0 px-6 overflow-x-auto" style="border-color: var(--theme-surface)">
+  ${tabBtns}
+</div>
+<div>${tabPanels}</div>
+${footerSection ? renderFooter(footerSection, land.theme, land) : ''}
 <script>
-function switchTab(event, id) {
-  document.querySelectorAll('.feed-tab').forEach(function(el) { el.classList.remove('active') })
-  document.querySelectorAll('.feed-panel').forEach(function(el) { el.classList.remove('active') })
-  event.currentTarget.classList.add('active')
-  var panel = document.getElementById('feed-panel-' + id)
-  if (panel) panel.classList.add('active')
+function switchTab(btn, id) {
+  document.querySelectorAll('.feed-tab').forEach(function(el) {
+    el.style.opacity = '0.5';
+    el.style.borderBottomColor = 'transparent';
+    el.style.color = 'var(--theme-main)';
+  });
+  btn.style.opacity = '1';
+  btn.style.borderBottomColor = 'var(--theme-accent)';
+  btn.style.color = 'var(--theme-accent)';
+  document.querySelectorAll('.feed-panel').forEach(function(el) { el.style.display = 'none'; });
+  var p = document.getElementById('fp-' + id);
+  if (p) p.style.display = '';
 }
 <\/script>`
 }
@@ -929,13 +708,15 @@ function switchTab(event, id) {
 function renderSection(section: Section, theme: LandTheme, land: Land): string {
   switch (section.type) {
     case 'header':        return renderHeader(section, theme, land)
-    case 'content_media': return renderContentMedia(section)
+    case 'text':          return renderText(section)
+    case 'media':         return renderMedia(section)
+    case 'content_media': return renderContentMedia(section, theme)
     case 'list':          return renderList(section, theme)
     case 'collection':    return renderCollection(section, theme)
     case 'store':         return renderStore(section, theme)
-    case 'campaign':      return renderCampaign(section)
-    case 'monetize':      return renderMonetize(section)
-    case 'footer':        return renderFooter(section, theme)
+    case 'campaign':      return renderCampaign(section, theme)
+    case 'monetize':      return renderMonetize(section, theme)
+    case 'footer':        return renderFooter(section, theme, land)
     default:              return ''
   }
 }
@@ -944,25 +725,22 @@ function renderSection(section: Section, theme: LandTheme, land: Land): string {
 
 export function renderLand(land: Land): string {
   const isFeed = land.theme?.theme_preset === 'feed'
-
-  let body: string
-  if (isFeed) {
-    body = renderFeedLayout(land)
-  } else {
-    const sorted = sortByPosition(land.sections)
-    body = sorted.map(s => renderSection(s, land.theme, land)).join('\n')
-  }
+  const body = isFeed
+    ? renderFeedLayout(land)
+    : sortByPosition(land.sections).map(s => renderSection(s, land.theme, land)).join('\n')
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${esc(land.title || land.handle)}</title>
-  ${land.description ? `<meta name="description" content="${esc(land.description)}">` : ''}
-  <meta property="og:title" content="${esc(land.title || land.handle)}">
-  ${land.description ? `<meta property="og:description" content="${esc(land.description)}">` : ''}
-  <style>${buildCSS(land.theme)}</style>
+  <title>${esc(land.meta_title || land.title || land.handle)}</title>
+  ${(land.meta_description || land.description) ? `<meta name="description" content="${esc(land.meta_description || land.description)}">` : ''}
+  <meta property="og:title" content="${esc(land.meta_title || land.title || land.handle)}">
+  ${(land.meta_description || land.description) ? `<meta property="og:description" content="${esc(land.meta_description || land.description)}">` : ''}
+  ${land.og_image ? `<meta property="og:image" content="${esc(land.og_image)}">` : ''}
+  ${buildFontLinks(land.theme)}
+  ${buildBaseStyles(land.theme)}
 </head>
 <body>
 ${body}

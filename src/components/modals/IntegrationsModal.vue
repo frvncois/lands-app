@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon, GlobeAltIcon } from '@heroicons/vue/24/outline'
+import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon, GlobeAltIcon, MagnifyingGlassIcon, QrCodeIcon } from '@heroicons/vue/24/outline'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import IntegrationSettingsModal, { type Integration } from './IntegrationSettingsModal.vue'
@@ -16,8 +16,10 @@ const integrations: Integration[] = [
   { id: 'analytics',     title: 'Analytics',        description: 'Track visits and engagement',              icon: ChartBarIcon },
   { id: 'campaign',      title: 'Campaign',          description: 'Manage marketing campaigns',               icon: MegaphoneIcon },
   { id: 'collaborators', title: 'Collaborators',     description: 'Invite team members to your project',      icon: UsersIcon },
-  { id: 'sell_monetize', title: 'Sell & Monetize',  description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
   { id: 'custom_domain', title: 'Custom Domain',     description: 'Connect your own domain to this land',     icon: GlobeAltIcon },
+  { id: 'qr_code',       title: 'QR Code',           description: 'Download a QR code for your project',       icon: QrCodeIcon },
+  { id: 'seo',           title: 'SEO',               description: 'Meta title, description and social image',  icon: MagnifyingGlassIcon },
+  { id: 'sell_monetize', title: 'Sell & Monetize',   description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
 ]
 
 const active = ref<Integration | null>(null)
@@ -79,7 +81,7 @@ function onAfterEnter() {
           <component :is="active?.icon ?? PuzzlePieceIcon" :key="active?.id ?? 'list'" class="h-4 w-4 text-gray-900" />
         </Transition>
         <Transition name="modal-title" mode="out-in">
-          <h2 :key="active?.id ?? 'list'" class="text-sm font-semibold text-gray-900">{{ active?.title ?? 'Integrations' }}</h2>
+          <h2 :key="active?.id ?? 'list'" class="text-sm font-semibold text-gray-900">{{ active?.title ?? 'Tools' }}</h2>
         </Transition>
       </div>
       <div class="flex items-center gap-1 shrink-0">

@@ -64,7 +64,7 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
         <p class="text-xs text-gray-400 leading-relaxed">Collaborate on your land by inviting team members to view or edit your project.</p>
       </div>
       <BaseButton variant="solid" size="sm" @click="showInviteModal = true">
-        <EnvelopeIcon class="h-3.5 w-3.5" /> Invite collaborator
+        Invite collaborator
       </BaseButton>
     </div>
 
@@ -87,8 +87,8 @@ const STATUS_BADGE: Record<string, 'success' | 'warning' | 'error'> = {
         class="flex items-center gap-2 p-2 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
       >
         <!-- Avatar initials -->
-        <div class="h-7 w-7 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-          <span class="text-xs font-medium text-gray-500">{{ c.email[0]?.toUpperCase() }}</span>
+        <div class="h-7 w-7 rounded-full bg-gray-900 flex items-center justify-center shrink-0">
+          <span class="text-xs font-medium text-gray-200">{{ c.email[0]?.toUpperCase() }}</span>
         </div>
 
         <!-- Info -->

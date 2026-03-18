@@ -24,6 +24,8 @@ function normalizeLand(row: Record<string, unknown>): Land {
   } as Land
 }
 
+let saveController: AbortController | null = null
+
 export const landService = {
   async getMyLands(): Promise<Land[]> {
     const { data: { user } } = await supabase.auth.getUser()
@@ -39,10 +41,12 @@ export const landService = {
     if (ownedError) throw new Error(ownedError.message)
 
     // Lands where user is an active collaborator (matched by email)
+    if (!user.email) throw new Error('User email is missing')
+
     const { data: collabRows, error: collabError } = await supabase
       .from('collaborators')
       .select('lands(*, collaborators(*))')
-      .eq('email', user.email!)
+      .eq('email', user.email)
       .eq('status', 'active')
 
     if (collabError) throw new Error(collabError.message)
@@ -76,12 +80,19 @@ export const landService = {
   },
 
   async save(id: string, updates: { sections?: Land['sections']; theme?: Land['theme']; title?: string; handle?: string }): Promise<void> {
+    saveController?.abort()
+    saveController = new AbortController()
+
     const { error } = await supabase
       .from('lands')
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
+      .abortSignal(saveController.signal)
 
-    if (error) throw new Error(error.message)
+    if (error) {
+      if (error.name === 'AbortError') return // superseded by a newer save
+      throw new Error(error.message)
+    }
   },
 
   async updateLand(id: string, updates: Partial<Pick<Land, 'handle' | 'title' | 'description' | 'avatar_image' | 'cover_image' | 'plan' | 'is_published' | 'is_private' | 'private_password'>>): Promise<void> {

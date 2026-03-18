@@ -2,19 +2,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'https://lands.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-function getUserIdFromJwt(authHeader: string): string | null {
-  try {
-    const token = authHeader.replace('Bearer ', '')
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    const payload = JSON.parse(atob(base64))
-    return payload.sub ?? null
-  } catch {
-    return null
-  }
 }
 
 serve(async (req) => {
@@ -28,22 +17,21 @@ serve(async (req) => {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
     if (!stripeKey) return new Response(JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured' }), { status: 500, headers: corsHeaders })
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user: caller }, error: authError } = await supabaseUser.auth.getUser()
+    if (authError || !caller) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders })
 
-    const userId = getUserIdFromJwt(authHeader)
-    if (!userId) return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: corsHeaders })
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
+    const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
     const { data: land } = await supabase
       .from('lands')
       .select('stripe_customer_id')
       .eq('id', landId)
-      .eq('user_id', userId)
+      .eq('user_id', caller.id)
       .single()
 
     if (!land?.stripe_customer_id) {

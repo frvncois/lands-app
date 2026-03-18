@@ -2,24 +2,13 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? 'https://lands.app',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 // Always respond 200 so supabase-js puts the body in `data` (not `error`)
 function ok(body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), { status: 200, headers: corsHeaders })
-}
-
-function getUserIdFromJwt(authHeader: string): string | null {
-  try {
-    const token = authHeader.replace('Bearer ', '')
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    const payload = JSON.parse(atob(base64))
-    return payload.sub ?? null
-  } catch {
-    return null
-  }
 }
 
 serve(async (req) => {
@@ -37,23 +26,22 @@ serve(async (req) => {
     if (!stripeKey) return ok({ error: 'STRIPE_SECRET_KEY not configured' })
     if (!monthlyPriceId || !yearlyPriceId) return ok({ error: 'Stripe Price IDs not configured' })
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return ok({ error: 'Unauthorized' })
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const supabaseUser = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user: caller }, error: authError } = await supabaseUser.auth.getUser()
+    if (authError || !caller) return ok({ error: 'Unauthorized' })
 
-    const userId = getUserIdFromJwt(authHeader)
-    if (!userId) return ok({ error: 'Invalid token' })
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    )
+    const supabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
     // Get the land — must belong to the calling user
     const { data: land, error: landError } = await supabase
       .from('lands')
       .select('id, plan')
       .eq('id', landId)
-      .eq('user_id', userId)
+      .eq('user_id', caller.id)
       .single()
 
     if (landError || !land) return ok({ error: landError?.message ?? 'Land not found' })
@@ -73,9 +61,6 @@ serve(async (req) => {
     } catch { /* column not yet in schema */ }
 
     if (!customerId) {
-      const { data: { user } } = await supabase.auth.admin.getUserById(userId)
-      const email = user?.email ?? ''
-
       const customerRes = await fetch('https://api.stripe.com/v1/customers', {
         method: 'POST',
         headers: {
@@ -83,8 +68,8 @@ serve(async (req) => {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          email,
-          'metadata[user_id]': userId,
+          email: caller.email ?? '',
+          'metadata[user_id]': caller.id,
           'metadata[land_id]': landId,
         }),
       })

@@ -25,7 +25,7 @@ export function createMockUser(overrides?: Partial<User>): User {
 
 // ─── Theme ───
 
-const PRESET_OPTIONS = ['minimal', 'bold', 'editorial'] as const
+const PRESET_OPTIONS = ['minimal', 'baseline', 'structure'] as const
 const MAIN_COLORS = ['#18181B', '#2563EB', '#1E1E1E', '#7C3AED']
 const ACCENT_COLORS = ['#6366F1', '#F59E0B', '#EC4899', '#0891B2', '#B45309']
 const SURFACE_COLORS = ['#F4F4F5', '#FAF9F6', '#1E293B', '#FEF3C7']
@@ -215,6 +215,7 @@ export function createMockStoreItems(storeId: string, count: number = 4): StoreI
     variants: [],
     inventory: faker.number.int({ min: 0, max: 100 }),
     file_url: '',
+    content: '',
     position: pos,
     created_at: faker.date.past().toISOString(),
   }))
@@ -226,6 +227,7 @@ export function createMockStore(sectionId: string, position: string): Store {
     id: storeId,
     section_id: sectionId,
     title: faker.helpers.arrayElement(['Shop', 'Merch', 'Products', 'Store']),
+    description: '',
     mode: 'products',
     membership_price: 0,
     position,

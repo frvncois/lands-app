@@ -353,7 +353,7 @@ function closeDetail() {
           <template v-else>
             <p class="text-xs text-gray-500 leading-relaxed mb-4">Offer memberships or paid content and earn recurring revenue.</p>
             <BaseButton variant="solid" size="sm" class="w-full justify-center" @click="goToEditor">
-              <PlusIcon class="h-3.5 w-3.5" /> Add Offering
+              <PlusIcon class="h-3.5 w-3.5" /> Add Content
             </BaseButton>
           </template>
         </BaseCard>

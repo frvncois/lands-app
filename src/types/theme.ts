@@ -1,7 +1,6 @@
 export const THEME_PRESETS = {
   minimal: 'minimal',
-  bold: 'bold',
-  editorial: 'editorial',
+  baseline: 'baseline',
   structure: 'structure',
   feed: 'feed',
 } as const

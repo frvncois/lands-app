@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import DOMPurify from 'dompurify'
 import { renderMarkdown } from '@/lib/utils/markdown'
 import type { Section, TextContent } from '@/types/section'
 
@@ -8,7 +9,7 @@ const content = computed(() => props.section.content as TextContent | null)
 
 const bodyHtml = computed(() => {
   const b = content.value?.body ?? ''
-  return b.startsWith('<') ? b : renderMarkdown(b)
+  return b.startsWith('<') ? DOMPurify.sanitize(b) : renderMarkdown(b)
 })
 
 const alignClass = computed(() => {
@@ -26,13 +27,14 @@ const proseWidthClass = computed(() => {
 </script>
 
 <template>
-  <div class="py-6" :class="proseWidthClass">
+  <div class="py-5" :class="proseWidthClass">
     <div class="flex flex-col gap-3" :class="alignClass">
-      <p v-if="content?.subtitle" class="text-xs font-bold tracking-widest uppercase" style="color: var(--theme-accent)">{{ content.subtitle }}</p>
-      <h2 v-if="content?.title" class="text-2xl font-black tracking-tight leading-tight" style="color: var(--theme-main)">{{ content.title }}</h2>
+      <p v-if="content?.subtitle" class="text-xs font-medium tracking-wide uppercase" style="color: var(--theme-accent)">{{ content.subtitle }}</p>
+      <h2 v-if="content?.title" class="text-xl font-semibold leading-tight" style="color: var(--theme-main)">{{ content.title }}</h2>
+      <!-- SAFE: bodyHtml is sanitized via DOMPurify.sanitize() in renderMarkdown() -->
       <div
         v-if="content?.body"
-        class="prose prose-sm max-w-none prose-headings:font-black prose-headings:tracking-tight prose-headings:text-xl"
+        class="prose prose-sm max-w-none text-sm leading-relaxed"
         style="--tw-prose-headings: var(--theme-main); --tw-prose-links: var(--theme-accent)"
         v-html="bodyHtml"
       />
@@ -41,8 +43,8 @@ const proseWidthClass = computed(() => {
           v-for="btn in content.buttons"
           :key="btn.id"
           :href="btn.url || '#'"
-          class="inline-flex items-center px-5 py-2 rounded-lg text-sm font-bold transition-opacity hover:opacity-80"
-          style="background: var(--theme-main); color: var(--theme-surface)"
+          class="inline-flex items-center px-4 py-1.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80"
+          style="background: var(--theme-accent); color: var(--theme-surface)"
         >{{ btn.label }}</a>
       </div>
     </div>

@@ -14,27 +14,29 @@ function getEmbedUrl(url: string): string | null {
 }
 
 const embedUrl = computed(() => media.value?.media_type === 'video' ? getEmbedUrl(media.value.url) : null)
+
 const containerClass = computed(() => {
   const v = props.section.style_variant
   if (v === 'fullwidth') return 'p-0'
-  return 'px-6 py-6 flex flex-col gap-2'
+  return 'px-6 py-4'
 })
+
 const mediaClass = computed(() => {
   const v = props.section.style_variant
-  if (v === 'fullwidth') return 'w-full overflow-hidden bg-gray-200 aspect-video'
-  if (v === 'compact') return 'w-full overflow-hidden rounded-sm bg-gray-200 max-h-48'
-  return 'w-full overflow-hidden rounded-sm bg-gray-200 aspect-video'
+  if (v === 'fullwidth') return 'overflow-hidden bg-gray-200 aspect-video'
+  if (v === 'compact') return 'rounded-xl overflow-hidden bg-gray-200 max-h-48'
+  return 'rounded-xl overflow-hidden bg-gray-200 aspect-video'
 })
 </script>
 
 <template>
-  <figure :class="containerClass">
+  <div :class="containerClass">
     <div :class="mediaClass">
       <img v-if="media?.media_type === 'image' && media.url" :src="media.url" class="w-full h-full object-cover" />
       <div v-else-if="media?.media_type === 'image'" class="w-full h-full flex items-center justify-center text-xs text-gray-400">Image</div>
       <iframe v-else-if="embedUrl" :src="embedUrl" class="w-full h-full" frameborder="0" allowfullscreen />
       <div v-else class="w-full h-full flex items-center justify-center text-xs text-gray-400">Video</div>
     </div>
-    <figcaption v-if="media?.caption" class="text-xs text-gray-400 italic">{{ media.caption }}</figcaption>
-  </figure>
+    <p v-if="media?.caption" class="mt-2 text-xs text-gray-400">{{ media.caption }}</p>
+  </div>
 </template>

@@ -24,15 +24,40 @@ export function extractSectionUrls(section: Section): string[] {
   return urls
 }
 
+async function optimizeImage(file: File, maxWidth = 1920, quality = 0.85): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      const scale = Math.min(1, maxWidth / img.width)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error('Image conversion failed')),
+        'image/webp',
+        quality,
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Image load failed')) }
+    img.src = objectUrl
+  })
+}
+
 export const storageService = {
   async upload(file: File): Promise<string> {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
-    const ext = file.name.split('.').pop()
+    const isImage = file.type.startsWith('image/')
+    const uploadFile = isImage ? await optimizeImage(file) : file
+    const ext = isImage ? 'webp' : (file.name.split('.').pop() ?? 'bin')
     const path = `${user.id}/${crypto.randomUUID()}.${ext}`
 
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    const { error } = await supabase.storage.from(BUCKET).upload(path, uploadFile, {
       cacheControl: '31536000', // 1 year
       upsert: false,
     })

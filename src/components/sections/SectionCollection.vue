@@ -3,8 +3,7 @@ import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import type { Section } from '@/types/section'
 import CollectionMinimal from './collection/CollectionMinimal.vue'
-import CollectionBold from './collection/CollectionBold.vue'
-import CollectionEditorial from './collection/CollectionEditorial.vue'
+import CollectionBaseline from './collection/CollectionBaseline.vue'
 import CollectionStructure from './collection/CollectionStructure.vue'
 import { MOCK_COLLECTIONS } from '@/lib/primitives/mockSectionContent'
 
@@ -13,9 +12,8 @@ const themeStore = useThemeStore()
 
 const component = computed(() => {
   switch (themeStore.theme?.theme_preset) {
-    case 'bold': return CollectionBold
-    case 'editorial': return CollectionEditorial
     case 'structure': return CollectionStructure
+    case 'baseline': return CollectionBaseline
     default: return CollectionMinimal
   }
 })

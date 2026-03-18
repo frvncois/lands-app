@@ -15,7 +15,8 @@ const role = ref<CollaboratorRole>('editor')
 const error = ref('')
 const isSending = ref(false)
 
-const isValid = computed(() => email.value.trim().includes('@'))
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isValid = computed(() => EMAIL_RE.test(email.value.trim()))
 
 async function send() {
   if (!isValid.value) {

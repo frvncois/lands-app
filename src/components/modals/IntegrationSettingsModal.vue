@@ -8,6 +8,8 @@ import BaseInput from '../ui/BaseInput.vue'
 import CollaboratorsPanel from '../integrations/CollaboratorsPanel.vue'
 import CampaignPanel from '../integrations/CampaignPanel.vue'
 import StorePanel from '../integrations/StorePanel.vue'
+import SeoPanel from '../integrations/SeoPanel.vue'
+import QrCodePanel from '../integrations/QrCodePanel.vue'
 import { useAppModals } from '@/stores/appModals'
 
 export interface Integration {
@@ -39,7 +41,7 @@ function viewAnalytics() {
       <h2 class="text-sm font-semibold text-gray-900">{{ integration.title }}</h2>
     </div>
     <div class="flex items-center gap-1">
-      <template v-if="['analytics', 'collaborators', 'campaign', 'sell_monetize', 'custom_domain'].includes(integration.id)">
+      <template v-if="['analytics', 'collaborators', 'campaign', 'sell_monetize', 'custom_domain', 'seo', 'qr_code'].includes(integration.id)">
         <BaseButton variant="outline" size="xs" @click="$emit('back')">Back</BaseButton>
       </template>
       <template v-else>
@@ -49,7 +51,7 @@ function viewAnalytics() {
     </div>
   </div>
 
-  <div class="flex flex-col overflow-y-auto" :class="!['collaborators', 'campaign', 'sell_monetize'].includes(integration.id) && 'p-4 gap-4'">
+  <div class="flex flex-col overflow-y-auto" :class="!['collaborators', 'campaign', 'sell_monetize', 'seo', 'qr_code'].includes(integration.id) && 'p-4 gap-4'">
 
     <!-- ── Analytics ── -->
     <template v-if="integration.id === 'analytics'">
@@ -73,6 +75,16 @@ function viewAnalytics() {
     <!-- ── Sell & Monetize ── -->
     <template v-else-if="integration.id === 'sell_monetize'">
       <StorePanel />
+    </template>
+
+    <!-- ── SEO ── -->
+    <template v-else-if="integration.id === 'seo'">
+      <SeoPanel />
+    </template>
+
+    <!-- ── QR Code ── -->
+    <template v-else-if="integration.id === 'qr_code'">
+      <QrCodePanel />
     </template>
 
     <!-- ── Custom Domain — plan gate ── -->

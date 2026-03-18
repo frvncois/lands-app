@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import DOMPurify from 'dompurify'
 import { renderMarkdown } from '@/lib/utils/markdown'
 import type { Section, TextContent } from '@/types/section'
 
@@ -8,7 +9,7 @@ const content = computed(() => props.section.content as TextContent | null)
 
 const bodyHtml = computed(() => {
   const b = content.value?.body ?? ''
-  return b.startsWith('<') ? b : renderMarkdown(b)
+  return b.startsWith('<') ? DOMPurify.sanitize(b) : renderMarkdown(b)
 })
 
 const alignClass = computed(() => {

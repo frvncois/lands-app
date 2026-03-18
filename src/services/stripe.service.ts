@@ -22,7 +22,9 @@ export const stripeService = {
    */
   connectUrl(landId: string): string {
     if (!STRIPE_CLIENT_ID) throw new Error('VITE_STRIPE_CLIENT_ID is not configured')
-    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/stripe/callback`)
+    const redirectUri = encodeURIComponent(
+      (import.meta.env.VITE_STRIPE_REDIRECT_URI as string | undefined) ?? `${window.location.origin}/auth/stripe/callback`,
+    )
     return `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${STRIPE_CLIENT_ID}&scope=read_write&redirect_uri=${redirectUri}&state=${landId}`
   },
 

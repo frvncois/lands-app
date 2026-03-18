@@ -212,29 +212,35 @@ async function copy(value: string, key: string) {
             </div>
           </template>
 
-          <!-- Apex domain: A record -->
+          <!-- Apex domain: A record + CNAME -->
           <template v-else>
             <div class="flex flex-col bg-gray-50 rounded-xl overflow-hidden border border-gray-100 text-xs font-mono">
               <div class="flex items-center justify-between px-4 py-3">
                 <span class="text-gray-400 font-sans text-xs">Type</span>
                 <div class="flex items-center gap-2">
                   <span class="text-gray-900 font-semibold">A</span>
-                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('A', 'type')">
-                    <CheckCircleIcon v-if="copied === 'type'" class="h-3.5 w-3.5 text-green-500" />
+                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('A', 'a-type')">
+                    <CheckCircleIcon v-if="copied === 'a-type'" class="h-3.5 w-3.5 text-green-500" />
                     <ClipboardIcon v-else class="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
               <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
                 <span class="text-gray-400 font-sans text-xs">Name / Host</span>
-                <span class="text-gray-900 font-semibold">@</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-gray-900 font-semibold">@</span>
+                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('@', 'a-host')">
+                    <CheckCircleIcon v-if="copied === 'a-host'" class="h-3.5 w-3.5 text-green-500" />
+                    <ClipboardIcon v-else class="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
               <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
                 <span class="text-gray-400 font-sans text-xs">Value / IP Address</span>
                 <div class="flex items-center gap-2">
                   <span class="text-gray-900 font-semibold">76.76.21.21</span>
-                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('76.76.21.21', 'value')">
-                    <CheckCircleIcon v-if="copied === 'value'" class="h-3.5 w-3.5 text-green-500" />
+                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('76.76.21.21', 'a-value')">
+                    <CheckCircleIcon v-if="copied === 'a-value'" class="h-3.5 w-3.5 text-green-500" />
                     <ClipboardIcon v-else class="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -244,9 +250,43 @@ async function copy(value: string, key: string) {
                 <span class="text-gray-900 font-semibold">Auto</span>
               </div>
             </div>
-            <p class="text-xs text-gray-400 leading-relaxed">
-              Tip: also add a <span class="font-mono font-semibold">CNAME www → cname.vercel-dns.com</span> so both <span class="font-mono">{{ domain }}</span> and <span class="font-mono">www.{{ domain }}</span> work.
-            </p>
+
+            <div class="flex flex-col bg-gray-50 rounded-xl overflow-hidden border border-gray-100 text-xs font-mono">
+              <div class="flex items-center justify-between px-4 py-3">
+                <span class="text-gray-400 font-sans text-xs">Type</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-gray-900 font-semibold">CNAME</span>
+                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('CNAME', 'cname-type')">
+                    <CheckCircleIcon v-if="copied === 'cname-type'" class="h-3.5 w-3.5 text-green-500" />
+                    <ClipboardIcon v-else class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                <span class="text-gray-400 font-sans text-xs">Name / Host</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-gray-900 font-semibold">www</span>
+                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('www', 'cname-host')">
+                    <CheckCircleIcon v-if="copied === 'cname-host'" class="h-3.5 w-3.5 text-green-500" />
+                    <ClipboardIcon v-else class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                <span class="text-gray-400 font-sans text-xs">Value / Points to</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-gray-900 font-semibold">cname.vercel-dns.com</span>
+                  <button class="text-gray-400 hover:text-gray-700 transition-colors" @click="copy('cname.vercel-dns.com', 'cname-value')">
+                    <CheckCircleIcon v-if="copied === 'cname-value'" class="h-3.5 w-3.5 text-green-500" />
+                    <ClipboardIcon v-else class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+                <span class="text-gray-400 font-sans text-xs">TTL</span>
+                <span class="text-gray-900 font-semibold">Auto</span>
+              </div>
+            </div>
           </template>
 
           <!-- Polling indicator -->
@@ -255,10 +295,17 @@ async function copy(value: string, key: string) {
             Checking propagation automatically…
           </div>
 
+          <!-- Help card -->
+          <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
+            <p class="text-xs font-semibold text-gray-700">Need help?</p>
+            <p class="text-xs text-gray-400 leading-relaxed">Automatic connection is coming soon. In the meantime, if you need help, we offer free assistance for your domain connection.</p>
+            <BaseButton size="sm" variant="outline" @click="() => {}">Chat with us</BaseButton>
+          </div>
+
           <p v-if="errorMsg" class="text-sm text-red-500">{{ errorMsg }}</p>
 
           <div class="flex justify-between gap-3 pt-2">
-            <BaseButton @click="disconnect" :disabled="isLoading">Remove domain</BaseButton>
+            <BaseButton variant="outline" @click="disconnect" :disabled="isLoading">Remove domain</BaseButton>
             <BaseButton variant="solid" :disabled="isLoading" @click="checkStatus">
               {{ isLoading ? 'Checking…' : 'Check now' }}
             </BaseButton>

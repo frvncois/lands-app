@@ -16,11 +16,9 @@ export const useLandStore = defineStore('land', () => {
 
   const landCount = computed(() => lands.value.length)
 
-  // Free: max 2 lands total. Upgrading any land to paid removes the cap.
-  const canCreateLand = computed(() => {
-    const hasPaid = lands.value.some((l) => l.plan === 'paid')
-    return hasPaid || lands.value.length < 2
-  })
+  // Free: max 2 lands total. Account-level plan upgrade (not per-land) should unlock this.
+  // TODO: replace with account-level `plan_tier` from users table once that column exists.
+  const canCreateLand = computed(() => lands.value.length < 2)
   const isStripeConnected = computed(() => !!activeLand.value?.stripe_account_id)
 
   function setLands(data: Land[]) {
