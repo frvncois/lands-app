@@ -7,7 +7,8 @@ import { useThemeStore } from '@/stores/theme'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { usePlan } from '@/composables/usePlan'
-import { sortByPosition, generatePositionAfter, generatePositionBetween, generatePositionBefore } from '@/lib/utils/position'
+import { sortByPosition } from '@/lib/utils/position'
+import { useSectionInsert } from '@/composables/useSectionInsert'
 import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
 import { sectionPrimitives } from '@/sections/index'
 import type { SectionType } from '@/types/section'
@@ -25,7 +26,8 @@ const landStore = useLandStore()
 const editorStore = useEditorStore()
 const themeStore = useThemeStore()
 const { isMobile } = useIsMobile()
-const { addSection, deleteSection, duplicateSection, reorderSection, updateTheme } = useEditorActions()
+const { deleteSection, duplicateSection, updateTheme } = useEditorActions()
+const { insertBeforeFooter, moveTo } = useSectionInsert()
 const { withinSectionLimit, maxSections, isPaid } = usePlan()
 
 // ─── Tab state ───
@@ -76,35 +78,13 @@ function handleTreeSettings(node: TreeNode) {
 }
 
 function handleReorder(oldIndex: number, newIndex: number) {
-  if (oldIndex === newIndex) return
-  const sorted = sortByPosition(landStore.activeLand?.sections ?? [])
-  const moved = sorted[oldIndex]
-  if (!moved || moved.type === 'header' || moved.type === 'footer') return
-  if (sorted[newIndex]?.type === 'header' && newIndex === 0) return
-  if (sorted[newIndex]?.type === 'footer' && newIndex === sorted.length - 1) return
-  const remaining = sorted.filter((_, i) => i !== oldIndex)
-  const prevPos = remaining[newIndex - 1]?.position ?? null
-  const nextPos = remaining[newIndex]?.position ?? null
-  const newPosition = prevPos === null
-    ? generatePositionBefore(nextPos)
-    : nextPos === null
-      ? generatePositionAfter(prevPos)
-      : generatePositionBetween(prevPos, nextPos)
-  reorderSection(moved.id, newPosition)
+  const s = sortByPosition(landStore.activeLand?.sections ?? [])
+  const sectionId = s[oldIndex]?.id
+  if (sectionId) moveTo(sectionId, newIndex)
 }
 
 function handleAddSection(type: string) {
-  const sorted = sortByPosition(landStore.activeLand?.sections ?? [])
-  const footerIdx = sorted.findIndex((s) => s.type === 'footer')
-  const insertIdx = footerIdx !== -1 ? footerIdx : sorted.length
-  const prev = sorted[insertIdx - 1]?.position ?? null
-  const next = sorted[insertIdx]?.position ?? null
-  const position = prev === null
-    ? generatePositionBefore(next)
-    : next === null
-      ? generatePositionAfter(prev)
-      : generatePositionBetween(prev, next)
-  addSection(type as SectionType, position)
+  insertBeforeFooter(type as SectionType)
   showSections.value = false
 }
 

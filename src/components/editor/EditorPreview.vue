@@ -2,8 +2,9 @@
 import { ref, computed } from 'vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
-import { sortByPosition, generatePositionBetween } from '@/lib/utils/position'
+import { sortByPosition } from '@/lib/utils/position'
 import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionInsert } from '@/composables/useSectionInsert'
 import { defineAsyncComponent } from 'vue'
 import type { Component } from 'vue'
 import type { Section, SectionType } from '@/types/section'
@@ -20,7 +21,8 @@ const SectionFooter       = defineAsyncComponent(() => import('@/components/sect
 
 const landStore = useLandStore()
 const editorStore = useEditorStore()
-const { deleteSection, duplicateSection, reorderSection } = useEditorActions()
+const { deleteSection, duplicateSection } = useEditorActions()
+const { moveUp: _moveUp, moveDown: _moveDown } = useSectionInsert()
 
 const sections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))
 const isInteractive = computed(() => editorStore.isEditMode)
@@ -45,25 +47,8 @@ function handleSectionClick(section: Section) {
   selectSection(section)
 }
 
-function moveUp(section: Section) {
-  const sorted = sections.value
-  const idx = sorted.findIndex((s) => s.id === section.id)
-  if (idx <= 0) return
-  const prev = sorted[idx - 1]
-  const prevPrev = sorted[idx - 2]
-  if (!prev) return
-  reorderSection(section.id, generatePositionBetween(prevPrev?.position ?? null, prev.position))
-}
-
-function moveDown(section: Section) {
-  const sorted = sections.value
-  const idx = sorted.findIndex((s) => s.id === section.id)
-  if (idx === -1 || idx >= sorted.length - 1) return
-  const next = sorted[idx + 1]
-  const nextNext = sorted[idx + 2]
-  if (!next) return
-  reorderSection(section.id, generatePositionBetween(next.position, nextNext?.position ?? null))
-}
+function moveUp(section: Section) { _moveUp(section.id) }
+function moveDown(section: Section) { _moveDown(section.id) }
 
 function sectionComponent(section: Section) {
   return componentMap[section.type]
