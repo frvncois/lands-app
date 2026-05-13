@@ -25,5 +25,9 @@ export function useSectionForm<S extends Section>(getSection: () => S) {
     })
   }
 
-  return { contentField, settingsField }
+  function patchContent(patch: Record<string, unknown>) {
+    updateSectionContent(getSection().id, patch)
+  }
+
+  return { contentField, settingsField, patchContent }
 }

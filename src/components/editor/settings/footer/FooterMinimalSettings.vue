@@ -7,54 +7,44 @@ import BaseItem from '../../../ui/BaseItem.vue'
 import BaseLinkPicker from '../../../ui/BaseLinkPicker.vue'
 import CollectionItemContentSettings from '../CollectionItemContentSettings.vue'
 import type { FooterSection, ContentMediaButton } from '@/types/section'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionForm } from '@/composables/useSectionForm'
 
 const props = defineProps<{ section: FooterSection }>()
 
-const { updateSectionContent } = useEditorActions()
+const { contentField, patchContent } = useSectionForm(() => props.section)
 
-const footerDescription = ref('')
+const footerDescription = contentField('description', '')
+const footerPrivacyPolicy = contentField('privacy_policy', '')
+const footerTermsConditions = contentField('terms_conditions', '')
 const footerButtons = ref<ContentMediaButton[]>([])
-const footerPrivacyPolicy = ref('')
-const footerTermsConditions = ref('')
 const showPrivacyEditor = ref(false)
 const showTermsEditor = ref(false)
 
-function sync() {
-  const c = props.section.content
-  footerDescription.value = c?.description ?? ''
-  footerButtons.value = c?.buttons ? [...c.buttons] : []
-  footerPrivacyPolicy.value = c?.privacy_policy ?? ''
-  footerTermsConditions.value = c?.terms_conditions ?? ''
+function syncButtons() {
+  footerButtons.value = props.section.content?.buttons ? [...props.section.content.buttons] : []
 }
+syncButtons()
+watch(() => props.section.id, syncButtons)
 
-sync()
-watch(() => props.section.id, sync)
-
-function saveContent() {
-  updateSectionContent(props.section.id, {
-    description: footerDescription.value,
-    buttons: footerButtons.value,
-    privacy_policy: footerPrivacyPolicy.value,
-    terms_conditions: footerTermsConditions.value,
-  })
+function saveButtons() {
+  patchContent({ buttons: footerButtons.value })
 }
 
 function addLink() {
   if (footerButtons.value.length >= 6) return
   footerButtons.value.push({ id: crypto.randomUUID(), label: 'Button', url: '' })
-  saveContent()
+  saveButtons()
 }
 
 function removeLink(id: string) {
   footerButtons.value = footerButtons.value.filter((b) => b.id !== id)
-  saveContent()
+  saveButtons()
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-4 p-2 pr-0">
-    <BaseInput size="sm" type="textarea" label="Description" v-model="footerDescription" placeholder="A short description…" @update:modelValue="saveContent" />
+    <BaseInput size="sm" type="textarea" label="Description" v-model="footerDescription" placeholder="A short description…" />
     <div class="flex flex-col gap-2">
       <div class="flex justify-between items-center">
         <p class="text-xs font-medium text-gray-500">Links</p>
@@ -64,7 +54,7 @@ function removeLink(id: string) {
       </div>
       <p v-if="!footerButtons.length" class="text-xs text-gray-400">No links added</p>
       <div v-for="btn in footerButtons" :key="btn.id" class="flex items-center gap-1">
-        <BaseLinkPicker v-model:label="btn.label" v-model:url="btn.url" @update:label="saveContent" @update:url="saveContent" />
+        <BaseLinkPicker v-model:label="btn.label" v-model:url="btn.url" @update:label="saveButtons" @update:url="saveButtons" />
         <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeLink(btn.id)">
           <TrashIcon class="h-3.5 w-3.5" />
         </button>
@@ -75,7 +65,7 @@ function removeLink(id: string) {
       <BaseItem :icon="DocumentTextIcon" title="Privacy Policy" :description="footerPrivacyPolicy ? 'Has content' : 'Add your privacy policy'" action="Edit" @action="showPrivacyEditor = true" />
       <BaseItem :icon="DocumentTextIcon" title="Terms & Conditions" :description="footerTermsConditions ? 'Has content' : 'Add your terms'" action="Edit" @action="showTermsEditor = true" />
     </div>
-    <CollectionItemContentSettings v-if="showPrivacyEditor" v-model="footerPrivacyPolicy" title="Privacy Policy" @close="showPrivacyEditor = false; saveContent()" />
-    <CollectionItemContentSettings v-if="showTermsEditor" v-model="footerTermsConditions" title="Terms & Conditions" @close="showTermsEditor = false; saveContent()" />
+    <CollectionItemContentSettings v-if="showPrivacyEditor" v-model="footerPrivacyPolicy" title="Privacy Policy" @close="showPrivacyEditor = false" />
+    <CollectionItemContentSettings v-if="showTermsEditor" v-model="footerTermsConditions" title="Terms & Conditions" @close="showTermsEditor = false" />
   </div>
 </template>

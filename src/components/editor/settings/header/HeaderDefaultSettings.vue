@@ -1,49 +1,24 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import BaseInput from '../../../ui/BaseInput.vue'
 import BaseUpload from '../../../ui/BaseUpload.vue'
 import type { HeaderSection } from '@/types/section'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionForm } from '@/composables/useSectionForm'
 
 const props = defineProps<{ section: HeaderSection }>()
 
-const { updateSectionContent, updateSectionSettings } = useEditorActions()
+const { contentField, settingsField } = useSectionForm(() => props.section)
 
-const headerTitle = ref('')
-const headerSubtitle = ref('')
-const headerLogoUrl = ref('')
-const headerCoverMediaValue = ref('')
-
-function sync() {
-  const c = props.section.content
-  const s = props.section.settings_json
-  headerTitle.value = c?.title ?? ''
-  headerSubtitle.value = c?.subtitle ?? ''
-  headerLogoUrl.value = c?.logo ?? ''
-  headerCoverMediaValue.value = s?.cover_media_value ?? ''
-}
-
-sync()
-watch(() => props.section.id, sync)
-
-function saveContent() {
-  updateSectionContent(props.section.id, {
-    title: headerTitle.value,
-    subtitle: headerSubtitle.value,
-    logo: headerLogoUrl.value,
-  })
-}
-
-function saveSettings() {
-  updateSectionSettings(props.section.id, { cover_media_value: headerCoverMediaValue.value })
-}
+const headerTitle = contentField('title', '')
+const headerSubtitle = contentField('subtitle', '')
+const headerLogoUrl = contentField('logo', '')
+const headerCoverMediaValue = settingsField('cover_media_value', '')
 </script>
 
 <template>
   <div class="flex flex-col gap-4 p-2 pr-0">
-    <BaseUpload type="image" size="sm" label="Logo" v-model="headerLogoUrl" @update:modelValue="saveContent" />
-    <BaseUpload type="image" size="sm" label="Cover image" v-model="headerCoverMediaValue" @update:modelValue="saveSettings" />
-    <BaseInput size="sm" label="Title" v-model="headerTitle" @update:modelValue="saveContent" />
-    <BaseInput size="sm" label="Subtitle" v-model="headerSubtitle" @update:modelValue="saveContent" />
+    <BaseUpload type="image" size="sm" label="Logo" v-model="headerLogoUrl" />
+    <BaseUpload type="image" size="sm" label="Cover image" v-model="headerCoverMediaValue" />
+    <BaseInput size="sm" label="Title" v-model="headerTitle" />
+    <BaseInput size="sm" label="Subtitle" v-model="headerSubtitle" />
   </div>
 </template>

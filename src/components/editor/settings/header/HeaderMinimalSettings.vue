@@ -7,78 +7,57 @@ import BaseButton from '../../../ui/BaseButton.vue'
 import BaseLinkPicker from '../../../ui/BaseLinkPicker.vue'
 import BaseSwitch from '../../../ui/BaseSwitch.vue'
 import type { HeaderSection, ContentMediaButton } from '@/types/section'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionForm } from '@/composables/useSectionForm'
 
 const props = defineProps<{ section: HeaderSection }>()
 
-const { updateSectionContent, updateSectionSettings } = useEditorActions()
+const { contentField, settingsField, patchContent } = useSectionForm(() => props.section)
 
-const headerTitle = ref('')
-const headerDescription = ref('')
-const headerLogoUrl = ref('')
-const headerCoverMediaType = ref<'image' | 'video'>('image')
-const headerCoverMediaValue = ref('')
+const headerTitle = contentField('title', '')
+const headerDescription = contentField('description', '')
+const headerLogoUrl = contentField('logo', '')
+const headerCoverMediaType = settingsField<'image' | 'video'>('cover_media_type', 'image')
+const headerCoverMediaValue = settingsField('cover_media_value', '')
 const headerButtons = ref<ContentMediaButton[]>([])
 
-function sync() {
-  const c = props.section.content
-  const s = props.section.settings_json
-  headerTitle.value = c?.title ?? ''
-  headerDescription.value = c?.description ?? ''
-  headerLogoUrl.value = c?.logo ?? ''
-  headerCoverMediaType.value = s?.cover_media_type === 'video' ? 'video' : 'image'
-  headerCoverMediaValue.value = s?.cover_media_value ?? ''
-  headerButtons.value = c?.buttons ? JSON.parse(JSON.stringify(c.buttons)) : []
+function syncButtons() {
+  headerButtons.value = JSON.parse(JSON.stringify(props.section.content?.buttons ?? []))
 }
+syncButtons()
+watch(() => props.section.id, syncButtons)
 
-sync()
-watch(() => props.section.id, sync)
-
-function saveContent() {
-  updateSectionContent(props.section.id, {
-    title: headerTitle.value,
-    description: headerDescription.value,
-    logo: headerLogoUrl.value,
-    buttons: headerButtons.value,
-  })
-}
-
-function saveSettings() {
-  updateSectionSettings(props.section.id, {
-    cover_media_type: headerCoverMediaType.value,
-    cover_media_value: headerCoverMediaValue.value,
-  })
+function saveButtons() {
+  patchContent({ buttons: headerButtons.value })
 }
 
 function addLink() {
   if (headerButtons.value.length >= 5) return
   headerButtons.value.push({ id: crypto.randomUUID(), label: 'Button', url: '' })
-  saveContent()
+  saveButtons()
 }
 
 function removeLink(id: string) {
   headerButtons.value = headerButtons.value.filter((b) => b.id !== id)
-  saveContent()
+  saveButtons()
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-4 p-2 pr-0">
-    <BaseUpload type="image" size="sm" label="Logo" v-model="headerLogoUrl" @update:modelValue="saveContent" />
+    <BaseUpload type="image" size="sm" label="Logo" v-model="headerLogoUrl" />
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
         <p class="text-xs font-medium text-gray-500">Cover</p>
         <BaseSwitch
           :options="[{ label: 'Image', value: 'image' }, { label: 'Video', value: 'video' }]"
           v-model="headerCoverMediaType"
-          @update:modelValue="saveSettings"
         />
       </div>
-      <BaseUpload v-if="headerCoverMediaType === 'image'" type="image" size="sm" label="" v-model="headerCoverMediaValue" @update:modelValue="saveSettings" />
-      <BaseInput v-else size="sm" label="" v-model="headerCoverMediaValue" placeholder="https://…" @update:modelValue="saveSettings" />
+      <BaseUpload v-if="headerCoverMediaType === 'image'" type="image" size="sm" label="" v-model="headerCoverMediaValue" />
+      <BaseInput v-else size="sm" label="" v-model="headerCoverMediaValue" placeholder="https://…" />
     </div>
-    <BaseInput size="sm" label="Title" v-model="headerTitle" @update:modelValue="saveContent" />
-    <BaseInput size="sm" type="textarea" label="Description" v-model="headerDescription" placeholder="A short description…" @update:modelValue="saveContent" />
+    <BaseInput size="sm" label="Title" v-model="headerTitle" />
+    <BaseInput size="sm" type="textarea" label="Description" v-model="headerDescription" placeholder="A short description…" />
     <div class="flex flex-col gap-2">
       <div class="flex justify-between items-center">
         <p class="text-xs font-medium text-gray-500">Links</p>
@@ -88,7 +67,7 @@ function removeLink(id: string) {
       </div>
       <p v-if="!headerButtons.length" class="text-xs text-gray-400">No links added</p>
       <div v-for="btn in headerButtons" :key="btn.id" class="flex items-center gap-3">
-        <BaseLinkPicker v-model:label="btn.label" v-model:url="btn.url" @update:label="saveContent" @update:url="saveContent" />
+        <BaseLinkPicker v-model:label="btn.label" v-model:url="btn.url" @update:label="saveButtons" @update:url="saveButtons" />
         <button class="text-gray-400 hover:text-red-500 shrink-0" @click="removeLink(btn.id)">
           <TrashIcon class="h-3.5 w-3.5" />
         </button>

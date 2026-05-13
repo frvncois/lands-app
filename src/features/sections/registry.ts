@@ -15,14 +15,17 @@ import {
 } from '@heroicons/vue/24/outline'
 
 // Settings panels — sync imports (small, always needed in the editor)
-import HeaderSettings from '@/components/editor/settings/HeaderSettings.vue'
+import HeaderDefaultSettings from '@/components/editor/settings/header/HeaderDefaultSettings.vue'
+import HeaderMinimalSettings from '@/components/editor/settings/header/HeaderMinimalSettings.vue'
+import HeaderStructureSettings from '@/components/editor/settings/header/HeaderStructureSettings.vue'
+import FooterDefaultSettings from '@/components/editor/settings/footer/FooterDefaultSettings.vue'
+import FooterMinimalSettings from '@/components/editor/settings/footer/FooterMinimalSettings.vue'
 import ContentMediaSettings from '@/components/editor/settings/ContentMediaSettings.vue'
 import ListSettings from '@/components/editor/settings/ListSettings.vue'
 import CollectionSettings from '@/components/editor/settings/CollectionSettings.vue'
 import StoreSettings from '@/components/editor/settings/StoreSettings.vue'
 import MonetizeSettings from '@/components/editor/settings/MonetizeSettings.vue'
 import CampaignSettings from '@/components/editor/settings/CampaignSettings.vue'
-import FooterSettings from '@/components/editor/settings/FooterSettings.vue'
 
 // Variant components — async so each theme variant is a separate lazy chunk
 const HeaderMinimal   = defineAsyncComponent(() => import('@/components/sections/header/HeaderMinimal.vue'))
@@ -70,8 +73,11 @@ export interface SectionDefinition {
   }
   /** One renderer component per theme preset. Falls back to 'minimal' if the preset has no entry. */
   variants: Partial<Record<ThemePreset, Component>> & { minimal: Component }
-  /** Settings panel component rendered in the editor sidebar. */
-  settingsPanel: Component
+  /**
+   * Settings panel(s) for the editor sidebar.
+   * 'default' is the fallback; per-preset keys override it (same resolution as `variants`).
+   */
+  settingsPanel: Partial<Record<ThemePreset, Component>> & { default: Component }
   plan?: { requires: 'free' | 'paid' }
   /** 'first' = header (always position 0), 'last' = footer (always last). */
   fixedPosition?: 'first' | 'last'
@@ -87,7 +93,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     icon: UserCircleIcon,
     defaults: SECTION_DEFAULTS.header,
     variants: { minimal: HeaderMinimal, baseline: HeaderBaseline, structure: HeaderStructure },
-    settingsPanel: HeaderSettings,
+    settingsPanel: { minimal: HeaderMinimalSettings, baseline: HeaderMinimalSettings, structure: HeaderStructureSettings, default: HeaderDefaultSettings },
     fixedPosition: 'first',
     titleFrom: () => null,
   },
@@ -99,7 +105,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     icon: NewspaperIcon,
     defaults: SECTION_DEFAULTS.content_media,
     variants: { minimal: ContentMediaMinimal, baseline: ContentMediaBaseline, structure: ContentMediaStructure },
-    settingsPanel: ContentMediaSettings,
+    settingsPanel: { default: ContentMediaSettings },
     titleFrom: (s) => (s.type === 'content_media' ? s.content?.title ?? null : null),
   },
 
@@ -110,7 +116,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     icon: ListBulletIcon,
     defaults: SECTION_DEFAULTS.list,
     variants: { minimal: ListMinimal, baseline: ListBaseline, structure: ListStructure },
-    settingsPanel: ListSettings,
+    settingsPanel: { default: ListSettings },
     titleFrom: (s) => (s.type === 'list' ? s.content?.title ?? null : null),
   },
 
@@ -121,7 +127,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     icon: RectangleStackIcon,
     defaults: SECTION_DEFAULTS.collection,
     variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
-    settingsPanel: CollectionSettings,
+    settingsPanel: { default: CollectionSettings },
     titleFrom: (s) => (s.type === 'collection' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
@@ -133,7 +139,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     defaults: SECTION_DEFAULTS.store,
     // No baseline variant — falls back to minimal in SectionRenderer
     variants: { minimal: StoreMinimal, structure: StoreStructure },
-    settingsPanel: StoreSettings,
+    settingsPanel: { default: StoreSettings },
     titleFrom: (s) => (s.type === 'store' ? s.content?.stores?.[0]?.title ?? null : null),
   },
 
@@ -144,7 +150,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     icon: CreditCardIcon,
     defaults: SECTION_DEFAULTS.monetize,
     variants: { minimal: MonetizeMinimal, baseline: MonetizeBaseline, structure: MonetizeStructure },
-    settingsPanel: MonetizeSettings,
+    settingsPanel: { default: MonetizeSettings },
     titleFrom: (s) => (s.type === 'monetize' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
@@ -155,7 +161,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     icon: MegaphoneIcon,
     defaults: SECTION_DEFAULTS.campaign,
     variants: { minimal: CampaignMinimal, baseline: CampaignBaseline, structure: CampaignStructure },
-    settingsPanel: CampaignSettings,
+    settingsPanel: { default: CampaignSettings },
     plan: { requires: 'paid' },
     titleFrom: () => null,
   },
@@ -167,7 +173,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     icon: Bars3BottomLeftIcon,
     defaults: SECTION_DEFAULTS.footer,
     variants: { minimal: FooterMinimal, baseline: FooterBaseline, structure: FooterStructure },
-    settingsPanel: FooterSettings,
+    settingsPanel: { minimal: FooterMinimalSettings, baseline: FooterMinimalSettings, default: FooterDefaultSettings },
     fixedPosition: 'last',
     titleFrom: () => null,
   },

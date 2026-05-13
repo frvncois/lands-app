@@ -6,12 +6,19 @@ import type { Section } from '@/types/section'
 import { useSectionSnapshot } from '@/composables/useSectionSnapshot'
 import { sectionLabelMap, sectionIconMap } from '@/composables/useSectionTree'
 import { SECTION_REGISTRY } from '@/features/sections/registry'
+import { useThemeStore } from '@/stores/theme'
 
 const props = defineProps<{ section: Section; hideHeader?: boolean }>()
 const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
 
-// ─── Registry-driven settings panel ───
-const settingsPanelComponent = computed(() => SECTION_REGISTRY[props.section.type].settingsPanel)
+const themeStore = useThemeStore()
+
+// ─── Registry-driven settings panel (resolved by theme preset) ───
+const settingsPanelComponent = computed(() => {
+  const { settingsPanel } = SECTION_REGISTRY[props.section.type]
+  const preset = themeStore.theme?.theme_preset
+  return (preset && settingsPanel[preset]) ?? settingsPanel.default
+})
 
 // ─── Single ref for all settings panels (methods accessed via optional chaining) ───
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
