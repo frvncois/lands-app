@@ -1,122 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon, ChevronLeftIcon } from '@heroicons/vue/24/outline'
+import { ref } from 'vue'
+import { Squares2X2Icon, SwatchIcon, ChevronLeftIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
-import BaseTree from '../ui/BaseTree.vue'
 import BaseTab from '../ui/BaseTab.vue'
 import SectionSettingsModal from '@/components/editor/SectionSettings.vue'
-import SectionsModal from '@/components/modals/SectionsModal.vue'
-import ThemePresetPicker from '@/components/editor/panel/design/ThemePresetPicker.vue'
-import ColorPalette from '@/components/editor/panel/design/ColorPalette.vue'
-import TypographyPicker from '@/components/editor/panel/design/TypographyPicker.vue'
-import PublishSettingsCard from '@/components/editor/panel/PublishSettingsCard.vue'
-import UpgradeCard from '@/components/editor/panel/UpgradeCard.vue'
-import DangerZoneCard from '@/components/editor/panel/DangerZoneCard.vue'
-import type { TreeNode } from '../ui/BaseTree.vue'
-import { useLandStore } from '@/stores/land'
+import ContentTab from '@/components/editor/panel/ContentTab.vue'
+import DesignTab from '@/components/editor/panel/DesignTab.vue'
 import { useEditorStore } from '@/stores/editor'
-import { useSectionLifecycle } from '@/composables/useSectionLifecycle'
-import { useSectionInsert } from '@/composables/useSectionInsert'
 import { useSectionTree } from '@/composables/useSectionTree'
-import { usePlan } from '@/composables/usePlan'
-import { sortByPosition } from '@/lib/utils/position'
-import type { SectionType } from '@/types/section'
+import { useEditorPanel, DESIGN_PANEL_LABELS } from '@/composables/useEditorPanel'
 
-const landStore = useLandStore()
 const editorStore = useEditorStore()
-const { deleteSection, duplicateSection } = useSectionLifecycle()
-const { insertAt, insertBeforeFooter, moveTo } = useSectionInsert()
-const { sectionLabelMap, nodes } = useSectionTree()
-const { isPaid, withinSectionLimit, maxSections } = usePlan()
+const { sectionLabelMap } = useSectionTree()
+const { activeTab, activeDesignPanel, tabDirection, direction, isSubItemEditing, setTab, backFromDesign } = useEditorPanel()
 
-// ─── Section settings ───
-const showSections = ref(false)
-const direction = ref<'forward' | 'back'>('forward')
 const sectionSettingsRef = ref<InstanceType<typeof SectionSettingsModal> | null>(null)
-const isSubItemEditing = ref(false)
-
-watch(() => editorStore.showSectionSettings, (val) => {
-  direction.value = val ? 'forward' : 'back'
-  if (!val) {
-    isSubItemEditing.value = false
-    activeTab.value = 'content'
-    activeDesignPanel.value = null
-  }
-})
-
-watch(() => editorStore.isEditMode, (val) => {
-  if (!val) {
-    activeTab.value = 'content'
-    activeDesignPanel.value = null
-  }
-})
-
-function handleTreeSettings(node: TreeNode) {
-  const section = landStore.activeLand?.sections.find(s => s.id === node.id)
-  if (section) {
-    showSections.value = false
-    editorStore.setActiveSection(section, true)
-  }
-}
-
-// ─── Tabs ───
-type Tab = 'content' | 'design'
-const tabs: Tab[] = ['content', 'design']
-const activeTab = ref<Tab>('content')
-const tabDirection = ref<'forward' | 'back'>('forward')
-
-function setTab(tab: Tab) {
-  tabDirection.value = tabs.indexOf(tab) > tabs.indexOf(activeTab.value) ? 'forward' : 'back'
-  activeTab.value = tab
-  activeDesignPanel.value = null
-}
-
-// ─── Design sub-panels ───
-type DesignPanel = 'theme' | 'colors' | 'typography'
-
-const DESIGN_PANEL_LABELS: Record<DesignPanel, string> = {
-  theme: 'Theme',
-  colors: 'Color Palette',
-  typography: 'Typography',
-}
-
-const activeDesignPanel = ref<DesignPanel | null>(null)
-
-const designNodes: TreeNode[] = [
-  { id: 'theme',      label: 'Theme',          icon: SparklesIcon,    locked: true },
-  { id: 'colors',     label: 'Color Palette',  icon: EyeDropperIcon,  locked: true },
-  { id: 'typography', label: 'Typography',     icon: LanguageIcon,    locked: true },
-]
-
-function handleDesignSettings(node: TreeNode) {
-  tabDirection.value = 'forward'
-  activeDesignPanel.value = node.id as DesignPanel
-}
-
-function backFromDesign() {
-  tabDirection.value = 'back'
-  activeDesignPanel.value = null
-}
-
-// ─── Content tree ───
-const sectionCount = computed(() =>
-  (landStore.activeLand?.sections ?? []).filter(s => s.type !== 'header' && s.type !== 'footer').length
-)
-const atMaxSections = computed(() => !withinSectionLimit(sectionCount.value))
-
-function handleSectionDrop(sectionType: string, newIndex: number) {
-  insertAt(sectionType as SectionType, newIndex)
-}
-
-function handleReorder(oldIndex: number, newIndex: number) {
-  const s = sortByPosition(landStore.activeLand?.sections ?? [])
-  const sectionId = s[oldIndex]?.id
-  if (sectionId) moveTo(sectionId, newIndex)
-}
-
-function handleAddSection(type: string) {
-  insertBeforeFooter(type as SectionType)
-}
 </script>
 
 <template>
@@ -185,74 +83,13 @@ function handleAddSection(type: string) {
             :name="tabDirection === 'forward' ? 'modal-forward' : 'modal-back'"
             mode="out-in"
           >
-            <!-- Content tab -->
-            <div v-if="activeTab === 'content'" key="content" class="flex flex-col gap-4">
-              <BaseTree :nodes="nodes" @settings="handleTreeSettings" @delete="deleteSection($event.id)" @duplicate="duplicateSection($event.id)" @reorder="handleReorder" @add="handleSectionDrop" />
-              <BaseButton variant="outline" size="sm" :disabled="atMaxSections" @click="showSections = !showSections">
-                {{ atMaxSections ? `Max ${maxSections + 2} sections reached` : '+ Add Section' }}
-              </BaseButton>
-              <Transition name="section-limit">
-                <UpgradeCard v-if="atMaxSections && !isPaid" variant="compact" />
-              </Transition>
-            </div>
-
-            <!-- Options tab: tree + settings cards -->
-            <div v-else-if="activeTab === 'design' && !activeDesignPanel" key="design-list" class="flex flex-col gap-4 flex-1">
-              <div class="flex flex-col gap-4">
-                <BaseTree
-                  :nodes="designNodes"
-                  :group="{ name: 'design', pull: false, put: false }"
-                  @settings="handleDesignSettings"
-                />
-              </div>
-
-              <div class="flex flex-col flex-1 gap-2">
-                <PublishSettingsCard />
-                <UpgradeCard v-if="!isPaid" variant="full" />
-                <DangerZoneCard />
-              </div>
-            </div>
-
-            <!-- Design sub-panel: Theme -->
-            <div v-else-if="activeDesignPanel === 'theme'" key="design-theme" class="flex flex-col gap-2">
-              <ThemePresetPicker />
-            </div>
-
-            <!-- Design sub-panel: Color palette -->
-            <div v-else-if="activeDesignPanel === 'colors'" key="design-colors" class="flex flex-col divide-y divide-gray-100">
-              <ColorPalette />
-            </div>
-
-            <!-- Design sub-panel: Typography -->
-            <div v-else-if="activeDesignPanel === 'typography'" key="design-typography" class="flex flex-col gap-1.5">
-              <TypographyPicker />
-            </div>
-
+            <ContentTab v-if="activeTab === 'content'" key="content" />
+            <DesignTab v-else :key="`design-${activeDesignPanel ?? 'list'}`" />
           </Transition>
         </div>
 
       </Transition>
     </div>
 
-    <Transition name="modal-grow">
-      <SectionsModal v-if="showSections" @close="showSections = false" @select="handleAddSection($event); showSections = false" />
-    </Transition>
   </aside>
 </template>
-
-<style scoped>
-.section-limit-enter-active {
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.section-limit-leave-active {
-  transition: opacity 0.35s ease, transform 0.35s ease;
-}
-.section-limit-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-.section-limit-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
-}
-</style>
