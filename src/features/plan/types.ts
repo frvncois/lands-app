@@ -1,4 +1,4 @@
-export const LAND_PLANS = {
+const LAND_PLANS = {
   free: 'free',
   paid: 'paid',
 } as const

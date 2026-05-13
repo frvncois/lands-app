@@ -1,11 +1,11 @@
-export const COLLABORATOR_ROLES = {
+const COLLABORATOR_ROLES = {
   admin: 'admin',
   editor: 'editor',
 } as const
 
 export type CollaboratorRole = typeof COLLABORATOR_ROLES[keyof typeof COLLABORATOR_ROLES]
 
-export const COLLABORATOR_STATUSES = {
+const COLLABORATOR_STATUSES = {
   pending: 'pending',
   active: 'active',
   declined: 'declined',

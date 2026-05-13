@@ -106,7 +106,7 @@ export interface HeaderContent {
   buttons?: ContentMediaButton[]
 }
 
-export const MEDIA_TYPES = {
+const MEDIA_TYPES = {
   image: 'image',
   video: 'video',
 } as const

@@ -27,18 +27,6 @@ export function generatePositionBetween(
   return generateKeyBetween(before, after)
 }
 
-/**
- * Generate N evenly-spaced position keys between two bounds.
- * Useful for initializing a list or bulk inserts.
- * Either parameter can be null to indicate start/end of list.
- */
-export function generatePositions(
-  count: number,
-  before: string | null = null,
-  after: string | null = null
-): string[] {
-  return generateNKeysBetween(before, after, count)
-}
 
 /**
  * Calculate the new position key when reordering an item within a sorted list.
