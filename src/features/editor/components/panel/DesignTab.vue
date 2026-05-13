@@ -40,6 +40,7 @@ const activePairings = computed(() => THEME_PRESET_DEFINITIONS[themeStore.theme?
 </script>
 
 <template>
+  <div>
   <!-- Mobile: flat all-in-one view -->
   <div v-if="isMobile" class="flex flex-col gap-5">
     <div>
@@ -136,4 +137,5 @@ const activePairings = computed(() => THEME_PRESET_DEFINITIONS[themeStore.theme?
       <TypographyPicker />
     </div>
   </template>
+  </div>
 </template>
