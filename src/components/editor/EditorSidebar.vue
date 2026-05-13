@@ -4,15 +4,14 @@ import { Squares2X2Icon, SwatchIcon, ChevronLeftIcon } from '@heroicons/vue/24/o
 import BaseButton from '../ui/BaseButton.vue'
 import BaseTab from '../ui/BaseTab.vue'
 import SectionSettingsModal from '@/components/editor/SectionSettings.vue'
-import ContentTab from '@/components/editor/panel/ContentTab.vue'
-import DesignTab from '@/components/editor/panel/DesignTab.vue'
+import EditorPanel from '@/components/editor/EditorPanel.vue'
 import { useEditorStore } from '@/stores/editor'
 import { useSectionTree } from '@/composables/useSectionTree'
 import { useEditorPanel, DESIGN_PANEL_LABELS } from '@/composables/useEditorPanel'
 
 const editorStore = useEditorStore()
 const { sectionLabelMap } = useSectionTree()
-const { activeTab, activeDesignPanel, tabDirection, direction, isSubItemEditing, setTab, backFromDesign } = useEditorPanel()
+const { activeTab, activeDesignPanel, direction, isSubItemEditing, setTab, backFromDesign } = useEditorPanel()
 
 const sectionSettingsRef = ref<InstanceType<typeof SectionSettingsModal> | null>(null)
 </script>
@@ -79,13 +78,7 @@ const sectionSettingsRef = ref<InstanceType<typeof SectionSettingsModal> | null>
 
         <!-- Default view -->
         <div v-else key="default" class="flex flex-col pl-4 pr-2 pt-4 flex-1">
-          <Transition
-            :name="tabDirection === 'forward' ? 'modal-forward' : 'modal-back'"
-            mode="out-in"
-          >
-            <ContentTab v-if="activeTab === 'content'" key="content" />
-            <DesignTab v-else :key="`design-${activeDesignPanel ?? 'list'}`" />
-          </Transition>
+          <EditorPanel />
         </div>
 
       </Transition>
