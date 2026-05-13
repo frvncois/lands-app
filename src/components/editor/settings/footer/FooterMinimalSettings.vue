@@ -6,10 +6,10 @@ import BaseButton from '../../../ui/BaseButton.vue'
 import BaseItem from '../../../ui/BaseItem.vue'
 import BaseLinkPicker from '../../../ui/BaseLinkPicker.vue'
 import CollectionItemContentSettings from '../CollectionItemContentSettings.vue'
-import type { Section, FooterContent, ContentMediaButton } from '@/types/section'
+import type { FooterSection, ContentMediaButton } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
 
-const props = defineProps<{ section: Section }>()
+const props = defineProps<{ section: FooterSection }>()
 
 const { updateSectionContent } = useEditorActions()
 
@@ -21,7 +21,7 @@ const showPrivacyEditor = ref(false)
 const showTermsEditor = ref(false)
 
 function sync() {
-  const c = props.section.content as FooterContent | null
+  const c = props.section.content
   footerDescription.value = c?.description ?? ''
   footerButtons.value = c?.buttons ? [...c.buttons] : []
   footerPrivacyPolicy.value = c?.privacy_policy ?? ''

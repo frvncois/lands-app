@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
 import { SECTION_SETTINGS_CONFIG, resolveSettingsComponent } from '@/lib/primitives/sectionSettingsConfig'
-import type { Section } from '@/types/section'
+import type { HeaderSection } from '@/types/section'
 
-const props = defineProps<{ section: Section }>()
+const props = defineProps<{ section: HeaderSection }>()
 
 const themeStore = useThemeStore()
 const component = computed(() => resolveSettingsComponent(SECTION_SETTINGS_CONFIG.header!, themeStore.theme?.theme_preset ?? ''))

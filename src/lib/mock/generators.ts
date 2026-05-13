@@ -57,11 +57,13 @@ export function createMockHeaderSection(landId: string, position: string): Secti
     settings_json: {
       cover_media_type: 'image',
       cover_media_value: '',
+      profile_position: 'below',
     },
     content: {
       title: faker.person.fullName(),
       subtitle: faker.person.jobTitle(),
-    } as HeaderContent,
+      logo: '',
+    },
     created_at: faker.date.past().toISOString(),
   }
 }

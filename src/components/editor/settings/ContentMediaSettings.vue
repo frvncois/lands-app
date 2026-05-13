@@ -5,11 +5,11 @@ import BaseInput from '../../ui/BaseInput.vue'
 import BaseUpload from '../../ui/BaseUpload.vue'
 import BaseButton from '../../ui/BaseButton.vue'
 import BaseToggle from '../../ui/BaseToggle.vue'
-import type { Section, ContentMediaContent, ContentMediaButton } from '@/types/section'
+import type { ContentMediaSection, ContentMediaButton } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { useThemePreset } from '@/composables/useThemePreset'
 
-const props = defineProps<{ section: Section }>()
+const props = defineProps<{ section: ContentMediaSection }>()
 
 const { isStructureTheme } = useThemePreset()
 
@@ -23,7 +23,7 @@ const cmBody = ref('')
 const cmButtons = ref<ContentMediaButton[]>([])
 
 function sync() {
-  const c = props.section.content as ContentMediaContent | null
+  const c = props.section.content
   cmMediaType.value = c?.media_type ?? 'image'
   cmMediaUrl.value = c?.media_url ?? ''
   cmTitle.value = c?.title ?? ''

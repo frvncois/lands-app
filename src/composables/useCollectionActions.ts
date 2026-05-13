@@ -28,15 +28,14 @@ export function useCollectionActions() {
   }
 
   function updateSectionContent(sectionId: string, content: Record<string, unknown>) {
-    patchSection(sectionId, (s) => ({
-      ...s,
-      content: { ...(s.content ?? {}), ...content } as Section['content'],
-    }))
+    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
+    patchSection(sectionId, (s) => ({ ...s, content: { ...(s.content ?? {}), ...content } }) as unknown as Section)
   }
 
   function getCollections(sectionId: string): Collection[] {
     const section = activeLand.value?.sections.find((s) => s.id === sectionId)
-    return (section?.content as { collections?: Collection[] } | null)?.collections ?? []
+    if (section?.type !== 'collection' && section?.type !== 'monetize') return []
+    return section.content?.collections ?? []
   }
 
   function addCollection(sectionId: string) {

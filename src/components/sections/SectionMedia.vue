@@ -18,11 +18,11 @@ const component = computed(() => {
   }
 })
 
-const isMock = computed(() => !(props.section.content as any)?.url)
+const isMock = computed(() => props.section.type !== 'media' || !props.section.content?.url)
 
-const displaySection = computed(() =>
+const displaySection = computed((): Section =>
   isMock.value
-    ? { ...props.section, content: MOCK_MEDIA_CONTENT }
+    ? { ...props.section, content: MOCK_MEDIA_CONTENT } as unknown as Section
     : props.section
 )
 </script>

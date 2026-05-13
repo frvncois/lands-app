@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Section, ContentMediaContent } from '@/types/section'
+import type { Section } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
-const c = computed(() => props.section.content as ContentMediaContent | null)
+const c = computed(() => props.section.type === 'content_media' ? props.section.content : null)
 
 function getVideoEmbed(url: string): { type: 'iframe' | 'video'; src: string } | null {
   if (!url) return null

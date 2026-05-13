@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Section, HeaderContent, HeaderSettings } from '@/types/section'
+import type { Section } from '@/types/section'
 import { useLandStore } from '@/stores/land'
 
 const props = defineProps<{ section: Section }>()
-const content = computed(() => props.section.content as HeaderContent | null)
-const settings = computed(() => props.section.settings_json as HeaderSettings)
+const content = computed(() => props.section.type === 'header' ? props.section.content : null)
+const settings = computed(() => props.section.type === 'header' ? props.section.settings_json : null)
 const landStore = useLandStore()
 const projectTitle = computed(() => landStore.activeLand?.title)
 
 const coverVideo = computed(() => {
+  if (!settings.value) return null
   const url = settings.value.cover_media_value
   if (!url || settings.value.cover_media_type !== 'video') return null
 
@@ -57,7 +58,7 @@ const coverVideo = computed(() => {
       </div>
     </div>
     <div class="relative h-[40em] overflow-hidden rounded-md" style="background: var(--theme-accent)">
-      <img v-if="settings.cover_media_value && settings.cover_media_type !== 'video'" :src="settings.cover_media_value" class="absolute inset-0 w-full h-full object-cover" />
+      <img v-if="settings?.cover_media_value && settings?.cover_media_type !== 'video'" :src="settings.cover_media_value" class="absolute inset-0 w-full h-full object-cover" />
       <template v-else-if="coverVideo">
         <iframe v-if="coverVideo.type === 'iframe'" :src="coverVideo.src" class="absolute inset-0 w-full h-full" style="transform: scale(1.5)" frameborder="0" allow="autoplay; fullscreen" allowfullscreen />
         <video v-else :src="coverVideo.src" class="absolute inset-0 w-full h-full object-cover" autoplay muted loop playsinline />

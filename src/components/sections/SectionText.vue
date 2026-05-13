@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
-import type { Section, TextContent } from '@/types/section'
+import type { Section } from '@/types/section'
 import TextMinimal from './text/TextMinimal.vue'
 import TextBaseline from './text/TextBaseline.vue'
 import TextStructure from './text/TextStructure.vue'
@@ -19,13 +19,14 @@ const component = computed(() => {
 })
 
 const isMock = computed(() => {
-  const c = props.section.content as TextContent | null
+  if (props.section.type !== 'text') return true
+  const c = props.section.content
   return !c || (!c.title?.trim() && !c.subtitle?.trim() && !c.body?.trim() && !c.buttons?.length)
 })
 
-const displaySection = computed(() =>
+const displaySection = computed((): Section =>
   isMock.value
-    ? { ...props.section, content: MOCK_TEXT_CONTENT }
+    ? { ...props.section, content: MOCK_TEXT_CONTENT } as unknown as Section
     : props.section
 )
 </script>

@@ -2,10 +2,10 @@
 import { ref, watch } from 'vue'
 import BaseInput from '../../../ui/BaseInput.vue'
 import BaseUpload from '../../../ui/BaseUpload.vue'
-import type { Section, HeaderContent, HeaderSettings } from '@/types/section'
+import type { HeaderSection } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
 
-const props = defineProps<{ section: Section }>()
+const props = defineProps<{ section: HeaderSection }>()
 
 const { updateSectionContent, updateSectionSettings } = useEditorActions()
 
@@ -15,8 +15,8 @@ const headerLogoUrl = ref('')
 const headerCoverMediaValue = ref('')
 
 function sync() {
-  const c = props.section.content as HeaderContent | null
-  const s = props.section.settings_json as HeaderSettings
+  const c = props.section.content
+  const s = props.section.settings_json
   headerTitle.value = c?.title ?? ''
   headerSubtitle.value = c?.subtitle ?? ''
   headerLogoUrl.value = c?.logo ?? ''

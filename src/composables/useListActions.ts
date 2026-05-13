@@ -26,15 +26,14 @@ export function useListActions() {
   }
 
   function updateSectionContent(sectionId: string, content: Record<string, unknown>) {
-    patchSection(sectionId, (s) => ({
-      ...s,
-      content: { ...(s.content ?? {}), ...content } as Section['content'],
-    }))
+    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
+    patchSection(sectionId, (s) => ({ ...s, content: { ...(s.content ?? {}), ...content } }) as unknown as Section)
   }
 
   function getListItems(sectionId: string): ListItem[] {
     const section = activeLand.value?.sections.find((s) => s.id === sectionId)
-    return (section?.content as { items?: ListItem[] } | null)?.items ?? []
+    if (section?.type !== 'list') return []
+    return section.content?.items ?? []
   }
 
   function addListItem(sectionId: string, data: Pick<ListItem, 'title' | 'subtitle' | 'url' | 'description' | 'icon'>): ListItem {

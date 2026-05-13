@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Section, MediaContent } from '@/types/section'
+import type { Section } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
-const media = computed(() => props.section.content as MediaContent | null)
+const media = computed(() => props.section.type === 'media' ? props.section.content : null)
 
 function getEmbedUrl(url: string): string | null {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useThemeStore } from '@/stores/theme'
-import type { Section, ContentMediaContent } from '@/types/section'
+import type { Section } from '@/types/section'
 import ContentMediaMinimal from './content-media/ContentMediaMinimal.vue'
 import ContentMediaBaseline from './content-media/ContentMediaBaseline.vue'
 import ContentMediaStructure from './content-media/ContentMediaStructure.vue'
@@ -17,10 +17,10 @@ const component = computed(() => {
   }
 })
 
-const c = computed(() => props.section.content as ContentMediaContent | null)
+const c = computed(() => props.section.type === 'content_media' ? props.section.content : null)
 const isMock = computed(() => !c.value?.title && !c.value?.media_url)
 
-const displaySection = computed(() =>
+const displaySection = computed((): Section =>
   isMock.value
     ? {
         ...props.section,
@@ -32,7 +32,7 @@ const displaySection = computed(() =>
           body: 'Add a short description to support your headline and guide readers.',
           buttons: [{ id: 'mock-1', label: 'Button', url: '#' }],
         },
-      }
+      } as unknown as Section
     : props.section
 )
 </script>

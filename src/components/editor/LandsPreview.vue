@@ -3,6 +3,8 @@ import { computed } from 'vue'
 import { useLandStore } from '@/stores/land'
 import { sortByPosition } from '@/lib/utils/position'
 import SectionHeader from '@/components/sections/SectionHeader.vue'
+import SectionText from '@/components/sections/SectionText.vue'
+import SectionMedia from '@/components/sections/SectionMedia.vue'
 import SectionContentMedia from '@/components/sections/SectionContentMedia.vue'
 import SectionList from '@/components/sections/SectionList.vue'
 import SectionCollection from '@/components/sections/SectionCollection.vue'
@@ -16,6 +18,8 @@ const sections = computed(() => sortByPosition(landStore.activeLand?.sections ??
 
 const componentMap = {
   header: SectionHeader,
+  text: SectionText,
+  media: SectionMedia,
   content_media: SectionContentMedia,
   list: SectionList,
   collection: SectionCollection,

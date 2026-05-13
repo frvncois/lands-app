@@ -1,5 +1,11 @@
+import type { ListItem } from '@/types/list'
+import type { Collection } from '@/types/collection'
+import type { Store } from '@/types/store'
+
 export const SECTION_TYPES = {
   header: 'header',
+  text: 'text',
+  media: 'media',
   content_media: 'content_media',
   list: 'list',
   collection: 'collection',
@@ -74,6 +80,10 @@ export interface TextSettings {
   style: TextStyle
 }
 
+export interface ContentMediaSettings {
+  // content_media has no settings fields
+}
+
 export interface CollectionSettings {
   style: CollectionDisplayStyle
 }
@@ -105,6 +115,7 @@ export interface FooterSettings {
 export type SectionSettings =
   | HeaderSettings
   | TextSettings
+  | ContentMediaSettings
   | CollectionSettings
   | StoreSettings
   | MonetizeSettings
@@ -182,15 +193,68 @@ export interface ContentMediaContent {
   buttons: ContentMediaButton[]
 }
 
-// --- Base section ---
+export interface ListContent {
+  title: string
+  description: string
+  items: ListItem[]
+}
 
-export interface Section {
+export interface CollectionContent {
+  collections: Collection[]
+}
+
+export interface StoreContent {
+  stores: Store[]
+}
+
+export interface MonetizeContent {
+  collections: Collection[]
+}
+
+export type SectionContent =
+  | HeaderContent
+  | TextContent
+  | MediaContent
+  | ContentMediaContent
+  | ListContent
+  | CollectionContent
+  | StoreContent
+  | MonetizeContent
+  | CampaignContent
+  | FooterContent
+
+// --- Discriminated Section union ---
+
+interface BaseSection<TType extends SectionType, TContent, TSettings> {
   id: string
   land_id: string
-  type: SectionType
-  position: string // fractional index
+  type: TType
+  position: string
   style_variant: string
-  settings_json: SectionSettings
-  content: HeaderContent | TextContent | MediaContent | ContentMediaContent | CampaignContent | FooterContent | null
+  settings_json: TSettings
+  content: TContent
   created_at: string
 }
+
+export type HeaderSection = BaseSection<'header', HeaderContent, HeaderSettings>
+export type TextSection = BaseSection<'text', TextContent | null, TextSettings>
+export type MediaSection = BaseSection<'media', MediaContent | null, MediaSettings>
+export type ContentMediaSection = BaseSection<'content_media', ContentMediaContent, ContentMediaSettings>
+export type ListSection = BaseSection<'list', ListContent | null, ListSettings>
+export type CollectionSection = BaseSection<'collection', CollectionContent | null, CollectionSettings>
+export type StoreSection = BaseSection<'store', StoreContent | null, StoreSettings>
+export type MonetizeSection = BaseSection<'monetize', MonetizeContent | null, MonetizeSettings>
+export type CampaignSection = BaseSection<'campaign', CampaignContent, CampaignSettings>
+export type FooterSection = BaseSection<'footer', FooterContent, FooterSettings>
+
+export type Section =
+  | HeaderSection
+  | TextSection
+  | MediaSection
+  | ContentMediaSection
+  | ListSection
+  | CollectionSection
+  | StoreSection
+  | MonetizeSection
+  | CampaignSection
+  | FooterSection

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { PhotoIcon } from '@heroicons/vue/24/outline'
-import type { Section, ContentMediaContent } from '@/types/section'
+import type { Section } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
-const c = computed(() => props.section.content as ContentMediaContent | null)
+const c = computed(() => props.section.type === 'content_media' ? props.section.content : null)
 const reversed = computed(() => props.section.style_variant === 'reversed')
 
 function getEmbedUrl(url: string): string | null {

@@ -6,14 +6,14 @@ import BaseButton from '../../ui/BaseButton.vue'
 import BaseToggle from '../../ui/BaseToggle.vue'
 import BaseCard from '../../ui/BaseCard.vue'
 import SetupCampaignSettings from './SetupCampaignSettings.vue'
-import type { Section, CampaignContent, CampaignSettings } from '@/types/section'
+import type { CampaignSection } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { useThemePreset } from '@/composables/useThemePreset'
 import { useAppModals } from '@/stores/appModals'
 import { useCampaignStore } from '@/stores/campaign'
 import { usePlan } from '@/composables/usePlan'
 
-const props = defineProps<{ section: Section }>()
+const props = defineProps<{ section: CampaignSection }>()
 
 const appModals = useAppModals()
 const campaignStore = useCampaignStore()
@@ -30,8 +30,8 @@ const campaignShowNameField = ref(false)
 const showSetupCampaignSettings = ref(false)
 
 function sync() {
-  const c = props.section.content as CampaignContent | null
-  const s = props.section.settings_json as CampaignSettings
+  const c = props.section.content
+  const s = props.section.settings_json
   campaignTitle.value = c?.title ?? ''
   campaignDescription.value = c?.description ?? ''
   campaignButtonLabel.value = c?.button_label ?? ''

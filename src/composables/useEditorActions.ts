@@ -43,17 +43,13 @@ export function useEditorActions() {
   // ─── Section Content/Settings ───
 
   function updateSectionContent(sectionId: string, content: Record<string, unknown>) {
-    patchSection(sectionId, (s) => ({
-      ...s,
-      content: { ...(s.content ?? {}), ...content } as Section['content'],
-    }))
+    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
+    patchSection(sectionId, (s) => ({ ...s, content: { ...(s.content ?? {}), ...content } }) as unknown as Section)
   }
 
   function updateSectionSettings(sectionId: string, settings: Record<string, unknown>) {
-    patchSection(sectionId, (s) => ({
-      ...s,
-      settings_json: { ...s.settings_json, ...settings } as SectionSettings,
-    }))
+    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
+    patchSection(sectionId, (s) => ({ ...s, settings_json: { ...s.settings_json, ...settings } }) as unknown as Section)
   }
 
   function updateSectionStyleVariant(sectionId: string, variant: string) {
@@ -67,12 +63,8 @@ export function useEditorActions() {
     settings_json: unknown
     style_variant: string
   }) {
-    patchSection(sectionId, (s) => ({
-      ...s,
-      content: data.content as Section['content'],
-      style_variant: data.style_variant,
-      settings_json: data.settings_json as SectionSettings,
-    }))
+    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
+    patchSection(sectionId, (s) => ({ ...s, content: data.content, style_variant: data.style_variant, settings_json: data.settings_json }) as unknown as Section)
   }
 
   // ─── Land Images ───

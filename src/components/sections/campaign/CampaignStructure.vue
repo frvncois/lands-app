@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Section, CampaignContent, CampaignSettings } from '@/types/section'
+import type { Section } from '@/types/section'
 import { useThemeStore } from '@/stores/theme'
 import { getContrastColor } from '@/lib/utils/color'
 
 const props = defineProps<{ section: Section }>()
-const c = computed(() => props.section.content as CampaignContent | null)
-const settings = computed(() => props.section.settings_json as CampaignSettings | null)
+const c = computed(() => props.section.type === 'campaign' ? props.section.content : null)
+const settings = computed(() => props.section.type === 'campaign' ? props.section.settings_json : null)
 
 const themeStore = useThemeStore()
 

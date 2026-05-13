@@ -3,11 +3,11 @@ import { computed } from 'vue'
 import { useLandStore } from '@/stores/land'
 import { useThemeStore } from '@/stores/theme'
 import { getContrastColor } from '@/lib/utils/color'
-import type { Section, FooterContent, FooterSettings } from '@/types/section'
+import type { Section } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
-const c = computed(() => props.section.content as FooterContent | null)
-const s = computed(() => props.section.settings_json as FooterSettings | null)
+const c = computed(() => props.section.type === 'footer' ? props.section.content : null)
+const s = computed(() => props.section.type === 'footer' ? props.section.settings_json : null)
 
 const landStore = useLandStore()
 const themeStore = useThemeStore()

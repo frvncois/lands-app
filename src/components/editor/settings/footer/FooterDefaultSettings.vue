@@ -4,10 +4,10 @@ import { PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import BaseInput from '../../../ui/BaseInput.vue'
 import BaseUpload from '../../../ui/BaseUpload.vue'
 import BaseLinkPicker from '../../../ui/BaseLinkPicker.vue'
-import type { Section, FooterContent, FooterSettings, ContentMediaButton } from '@/types/section'
+import type { FooterSection, ContentMediaButton } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
 
-const props = defineProps<{ section: Section }>()
+const props = defineProps<{ section: FooterSection }>()
 
 const { updateSectionContent, updateSectionSettings } = useEditorActions()
 
@@ -17,8 +17,8 @@ const footerCoverMediaValue = ref('')
 const footerButtons = ref<ContentMediaButton[]>([])
 
 function sync() {
-  const c = props.section.content as FooterContent | null
-  const s = props.section.settings_json as FooterSettings
+  const c = props.section.content
+  const s = props.section.settings_json
   footerTitle.value = c?.title ?? ''
   footerSubtitle.value = c?.subtitle ?? ''
   footerCoverMediaValue.value = s?.cover_media_value ?? ''

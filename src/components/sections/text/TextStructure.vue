@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 import DOMPurify from 'dompurify'
 import { renderMarkdown } from '@/lib/utils/markdown'
-import type { Section, TextContent } from '@/types/section'
+import type { Section } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
-const content = computed(() => props.section.content as TextContent | null)
+const content = computed(() => props.section.type === 'text' ? props.section.content : null)
 
 const bodyHtml = computed(() => {
   const b = content.value?.body ?? ''

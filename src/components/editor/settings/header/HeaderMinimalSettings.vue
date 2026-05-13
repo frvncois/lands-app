@@ -6,10 +6,10 @@ import BaseUpload from '../../../ui/BaseUpload.vue'
 import BaseButton from '../../../ui/BaseButton.vue'
 import BaseLinkPicker from '../../../ui/BaseLinkPicker.vue'
 import BaseSwitch from '../../../ui/BaseSwitch.vue'
-import type { Section, HeaderContent, HeaderSettings, ContentMediaButton } from '@/types/section'
+import type { HeaderSection, ContentMediaButton } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
 
-const props = defineProps<{ section: Section }>()
+const props = defineProps<{ section: HeaderSection }>()
 
 const { updateSectionContent, updateSectionSettings } = useEditorActions()
 
@@ -21,8 +21,8 @@ const headerCoverMediaValue = ref('')
 const headerButtons = ref<ContentMediaButton[]>([])
 
 function sync() {
-  const c = props.section.content as HeaderContent | null
-  const s = props.section.settings_json as HeaderSettings
+  const c = props.section.content
+  const s = props.section.settings_json
   headerTitle.value = c?.title ?? ''
   headerDescription.value = c?.description ?? ''
   headerLogoUrl.value = c?.logo ?? ''

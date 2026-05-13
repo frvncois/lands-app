@@ -11,6 +11,8 @@ import type { Section, SectionType } from '@/types/section'
 import BaseContextMenu from '@/components/ui/BaseContextMenu.vue'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
 const SectionHeader       = defineAsyncComponent(() => import('@/components/sections/SectionHeader.vue'))
+const SectionText         = defineAsyncComponent(() => import('@/components/sections/SectionText.vue'))
+const SectionMedia        = defineAsyncComponent(() => import('@/components/sections/SectionMedia.vue'))
 const SectionContentMedia = defineAsyncComponent(() => import('@/components/sections/SectionContentMedia.vue'))
 const SectionList         = defineAsyncComponent(() => import('@/components/sections/SectionList.vue'))
 const SectionCollection   = defineAsyncComponent(() => import('@/components/sections/SectionCollection.vue'))
@@ -29,6 +31,8 @@ const isInteractive = computed(() => editorStore.isEditMode)
 
 const componentMap = {
   header: SectionHeader,
+  text: SectionText,
+  media: SectionMedia,
   content_media: SectionContentMedia,
   list: SectionList,
   collection: SectionCollection,

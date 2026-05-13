@@ -109,29 +109,30 @@ function buildSections(types: SectionType[], landId: string, projectTitle: strin
       content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? structuredClone(defaults.content) : {})
     }
 
-    const section: Section = {
+    // FIXME Phase 6: buildSections uses a generic SectionType loop — can't narrow to a specific
+    // discriminant at compile time, so we use as unknown as Section here.
+    const section = {
       id: crypto.randomUUID(),
       land_id: landId,
       type,
       position: pos,
       style_variant: defaults.style_variant,
-      settings_json: { ...defaults.settings_json } as unknown as import('@/types/section').SectionSettings,
-      content: content as unknown as Section['content'],
+      settings_json: { ...defaults.settings_json },
+      content,
       created_at: new Date().toISOString(),
-    }
+    } as unknown as Section
 
-    // Patch section_id into seeded content
-    if (type === 'collection' || type === 'monetize') {
-      const col = (section.content as unknown as { collections: Collection[] }).collections?.[0]
+    // Patch section_id into seeded content — use discriminant narrowing for clean access
+    if (section.type === 'collection' || section.type === 'monetize') {
+      const col = section.content?.collections?.[0]
       if (col) col.section_id = section.id
     }
-    if (type === 'store') {
-      const store = (section.content as unknown as { stores: Store[] }).stores?.[0]
+    if (section.type === 'store') {
+      const store = section.content?.stores?.[0]
       if (store) store.section_id = section.id
     }
-    if (type === 'list') {
-      const items = (section.content as unknown as { items: { section_id: string }[] }).items
-      if (items) items.forEach((item) => { item.section_id = section.id })
+    if (section.type === 'list') {
+      section.content?.items?.forEach((item) => { item.section_id = section.id })
     }
 
     sections.push(section)

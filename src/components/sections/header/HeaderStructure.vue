@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useLandStore } from '@/stores/land'
-import type { Section, HeaderContent } from '@/types/section'
+import type { Section } from '@/types/section'
 
 const props = defineProps<{ section: Section }>()
-const content = computed(() => props.section.content as HeaderContent | null)
+const content = computed(() => props.section.type === 'header' ? props.section.content : null)
 const landStore = useLandStore()
 const projectName = computed(() => landStore.activeLand?.title ?? '')
 </script>
