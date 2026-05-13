@@ -4,8 +4,6 @@ import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon,
 import BaseButton from '../ui/BaseButton.vue'
 import BaseTree from '../ui/BaseTree.vue'
 import BaseTab from '../ui/BaseTab.vue'
-import BaseColorInput from '../ui/BaseColorInput.vue'
-import BaseFont from '../ui/BaseFont.vue'
 import BaseInput from '../ui/BaseInput.vue'
 import BaseCard from '../ui/BaseCard.vue'
 import BaseToggle from '../ui/BaseToggle.vue'
@@ -14,28 +12,25 @@ import SectionsModal from '@/components/modals/SectionsModal.vue'
 import CustomDomainModal from '@/components/modals/CustomDomainModal.vue'
 import DeleteProjectModal from '@/components/modals/DeleteProjectModal.vue'
 import ConfirmUnpublishModal from '@/components/modals/ConfirmUnpublishModal.vue'
+import ThemePresetPicker from '@/components/editor/panel/design/ThemePresetPicker.vue'
+import ColorPalette from '@/components/editor/panel/design/ColorPalette.vue'
+import TypographyPicker from '@/components/editor/panel/design/TypographyPicker.vue'
 import type { TreeNode } from '../ui/BaseTree.vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { landService } from '@/services/land.service'
 import { useAppModals } from '@/stores/appModals'
-
-const appModals = useAppModals()
-import { useThemeStore } from '@/stores/theme'
-import { useEditorMutations } from '@/composables/useEditorMutations'
 import { useSectionLifecycle } from '@/composables/useSectionLifecycle'
 import { useSectionInsert } from '@/composables/useSectionInsert'
 import { useSectionTree } from '@/composables/useSectionTree'
 import { usePlan } from '@/composables/usePlan'
 import { sortByPosition } from '@/lib/utils/position'
 import type { SectionType } from '@/types/section'
-import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
 
+const appModals = useAppModals()
 const landStore = useLandStore()
 const editorStore = useEditorStore()
-const themeStore = useThemeStore()
 const { deleteSection, duplicateSection } = useSectionLifecycle()
-const { updateTheme } = useEditorMutations()
 const { insertAt, insertBeforeFooter, moveTo } = useSectionInsert()
 const { sectionIconMap, sectionLabelMap, getSectionTitle, nodes } = useSectionTree()
 const { isPaid, withinSectionLimit, maxSections } = usePlan()
@@ -173,24 +168,6 @@ function backFromDesign() {
   activeDesignPanel.value = null
 }
 
-// ─── Design data ───
-const presets = Object.values(THEME_PRESET_DEFINITIONS)
-
-const activeColorSlots = computed(() => {
-  const preset = themeStore.theme?.theme_preset
-  if (!preset) return THEME_PRESET_DEFINITIONS.minimal.colorSlots
-  return THEME_PRESET_DEFINITIONS[preset].colorSlots
-})
-
-const activePairings = computed(() => {
-  const preset = themeStore.theme?.theme_preset
-  if (!preset) return THEME_PRESET_DEFINITIONS.minimal.pairings
-  return THEME_PRESET_DEFINITIONS[preset].pairings
-})
-
-function applyPreset(preset: typeof presets[number]) {
-  updateTheme(preset.defaults)
-}
 
 // ─── Content tree ───
 const sectionCount = computed(() =>
@@ -374,51 +351,17 @@ function handleAddSection(type: string) {
 
             <!-- Design sub-panel: Theme -->
             <div v-else-if="activeDesignPanel === 'theme'" key="design-theme" class="flex flex-col gap-2">
-              <button
-                v-for="preset in presets"
-                :key="preset.label"
-                class="flex items-start gap-3 p-3 rounded-xl border transition-colors text-left"
-                :class="themeStore.theme?.theme_preset === preset.defaults.theme_preset
-                  ? 'border-gray-900 bg-gray-50'
-                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
-                @click="applyPreset(preset)"
-              >
-                <div class="flex gap-1 pt-0.5 shrink-0">
-                  <span class="h-3 w-3 rounded-full border border-black/10" :style="{ background: preset.defaults.color_main }" />
-                  <span class="h-3 w-3 rounded-full border border-black/10" :style="{ background: preset.defaults.color_accent }" />
-                  <span class="h-3 w-3 rounded-full border border-black/10" :style="{ background: preset.defaults.color_surface }" />
-                </div>
-                <div>
-                  <p class="text-sm font-medium text-gray-900">{{ preset.label }}</p>
-                  <p class="text-xs text-gray-400">{{ preset.description }}</p>
-                </div>
-              </button>
+              <ThemePresetPicker />
             </div>
 
             <!-- Design sub-panel: Color palette -->
             <div v-else-if="activeDesignPanel === 'colors'" key="design-colors" class="flex flex-col divide-y divide-gray-100">
-              <BaseColorInput
-                v-for="slot in activeColorSlots"
-                :key="slot.key"
-                :label="slot.label"
-                :modelValue="themeStore.theme?.[slot.key] ?? '#000000'"
-                @update:modelValue="updateTheme({ [slot.key]: $event })"
-              />
+              <ColorPalette />
             </div>
 
             <!-- Design sub-panel: Typography -->
             <div v-else-if="activeDesignPanel === 'typography'" key="design-typography" class="flex flex-col gap-1.5">
-              <BaseFont
-                v-for="pairing in activePairings"
-                :key="pairing.id"
-                :label="pairing.label"
-                :titleFont="pairing.titleFont"
-                :bodyFont="pairing.bodyFont"
-                :titleGoogleFont="pairing.titleGoogleFont"
-                :bodyGoogleFont="pairing.bodyGoogleFont"
-                :active="themeStore.theme?.font_title === pairing.titleFont && themeStore.theme?.font_body === pairing.bodyFont"
-                @click="updateTheme({ font_title: pairing.titleFont, font_body: pairing.bodyFont })"
-              />
+              <TypographyPicker />
             </div>
 
           </Transition>
