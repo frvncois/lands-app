@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { LinkIcon, HashtagIcon } from '@heroicons/vue/24/outline'
 import { useLandStore } from '@/stores/land'
 import { sortByPosition } from '@/lib/utils/position'
-import { sectionPrimitives } from '@/sections/index'
+import { sectionLabelMap, getSectionTitle } from '@/composables/useSectionTree'
 
 const SECTION_PREFIX = '#section:'
 
@@ -21,19 +21,14 @@ const emit = defineEmits<{
 }>()
 
 const landStore = useLandStore()
-const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
 
 const sectionOptions = computed(() =>
   sortByPosition(landStore.activeLand?.sections ?? [])
     .filter(s => s.type !== 'header')
-    .map(s => {
-      const c = s.content as any
-      let label: string
-      if (s.type === 'collection' || s.type === 'monetize') label = c?.collections?.[0]?.title || sectionLabelMap[s.type] || s.type
-      else if (s.type === 'store') label = c?.stores?.[0]?.title || sectionLabelMap[s.type] || s.type
-      else label = c?.title || sectionLabelMap[s.type] || s.type
-      return { id: s.id, label }
-    })
+    .map(s => ({
+      id: s.id,
+      label: getSectionTitle(s) || sectionLabelMap[s.type] || s.type,
+    }))
 )
 
 const open = ref(false)

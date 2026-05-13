@@ -9,8 +9,8 @@ import { useIsMobile } from '@/composables/useIsMobile'
 import { usePlan } from '@/composables/usePlan'
 import { sortByPosition } from '@/lib/utils/position'
 import { useSectionInsert } from '@/composables/useSectionInsert'
+import { useSectionTree } from '@/composables/useSectionTree'
 import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
-import { sectionPrimitives } from '@/sections/index'
 import type { SectionType } from '@/types/section'
 import type { TreeNode } from '@/components/ui/BaseTree.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -28,6 +28,7 @@ const themeStore = useThemeStore()
 const { isMobile } = useIsMobile()
 const { deleteSection, duplicateSection, updateTheme } = useEditorActions()
 const { insertBeforeFooter, moveTo } = useSectionInsert()
+const { sectionIconMap, sectionLabelMap, getSectionTitle, nodes } = useSectionTree()
 const { withinSectionLimit, maxSections, isPaid } = usePlan()
 
 // ─── Tab state ───
@@ -45,32 +46,10 @@ const isSubItemEditing = ref(false)
 const showSections = ref(false)
 
 // ─── Section list ───
-const sectionIconMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon]))
-const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
-
-const FIXED_LABEL_TYPES = new Set(['header', 'footer', 'campaign'])
-
-function getSectionTitle(s: { type: string; content: unknown }): string | null {
-  if (FIXED_LABEL_TYPES.has(s.type)) return null
-  const c = s.content as any
-  if (s.type === 'collection' || s.type === 'monetize') return c?.collections?.[0]?.title || null
-  if (s.type === 'store') return c?.stores?.[0]?.title || null
-  return c?.title || null
-}
-
 const sectionCount = computed(() =>
   (landStore.activeLand?.sections ?? []).filter(s => s.type !== 'header' && s.type !== 'footer').length
 )
 const atMaxSections = computed(() => !withinSectionLimit(sectionCount.value))
-
-const nodes = computed<TreeNode[]>(() =>
-  sortByPosition(landStore.activeLand?.sections ?? []).map((s) => ({
-    id: s.id,
-    label: getSectionTitle(s) || (sectionLabelMap[s.type] ?? s.type),
-    icon: sectionIconMap[s.type],
-    locked: s.type === 'header' || s.type === 'footer',
-  }))
-)
 
 function handleTreeSettings(node: TreeNode) {
   const section = landStore.activeLand?.sections.find(s => s.id === node.id)

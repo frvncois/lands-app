@@ -12,10 +12,7 @@ import FooterSettings from './settings/FooterSettings.vue'
 import CampaignSettings from './settings/CampaignSettings.vue'
 import type { Section } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
-import { sectionPrimitives } from '@/sections/index'
-
-const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
-const sectionIconMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon]))
+import { sectionLabelMap, sectionIconMap } from '@/composables/useSectionTree'
 
 const props = defineProps<{ section: Section; hideHeader?: boolean }>()
 const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
