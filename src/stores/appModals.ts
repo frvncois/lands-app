@@ -1,21 +1,20 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
+import { useDashboardDetail } from '@/composables/useDashboardDetail'
 
 type IntegrationId = 'analytics' | 'campaign' | 'collaborators' | 'sell_monetize'
-export type DashboardDetail = 'analytics' | 'orders' | 'sell' | 'campaign' | 'monetize'
 
 export const useAppModals = defineStore('appModals', () => {
   const activeModal = ref<'integrations' | 'upgrade' | null>(null)
   const activeIntegration = ref<IntegrationId | null>(null)
-  const activeDashboardDetail = ref<DashboardDetail | null>(null)
 
   function openIntegrations(integration?: IntegrationId) {
     activeModal.value = 'integrations'
     activeIntegration.value = integration ?? null
   }
 
-  function openDashboardDetail(detail: DashboardDetail) {
-    activeDashboardDetail.value = detail
+  function openDashboardDetail(detail: Parameters<ReturnType<typeof useDashboardDetail>['openDetail']>[0]) {
+    useDashboardDetail().openDetail(detail)
     activeModal.value = null
     activeIntegration.value = null
   }
@@ -30,5 +29,5 @@ export const useAppModals = defineStore('appModals', () => {
     activeIntegration.value = null
   }
 
-  return { activeModal, activeIntegration, activeDashboardDetail, openIntegrations, openDashboardDetail, openUpgrade, close }
+  return { activeModal, activeIntegration, openIntegrations, openDashboardDetail, openUpgrade, close }
 })

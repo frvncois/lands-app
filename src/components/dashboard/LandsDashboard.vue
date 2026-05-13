@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue'
 import { useAppModals } from '@/stores/appModals'
+import { useDashboardDetail, type DetailKey } from '@/composables/useDashboardDetail'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { usePlan } from '@/composables/usePlan'
@@ -38,9 +39,9 @@ import OrdersDetail from './detail/OrdersDetail.vue'
 import SellDetail from './detail/SellDetail.vue'
 import CampaignDetail from './detail/CampaignDetail.vue'
 import MonetizeDetail from './detail/MonetizeDetail.vue'
-type DetailKey = 'analytics' | 'orders' | 'sell' | 'campaign' | 'monetize'
 
 const appModals = useAppModals()
+const { activeDetail, direction, openDetail, closeDetail } = useDashboardDetail()
 const landStore = useLandStore()
 
 const displayViews = ref(0)
@@ -87,9 +88,6 @@ const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 const showShare = ref(false)
 const showCampaignModal = ref(false)
 
-const activeDetail = ref<DetailKey | null>(null)
-const direction = ref<'forward' | 'back'>('forward')
-
 const detailTitles: Record<DetailKey, string> = {
   analytics: 'Analytics',
   orders: 'Orders',
@@ -130,20 +128,8 @@ function viewLive() {
 }
 
 
-function openDetail(key: DetailKey) {
-  direction.value = 'forward'
-  activeDetail.value = key
-  appModals.activeDashboardDetail = key
-}
-
 function openStripePortal() {
   window.open('https://dashboard.stripe.com', '_blank')
-}
-
-function closeDetail() {
-  direction.value = 'back'
-  activeDetail.value = null
-  appModals.activeDashboardDetail = null
 }
 </script>
 

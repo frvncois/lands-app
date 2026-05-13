@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
+import { useDashboardDetail } from '@/composables/useDashboardDetail'
 import { useToast } from '@/composables/useToast'
 import { usePublishFlow } from '@/composables/usePublishFlow'
 import EditorPreview from '@/components/editor/EditorPreview.vue'
@@ -20,6 +21,7 @@ const router = useRouter()
 const editorStore = useEditorStore()
 const landStore = useLandStore()
 const appModals = useAppModals()
+const { activeDetail: activeDashboardDetail } = useDashboardDetail()
 const { addToast, removeToast } = useToast()
 const { publish: doPublish } = usePublishFlow()
 
@@ -65,7 +67,7 @@ watch(() => editorStore.isEditMode, syncUnpublishedToast)
       class="transition-[width] duration-500 ease-in-out overflow-hidden shrink-0 h-full"
       :class="editorStore.isEditMode
         ? 'w-0'
-        : (appModals.activeDashboardDetail === 'orders' || appModals.activeDashboardDetail === 'monetize')
+        : (activeDashboardDetail === 'orders' || activeDashboardDetail === 'monetize')
           ? 'w-full lg:w-[420px]'
           : 'w-full lg:w-72'"
     >
