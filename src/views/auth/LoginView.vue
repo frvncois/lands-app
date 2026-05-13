@@ -4,26 +4,22 @@ import { RouterLink, useRouter } from 'vue-router'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import authService from '@/services/auth.service'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthForm } from '@/composables/useAuthForm'
+import { useAuthAnimation } from '@/composables/useAuthAnimation'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const { isLoading, error, runAction } = useAuthForm()
+const { triggerSigningIn } = useAuthAnimation()
 
 const email = ref('')
 const password = ref('')
 
 async function handleLogin() {
-  authStore.setLoading(true)
-  authStore.clearError()
-  try {
+  await runAction(async () => {
     await authService.login({ email: email.value, password: password.value })
-    authStore.signingIn = true
+    triggerSigningIn()
     router.push('/dashboard')
-  } catch (e) {
-    authStore.setError((e as Error).message)
-  } finally {
-    authStore.setLoading(false)
-  }
+  })
 }
 </script>
 
@@ -35,11 +31,11 @@ async function handleLogin() {
         <h2 class="text-md text-neutral-400">Sign in to your account</h2>
       </div>
       <div class="flex flex-col gap-4 auth-form">
-        <BaseInput size="lg" label="Email" placeholder="you@example.com" v-model="email" :disabled="authStore.isLoading" />
-        <BaseInput size="lg" type="password" label="Password" placeholder="password" v-model="password" :disabled="authStore.isLoading" />
-        <p v-if="authStore.error" class="text-sm text-red-500">{{ authStore.error }}</p>
-        <BaseButton variant="solid" size="lg" :disabled="authStore.isLoading" @click="handleLogin">
-          {{ authStore.isLoading ? 'Signing in…' : 'Sign In' }}
+        <BaseInput size="lg" label="Email" placeholder="you@example.com" v-model="email" :disabled="isLoading" />
+        <BaseInput size="lg" type="password" label="Password" placeholder="password" v-model="password" :disabled="isLoading" />
+        <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+        <BaseButton variant="solid" size="lg" :disabled="isLoading" @click="handleLogin">
+          {{ isLoading ? 'Signing in…' : 'Sign In' }}
         </BaseButton>
         <RouterLink to="/auth/reset" class="text-neutral-400 text-xs text-right hover:underline">Forgot password?</RouterLink>
       </div>

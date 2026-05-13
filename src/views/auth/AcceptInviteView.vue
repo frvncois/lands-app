@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import LandsLoading from '@/components/shared/LandsLoading.vue'
+import { useAuthForm } from '@/composables/useAuthForm'
 
 const router = useRouter()
-const error = ref('')
+const { error, setError } = useAuthForm()
 
 onMounted(async () => {
   // Supabase puts the session in the URL hash: #access_token=...&type=invite
@@ -17,7 +18,7 @@ onMounted(async () => {
   const type = params.get('type')
 
   if (type !== 'invite' || !accessToken || !refreshToken) {
-    error.value = 'Invalid or expired invite link.'
+    setError('Invalid or expired invite link.')
     return
   }
 
@@ -38,7 +39,7 @@ onMounted(async () => {
 
   if (sessionError) {
     sessionStorage.removeItem('lands_invite_land')
-    error.value = sessionError.message
+    setError(sessionError.message)
     return
   }
 

@@ -4,22 +4,17 @@ import { RouterLink } from 'vue-router'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import authService from '@/services/auth.service'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthForm } from '@/composables/useAuthForm'
 
-const authStore = useAuthStore()
+const { isLoading, error, runAction } = useAuthForm()
 const email = ref('')
 const sent = ref(false)
 
 async function handleReset() {
-  authStore.setLoading(true)
-  try {
+  await runAction(async () => {
     await authService.forgotPassword(email.value)
     sent.value = true
-  } catch (e) {
-    authStore.setError((e as Error).message)
-  } finally {
-    authStore.setLoading(false)
-  }
+  })
 }
 </script>
 
@@ -33,9 +28,9 @@ async function handleReset() {
       <div class="flex flex-col gap-4 auth-form">
         <template v-if="!sent">
           <BaseInput size="lg" label="Email" placeholder="you@example.com" v-model="email" />
-          <p v-if="authStore.error" class="text-sm text-red-500">{{ authStore.error }}</p>
-          <BaseButton variant="solid" size="lg" :disabled="authStore.isLoading" @click="handleReset">
-            {{ authStore.isLoading ? 'Sending…' : 'Send reset link' }}
+          <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+          <BaseButton variant="solid" size="lg" :disabled="isLoading" @click="handleReset">
+            {{ isLoading ? 'Sending…' : 'Send reset link' }}
           </BaseButton>
         </template>
         <p v-else class="text-sm text-neutral-600">
