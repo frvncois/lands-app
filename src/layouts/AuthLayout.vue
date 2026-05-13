@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import LandsLogo from '@/assets/LandsLogo.vue'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthAnimation } from '@/composables/useAuthAnimation'
 
-const authStore = useAuthStore()
+const { signingIn } = useAuthAnimation()
 const expanded = ref(false)
 
 onMounted(() => {
   expanded.value = false
-  authStore.signingIn = false
+  signingIn.value = false
 })
 
-watch(() => authStore.signingIn, (val) => {
+watch(signingIn, (val) => {
   if (val) expanded.value = true
 })
 </script>
