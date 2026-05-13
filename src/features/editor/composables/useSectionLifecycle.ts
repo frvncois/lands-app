@@ -32,7 +32,7 @@ export function useSectionLifecycle() {
     }
 
     // Collection-type section limit: max per type (collection / store / monetize each capped separately)
-    const COLLECTION_TYPES: SectionType[] = ['collection', 'store', 'monetize']
+    const COLLECTION_TYPES: SectionType[] = ['post', 'releases', 'concert', 'store', 'monetize']
     if (COLLECTION_TYPES.includes(type)) {
       const existing = activeLand.value.sections.filter((s) => s.type === type).length
       if (!withinCollectionSectionLimit(existing)) {
@@ -67,7 +67,7 @@ export function useSectionLifecycle() {
     } as unknown as Section
 
     // Patch section_id into seeded content — use discriminant narrowing for clean access
-    if (newSection.type === 'collection' || newSection.type === 'monetize') {
+    if (newSection.type === 'post' || newSection.type === 'releases' || newSection.type === 'concert' || newSection.type === 'monetize') {
       const col = newSection.content?.collections?.[0]
       if (col) col.section_id = newSection.id
     }

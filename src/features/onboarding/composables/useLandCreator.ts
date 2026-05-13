@@ -70,7 +70,7 @@ export function useLandCreator() {
       } as unknown as Section
 
       // Patch section_id into seeded content using discriminant narrowing
-      if (section.type === 'collection' || section.type === 'monetize') {
+      if (section.type === 'post' || section.type === 'releases' || section.type === 'concert' || section.type === 'monetize') {
         const col = section.content?.collections?.[0]
         if (col) col.section_id = section.id
       }

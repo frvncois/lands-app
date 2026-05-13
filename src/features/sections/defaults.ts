@@ -29,7 +29,17 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       buttons: [],
     },
   },
-  [SECTION_TYPES.collection]: {
+  [SECTION_TYPES.post]: {
+    style_variant: COLLECTION_DISPLAY_STYLES.grid,
+    settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
+    content: null,
+  },
+  [SECTION_TYPES.releases]: {
+    style_variant: COLLECTION_DISPLAY_STYLES.grid,
+    settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
+    content: null,
+  },
+  [SECTION_TYPES.concert]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
     content: null,

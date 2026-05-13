@@ -6,7 +6,9 @@ export const SECTION_TYPES = {
   header: 'header',
   content_media: 'content_media',
   links: 'links',
-  collection: 'collection',
+  post: 'post',
+  releases: 'releases',
+  concert: 'concert',
   store: 'store',
   monetize: 'monetize',
   campaign: 'campaign',
@@ -196,7 +198,9 @@ interface BaseSection<TType extends SectionType, TContent, TSettings> {
 export type HeaderSection = BaseSection<'header', HeaderContent, HeaderSettings>
 export type ContentMediaSection = BaseSection<'content_media', ContentMediaContent, ContentMediaSettings>
 export type LinksSection = BaseSection<'links', LinksContent | null, LinksSettings>
-export type CollectionSection = BaseSection<'collection', CollectionContent | null, CollectionSettings>
+export type PostSection = BaseSection<'post', CollectionContent | null, CollectionSettings>
+export type ReleasesSection = BaseSection<'releases', CollectionContent | null, CollectionSettings>
+export type ConcertSection = BaseSection<'concert', CollectionContent | null, CollectionSettings>
 export type StoreSection = BaseSection<'store', StoreContent | null, StoreSettings>
 export type MonetizeSection = BaseSection<'monetize', MonetizeContent | null, MonetizeSettings>
 export type CampaignSection = BaseSection<'campaign', CampaignContent, CampaignSettings>
@@ -206,7 +210,9 @@ export type Section =
   | HeaderSection
   | ContentMediaSection
   | LinksSection
-  | CollectionSection
+  | PostSection
+  | ReleasesSection
+  | ConcertSection
   | StoreSection
   | MonetizeSection
   | CampaignSection

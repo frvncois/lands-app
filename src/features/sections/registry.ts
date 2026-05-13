@@ -6,7 +6,9 @@ import { SECTION_DEFAULTS } from '@/features/sections/defaults'
 import {
   UserCircleIcon,
   ListBulletIcon,
-  RectangleStackIcon,
+  DocumentTextIcon,
+  MusicalNoteIcon,
+  TicketIcon,
   ShoppingBagIcon,
   CreditCardIcon,
   MegaphoneIcon,
@@ -121,15 +123,37 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     titleFrom: (s) => (s.type === 'links' ? s.content?.title ?? null : null),
   },
 
-  collection: {
-    type: 'collection',
-    label: 'Collection',
-    description: 'Curated groups of items',
-    icon: RectangleStackIcon,
-    defaults: SECTION_DEFAULTS.collection,
+  post: {
+    type: 'post',
+    label: 'Post',
+    description: 'Articles, essays and curated content',
+    icon: DocumentTextIcon,
+    defaults: SECTION_DEFAULTS.post,
     variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
     settingsPanel: { default: CollectionSettings },
-    titleFrom: (s) => (s.type === 'collection' ? s.content?.collections?.[0]?.title ?? null : null),
+    titleFrom: (s) => (s.type === 'post' ? s.content?.collections?.[0]?.title ?? null : null),
+  },
+
+  releases: {
+    type: 'releases',
+    label: 'Releases',
+    description: 'Albums, EPs and music releases',
+    icon: MusicalNoteIcon,
+    defaults: SECTION_DEFAULTS.releases,
+    variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
+    settingsPanel: { default: CollectionSettings },
+    titleFrom: (s) => (s.type === 'releases' ? s.content?.collections?.[0]?.title ?? null : null),
+  },
+
+  concert: {
+    type: 'concert',
+    label: 'Concert',
+    description: 'Tour dates, events and shows',
+    icon: TicketIcon,
+    defaults: SECTION_DEFAULTS.concert,
+    variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
+    settingsPanel: { default: CollectionSettings },
+    titleFrom: (s) => (s.type === 'concert' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
   store: {

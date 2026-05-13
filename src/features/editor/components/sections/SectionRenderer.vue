@@ -41,7 +41,9 @@ const displaySection = computed((): Section => {
       }
       break
     }
-    case 'collection': {
+    case 'post':
+    case 'releases':
+    case 'concert': {
       if (!s.content?.collections?.length) {
         return { ...s, content: { ...s.content, collections: MOCK_COLLECTIONS } }
       }

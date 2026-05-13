@@ -11,7 +11,7 @@ import type { CollectionItem } from '@/features/sections/types/collection'
 import type { StoreItem } from '@/features/sections/types/store'
 
 const props = defineProps<{
-  type: 'collection' | 'monetize' | 'store'
+  type: 'post' | 'releases' | 'concert' | 'monetize' | 'store'
   item: CollectionItem | StoreItem
   sectionId: string
   collectionId?: string
@@ -77,7 +77,9 @@ watch(() => props.item, (item) => {
 const headerLabel = computed(() => {
   if (props.type === 'store') return 'Product'
   if (props.type === 'monetize') return 'Monetize item'
-  return 'Collection item'
+  if (props.type === 'releases') return 'Release'
+  if (props.type === 'concert') return 'Event'
+  return 'Post'
 })
 
 const headerTitle = computed(() => isStore.value ? storeTitle.value : colTitle.value)

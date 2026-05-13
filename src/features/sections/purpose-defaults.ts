@@ -38,14 +38,14 @@ export const PURPOSE_OPTIONS: PurposeOption[] = [
     label: 'Artist',
     description: 'Share your visual art, music or creative practice',
     icon: MusicalNoteIcon,
-    sections: ['header', 'content_media', 'collection', 'store', 'campaign', 'footer'],
+    sections: ['header', 'content_media', 'releases', 'concert', 'store', 'campaign', 'footer'],
   },
   {
     id: 'product',
     label: 'Product',
     description: 'Sell products or digital goods',
     icon: ShoppingBagIcon,
-    sections: ['header', 'content_media', 'store', 'campaign', 'footer'],
+    sections: ['header', 'content_media', 'post', 'store', 'campaign', 'footer'],
   },
   {
     id: 'business',
@@ -59,21 +59,21 @@ export const PURPOSE_OPTIONS: PurposeOption[] = [
     label: 'Creator',
     description: 'Centralise your content and links',
     icon: DevicePhoneMobileIcon,
-    sections: ['header', 'content_media', 'collection', 'store', 'links', 'footer'],
+    sections: ['header', 'content_media', 'post', 'releases', 'store', 'links', 'footer'],
   },
   {
     id: 'event',
     label: 'Event',
     description: 'Promote a conference, concert or meetup',
     icon: TicketIcon,
-    sections: ['header', 'content_media', 'collection', 'store', 'campaign', 'footer'],
+    sections: ['header', 'content_media', 'concert', 'store', 'campaign', 'footer'],
   },
   {
     id: 'writing',
     label: 'Writing',
     description: 'Share articles, essays or newsletters',
     icon: PencilIcon,
-    sections: ['header', 'links', 'collection', 'footer'],
+    sections: ['header', 'links', 'post', 'footer'],
   },
 ]
 
@@ -95,7 +95,9 @@ interface LinksSeed {
 }
 
 interface PurposeSeeds {
-  collection: CollectionSeed[]
+  post: CollectionSeed[]
+  releases: CollectionSeed[]
+  concert: CollectionSeed[]
   store: StoreSeed[]
   monetize: CollectionSeed[]
   links: LinksSeed[]
@@ -106,10 +108,11 @@ interface PurposeSeeds {
 
 const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   artist: {
-    collection: [
-      { title: 'Albums', description: 'Discography', itemTitles: ['First Light', 'Midnight Sessions', 'The Blue EP'] },
-      { title: 'Events', description: 'Upcoming shows', itemTitles: ['Summer Tour 2026', 'Album Release Show', 'Festival Set'] },
-      { title: 'Photos', description: 'Gallery', itemTitles: ['Live at the Venue', 'Studio Shots', 'Behind the Scenes'] },
+    releases: [
+      { title: 'Discography', description: 'My albums and EPs', itemTitles: ['First Light', 'Midnight Sessions', 'The Blue EP'] },
+    ],
+    concert: [
+      { title: 'Tour Dates', description: 'Upcoming shows', itemTitles: ['Summer Tour 2026', 'Album Release Show', 'Festival Set'] },
     ],
     store: [
       { title: 'Merch', itemSeeds: [{ title: 'Tote Bag', price: 25 }, { title: 'Hoodie', price: 65 }, { title: 'Poster', price: 18 }] },
@@ -121,13 +124,13 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   product: {
+    post: [
+      { title: 'Features', description: 'What makes it great', itemTitles: ['Speed', 'Simplicity', 'Power'] },
+      { title: 'Testimonials', description: 'What people say', itemTitles: ['Happy Customer', 'Case Study', 'Press Quote'] },
+    ],
     store: [
       { title: 'Products', itemSeeds: [{ title: 'Starter Kit', price: 39 }, { title: 'Pro Bundle', price: 89 }, { title: 'Premium Plan', price: 149 }] },
       { title: 'Digital Goods', itemSeeds: [{ title: 'Template Pack', price: 29 }, { title: 'Design Kit', price: 49 }] },
-    ],
-    collection: [
-      { title: 'Features', description: 'What makes it great', itemTitles: ['Speed', 'Simplicity', 'Power'] },
-      { title: 'Testimonials', description: 'What people say', itemTitles: ['Happy Customer', 'Case Study', 'Press Quote'] },
     ],
     links: [
       { items: [{ title: 'Documentation', url: '#' }, { title: 'GitHub', url: '#' }, { title: 'Twitter', url: '#' }] },
@@ -135,7 +138,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   business: {
-    collection: [
+    post: [
       { title: 'Services', description: 'What we offer', itemTitles: ['Consulting', 'Strategy', 'Execution', 'Support'] },
       { title: 'Team', description: 'Who we are', itemTitles: ['Founder', 'Lead Designer', 'Developer'] },
       { title: 'Work', description: 'Selected projects', itemTitles: ['Client A', 'Client B', 'Client C'] },
@@ -146,10 +149,13 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   creator: {
-    collection: [
+    post: [
       { title: 'Videos', description: 'Latest content', itemTitles: ['Episode 1', 'Episode 2', 'Episode 3', 'Episode 4'] },
       { title: 'Articles', description: 'Writing', itemTitles: ['Post Title', 'Post Title', 'Post Title'] },
       { title: 'Courses', description: 'Learn from me', itemTitles: ['Intro Course', 'Advanced Workshop', 'Masterclass'] },
+    ],
+    releases: [
+      { title: 'Albums', description: 'Music releases', itemTitles: ['First Album', 'EP', 'Single'] },
     ],
     store: [
       { title: 'Shop', itemSeeds: [{ title: 'Course Bundle', price: 99 }, { title: 'Template Pack', price: 29 }, { title: 'Coaching Call', price: 199 }] },
@@ -160,7 +166,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   event: {
-    collection: [
+    concert: [
       { title: 'Schedule', description: "What's on", itemTitles: ['Opening Keynote', 'Workshop', 'Panel Discussion', 'Closing Night'] },
       { title: 'Speakers', description: 'Featured guests', itemTitles: ['Speaker 1', 'Speaker 2', 'Speaker 3'] },
       { title: 'Partners', description: "Who's involved", itemTitles: ['Sponsor A', 'Sponsor B', 'Media Partner'] },
@@ -174,7 +180,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   writing: {
-    collection: [
+    post: [
       { title: 'Articles', description: 'Long-form writing', itemTitles: ['Essay Title', 'Essay Title', 'Essay Title', 'Essay Title'] },
       { title: 'Essays', description: 'Selected pieces', itemTitles: ['Deep Dive', 'Op-Ed', 'Reflection'] },
       { title: 'Projects', description: 'Longer work', itemTitles: ['Book in Progress', 'Newsletter Archive'] },
@@ -185,8 +191,17 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   custom: {
-    collection: [
+    post: [
       { title: 'Collection', description: '', itemTitles: ['Item', 'Item', 'Item'] },
+    ],
+    releases: [
+      { title: 'Releases', description: '', itemTitles: ['Item', 'Item', 'Item'] },
+    ],
+    concert: [
+      { title: 'Events', description: '', itemTitles: ['Item', 'Item', 'Item'] },
+    ],
+    monetize: [
+      { title: 'Membership', description: '', itemTitles: ['Item', 'Item'] },
     ],
     store: [
       { title: 'Store', itemSeeds: [{ title: 'Product', price: 29 }, { title: 'Product', price: 49 }] },
@@ -226,8 +241,8 @@ export function buildSectionContent(
   const p = (purpose as Purpose | undefined) ?? 'custom'
   const seeds = SEEDS[p] ?? FALLBACK
 
-  if (type === 'collection' || type === 'monetize') {
-    const variants = seeds.collection ?? FALLBACK.collection
+  if (type === 'post' || type === 'releases' || type === 'concert') {
+    const variants = seeds[type] ?? FALLBACK[type]
     const seed = variants[existingCount % variants.length]!
     const collectionId = crypto.randomUUID()
     const positions = makePositions(seed.itemTitles.length)
@@ -236,7 +251,34 @@ export function buildSectionContent(
       section_id: '',
       title: seed.title,
       description: seed.description,
-      ...(type === 'monetize' ? { price: 9 } : {}),
+      position: generatePositionAfter(null),
+      items: seed.itemTitles.map((title, i) => ({
+        id: crypto.randomUUID(),
+        collection_id: collectionId,
+        title,
+        subtitle: '',
+        description: '',
+        media_url: '',
+        content: '',
+        external_url: '',
+        position: positions[i]!,
+        created_at: new Date().toISOString(),
+      })),
+    }
+    return { collections: [col] }
+  }
+
+  if (type === 'monetize') {
+    const variants = seeds.monetize ?? FALLBACK.monetize
+    const seed = variants[existingCount % variants.length]!
+    const collectionId = crypto.randomUUID()
+    const positions = makePositions(seed.itemTitles.length)
+    const col: Collection = {
+      id: collectionId,
+      section_id: '',
+      title: seed.title,
+      description: seed.description,
+      price: 9,
       position: generatePositionAfter(null),
       items: seed.itemTitles.map((title, i) => ({
         id: crypto.randomUUID(),
