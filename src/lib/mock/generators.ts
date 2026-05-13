@@ -33,15 +33,14 @@ const SURFACE_COLORS = ['#F4F4F5', '#FAF9F6', '#1E293B', '#FEF3C7']
 export function createMockTheme(_landId?: string, overrides?: Partial<LandTheme>): LandTheme {
   const preset = faker.helpers.arrayElement([...PRESET_OPTIONS])
   const presetDef = THEME_PRESET_DEFINITIONS[preset]
-  const titleFont = faker.helpers.arrayElement(presetDef.fonts.title)
-  const bodyFont = faker.helpers.arrayElement(presetDef.fonts.body)
+  const pairing = faker.helpers.arrayElement(presetDef.pairings)
   return {
     theme_preset: preset,
     color_main: faker.helpers.arrayElement(MAIN_COLORS),
     color_accent: faker.helpers.arrayElement(ACCENT_COLORS),
     color_surface: faker.helpers.arrayElement(SURFACE_COLORS),
-    font_title: titleFont.fontFamily,
-    font_body: bodyFont.fontFamily,
+    font_title: pairing.titleFont,
+    font_body: pairing.bodyFont,
     ...overrides,
   }
 }

@@ -23,9 +23,9 @@ export interface Land {
   custom_domain: string | null
   custom_domain_status: 'pending' | 'active' | 'error' | null
   campaign_integration: CampaignIntegration | null
-  meta_title?: string
-  meta_description?: string
-  og_image?: string
+  meta_title?: string | null
+  meta_description?: string | null
+  og_image?: string | null
   is_published: boolean
   is_private: boolean
   private_password: string | null

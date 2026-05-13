@@ -88,14 +88,12 @@ watch(selectedTheme, (theme) => {
 
 // Load google fonts when font changes
 watch(fontTitle, (val) => {
-  const opts = THEME_PRESET_DEFINITIONS[selectedTheme.value].fonts.title
-  const opt = opts.find(o => o.fontFamily === val)
-  if (opt?.googleFont) loadGoogleFont(opt.googleFont)
+  const opt = THEME_PRESET_DEFINITIONS[selectedTheme.value].pairings.find(o => o.titleFont === val)
+  if (opt?.titleGoogleFont) loadGoogleFont(opt.titleGoogleFont)
 })
 watch(fontBody, (val) => {
-  const opts = THEME_PRESET_DEFINITIONS[selectedTheme.value].fonts.body
-  const opt = opts.find(o => o.fontFamily === val)
-  if (opt?.googleFont) loadGoogleFont(opt.googleFont)
+  const opt = THEME_PRESET_DEFINITIONS[selectedTheme.value].pairings.find(o => o.bodyFont === val)
+  if (opt?.bodyGoogleFont) loadGoogleFont(opt.bodyGoogleFont)
 })
 
 // ─── Validation ───
@@ -406,13 +404,15 @@ const currentThemeDef = computed(() => THEME_PRESET_DEFINITIONS[selectedTheme.va
             <p class="text-sm font-medium text-gray-700">Title font</p>
             <div class="grid grid-cols-4 gap-2">
               <BaseFont
-                v-for="opt in currentThemeDef.fonts.title"
+                v-for="opt in currentThemeDef.pairings"
                 :key="opt.id"
                 :label="opt.label"
-                :font-family="opt.fontFamily"
-                :google-font="opt.googleFont"
-                :active="fontTitle === opt.fontFamily"
-                @click="fontTitle = opt.fontFamily"
+                :titleFont="opt.titleFont"
+                :bodyFont="opt.bodyFont"
+                :titleGoogleFont="opt.titleGoogleFont"
+                :bodyGoogleFont="opt.bodyGoogleFont"
+                :active="fontTitle === opt.titleFont"
+                @click="fontTitle = opt.titleFont"
               />
             </div>
           </div>
@@ -422,13 +422,15 @@ const currentThemeDef = computed(() => THEME_PRESET_DEFINITIONS[selectedTheme.va
             <p class="text-sm font-medium text-gray-700">Body font</p>
             <div class="grid grid-cols-4 gap-2">
               <BaseFont
-                v-for="opt in currentThemeDef.fonts.body"
+                v-for="opt in currentThemeDef.pairings"
                 :key="opt.id"
                 :label="opt.label"
-                :font-family="opt.fontFamily"
-                :google-font="opt.googleFont"
-                :active="fontBody === opt.fontFamily"
-                @click="fontBody = opt.fontFamily"
+                :titleFont="opt.titleFont"
+                :bodyFont="opt.bodyFont"
+                :titleGoogleFont="opt.titleGoogleFont"
+                :bodyGoogleFont="opt.bodyGoogleFont"
+                :active="fontBody === opt.bodyFont"
+                @click="fontBody = opt.bodyFont"
               />
             </div>
           </div>

@@ -95,7 +95,7 @@ export const landService = {
     }
   },
 
-  async updateLand(id: string, updates: Partial<Pick<Land, 'handle' | 'title' | 'description' | 'avatar_image' | 'cover_image' | 'plan' | 'is_published' | 'is_private' | 'private_password'>>): Promise<void> {
+  async updateLand(id: string, updates: Partial<Pick<Land, 'handle' | 'title' | 'description' | 'avatar_image' | 'cover_image' | 'plan' | 'is_published' | 'is_private' | 'private_password' | 'meta_title' | 'meta_description' | 'og_image'>>): Promise<void> {
     const { error } = await supabase
       .from('lands')
       .update({ ...updates, updated_at: new Date().toISOString() })

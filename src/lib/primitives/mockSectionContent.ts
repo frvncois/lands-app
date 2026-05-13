@@ -28,13 +28,14 @@ export const MOCK_STORES: Store[] = [
     id: 'mock-store-1',
     section_id: '',
     title: '[ Store Name ]',
+    description: '',
     mode: 'products',
     membership_price: 0,
     position: 'a',
     items: [
-      { id: 'mock-store-item-1', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 29, variants: [], inventory: 0, product_type: 'physical', file_url: '', position: 'a', created_at: '' },
-      { id: 'mock-store-item-2', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 49, variants: [], inventory: 0, product_type: 'physical', file_url: '', position: 'b', created_at: '' },
-      { id: 'mock-store-item-3', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 19, variants: [], inventory: 0, product_type: 'physical', file_url: '', position: 'c', created_at: '' },
+      { id: 'mock-store-item-1', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 29, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'a', created_at: '' },
+      { id: 'mock-store-item-2', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 49, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'b', created_at: '' },
+      { id: 'mock-store-item-3', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 19, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'c', created_at: '' },
     ],
   },
 ]

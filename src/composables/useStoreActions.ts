@@ -59,6 +59,7 @@ export function useStoreActions() {
         type: s.mode === 'membership' ? 'membership' : 'product',
         id: crypto.randomUUID(),
         store_id: storeId,
+        content: '',
         position: generatePositionAfter(sorted[sorted.length - 1]?.position ?? null),
         created_at: new Date().toISOString(),
       }
