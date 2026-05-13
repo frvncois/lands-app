@@ -5,7 +5,7 @@ import BaseButton from '@/shared/ui/BaseButton.vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import { addToast } from '@/shared/composables/useToast'
 import { THEME_PRESET_DEFINITIONS } from '@/features/theme/presets'
-import { PURPOSE_OPTIONS } from '@/features/sections/purposeDefaults'
+import { PURPOSE_OPTIONS } from '@/features/sections/purpose-defaults'
 import { THEME_PRESETS, type ThemePreset } from '@/features/theme/types'
 import { useLandCreator } from '@/features/onboarding/composables/useLandCreator'
 const emit = defineEmits<{ close: [] }>()

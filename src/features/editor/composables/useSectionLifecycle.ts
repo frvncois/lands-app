@@ -5,7 +5,7 @@ import { addToast } from '@/shared/composables/useToast'
 import { usePlan } from '@/features/plan/composables/usePlan'
 import { sortByPosition, generatePositionBetween } from '@/shared/lib/position'
 import { SECTION_DEFAULTS } from '@/features/sections/defaults'
-import { buildSectionContent } from '@/features/sections/purposeDefaults'
+import { buildSectionContent } from '@/features/sections/purpose-defaults'
 import { storageService, extractSectionUrls } from '@/features/integrations/services/storage.service'
 import type { Section, SectionType } from '@/features/sections/types'
 
