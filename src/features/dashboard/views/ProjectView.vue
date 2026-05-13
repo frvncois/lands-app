@@ -3,7 +3,6 @@ import { watch, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { useLandStore } from '@/features/lands/stores/land'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
 import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
 import { addToast, removeToast } from '@/shared/composables/useToast'
 import { usePublishFlow } from '@/features/editor/composables/usePublishFlow'
@@ -20,7 +19,6 @@ const route = useRoute()
 const router = useRouter()
 const editorStore = useEditorStore()
 const landStore = useLandStore()
-const appModals = useAppModals()
 const { activeDetail: activeDashboardDetail } = useDashboardDetail()
 const { publish: doPublish } = usePublishFlow()
 

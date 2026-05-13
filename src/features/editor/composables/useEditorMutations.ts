@@ -4,7 +4,7 @@ import { useEditorStore } from '@/features/editor/stores/editor'
 import { useThemeStore } from '@/features/theme/stores/theme'
 import { addToast } from '@/shared/composables/useToast'
 import { landService } from '@/features/lands/services/land.service'
-import type { Section, SectionSettings } from '@/features/sections/types'
+import type { Section } from '@/features/sections/types'
 import type { LandTheme } from '@/features/theme/types'
 
 export function useEditorMutations() {

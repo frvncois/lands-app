@@ -7,15 +7,6 @@ const props = defineProps<{ section: Section }>()
 const c = computed(() => props.section.type === 'content_media' ? props.section.content : null)
 const reversed = computed(() => props.section.style_variant === 'reversed')
 
-function getEmbedUrl(url: string): string | null {
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/)
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`
-  const vm = url.match(/vimeo\.com\/(\d+)/)
-  if (vm) return `https://player.vimeo.com/video/${vm[1]}`
-  return null
-}
-
-const embedUrl = computed(() => c.value?.media_type === 'video' ? getEmbedUrl(c.value.media_url) : null)
 </script>
 
 <template>

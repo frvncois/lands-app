@@ -1,4 +1,4 @@
-import { generateKeyBetween, generateNKeysBetween } from 'fractional-indexing'
+import { generateKeyBetween } from 'fractional-indexing'
 
 /**
  * Generate a position key for inserting at the end of a list.

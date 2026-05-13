@@ -7,9 +7,7 @@ import { sortByPosition, generatePositionBetween } from '@/shared/lib/position'
 import { SECTION_DEFAULTS } from '@/features/sections/defaults'
 import { buildSectionContent } from '@/features/sections/purposeDefaults'
 import { storageService, extractSectionUrls } from '@/features/integrations/services/storage.service'
-import type { Section, SectionType, SectionSettings } from '@/features/sections/types'
-import type { Collection } from '@/features/sections/types/collection'
-import type { Store } from '@/features/sections/types/store'
+import type { Section, SectionType } from '@/features/sections/types'
 
 export function useSectionLifecycle() {
   const landStore = useLandStore()

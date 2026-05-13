@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { UserCircleIcon, LockClosedIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { UserCircleIcon, LockClosedIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/shared/ui/BaseButton.vue';
 import BaseInput from '@/shared/ui/BaseInput.vue';
 import ConfirmDeleteAccountModal from '@/features/modals/modals/ConfirmDeleteAccountModal.vue'
