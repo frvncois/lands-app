@@ -14,18 +14,19 @@ import {
   NewspaperIcon,
 } from '@heroicons/vue/24/outline'
 
-// Settings panels — sync imports (small, always needed in the editor)
-import HeaderDefaultSettings from '@/features/editor/components/settings/header/HeaderDefaultSettings.vue'
-import HeaderMinimalSettings from '@/features/editor/components/settings/header/HeaderMinimalSettings.vue'
-import HeaderStructureSettings from '@/features/editor/components/settings/header/HeaderStructureSettings.vue'
-import FooterDefaultSettings from '@/features/editor/components/settings/footer/FooterDefaultSettings.vue'
-import FooterMinimalSettings from '@/features/editor/components/settings/footer/FooterMinimalSettings.vue'
-import ContentMediaSettings from '@/features/editor/components/settings/ContentMediaSettings.vue'
-import ListSettings from '@/features/editor/components/settings/ListSettings.vue'
-import CollectionSettings from '@/features/editor/components/settings/CollectionSettings.vue'
-import StoreSettings from '@/features/editor/components/settings/StoreSettings.vue'
-import MonetizeSettings from '@/features/editor/components/settings/MonetizeSettings.vue'
-import CampaignSettings from '@/features/editor/components/settings/CampaignSettings.vue'
+// Settings panels — lazy to avoid circular import:
+// registry → settingsPanel → BaseLinkPicker → useSectionTree → sections/index → registry (TDZ)
+const HeaderDefaultSettings  = defineAsyncComponent(() => import('@/features/editor/components/settings/header/HeaderDefaultSettings.vue'))
+const HeaderMinimalSettings  = defineAsyncComponent(() => import('@/features/editor/components/settings/header/HeaderMinimalSettings.vue'))
+const HeaderStructureSettings = defineAsyncComponent(() => import('@/features/editor/components/settings/header/HeaderStructureSettings.vue'))
+const FooterDefaultSettings  = defineAsyncComponent(() => import('@/features/editor/components/settings/footer/FooterDefaultSettings.vue'))
+const FooterMinimalSettings  = defineAsyncComponent(() => import('@/features/editor/components/settings/footer/FooterMinimalSettings.vue'))
+const ContentMediaSettings   = defineAsyncComponent(() => import('@/features/editor/components/settings/ContentMediaSettings.vue'))
+const ListSettings           = defineAsyncComponent(() => import('@/features/editor/components/settings/ListSettings.vue'))
+const CollectionSettings     = defineAsyncComponent(() => import('@/features/editor/components/settings/CollectionSettings.vue'))
+const StoreSettings          = defineAsyncComponent(() => import('@/features/editor/components/settings/StoreSettings.vue'))
+const MonetizeSettings       = defineAsyncComponent(() => import('@/features/editor/components/settings/MonetizeSettings.vue'))
+const CampaignSettings       = defineAsyncComponent(() => import('@/features/editor/components/settings/CampaignSettings.vue'))
 
 // Variant components — async so each theme variant is a separate lazy chunk
 const HeaderMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/header/HeaderMinimal.vue'))

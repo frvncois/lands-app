@@ -4,7 +4,7 @@ import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import type { Section } from '@/features/sections/types'
 import { useSectionSnapshot } from '@/features/editor/composables/useSectionSnapshot'
-import { sectionLabelMap, sectionIconMap } from '@/features/editor/composables/useSectionTree'
+import { useSectionTree } from '@/features/editor/composables/useSectionTree'
 import { SECTION_REGISTRY } from '@/features/sections/registry'
 import { useThemeStore } from '@/features/theme/stores/theme'
 
@@ -12,6 +12,7 @@ const props = defineProps<{ section: Section; hideHeader?: boolean }>()
 const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
 
 const themeStore = useThemeStore()
+const { sectionLabelMap, sectionIconMap } = useSectionTree()
 
 // ─── Registry-driven settings panel (resolved by theme preset) ───
 const settingsPanelComponent = computed(() => {

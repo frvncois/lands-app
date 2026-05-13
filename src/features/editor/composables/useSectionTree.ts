@@ -1,11 +1,21 @@
 import { computed } from 'vue'
+import type { FunctionalComponent } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { sortByPosition } from '@/shared/lib/position'
 import { sectionPrimitives } from '@/features/sections/index'
 import type { TreeNode } from '@/shared/ui/BaseTree.vue'
 
-export const sectionIconMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon]))
-export const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
+// Lazy memoized maps — NOT computed at module init time.
+// Deferring past module init breaks the TDZ cycle:
+//   registry → settingsPanel → BaseLinkPicker → useSectionTree → sections/index → registry
+let _iconMap: Record<string, FunctionalComponent> | null = null
+let _labelMap: Record<string, string> | null = null
+function getSectionIconMap() {
+  return (_iconMap ??= Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon])))
+}
+function getSectionLabelMap() {
+  return (_labelMap ??= Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label])))
+}
 
 const FIXED_LABEL_TYPES = new Set(['header', 'footer', 'campaign'])
 
@@ -19,6 +29,8 @@ export function getSectionTitle(s: { type: string; content: unknown }): string |
 
 export function useSectionTree() {
   const landStore = useLandStore()
+  const sectionIconMap = getSectionIconMap()
+  const sectionLabelMap = getSectionLabelMap()
 
   const nodes = computed<TreeNode[]>(() =>
     sortByPosition(landStore.activeLand?.sections ?? []).map((s) => ({

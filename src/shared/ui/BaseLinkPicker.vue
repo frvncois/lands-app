@@ -3,7 +3,9 @@ import { ref, computed } from 'vue'
 import { LinkIcon, HashtagIcon } from '@heroicons/vue/24/outline'
 import { useLandStore } from '@/features/lands/stores/land'
 import { sortByPosition } from '@/shared/lib/position'
-import { sectionLabelMap, getSectionTitle } from '@/features/editor/composables/useSectionTree'
+import { useSectionTree, getSectionTitle } from '@/features/editor/composables/useSectionTree'
+
+const { sectionLabelMap } = useSectionTree()
 
 const SECTION_PREFIX = '#section:'
 
