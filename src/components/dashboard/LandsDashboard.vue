@@ -4,7 +4,6 @@ import { useDashboardDetail } from '@/composables/useDashboardDetail'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { usePlan } from '@/composables/usePlan'
-import { useRouter } from 'vue-router'
 import {
   CurrencyDollarIcon,
   ShoppingBagIcon,
@@ -20,7 +19,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
 import SetupCampaignSettings from '@/components/editor/settings/SetupCampaignSettings.vue'
-import { visitData, totalViews, avgPerDay } from '@/lib/mock/analytics'
+import { visitData, totalViews } from '@/lib/mock/analytics'
 import { orderStats } from '@/lib/mock/orders'
 import { monetizeStats } from '@/lib/mock/monetize'
 import NumberFlow from '@number-flow/vue'
@@ -32,7 +31,7 @@ import UpgradeCard from '@/components/dashboard/cards/UpgradeCard.vue'
 import CampaignCard from '@/components/dashboard/cards/CampaignCard.vue'
 import DashboardDetail from '@/components/dashboard/DashboardDetail.vue'
 
-const { activeDetail, direction, openDetail, closeDetail } = useDashboardDetail()
+const { activeDetail, direction, openDetail } = useDashboardDetail()
 const landStore = useLandStore()
 
 // displayRevenue is intentionally excluded: it was always 0 (never set in triggerCountUp) — dead animation
@@ -44,11 +43,7 @@ const { display: countUp, trigger: triggerCountUp } = useCountUpStats({
   monetizeSubscribers: monetizeStats.subscribers,
   monetizeRevenue: monetizeStats.revenueMonthly,
 })
-const displayViews = countUp.views
-const displayOrderNew = countUp.orderNew
-const displayOrderShipped = countUp.orderShipped
-const displayMonetizeSubscribers = countUp.monetizeSubscribers
-const displayMonetizeRevenue = countUp.monetizeRevenue
+const { views: displayViews, orderNew: displayOrderNew, orderShipped: displayOrderShipped, monetizeSubscribers: displayMonetizeSubscribers, monetizeRevenue: displayMonetizeRevenue } = countUp
 
 onMounted(triggerCountUp)
 
@@ -65,7 +60,6 @@ const stopInitWatch = watch(() => landStore.activeLandId, (id) => {
 watch(() => landStore.activeLandId, triggerCountUp)
 const editorStore = useEditorStore()
 const { canUseCampaign, isPaid } = usePlan()
-const router = useRouter()
 const showShare = ref(false)
 const showCampaignModal = ref(false)
 
@@ -81,13 +75,7 @@ const hasStoreItems = computed(() => {
     })
 })
 
-const hasMonetizeItems = computed(() =>
-  (landStore.activeLand?.sections ?? []).some((s) => s.type === 'monetize')
-)
-
-const hasCampaignSection = computed(() =>
-  (landStore.activeLand?.sections ?? []).some((s) => s.type === 'campaign')
-)
+const hasMonetizeItems = computed(() => (landStore.activeLand?.sections ?? []).some((s) => s.type === 'monetize'))
 
 // ─── Actions ───
 
@@ -100,7 +88,6 @@ function viewLive() {
   if (handle) window.open(`https://${handle}.lands.app`, '_blank')
 }
 </script>
-
 <template>
   <aside class="w-full h-full flex flex-col overflow-hidden relative min-w-72">
     <Transition name="modal-fade">
@@ -160,13 +147,10 @@ function viewLive() {
           </div>
         </BaseCard>
 
-
         <!-- Analytics -->
         <MetricCard :icon="ChartBarIcon" title="Analytics" :animation-delay="100" show-view-more @view-more="openDetail('analytics')">
           <BaseChart :data="visitData" :height="80" />
         </MetricCard>
-
-
 
         <!-- Sell & Monetize (no Stripe) -->
         <ConnectStripeCard v-if="!landStore.isStripeConnected" />
@@ -223,8 +207,6 @@ function viewLive() {
         <!-- Campaign -->
         <CampaignCard v-if="canUseCampaign" @setup-campaign="showCampaignModal = true" />
 
-
-
       </div>
       </Transition>
     </Transition>
@@ -262,5 +244,4 @@ function viewLive() {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 </style>
