@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { RectangleStackIcon } from '@heroicons/vue/24/outline'
 import BaseInput from '../../ui/BaseInput.vue'
 import BaseButton from '../../ui/BaseButton.vue'
@@ -18,28 +18,18 @@ const { isMinimalTheme } = useThemePreset()
 
 const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useEditorActions()
 
-const collectionTitle = ref('')
-const collectionDescription = ref('')
-
 const collection = computed(() => ((props.section.content as any)?.collections?.[0] ?? null) as Collection | null)
 const collectionItems = computed(() => collection.value ? sortByPosition(collection.value.items) : [])
 
-function sync() {
-  collectionTitle.value = (props.section.content as any)?.collections?.[0]?.title ?? ''
-  collectionDescription.value = (props.section.content as any)?.collections?.[0]?.description ?? ''
-}
+const collectionTitle = computed({
+  get: () => collection.value?.title ?? '',
+  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { title: v }) },
+})
 
-sync()
-watch(() => props.section.id, sync)
-
-function saveTitle() {
-  if (!collection.value) return
-  updateCollection(props.section.id, collection.value.id, { title: collectionTitle.value })
-}
-function saveDescription() {
-  if (!collection.value) return
-  updateCollection(props.section.id, collection.value.id, { description: collectionDescription.value })
-}
+const collectionDescription = computed({
+  get: () => collection.value?.description ?? '',
+  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { description: v }) },
+})
 
 const collectionTreeNodes = computed<TreeNode[]>(() =>
   collectionItems.value.map((item) => ({
@@ -99,8 +89,8 @@ defineExpose({ addItem })
 
 <template>
   <div class="flex flex-col gap-4 p-2 pr-0">
-    <BaseInput size="sm" label="Title" v-model="collectionTitle" placeholder="My Collection" @update:modelValue="saveTitle" />
-    <BaseInput v-if="isMinimalTheme" size="sm" type="textarea" label="Description" v-model="collectionDescription" placeholder="A short description…" @update:modelValue="saveDescription" />
+    <BaseInput size="sm" label="Title" v-model="collectionTitle" placeholder="My Collection" />
+    <BaseInput v-if="isMinimalTheme" size="sm" type="textarea" label="Description" v-model="collectionDescription" placeholder="A short description…" />
     <div class="flex flex-col gap-2">
       <span class="text-xs font-medium text-gray-500">Collection items</span>
       <div v-if="collectionItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">

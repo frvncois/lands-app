@@ -7,43 +7,30 @@ import BaseButton from '../../ui/BaseButton.vue'
 import BaseToggle from '../../ui/BaseToggle.vue'
 import type { ContentMediaSection, ContentMediaButton } from '@/types/section'
 import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionForm } from '@/composables/useSectionForm'
 import { useThemePreset } from '@/composables/useThemePreset'
 
 const props = defineProps<{ section: ContentMediaSection }>()
 
 const { isStructureTheme } = useThemePreset()
-
 const { updateSectionContent, updateSectionStyleVariant } = useEditorActions()
+const { contentField } = useSectionForm(() => props.section)
 
-const cmMediaType = ref<'image' | 'video'>('image')
-const cmMediaUrl = ref('')
-const cmTitle = ref('')
-const cmSubtitle = ref('')
-const cmBody = ref('')
+const mediaType = contentField<'image' | 'video'>('media_type', 'image')
+const mediaUrl = contentField('media_url', '')
+const title = contentField('title', '')
+const subtitle = contentField('subtitle', '')
+const body = contentField('body', '')
 const cmButtons = ref<ContentMediaButton[]>([])
 
-function sync() {
-  const c = props.section.content
-  cmMediaType.value = c?.media_type ?? 'image'
-  cmMediaUrl.value = c?.media_url ?? ''
-  cmTitle.value = c?.title ?? ''
-  cmSubtitle.value = c?.subtitle ?? ''
-  cmBody.value = c?.body ?? ''
-  cmButtons.value = c?.buttons ? JSON.parse(JSON.stringify(c.buttons)) : []
+function syncButtons() {
+  cmButtons.value = JSON.parse(JSON.stringify(props.section.content?.buttons ?? []))
 }
-
-sync()
-watch(() => props.section.id, sync)
+syncButtons()
+watch(() => props.section.id, syncButtons)
 
 function save() {
-  updateSectionContent(props.section.id, {
-    media_type: cmMediaType.value,
-    media_url: cmMediaUrl.value,
-    title: cmTitle.value,
-    subtitle: cmSubtitle.value,
-    body: cmBody.value,
-    buttons: cmButtons.value,
-  })
+  updateSectionContent(props.section.id, { buttons: cmButtons.value })
 }
 
 function addButton() {
@@ -65,21 +52,21 @@ function removeButton(id: string) {
       <div class="flex gap-1 p-0.5 bg-gray-100 rounded-lg w-fit text-xs">
         <button
           class="px-3 py-1 rounded-md transition-colors"
-          :class="cmMediaType === 'image' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'"
-          @click="cmMediaType = 'image'; save()"
+          :class="mediaType === 'image' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+          @click="mediaType = 'image'"
         >Image</button>
         <button
           class="px-3 py-1 rounded-md transition-colors"
-          :class="cmMediaType === 'video' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'"
-          @click="cmMediaType = 'video'; save()"
+          :class="mediaType === 'video' ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'"
+          @click="mediaType = 'video'"
         >Video</button>
       </div>
-      <BaseUpload v-if="cmMediaType === 'image'" type="image" size="sm" label="" v-model="cmMediaUrl" @update:modelValue="save" />
-      <BaseInput v-else size="sm" label="" v-model="cmMediaUrl" placeholder="YouTube, Vimeo, or direct video URL…" @update:modelValue="save" />
+      <BaseUpload v-if="mediaType === 'image'" type="image" size="sm" label="" v-model="mediaUrl" />
+      <BaseInput v-else size="sm" label="" v-model="mediaUrl" placeholder="YouTube, Vimeo, or direct video URL…" />
     </div>
-    <BaseInput size="sm" label="Title" v-model="cmTitle" placeholder="Your headline" @update:modelValue="save" />
-    <BaseInput size="sm" label="Subtitle" v-model="cmSubtitle" placeholder="Eyebrow text" @update:modelValue="save" />
-    <BaseInput size="sm" type="textarea" label="Body" v-model="cmBody" placeholder="Supporting text" @update:modelValue="save" />
+    <BaseInput size="sm" label="Title" v-model="title" placeholder="Your headline" />
+    <BaseInput size="sm" label="Subtitle" v-model="subtitle" placeholder="Eyebrow text" />
+    <BaseInput size="sm" type="textarea" label="Body" v-model="body" placeholder="Supporting text" />
     <div class="flex flex-col gap-2">
       <div class="flex justify-between">
         <p class="text-xs font-medium text-gray-500">Links</p>

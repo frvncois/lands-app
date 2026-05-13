@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { MegaphoneIcon, PuzzlePieceIcon } from '@heroicons/vue/24/outline'
 import BaseInput from '../../ui/BaseInput.vue'
 import BaseButton from '../../ui/BaseButton.vue'
@@ -7,7 +7,7 @@ import BaseToggle from '../../ui/BaseToggle.vue'
 import BaseCard from '../../ui/BaseCard.vue'
 import SetupCampaignSettings from './SetupCampaignSettings.vue'
 import type { CampaignSection } from '@/types/section'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionForm } from '@/composables/useSectionForm'
 import { useThemePreset } from '@/composables/useThemePreset'
 import { useAppModals } from '@/stores/appModals'
 import { useCampaignStore } from '@/stores/campaign'
@@ -19,41 +19,14 @@ const appModals = useAppModals()
 const campaignStore = useCampaignStore()
 const { canUseCampaign } = usePlan()
 const { isMinimalTheme } = useThemePreset()
+const { contentField, settingsField } = useSectionForm(() => props.section)
 
-const { updateSectionContent, updateSectionSettings } = useEditorActions()
-
-const campaignTitle = ref('')
-const campaignDescription = ref('')
-const campaignButtonLabel = ref('')
-const campaignPlaceholder = ref('')
-const campaignShowNameField = ref(false)
+const campaignTitle = contentField('title', '')
+const campaignDescription = contentField('description', '')
+const campaignButtonLabel = contentField('button_label', '')
+const campaignPlaceholder = contentField('placeholder', '')
+const campaignShowNameField = settingsField('show_name_field', false)
 const showSetupCampaignSettings = ref(false)
-
-function sync() {
-  const c = props.section.content
-  const s = props.section.settings_json
-  campaignTitle.value = c?.title ?? ''
-  campaignDescription.value = c?.description ?? ''
-  campaignButtonLabel.value = c?.button_label ?? ''
-  campaignPlaceholder.value = c?.placeholder ?? ''
-  campaignShowNameField.value = s?.show_name_field ?? false
-}
-
-sync()
-watch(() => props.section.id, sync)
-
-function saveContent() {
-  updateSectionContent(props.section.id, {
-    title: campaignTitle.value,
-    description: campaignDescription.value,
-    button_label: campaignButtonLabel.value,
-    placeholder: campaignPlaceholder.value,
-  })
-}
-
-function saveSettings() {
-  updateSectionSettings(props.section.id, { show_name_field: campaignShowNameField.value })
-}
 </script>
 
 <template>
@@ -73,12 +46,12 @@ function saveSettings() {
 
     <!-- Connected -->
     <template v-else>
-      <BaseInput size="sm" label="Title" v-model="campaignTitle" @update:modelValue="saveContent" />
-      <BaseInput size="sm" label="Description" v-model="campaignDescription" @update:modelValue="saveContent" />
-      <BaseInput size="sm" label="Email placeholder" v-model="campaignPlaceholder" @update:modelValue="saveContent" />
-      <BaseInput size="sm" label="Button label" v-model="campaignButtonLabel" @update:modelValue="saveContent" />
+      <BaseInput size="sm" label="Title" v-model="campaignTitle" />
+      <BaseInput size="sm" label="Description" v-model="campaignDescription" />
+      <BaseInput size="sm" label="Email placeholder" v-model="campaignPlaceholder" />
+      <BaseInput size="sm" label="Button label" v-model="campaignButtonLabel" />
       <div v-if="!isMinimalTheme" class="border-t border-gray-100 pt-3">
-        <BaseToggle size="sm" label="Name field" description="Add a name field above the email" v-model="campaignShowNameField" @update:modelValue="saveSettings" />
+        <BaseToggle size="sm" label="Name field" description="Add a name field above the email" v-model="campaignShowNameField" />
       </div>
       <BaseCard :icon="PuzzlePieceIcon" title="Campaign">
         <div class="grid grid-cols-2 gap-2">
