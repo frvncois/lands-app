@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import authService from '@/services/auth.service'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthForm } from '@/composables/useAuthForm'
+import { useOtpInput } from '@/composables/useOtpInput'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const { isLoading, error, setError, runAction } = useAuthForm()
+const {
+  digits,
+  code: otpCode,
+  isComplete,
+  onInput: onDigitInput,
+  onKeydown: onDigitKeydown,
+  onPaste: onDigitPaste,
+  reset: resetOtp,
+  focusFirst,
+  setInputRef,
+} = useOtpInput({ length: 8 })
 
 // ─── Step 1: Registration form ───
 const step = ref<'register' | 'verify'>('register')
@@ -26,10 +38,8 @@ function validateForm(): string | null {
 
 async function handleRegister() {
   const validationError = validateForm()
-  if (validationError) { authStore.setError(validationError); return }
-  authStore.setLoading(true)
-  authStore.clearError()
-  try {
+  if (validationError) { setError(validationError); return }
+  await runAction(async () => {
     await authService.register({
       first_name: firstName.value,
       last_name: lastName.value,
@@ -37,80 +47,30 @@ async function handleRegister() {
       password: password.value,
     })
     step.value = 'verify'
-    await nextTick()
-    digitRefs.value[0]?.focus()
-  } catch (e) {
-    authStore.setError((e as Error).message)
-  } finally {
-    authStore.setLoading(false)
-  }
+    focusFirst()
+  })
 }
 
 // ─── Step 2: OTP verification ───
-const DIGITS = 8
-const digits = ref<string[]>(Array(DIGITS).fill(''))
-const digitRefs = ref<HTMLInputElement[]>([])
-
-const otpCode = computed(() => digits.value.join(''))
-const isComplete = computed(() => otpCode.value.length === DIGITS && digits.value.every(d => d !== ''))
-
-function onDigitInput(index: number, e: Event) {
-  const input = e.target as HTMLInputElement
-  const val = input.value.replace(/\D/g, '').slice(-1)
-  digits.value[index] = val
-  if (val && index < DIGITS - 1) {
-    digitRefs.value[index + 1]?.focus()
-  }
-}
-
-function onDigitKeydown(index: number, e: KeyboardEvent) {
-  if (e.key === 'Backspace' && !digits.value[index] && index > 0) {
-    digitRefs.value[index - 1]?.focus()
-  }
-}
-
-function onDigitPaste(e: ClipboardEvent) {
-  const text = e.clipboardData?.getData('text') ?? ''
-  const nums = text.replace(/\D/g, '').slice(0, DIGITS).split('')
-  nums.forEach((d, i) => { digits.value[i] = d })
-  const nextEmpty = nums.length < DIGITS ? nums.length : DIGITS - 1
-  nextTick(() => digitRefs.value[nextEmpty]?.focus())
-  e.preventDefault()
-}
-
 async function handleVerify() {
   if (!isComplete.value) return
-  authStore.setLoading(true)
-  authStore.clearError()
-  try {
+  await runAction(async () => {
     await authService.verifyOtp(email.value, otpCode.value)
     router.push('/onboarding')
-  } catch (e) {
-    authStore.setError((e as Error).message)
-    digits.value = Array(DIGITS).fill('')
-    nextTick(() => digitRefs.value[0]?.focus())
-  } finally {
-    authStore.setLoading(false)
-  }
+  })
+  if (error.value) resetOtp()
 }
 
 async function resendCode() {
-  authStore.setLoading(true)
-  authStore.clearError()
-  try {
+  await runAction(async () => {
     await authService.register({
       first_name: firstName.value,
       last_name: lastName.value,
       email: email.value,
       password: password.value,
     })
-    digits.value = Array(DIGITS).fill('')
-    nextTick(() => digitRefs.value[0]?.focus())
-  } catch (e) {
-    authStore.setError((e as Error).message)
-  } finally {
-    authStore.setLoading(false)
-  }
+    resetOtp()
+  })
 }
 </script>
 
@@ -127,14 +87,14 @@ async function resendCode() {
         </div>
         <div class="flex flex-col gap-4 auth-form">
           <div class="flex gap-4">
-            <BaseInput size="lg" label="First Name" placeholder="First name" v-model="firstName" :disabled="authStore.isLoading" />
-            <BaseInput size="lg" label="Last Name" placeholder="Last name" v-model="lastName" :disabled="authStore.isLoading" />
+            <BaseInput size="lg" label="First Name" placeholder="First name" v-model="firstName" :disabled="isLoading" />
+            <BaseInput size="lg" label="Last Name" placeholder="Last name" v-model="lastName" :disabled="isLoading" />
           </div>
-          <BaseInput size="lg" label="Email" placeholder="you@example.com" v-model="email" :disabled="authStore.isLoading" />
-          <BaseInput size="lg" type="password" label="Password" placeholder="password" v-model="password" :disabled="authStore.isLoading" />
-          <p v-if="authStore.error" class="text-sm text-red-500">{{ authStore.error }}</p>
-          <BaseButton variant="solid" size="lg" :disabled="authStore.isLoading" @click="handleRegister">
-            {{ authStore.isLoading ? 'Creating account…' : 'Sign Up' }}
+          <BaseInput size="lg" label="Email" placeholder="you@example.com" v-model="email" :disabled="isLoading" />
+          <BaseInput size="lg" type="password" label="Password" placeholder="password" v-model="password" :disabled="isLoading" />
+          <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+          <BaseButton variant="solid" size="lg" :disabled="isLoading" @click="handleRegister">
+            {{ isLoading ? 'Creating account…' : 'Sign Up' }}
           </BaseButton>
         </div>
       </div>
@@ -152,7 +112,7 @@ async function resendCode() {
             <input
               v-for="(_, i) in digits"
               :key="i"
-              :ref="el => { if (el) digitRefs[i] = el as HTMLInputElement }"
+              :ref="(el) => setInputRef(i, el as HTMLInputElement | null)"
               type="text"
               inputmode="numeric"
               maxlength="1"
@@ -163,13 +123,13 @@ async function resendCode() {
               @paste="onDigitPaste"
             />
           </div>
-          <p v-if="authStore.error" class="text-sm text-red-500">{{ authStore.error }}</p>
-          <BaseButton variant="solid" size="lg" :disabled="!isComplete || authStore.isLoading" @click="handleVerify">
-            {{ authStore.isLoading ? 'Verifying…' : 'Verify' }}
+          <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+          <BaseButton variant="solid" size="lg" :disabled="!isComplete || isLoading" @click="handleVerify">
+            {{ isLoading ? 'Verifying…' : 'Verify' }}
           </BaseButton>
           <p class="text-sm text-center text-neutral-400">
             Didn't receive a code?
-            <button class="text-neutral-900 font-medium hover:underline" :disabled="authStore.isLoading" @click="resendCode">
+            <button class="text-neutral-900 font-medium hover:underline" :disabled="isLoading" @click="resendCode">
               Resend
             </button>
           </p>
