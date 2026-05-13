@@ -14,30 +14,20 @@ Vue 3 + TypeScript SPA with Supabase backend, Stripe integration, Cloudflare KV 
 
 ## Medium Severity
 
-### M9 — Missing discriminated union for Section content
-**File:** `src/types/section.ts`
-**Severity:** MEDIUM
+### ~~M9 — Missing discriminated union for Section content~~ ✅ RESOLVED
+**File:** ~~`src/types/section.ts`~~ → `src/features/sections/types.ts`
+**Resolved in:** Phase 2 of restructure (2026-05)
 
-```ts
-content: HeaderContent | TextContent | MediaContent | ... | null
-```
-
-Without a discriminated union, TypeScript can't narrow `content` based on `section.type`. Every usage requires manual casting with `as HeaderContent`.
-
-**Fix (medium-term refactor):**
-```ts
-type Section =
-  | { type: 'header';       content: HeaderContent;       settings_json: HeaderSettings }
-  | { type: 'content_media'; content: ContentMediaContent; settings_json: ContentMediaSettings }
-  | ...
-```
+`Section` is now a proper discriminated union keyed on `type`. TypeScript narrows
+`section.content` and `section.settings_json` automatically via `if (section.type === 'header')`.
+All `as HeaderContent` casts have been replaced with type narrowing.
 
 ---
 
 ## Low Severity
 
 ### L8 — `usePlan.ts` plan details are hardcoded
-**File:** `src/composables/usePlan.ts`
+**File:** `src/features/plan/composables/usePlan.ts`
 
 Plan features (what's allowed on free vs paid) are hardcoded constants in frontend code. If you change plan structure, you must redeploy frontend.
 
@@ -117,7 +107,7 @@ Users have no way to recover from accidental destructive edits beyond closing wi
 | P4 | SEO | HIGH | worker/renderer.ts |
 | P5 | Storefront | HIGH | src/components/storefront/ |
 | P6 | Checkout | HIGH | src/views/checkout/ |
-| M9 | Type safety | MEDIUM | types/section.ts |
+| ~~M9~~ | ~~Type safety~~ | ~~MEDIUM~~ | ✅ RESOLVED (Phase 2) |
 | L8 | Config | LOW | usePlan.ts |
 | L10 | Performance | LOW | worker/src/index.ts |
 
@@ -131,4 +121,4 @@ Users have no way to recover from accidental destructive edits beyond closing wi
 6. **P6** — Test checkout flow end-to-end
 7. **L10** — Enable KV edge cache post-launch
 8. **L8** — Move plan config to backend when plan structure changes
-9. **M9** — Discriminated union for Section (dedicated refactor sprint)
+9. ~~**M9**~~ — ✅ Resolved in Phase 2 restructure

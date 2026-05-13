@@ -44,7 +44,7 @@ Dashboard child routes: `/dashboard` (ProjectView → EditorPreview), `/dashboar
 
 A **Land** is the central entity — a user's public page identified by `handle` (subdomain slug). Each land has:
 - `sections: Section[]` — ordered by fractional index (`position` field via `fractional-indexing`)
-- `theme: LandTheme` — preset (`minimal` | `bold` | `editorial`) + color/typography overrides
+- `theme: LandTheme` — preset (`minimal` | `baseline` | `structure`) + color/typography overrides
 - `plan`, `collaborators`, `campaign_integration`
 
 **Section** is polymorphic via `type: SectionType` (`header | text | media | content_media | list | collection | store | campaign | footer`). Each section has:
@@ -68,19 +68,19 @@ A **Land** is the central entity — a user's public page identified by `handle`
 
 ### Section Rendering
 
-`EditorPreview.vue` maps section types to components via `componentMap`. Each `SectionXxx.vue` delegates to a style-variant sub-component (e.g. `TextMinimal`, `TextBaseline`, `TextStructure`) found in `src/features/editor/components/sections/variants/{type}/`.
+`EditorPreview.vue` uses `SectionRenderer.vue`, which reads `SECTION_REGISTRY[section.type].variants[themePreset]` to resolve the correct variant component — no more `SectionXxx.vue` dispatchers. Variant components live in `src/features/editor/components/sections/variants/{type}/`.
 
-Theme presets drive which style variant renders — see `src/features/theme/presets.ts`.
+The registry (`src/features/sections/registry.ts`) is the single source of truth: it maps each section type to its label, icon, defaults, variant components (one per theme preset), and settings panel.
+
+Theme presets drive which variant component renders — see `src/features/theme/presets.ts`.
 
 ### State (Pinia Stores)
 
 - `useLandStore` — list of lands, `activeLand`, section CRUD
 - `useEditorStore` — editor mode (`isEditMode`), `activeSection`, `isDirty` / `isPublished` flags, panel position
-- `useProjectStore` — project mode (`preview | editor`)
 - `useThemeStore` — active land theme, synced to CSS variables via `useThemeVars` composable
 - `useUserStore` — current user profile
-- `useAuthStore` — auth loading/error state
-- `useAppModalsStore` — global modal open/close state (delete project, invite, etc.)
+- `useAppModals` — global modal open/close state (delete project, invite, etc.)
 - `useCampaignStore` — campaign integration editor state
 
 All section/land mutations go through the editor composables and call `editorStore.markDirty()`.
@@ -105,11 +105,11 @@ All services delegate to Supabase (auth, database, storage, Edge Functions). Ser
 
 ### Composables
 
-- **useEditorActions** — All land/section mutations: `updateSectionContent()`, `updateSectionSettings()`, `updateSectionStyleVariant()`, `restoreSectionSnapshot()`, `updateLandImages()`, `updateTheme()`, land settings mutations. Re-exports the focused composables below.
+- **useEditorMutations** — All land/section mutations: `updateSectionContent()`, `updateSectionSettings()`, `updateSectionStyleVariant()`, `restoreSectionSnapshot()`, `updateLandImages()`, `updateTheme()`, land settings mutations.
 - **useSectionLifecycle** — `addSection()`, `deleteSection()`, `duplicateSection()`, `reorderSection()`. Enforces plan limits; cleans up storage URLs on delete; seeds content from `purposeDefaults.ts`.
 - **useListActions / useCollectionActions / useStoreActions** — Section-specific item CRUD
 - **usePlan** — Feature gates and content limits from `PLAN_DETAILS`. Free tier: 2 lands, 6 sections, 2 collection sections. Paid: 25 sections, unlimited collections/lands.
-- **useToast** — Module-level singleton queue. `addToast(message, type, duration, options)`. Options: `persistent`, `action: { label, onClick }`.
+- **useToast** — Module-level exports: `import { addToast, removeToast, toasts } from '@/shared/composables/useToast'`. `addToast(message, type?, duration?, options?)`. Options: `persistent`, `action: { label, onClick }`.
 - **useDragSort** — Fractional indexing drag-and-drop for section reordering
 - **useKeyboard** — Global shortcuts: Escape (deselect/exit edit mode), Cmd/Ctrl+E (toggle edit mode). Skips when input is focused.
 - **useIsMobile** — `isMobile` ref, breakpoint at 1024px

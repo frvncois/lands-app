@@ -1106,3 +1106,26 @@ npm run dev    # smoke test
 - Every store does only persistent/shared state.
 
 When all phases are complete, the codebase is set up for the next year of feature work without accumulating the same kind of duplication again.
+
+---
+
+## Status
+
+**All 11 phases complete — 2026-05-13**
+
+| Phase | Summary | Branch commit(s) |
+|---|---|---|
+| 0 | Baseline + branch setup | Initial commit of this plan |
+| 1 | Extract 5 tier-1 composables (useSectionTree, useSectionInsert, useClipboardCopy, useStripeConnect, usePolling) | `refactor(composables): extract tier-1 composables` |
+| 2 | Discriminated `Section` union — replaced all `as HeaderContent` casts with type narrowing | `refactor(types): discriminate Section union` |
+| 3 | Section registry — `SECTION_REGISTRY`, `SectionRenderer.vue`; deleted all `SectionXxx.vue` dispatchers | `refactor(sections): consolidate dispatchers into SECTION_REGISTRY` |
+| 4 | `useSectionForm` + `useSectionSnapshot` + `useNestedItems`; renamed `useEditorActions` → `useEditorMutations`; collapsed settings panels | `refactor(editor): introduce useSectionForm; collapse settings panels` |
+| 5 | `usePublishFlow` — save/publish/leave-guard state machine extracted from `AppHeader` | `refactor(editor): extract usePublishFlow` |
+| 6 | `useLandCreator` + `useSlugFromTitle` + `useGoogleFont`; split onboarding/create-project wizard into shared step components | `refactor(onboarding): extract useLandCreator; split wizard into steps` |
+| 7 | `useEditorPanel` + `EditorPanel.vue`; collapsed `EditorSidebar` and `MobileEditorBar` into thin shells | `refactor(editor): unify sidebar and mobile bar via EditorPanel` |
+| 8 | `useDashboardDetail` + `useCountUpStats` + card components; split `LandsDashboard` | `refactor(dashboard): split LandsDashboard into cards + composables` |
+| 9 | `useAuthForm` + `useOtpInput`; deleted `stores/auth.ts` | `refactor(auth): replace store with composables` |
+| 10 | Feature-based folder restructure (233 files moved, all imports rewritten) | `refactor(structure): adopt features/ layout (Phase 10)` |
+| 11 | Final cleanup: assets out of bundle, useToast module-level exports, dead code sweep, doc updates | `chore: move large assets out of bundle`, `refactor(toast): module-level exports`, `chore: dead code sweep`, `docs: post-restructure documentation pass`, `chore: restructure complete — verification pass` |
+
+Branch: `refactor/restructure` — ready to merge to `main`.
