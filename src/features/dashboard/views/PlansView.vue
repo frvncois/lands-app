@@ -3,13 +3,12 @@ import { ref } from 'vue'
 import { CheckIcon, SparklesIcon, CreditCardIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import { useLandStore } from '@/features/lands/stores/land'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { stripeService } from '@/features/integrations/services/stripe.service'
 import { PLAN_DETAILS } from '@/features/plan/types'
 import type { LandPlan } from '@/features/plan/types'
 
 const landStore = useLandStore()
-const { addToast } = useToast()
 
 // ─── Billing period ───
 const billing = ref<'monthly' | 'yearly'>('monthly')

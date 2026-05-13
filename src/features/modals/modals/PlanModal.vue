@@ -4,14 +4,13 @@ import { CheckIcon, XMarkIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import { useLandStore } from '@/features/lands/stores/land'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { PLAN_DETAILS } from '@/features/plan/types'
 import { stripeService } from '@/features/integrations/services/stripe.service'
 
 const emit = defineEmits<{ close: [] }>()
 
 const landStore = useLandStore()
-const { addToast } = useToast()
 
 const billing = ref<'monthly' | 'yearly'>('monthly')
 const isLoading = ref(false)
@@ -70,8 +69,6 @@ async function manageSubscription() {
           <XMarkIcon class="h-5 w-5" />
         </button>
       </div>
-
-
 
       <!-- Pro card -->
       <div class="flex flex-col gap-4 p-2 border-1 border-gray-200 bg-gray-50 rounded-xl">

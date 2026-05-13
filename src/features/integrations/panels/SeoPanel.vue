@@ -4,11 +4,10 @@ import BaseInput from '@/shared/ui/BaseInput.vue'
 import BaseUpload from '@/shared/ui/BaseUpload.vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { landService } from '@/features/lands/services/land.service'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { debounce } from '@/shared/lib/debounce'
 
 const landStore = useLandStore()
-const { addToast } = useToast()
 
 const metaTitle = ref(landStore.activeLand?.meta_title ?? '')
 const metaDescription = ref(landStore.activeLand?.meta_description ?? '')

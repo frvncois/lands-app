@@ -7,11 +7,10 @@ import ConfirmDeleteAccountModal from '@/features/modals/modals/ConfirmDeleteAcc
 import { useUserStore } from '@/features/auth/stores/user'
 import { userService } from '@/features/auth/services/user.service'
 import authService from '@/features/auth/services/auth.service'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { useRouter } from 'vue-router'
 
 const userStore = useUserStore()
-const { addToast } = useToast()
 const router = useRouter()
 
 const firstName = ref(userStore.user?.first_name ?? '')

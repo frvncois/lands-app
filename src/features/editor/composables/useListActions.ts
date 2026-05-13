@@ -1,12 +1,11 @@
 import { computed } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { useNestedItems } from './useNestedItems'
 import type { ListItem } from '@/features/sections/types/list'
 
 export function useListActions() {
   const landStore = useLandStore()
-  const { addToast } = useToast()
   const { addToArray, updateInArray, deleteFromArray, reorderInArray } = useNestedItems()
   const activeLand = computed(() => landStore.activeLand)
 

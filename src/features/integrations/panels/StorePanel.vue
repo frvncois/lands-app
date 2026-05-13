@@ -6,12 +6,11 @@ import BaseDropdownMenu from '@/shared/ui/BaseDropdownMenu.vue'
 import type { DropdownMenuItem } from '@/shared/ui/BaseDropdownMenu.vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { stripeService } from '@/features/integrations/services/stripe.service'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { useAppModals } from '@/features/modals/composables/useAppModals'
 import { useStripeConnect } from '@/features/dashboard/composables/useStripeConnect'
 
 const landStore = useLandStore()
-const { addToast } = useToast()
 const appModals = useAppModals()
 
 const isDisconnecting = ref(false)

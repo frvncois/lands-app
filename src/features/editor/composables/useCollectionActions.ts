@@ -1,13 +1,12 @@
 import { computed } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { usePlan } from '@/features/plan/composables/usePlan'
 import { useNestedItems } from './useNestedItems'
 import type { Collection, CollectionItem } from '@/features/sections/types/collection'
 
 export function useCollectionActions() {
   const landStore = useLandStore()
-  const { addToast } = useToast()
   const { withinCollectionLimit, withinItemLimit, maxCollectionsPerSection, maxItemsPerCollection } = usePlan()
   const { addToArray, updateInArray, deleteFromArray, reorderInArray, addToNested, updateInNested, deleteFromNested, reorderInNested } = useNestedItems()
   const activeLand = computed(() => landStore.activeLand)

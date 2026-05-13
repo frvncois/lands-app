@@ -2,9 +2,7 @@
 import { ref, computed } from 'vue'
 import { XMarkIcon, ArrowUpTrayIcon, PhotoIcon, DocumentIcon } from '@heroicons/vue/24/outline'
 import { storageService } from '@/features/integrations/services/storage.service'
-import { useToast } from '@/shared/composables/useToast'
-
-const { addToast } = useToast()
+import { addToast } from '@/shared/composables/useToast'
 
 const props = withDefaults(defineProps<{
   label?: string

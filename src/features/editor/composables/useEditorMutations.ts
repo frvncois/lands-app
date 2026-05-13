@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { useThemeStore } from '@/features/theme/stores/theme'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { landService } from '@/features/lands/services/land.service'
 import type { Section, SectionSettings } from '@/features/sections/types'
 import type { LandTheme } from '@/features/theme/types'
@@ -11,7 +11,6 @@ export function useEditorMutations() {
   const landStore = useLandStore()
   const editorStore = useEditorStore()
   const themeStore = useThemeStore()
-  const { addToast } = useToast()
 
   const activeLand = computed(() => landStore.activeLand)
 

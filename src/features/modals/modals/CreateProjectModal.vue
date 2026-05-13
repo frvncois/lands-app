@@ -3,13 +3,11 @@ import { ref, computed } from 'vue'
 import { XMarkIcon, ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { THEME_PRESET_DEFINITIONS } from '@/features/theme/presets'
 import { PURPOSE_OPTIONS } from '@/features/sections/purposeDefaults'
 import { THEME_PRESETS, type ThemePreset } from '@/features/theme/types'
 import { useLandCreator } from '@/features/onboarding/composables/useLandCreator'
-
-const { addToast } = useToast()
 const emit = defineEmits<{ close: [] }>()
 const { title, handle, onHandleInput, selectedPurpose, isLoading, error, create } = useLandCreator()
 

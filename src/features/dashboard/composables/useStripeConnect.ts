@@ -1,11 +1,10 @@
 import { ref } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { stripeService } from '@/features/integrations/services/stripe.service'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 
 export function useStripeConnect() {
   const landStore = useLandStore()
-  const { addToast } = useToast()
   const isConnecting = ref(false)
 
   function connectStripe() {

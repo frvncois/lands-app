@@ -5,7 +5,7 @@ import { useEditorStore } from '@/features/editor/stores/editor'
 import { useLandStore } from '@/features/lands/stores/land'
 import { useAppModals } from '@/features/modals/composables/useAppModals'
 import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast, removeToast } from '@/shared/composables/useToast'
 import { usePublishFlow } from '@/features/editor/composables/usePublishFlow'
 import EditorPreview from '@/features/editor/components/EditorPreview.vue'
 import LandsDashboard from '@/features/dashboard/components/LandsDashboard.vue'
@@ -22,7 +22,6 @@ const editorStore = useEditorStore()
 const landStore = useLandStore()
 const appModals = useAppModals()
 const { activeDetail: activeDashboardDetail } = useDashboardDetail()
-const { addToast, removeToast } = useToast()
 const { publish: doPublish } = usePublishFlow()
 
 const unpublishedToastId = ref<string | null>(null)

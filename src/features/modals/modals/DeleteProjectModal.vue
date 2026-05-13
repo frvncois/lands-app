@@ -7,9 +7,7 @@ import BaseModal from '@/shared/ui/BaseModal.vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { landService } from '@/features/lands/services/land.service'
-import { useToast } from '@/shared/composables/useToast'
-
-const { addToast } = useToast()
+import { addToast } from '@/shared/composables/useToast'
 
 const emit = defineEmits<{ close: []; deleted: [] }>()
 

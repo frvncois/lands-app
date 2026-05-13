@@ -7,11 +7,10 @@ import BasePlanGate from '@/shared/ui/BasePlanGate.vue'
 import SetupCampaignSettings from '@/features/editor/components/settings/SetupCampaignSettings.vue'
 import { CAMPAIGN_PROVIDERS } from '@/features/integrations/types/campaign'
 import { useCampaignStore } from '@/features/integrations/stores/campaign'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { usePlan } from '@/features/plan/composables/usePlan'
 
 const campaignStore = useCampaignStore()
-const { addToast } = useToast()
 const { canUseCampaign } = usePlan()
 const showSetupModal = ref(false)
 

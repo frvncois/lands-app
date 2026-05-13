@@ -4,7 +4,7 @@ import { useEditorStore } from '@/features/editor/stores/editor'
 import { useLandStore } from '@/features/lands/stores/land'
 import { useThemeStore } from '@/features/theme/stores/theme'
 import { useAppModals } from '@/features/modals/composables/useAppModals'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { landService } from '@/features/lands/services/land.service'
 import { publishService } from '@/features/integrations/services/publish.service'
 
@@ -26,7 +26,6 @@ export function usePublishFlow() {
   const landStore = useLandStore()
   const themeStore = useThemeStore()
   const appModals = useAppModals()
-  const { addToast } = useToast()
   const router = useRouter()
 
   const canPublish = computed(() =>

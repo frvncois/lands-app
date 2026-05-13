@@ -8,13 +8,12 @@ import { CAMPAIGN_PROVIDERS, type CampaignProviderMeta, type CampaignConfig } fr
 import { useCampaignStore } from '@/features/integrations/stores/campaign'
 import { useLandStore } from '@/features/lands/stores/land'
 import { integrationService, type ProviderList } from '@/features/integrations/services/integration.service'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 
 const emit = defineEmits<{ close: [] }>()
 
 const campaignStore = useCampaignStore()
 const landStore = useLandStore()
-const { addToast } = useToast()
 
 // ─── Step state ───────────────────────────────────────────────────────────────
 

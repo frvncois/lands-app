@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
-import { useToast } from '@/shared/composables/useToast'
+import { addToast } from '@/shared/composables/useToast'
 import { usePlan } from '@/features/plan/composables/usePlan'
 import { sortByPosition, generatePositionBetween } from '@/shared/lib/position'
 import { SECTION_DEFAULTS } from '@/features/sections/defaults'
@@ -14,7 +14,6 @@ import type { Store } from '@/features/sections/types/store'
 export function useSectionLifecycle() {
   const landStore = useLandStore()
   const editorStore = useEditorStore()
-  const { addToast } = useToast()
   const { withinSectionLimit, withinCollectionSectionLimit, canAddSectionType, maxSections, maxCollectionSections } = usePlan()
 
   const activeLand = computed(() => landStore.activeLand)
