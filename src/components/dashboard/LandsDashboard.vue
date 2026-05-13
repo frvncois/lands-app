@@ -90,14 +90,6 @@ const showCampaignModal = ref(false)
 const activeDetail = ref<DetailKey | null>(null)
 const direction = ref<'forward' | 'back'>('forward')
 
-watch(() => appModals.dashboardDetail, (detail) => {
-  if (detail) {
-    direction.value = 'forward'
-    activeDetail.value = detail
-    appModals.dashboardDetail = null
-  }
-})
-
 const detailTitles: Record<DetailKey, string> = {
   analytics: 'Analytics',
   orders: 'Orders',
