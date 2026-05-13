@@ -11,7 +11,3 @@ export interface ListItem {
   position: string // fractional index
 }
 
-export interface ListSection {
-  section_id: string
-  items: ListItem[]
-}
