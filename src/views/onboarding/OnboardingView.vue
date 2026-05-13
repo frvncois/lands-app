@@ -1,81 +1,37 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  SparklesIcon,
-  CurrencyDollarIcon,
-  LinkIcon,
-  MegaphoneIcon,
-  GlobeAltIcon,
-  UsersIcon,
-  ArrowRightIcon,
-  ArrowLeftIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  ArrowRightStartOnRectangleIcon,
+  SparklesIcon, CurrencyDollarIcon, LinkIcon, MegaphoneIcon,
+  GlobeAltIcon, UsersIcon, ArrowRightIcon, ArrowLeftIcon,
+  CheckIcon, ChevronDownIcon, ArrowRightStartOnRectangleIcon,
 } from '@heroicons/vue/24/outline'
 import LandsLogo from '@/assets/LandsLogo.vue'
 import BaseFont from '@/components/ui/BaseFont.vue'
 import BaseColorInput from '@/components/ui/BaseColorInput.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import { useLandStore } from '@/stores/land'
 import { useUserStore } from '@/stores/user'
-import { landService } from '@/services/land.service'
 import authService from '@/services/auth.service'
-import { toSlug } from '@/lib/utils/slug'
-import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
 import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
-import { PURPOSE_OPTIONS, buildSectionContent, type Purpose } from '@/lib/primitives/purposeDefaults'
-import { generatePositionAfter } from '@/lib/utils/position'
+import { PURPOSE_OPTIONS } from '@/lib/primitives/purposeDefaults'
 import { THEME_PRESETS, type ThemePreset } from '@/types/theme'
-import type { Section, SectionType } from '@/types/section'
-import type { Collection } from '@/types/collection'
-import type { Store } from '@/types/store'
-import { loadGoogleFont } from '@/lib/utils/fonts'
+import { useLandCreator } from '@/composables/useLandCreator'
+import { useGoogleFont } from '@/composables/useGoogleFont'
 
 const router = useRouter()
-const landStore = useLandStore()
 const userStore = useUserStore()
+const { title, handle, onHandleInput, selectedPurpose, isLoading, error, create } = useLandCreator()
 
-// ─── Account dropdown ───
 const accountOpen = ref(false)
+async function logout() { accountOpen.value = false; await authService.logout(); router.push('/auth') }
 
-async function logout() {
-  accountOpen.value = false
-  await authService.logout()
-  router.push('/auth')
-}
-
-// ─── Step ───
 const step = ref(1)
 const TOTAL_STEPS = 3
 
-// ─── Step 1: Title, Handle & Purpose ───
-const title = ref('')
-const handle = ref('')
-let handleEdited = false
-
-watch(title, (val) => {
-  if (!handleEdited) handle.value = toSlug(val)
-})
-
-function onHandleInput(e: Event) {
-  handleEdited = true
-  handle.value = toSlug((e.target as HTMLInputElement).value)
-}
-
-const selectedPurpose = ref<Purpose | null>(null)
-
-// ─── Step 2: Theme ───
 const selectedTheme = ref<ThemePreset>(THEME_PRESETS.minimal)
 const THEME_OPTIONS = Object.values(THEME_PRESETS)
 
-// ─── Step 3: Colors & Fonts (seeded from theme defaults) ───
-const colorMain = ref('')
-const colorAccent = ref('')
-const colorSurface = ref('')
-const fontTitle = ref('')
-const fontBody = ref('')
+const colorMain = ref(''), colorAccent = ref(''), colorSurface = ref('')
+const fontTitle = ref(''), fontBody = ref('')
 
 watch(selectedTheme, (theme) => {
   const def = THEME_PRESET_DEFINITIONS[theme].defaults
@@ -86,125 +42,35 @@ watch(selectedTheme, (theme) => {
   fontBody.value = def.font_body
 }, { immediate: true })
 
-// Load google fonts when font changes
-watch(fontTitle, (val) => {
-  const opt = THEME_PRESET_DEFINITIONS[selectedTheme.value].pairings.find(o => o.titleFont === val)
-  if (opt?.titleGoogleFont) loadGoogleFont(opt.titleGoogleFont)
-})
-watch(fontBody, (val) => {
-  const opt = THEME_PRESET_DEFINITIONS[selectedTheme.value].pairings.find(o => o.bodyFont === val)
-  if (opt?.bodyGoogleFont) loadGoogleFont(opt.bodyGoogleFont)
-})
+useGoogleFont(fontTitle, fontBody, selectedTheme as Ref<ThemePreset | null>)
 
-// ─── Validation ───
-const stepValid = computed(() => {
-  if (step.value === 1) return title.value.trim().length > 0 && handle.value.trim().length > 0 && selectedPurpose.value !== null
-  return true
-})
+const stepValid = computed(() =>
+  step.value !== 1 || (title.value.trim().length > 0 && handle.value.trim().length > 0 && selectedPurpose.value !== null)
+)
 
-// ─── Creation ───
-const isLoading = ref(false)
-const error = ref('')
-
-function buildSections(types: SectionType[], landId: string, projectTitle: string, purpose: Purpose): Section[] {
-  const sections: Section[] = []
-  let lastPos: string | null = null
-  const countByType: Partial<Record<SectionType, number>> = {}
-
-  for (const type of types) {
-    const defaults = SECTION_DEFAULTS[type]
-    const pos = generatePositionAfter(lastPos)
-    lastPos = pos
-
-    const existingCount = countByType[type] ?? 0
-    countByType[type] = existingCount + 1
-
-    let content: Record<string, unknown>
-    if (type === 'header') {
-      content = { ...(defaults.content ? structuredClone(defaults.content) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
-    } else {
-      const seeded = buildSectionContent(purpose, type, existingCount)
-      content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? structuredClone(defaults.content) : {})
-    }
-
-    // FIXME Phase 6: buildSections uses a generic SectionType loop — can't narrow to a specific
-    // discriminant at compile time, so we use as unknown as Section here.
-    const section = {
-      id: crypto.randomUUID(),
-      land_id: landId,
-      type,
-      position: pos,
-      style_variant: defaults.style_variant,
-      settings_json: { ...defaults.settings_json },
-      content,
-      created_at: new Date().toISOString(),
-    } as unknown as Section
-
-    // Patch section_id into seeded content — use discriminant narrowing for clean access
-    if (section.type === 'collection' || section.type === 'monetize') {
-      const col = section.content?.collections?.[0]
-      if (col) col.section_id = section.id
-    }
-    if (section.type === 'store') {
-      const store = section.content?.stores?.[0]
-      if (store) store.section_id = section.id
-    }
-    if (section.type === 'list') {
-      section.content?.items?.forEach((item) => { item.section_id = section.id })
-    }
-
-    sections.push(section)
+async function doCreate() {
+  const theme = {
+    theme_preset: selectedTheme.value,
+    font_title: fontTitle.value,
+    font_body: fontBody.value,
+    color_main: colorMain.value,
+    color_accent: colorAccent.value,
+    color_surface: colorSurface.value,
   }
-  return sections
-}
-
-async function create() {
-  isLoading.value = true
-  error.value = ''
   try {
-    const purpose = PURPOSE_OPTIONS.find((p) => p.id === selectedPurpose.value)!
-
-    const land = await landService.createLand({
-      title: title.value.trim(),
-      handle: handle.value.trim(),
-    })
-
-    const sections = buildSections(purpose.sections, land.id, title.value.trim(), purpose.id)
-    const theme = {
-      theme_preset: selectedTheme.value,
-      font_title: fontTitle.value,
-      font_body: fontBody.value,
-      color_main: colorMain.value,
-      color_accent: colorAccent.value,
-      color_surface: colorSurface.value,
-    }
-
-    await landService.save(land.id, { sections, theme })
-    landStore.addLand({ ...land, sections, theme, purpose: purpose.id })
-
+    await create({ title: title.value.trim(), handle: handle.value.trim(), purposeId: selectedPurpose.value!, theme })
     sessionStorage.setItem('lands_tour_pending', 'true')
     router.push('/dashboard')
-  } catch (e) {
-    error.value = (e as Error).message
-  } finally {
-    isLoading.value = false
-  }
+  } catch { /* error ref already updated by useLandCreator */ }
 }
 
 function next() {
   if (!stepValid.value) return
-  if (step.value < TOTAL_STEPS) {
-    step.value++
-  } else {
-    create()
-  }
+  if (step.value < TOTAL_STEPS) step.value++
+  else doCreate()
 }
+function back() { if (step.value > 1) step.value-- }
 
-function back() {
-  if (step.value > 1) step.value--
-}
-
-// ─── Feature highlights (Step 1 right panel) ───
 const FEATURES = [
   { icon: SparklesIcon, title: 'Beautiful themes', description: 'Choose from Minimal, Structure, or Baseline and make it yours.' },
   { icon: CurrencyDollarIcon, title: 'Sell & Monetize', description: 'Sell products, digital goods, and exclusive content.' },
@@ -214,15 +80,10 @@ const FEATURES = [
   { icon: UsersIcon, title: 'Collaborators', description: 'Invite your team and work together.' },
 ]
 
-// ─── Preview styles (Steps 2 & 3) ───
 const previewStyle = computed(() => ({
-  '--preview-main': colorMain.value,
-  '--preview-accent': colorAccent.value,
-  '--preview-surface': colorSurface.value,
-  '--preview-font-title': fontTitle.value,
-  '--preview-font-body': fontBody.value,
+  '--preview-main': colorMain.value, '--preview-accent': colorAccent.value, '--preview-surface': colorSurface.value,
+  '--preview-font-title': fontTitle.value, '--preview-font-body': fontBody.value,
 }))
-
 const currentThemeDef = computed(() => THEME_PRESET_DEFINITIONS[selectedTheme.value])
 </script>
 

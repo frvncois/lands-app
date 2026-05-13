@@ -1,47 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { XMarkIcon, ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseModal from '../ui/BaseModal.vue'
-import { useLandStore } from '@/stores/land'
-import { landService } from '@/services/land.service'
 import { useToast } from '@/composables/useToast'
+import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
+import { PURPOSE_OPTIONS } from '@/lib/primitives/purposeDefaults'
+import { THEME_PRESETS, type ThemePreset } from '@/types/theme'
+import { useLandCreator } from '@/composables/useLandCreator'
 
 const { addToast } = useToast()
-import { toSlug } from '@/lib/utils/slug'
-import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
-import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
-import { PURPOSE_OPTIONS, buildSectionContent, type Purpose } from '@/lib/primitives/purposeDefaults'
-import { generatePositionAfter } from '@/lib/utils/position'
-import { THEME_PRESETS, type ThemePreset } from '@/types/theme'
-import type { Section, SectionType } from '@/types/section'
-import type { Collection } from '@/types/collection'
-import type { Store } from '@/types/store'
-
 const emit = defineEmits<{ close: [] }>()
-const landStore = useLandStore()
+const { title, handle, onHandleInput, selectedPurpose, isLoading, error, create } = useLandCreator()
 
 // ─── Step state ───
 const step = ref(1)
 const TOTAL_STEPS = 4
-
-// ─── Step 1: Title & Handle ───
-const title = ref('')
-const handle = ref('')
-let handleEdited = false
-
-watch(title, (val) => {
-  if (!handleEdited) handle.value = toSlug(val)
-})
-
-function onHandleInput(e: Event) {
-  handleEdited = true
-  handle.value = toSlug((e.target as HTMLInputElement).value)
-}
-
-// ─── Step 2: Purpose ───
-
-const selectedPurpose = ref<Purpose | null>(null)
 
 // ─── Step 3: Palette ───
 interface Palette {
@@ -85,101 +59,31 @@ const stepValid = computed(() => {
 })
 
 // ─── Creation ───
-const isLoading = ref(false)
-const error = ref('')
-
-function buildSections(types: SectionType[], landId: string, projectTitle: string, purpose: Purpose): Section[] {
-  const sections: Section[] = []
-  let lastPos: string | null = null
-  const countByType: Partial<Record<SectionType, number>> = {}
-
-  for (const type of types) {
-    const defaults = SECTION_DEFAULTS[type]
-    const pos = generatePositionAfter(lastPos)
-    lastPos = pos
-
-    const existingCount = countByType[type] ?? 0
-    countByType[type] = existingCount + 1
-
-    let content: Record<string, unknown>
-    if (type === 'header') {
-      content = { ...(defaults.content ? structuredClone(defaults.content) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
-    } else {
-      const seeded = buildSectionContent(purpose, type, existingCount)
-      content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? structuredClone(defaults.content) : {})
-    }
-
-    // FIXME Phase 6: buildSections uses a generic SectionType loop — can't narrow to a specific
-    // discriminant at compile time, so we use as unknown as Section here.
-    const section = {
-      id: crypto.randomUUID(),
-      land_id: landId,
-      type,
-      position: pos,
-      style_variant: defaults.style_variant,
-      settings_json: { ...defaults.settings_json },
-      content,
-      created_at: new Date().toISOString(),
-    } as unknown as Section
-
-    // Patch section_id into seeded content — use discriminant narrowing for clean access
-    if (section.type === 'collection' || section.type === 'monetize') {
-      const col = section.content?.collections?.[0]
-      if (col) col.section_id = section.id
-    }
-    if (section.type === 'store') {
-      const store = section.content?.stores?.[0]
-      if (store) store.section_id = section.id
-    }
-    if (section.type === 'list') {
-      section.content?.items?.forEach((item) => { item.section_id = section.id })
-    }
-
-    sections.push(section)
-  }
-  return sections
-}
-
-async function create() {
+async function doCreate() {
   if (!stepValid.value) return
-  isLoading.value = true
-  error.value = ''
+  const palette = PALETTES.find((p) => p.id === selectedPalette.value)!
+  const themeDef = THEME_PRESET_DEFINITIONS[selectedTheme.value!]
+  const theme = {
+    theme_preset: selectedTheme.value!,
+    font_title: themeDef.defaults.font_title,
+    font_body: themeDef.defaults.font_body,
+    color_main: palette.main,
+    color_accent: palette.accent,
+    color_surface: palette.surface,
+  }
   try {
-    const purpose = PURPOSE_OPTIONS.find((p) => p.id === selectedPurpose.value)!
-    const palette = PALETTES.find((p) => p.id === selectedPalette.value)!
-    const themeDef = THEME_PRESET_DEFINITIONS[selectedTheme.value!]
-
-    const land = await landService.createLand({
-      title: title.value.trim(),
-      handle: handle.value.trim(),
-    })
-
-    const sections = buildSections(purpose.sections, land.id, title.value.trim(), purpose.id)
-    const theme = {
-      theme_preset: selectedTheme.value!,
-      font_title: themeDef.defaults.font_title,
-      font_body: themeDef.defaults.font_body,
-      color_main: palette.main,
-      color_accent: palette.accent,
-      color_surface: palette.surface,
-    }
-
-    await landService.save(land.id, { sections, theme })
-
-    landStore.addLand({ ...land, sections, theme, purpose: purpose.id })
+    await create({ title: title.value.trim(), handle: handle.value.trim(), purposeId: selectedPurpose.value!, theme })
     addToast('Project created')
     emit('close')
-  } catch (e) {
-    error.value = (e as Error).message
+  } catch {
     addToast('Failed to create project', 'error')
-  } finally {
-    isLoading.value = false
+    // error ref already updated by useLandCreator
   }
 }
 
 function next() {
   if (step.value < TOTAL_STEPS) step.value++
-  else create()
+  else doCreate()
 }
 
 function back() {
