@@ -34,8 +34,6 @@ import DashboardDetail from '@/features/dashboard/components/DashboardDetail.vue
 const { activeDetail, direction, openDetail } = useDashboardDetail()
 const landStore = useLandStore()
 
-// displayRevenue is intentionally excluded: it was always 0 (never set in triggerCountUp) — dead animation
-const displayRevenue = ref(0)
 const { display: countUp, trigger: triggerCountUp } = useCountUpStats({
   views: totalViews,
   orderNew: orderStats.new,
@@ -128,7 +126,7 @@ function viewLive() {
             </div>
             <div class="flex-1 rounded-lg bg-gray-50 p-3 space-y-0.5">
               <p class="text-xs text-gray-400">Revenue</p>
-              <NumberFlow :value="displayRevenue" :format="{ style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }" class="text-lg font-semibold text-gray-900 leading-tight" />
+              <NumberFlow :value="displayMonetizeRevenue" :format="{ style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }" class="text-lg font-semibold text-gray-900 leading-tight" />
               <p class="text-xs text-gray-400">this month</p>
             </div>
           </div>
