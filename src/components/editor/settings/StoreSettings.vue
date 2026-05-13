@@ -12,20 +12,18 @@ import type { Store, StoreItem } from '@/types/store'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
-import { useToast } from '@/composables/useToast'
-import { stripeService } from '@/services/stripe.service'
+import { useStripeConnect } from '@/composables/useStripeConnect'
 import { sortByPosition, generateReorderPosition } from '@/lib/utils/position'
 
 const props = defineProps<{ section: Section }>()
 
 const landStore = useLandStore()
 const appModals = useAppModals()
-const { addToast } = useToast()
 const { updateStore, addStoreItem: addStoreItemAction, deleteStoreItem, reorderStoreItem } = useEditorActions()
+const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 
 const storeTitle = ref('')
 const storeDescription = ref('')
-const isConnectingStripe = ref(false)
 
 const store = computed(() => ((props.section.content as any)?.stores?.[0] ?? null) as Store | null)
 const storeItems = computed(() => store.value ? sortByPosition(store.value.items) : [])
@@ -48,17 +46,6 @@ function saveDescription() {
   updateStore(props.section.id, store.value.id, { description: storeDescription.value })
 }
 
-function connectStripe() {
-  const landId = landStore.activeLand?.id
-  if (!landId) return
-  try {
-    isConnectingStripe.value = true
-    window.location.href = stripeService.connectUrl(landId)
-  } catch {
-    isConnectingStripe.value = false
-    addToast('Stripe is not configured — set VITE_STRIPE_CLIENT_ID', 'error')
-  }
-}
 
 const storeTreeNodes = computed<TreeNode[]>(() =>
   storeItems.value.map((item) => ({

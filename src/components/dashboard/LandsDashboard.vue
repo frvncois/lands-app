@@ -6,8 +6,7 @@ import { useEditorStore } from '@/stores/editor'
 import { usePlan } from '@/composables/usePlan'
 import { useCampaignStore } from '@/stores/campaign'
 import { useRouter } from 'vue-router'
-import { stripeService } from '@/services/stripe.service'
-import { useToast } from '@/composables/useToast'
+import { useStripeConnect } from '@/composables/useStripeConnect'
 import {
   MegaphoneIcon,
   CurrencyDollarIcon,
@@ -84,7 +83,7 @@ const editorStore = useEditorStore()
 const { canUseCampaign, isPaid } = usePlan()
 const campaignStore = useCampaignStore()
 const router = useRouter()
-const { addToast } = useToast()
+const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 const showShare = ref(false)
 const showCampaignModal = ref(false)
 
@@ -138,19 +137,6 @@ function viewLive() {
   if (handle) window.open(`https://${handle}.lands.app`, '_blank')
 }
 
-const isConnectingStripe = ref(false)
-
-function connectStripe() {
-  const landId = landStore.activeLand?.id
-  if (!landId) return
-  try {
-    isConnectingStripe.value = true
-    window.location.href = stripeService.connectUrl(landId)
-  } catch {
-    isConnectingStripe.value = false
-    addToast('Stripe is not configured', 'error')
-  }
-}
 
 function openDetail(key: DetailKey) {
   direction.value = 'forward'

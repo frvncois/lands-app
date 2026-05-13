@@ -8,30 +8,19 @@ import { useLandStore } from '@/stores/land'
 import { stripeService } from '@/services/stripe.service'
 import { useToast } from '@/composables/useToast'
 import { useAppModals } from '@/stores/appModals'
+import { useStripeConnect } from '@/composables/useStripeConnect'
 
 const landStore = useLandStore()
 const { addToast } = useToast()
 const appModals = useAppModals()
 
 const isDisconnecting = ref(false)
-const isConnecting = ref(false)
+const { connectStripe, isConnecting } = useStripeConnect()
 
 const stripeMenuItems: DropdownMenuItem[] = [
   { label: 'Settings', icon: Cog6ToothIcon, action: openStripeSettings },
   { label: 'Disconnect', icon: XMarkIcon, danger: true, action: disconnectStripe },
 ]
-
-function connectStripe() {
-  const landId = landStore.activeLand?.id
-  if (!landId) return
-  try {
-    isConnecting.value = true
-    window.location.href = stripeService.connectUrl(landId)
-  } catch {
-    isConnecting.value = false
-    addToast('Stripe is not configured — set VITE_STRIPE_CLIENT_ID', 'error')
-  }
-}
 
 async function disconnectStripe() {
   const land = landStore.activeLand
