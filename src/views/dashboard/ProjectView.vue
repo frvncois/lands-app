@@ -5,6 +5,7 @@ import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
 import { useToast } from '@/composables/useToast'
+import { usePublishFlow } from '@/composables/usePublishFlow'
 import EditorPreview from '@/components/editor/EditorPreview.vue'
 import LandsDashboard from '@/components/dashboard/LandsDashboard.vue'
 import LandsLoading from '@/components/shared/LandsLoading.vue'
@@ -20,6 +21,7 @@ const editorStore = useEditorStore()
 const landStore = useLandStore()
 const appModals = useAppModals()
 const { addToast, removeToast } = useToast()
+const { publish: doPublish } = usePublishFlow()
 
 const unpublishedToastId = ref<string | null>(null)
 const showStripeConnectedModal = ref(false)
@@ -43,7 +45,7 @@ function syncUnpublishedToast() {
       persistent: true,
       action: {
         label: 'Publish',
-        onClick: () => { appModals.publishTrigger++ },
+        onClick: () => doPublish(),
       },
     })
   } else if (unpublishedToastId.value) {

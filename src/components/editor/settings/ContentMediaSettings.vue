@@ -6,14 +6,14 @@ import BaseUpload from '../../ui/BaseUpload.vue'
 import BaseButton from '../../ui/BaseButton.vue'
 import BaseToggle from '../../ui/BaseToggle.vue'
 import type { ContentMediaSection, ContentMediaButton } from '@/types/section'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useEditorMutations } from '@/composables/useEditorMutations'
 import { useSectionForm } from '@/composables/useSectionForm'
 import { useThemePreset } from '@/composables/useThemePreset'
 
 const props = defineProps<{ section: ContentMediaSection }>()
 
 const { isStructureTheme } = useThemePreset()
-const { updateSectionContent, updateSectionStyleVariant } = useEditorActions()
+const { updateSectionContent, updateSectionStyleVariant } = useEditorMutations()
 const { contentField } = useSectionForm(() => props.section)
 
 const mediaType = contentField<'image' | 'video'>('media_type', 'image')

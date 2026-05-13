@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted, computed } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BaseButton from '../ui/BaseButton.vue';
 import {
@@ -17,161 +17,23 @@ import ConfirmPublishedModal from '../modals/ConfirmPublishedModal.vue';
 import { useEditorStore } from '@/stores/editor'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
-import { useThemeStore } from '@/stores/theme'
-import { useToast } from '@/composables/useToast'
-import { landService } from '@/services/land.service'
-import { publishService } from '@/services/publish.service'
+import { usePublishFlow } from '@/composables/usePublishFlow'
 import authService from '@/services/auth.service'
 
-const appModals = useAppModals()
-const showCustomDomainModal = ref(false)
-const showLeaveModal = ref(false)
-const showPublishedModal = ref(false)
-const publishStatus = ref<'loading' | 'done' | 'error'>('loading')
-const pendingPath = ref<string | null>(null)
-const leaveContext = ref<'navigate' | 'close'>('navigate')
-
-const editorStore = useEditorStore()
-const landStore = useLandStore()
-const themeStore = useThemeStore()
-const { addToast } = useToast()
 const route = useRoute()
 const router = useRouter()
+const editorStore = useEditorStore()
+const landStore = useLandStore()
+const appModals = useAppModals()
+const showCustomDomainModal = ref(false)
+const {
+  isSaving, isPublishing, publishStatus,
+  showLeaveModal, showPublishedModal, showUpToDate, canPublish,
+  save, publish, enterEditor, handleClose,
+  confirmLeave, cancelLeave, confirmPublished, showUpToDateHint,
+} = usePublishFlow()
 
-const isSaving = ref(false)
-const isPublishing = ref(false)
-const hasPublishedClean = ref(false)
-const showUpToDate = ref(false)
-let upToDateTimer: ReturnType<typeof setTimeout> | null = null
-
-function showUpToDateHint() {
-  if (upToDateTimer) clearTimeout(upToDateTimer)
-  showUpToDate.value = true
-  upToDateTimer = setTimeout(() => { showUpToDate.value = false }, 2500)
-}
-
-const canPublish = computed(() =>
-  !isSaving.value && !isPublishing.value &&
-  !(hasPublishedClean.value && !editorStore.isDirty && !editorStore.hasUnpublishedChanges)
-)
-
-watch([() => editorStore.isDirty, () => editorStore.hasUnpublishedChanges], ([dirty, unpub]) => {
-  if (dirty || unpub) hasPublishedClean.value = false
-})
-
-async function save() {
-  const land = landStore.activeLand
-  if (!land) return
-  isSaving.value = true
-  try {
-    await landService.save(land.id, {
-      sections: land.sections,
-      theme: themeStore.theme ?? land.theme,
-      title: land.title,
-      handle: land.handle,
-    })
-    editorStore.markClean()
-    editorStore.takeSnapshot(landStore.activeLand!, themeStore.theme)
-    addToast('Changes saved')
-  } catch {
-    addToast('Failed to save — please try again', 'error')
-  } finally {
-    isSaving.value = false
-  }
-}
-
-watch(() => route.path, () => {
-  appModals.close()
-})
-
-const removeGuard = router.beforeEach((to, from) => {
-  if (editorStore.isEditMode && to.path !== from.path) {
-    if (editorStore.isDirty) {
-      pendingPath.value = to.path
-      leaveContext.value = 'navigate'
-      showLeaveModal.value = true
-      return false
-    }
-    exitEditor()
-  }
-})
-
-onUnmounted(removeGuard)
-
-function enterEditor() {
-  appModals.close()
-  editorStore.takeSnapshot(landStore.activeLand!, themeStore.theme)
-  editorStore.enterEditMode()
-}
-
-function exitEditor() {
-  editorStore.exitEditMode()
-}
-
-function handleClose() {
-  if (editorStore.isDirty) {
-    leaveContext.value = 'close'
-    showLeaveModal.value = true
-  } else {
-    exitEditor()
-  }
-}
-
-function discardChanges() {
-  const land = landStore.activeLand
-  if (land && editorStore.landSnapshot) {
-    landStore.updateLand(land.id, editorStore.landSnapshot)
-  }
-  if (editorStore.themeSnapshot) {
-    themeStore.setTheme(editorStore.themeSnapshot)
-  }
-}
-
-function confirmLeave() {
-  showLeaveModal.value = false
-  discardChanges()
-  exitEditor()
-  if (leaveContext.value === 'navigate') {
-    const path = pendingPath.value
-    pendingPath.value = null
-    if (path) router.push(path)
-  }
-}
-
-function cancelLeave() {
-  showLeaveModal.value = false
-  pendingPath.value = null
-}
-
-async function publish() {
-  const land = landStore.activeLand
-  if (!land) return
-  publishStatus.value = 'loading'
-  showPublishedModal.value = true
-  isPublishing.value = true
-  try {
-    await save()
-    await publishService.publish(land)
-    await landService.updateLand(land.id, { is_published: true })
-    landStore.updateLand(land.id, { is_published: true })
-    editorStore.markPublished()
-    hasPublishedClean.value = true
-    publishStatus.value = 'done'
-  } catch {
-    publishStatus.value = 'error'
-  } finally {
-    isPublishing.value = false
-  }
-}
-
-watch(() => appModals.publishTrigger, (val) => {
-  if (val > 0) publish()
-})
-
-function confirmPublished() {
-  showPublishedModal.value = false
-  exitEditor()
-}
+watch(() => route.path, () => { appModals.close() })
 
 async function handleLogout() {
   await authService.logout()

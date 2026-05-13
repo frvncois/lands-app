@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useEditorActions } from './useEditorActions'
+import { useEditorMutations } from './useEditorMutations'
 import type { Section } from '@/types/section'
 
 interface SectionSnapshot {
@@ -9,7 +9,7 @@ interface SectionSnapshot {
 }
 
 export function useSectionSnapshot(getSection: () => Section) {
-  const { restoreSectionSnapshot } = useEditorActions()
+  const { restoreSectionSnapshot } = useEditorMutations()
   const snapshot = ref<SectionSnapshot | null>(null)
 
   function capture() {

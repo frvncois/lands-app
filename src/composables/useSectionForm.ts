@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import type { WritableComputedRef } from 'vue'
-import { useEditorActions } from './useEditorActions'
+import { useEditorMutations } from './useEditorMutations'
 import type { Section } from '@/types/section'
 
 /**
@@ -9,7 +9,7 @@ import type { Section } from '@/types/section'
  * No local state — eliminates the sync()/watch() anti-pattern.
  */
 export function useSectionForm<S extends Section>(getSection: () => S) {
-  const { updateSectionContent, updateSectionSettings } = useEditorActions()
+  const { updateSectionContent, updateSectionSettings } = useEditorMutations()
 
   function contentField<V>(key: string, fallback: V): WritableComputedRef<V> {
     return computed<V>({
