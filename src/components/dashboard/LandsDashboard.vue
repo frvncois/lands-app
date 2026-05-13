@@ -33,6 +33,7 @@ import { visitData, totalViews, avgPerDay } from '@/lib/mock/analytics'
 import { orderStats } from '@/lib/mock/orders'
 import { monetizeStats } from '@/lib/mock/monetize'
 import NumberFlow from '@number-flow/vue'
+import { useCountUpStats } from '@/composables/useCountUpStats'
 
 import AnalyticsDetail from './detail/AnalyticsDetail.vue'
 import OrdersDetail from './detail/OrdersDetail.vue'
@@ -44,28 +45,20 @@ const appModals = useAppModals()
 const { activeDetail, direction, openDetail, closeDetail } = useDashboardDetail()
 const landStore = useLandStore()
 
-const displayViews = ref(0)
+// displayRevenue is intentionally excluded: it was always 0 (never set in triggerCountUp) — dead animation
 const displayRevenue = ref(0)
-const displayOrderNew = ref(0)
-const displayOrderShipped = ref(0)
-const displayMonetizeSubscribers = ref(0)
-const displayMonetizeRevenue = ref(0)
-
-function triggerCountUp() {
-  displayViews.value = 0
-  displayRevenue.value = 0
-  displayOrderNew.value = 0
-  displayOrderShipped.value = 0
-  displayMonetizeSubscribers.value = 0
-  displayMonetizeRevenue.value = 0
-  setTimeout(() => {
-    displayViews.value = totalViews
-    displayOrderNew.value = orderStats.new
-    displayOrderShipped.value = orderStats.shipped
-    displayMonetizeSubscribers.value = monetizeStats.subscribers
-    displayMonetizeRevenue.value = monetizeStats.revenueMonthly
-  }, 300)
-}
+const { display: countUp, trigger: triggerCountUp } = useCountUpStats({
+  views: totalViews,
+  orderNew: orderStats.new,
+  orderShipped: orderStats.shipped,
+  monetizeSubscribers: monetizeStats.subscribers,
+  monetizeRevenue: monetizeStats.revenueMonthly,
+})
+const displayViews = countUp.views
+const displayOrderNew = countUp.orderNew
+const displayOrderShipped = countUp.orderShipped
+const displayMonetizeSubscribers = countUp.monetizeSubscribers
+const displayMonetizeRevenue = countUp.monetizeRevenue
 
 onMounted(triggerCountUp)
 
