@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { ShareIcon, QrCodeIcon, LinkIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import { useLandStore } from '@/stores/land'
+import { useClipboardCopy } from '@/composables/useClipboardCopy'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -28,12 +29,10 @@ const qrUrl = computed(() =>
 )
 
 // ─── Copy link ───
-const copied = ref(false)
+const { copy, copied } = useClipboardCopy()
 async function copyLink() {
   if (!publicUrl.value) return
-  await navigator.clipboard.writeText(publicUrl.value)
-  copied.value = true
-  setTimeout(() => { copied.value = false }, 2000)
+  await copy(publicUrl.value)
 }
 
 // ─── Platforms ───

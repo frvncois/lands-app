@@ -5,6 +5,7 @@ import BaseButton from '../ui/BaseButton.vue'
 import BaseModal from '../ui/BaseModal.vue'
 import { useLandStore } from '@/stores/land'
 import { domainService } from '@/services/domain.service'
+import { useClipboardCopy } from '@/composables/useClipboardCopy'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -17,7 +18,7 @@ const step = ref<Step>('input')
 const domain = ref('')
 const isLoading = ref(false)
 const errorMsg = ref('')
-const copied = ref<string | null>(null)
+const { copy, copied } = useClipboardCopy()
 let pollInterval: ReturnType<typeof setInterval> | null = null
 
 // ─── Init from existing land domain ───
@@ -113,12 +114,6 @@ async function checkStatus() {
   } catch { /* silent — keep polling */ }
 }
 
-// ─── Clipboard ───
-async function copy(value: string, key: string) {
-  await navigator.clipboard.writeText(value)
-  copied.value = key
-  setTimeout(() => { copied.value = null }, 2000)
-}
 </script>
 
 <template>

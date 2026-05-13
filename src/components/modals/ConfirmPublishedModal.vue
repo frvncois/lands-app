@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import { useClipboardCopy } from '@/composables/useClipboardCopy'
 
 const props = defineProps<{ handle: string; status: 'loading' | 'done' | 'error' }>()
 const emit = defineEmits<{ close: [] }>()
 
 const url = `https://${props.handle}.lands.app`
 
-const copied = ref(false)
+const { copy, copied } = useClipboardCopy()
 
 function viewLive() {
   window.open(url, '_blank')
@@ -16,9 +16,7 @@ function viewLive() {
 
 async function share() {
   try {
-    await navigator.clipboard.writeText(url)
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
+    await copy(url)
   } catch {
     window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`, '_blank')
   }
