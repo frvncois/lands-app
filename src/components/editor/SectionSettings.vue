@@ -3,14 +3,12 @@ import { ref, computed, watch } from 'vue'
 import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import type { Section } from '@/types/section'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionSnapshot } from '@/composables/useSectionSnapshot'
 import { sectionLabelMap, sectionIconMap } from '@/composables/useSectionTree'
 import { SECTION_REGISTRY } from '@/features/sections/registry'
 
 const props = defineProps<{ section: Section; hideHeader?: boolean }>()
 const emit = defineEmits<{ close: [], 'editing-change': [isEditing: boolean] }>()
-
-const { restoreSectionSnapshot } = useEditorActions()
 
 // ─── Registry-driven settings panel ───
 const settingsPanelComponent = computed(() => SECTION_REGISTRY[props.section.type].settingsPanel)
@@ -20,17 +18,8 @@ const settingsPanelComponent = computed(() => SECTION_REGISTRY[props.section.typ
 const settingsRef = ref<any>(null)
 
 // ─── Snapshot ───
-interface SectionSnapshot { content: unknown; settings_json: unknown; style_variant: string }
-const snapshot = ref<SectionSnapshot | null>(null)
 const isEditingSubItem = ref(false)
-
-function takeSnapshot() {
-  snapshot.value = {
-    content: JSON.parse(JSON.stringify(props.section.content ?? {})),
-    settings_json: JSON.parse(JSON.stringify(props.section.settings_json ?? {})),
-    style_variant: props.section.style_variant,
-  }
-}
+const { capture: takeSnapshot, restore: restoreSnapshot } = useSectionSnapshot(() => props.section)
 
 takeSnapshot()
 watch(() => props.section.id, takeSnapshot)
@@ -41,9 +30,7 @@ function handleSave() {
 }
 
 function handleCancel() {
-  if (snapshot.value) {
-    restoreSectionSnapshot(props.section.id, snapshot.value)
-  }
+  restoreSnapshot()
   emit('close')
 }
 

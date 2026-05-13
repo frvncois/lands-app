@@ -9,6 +9,7 @@ import type { TreeNode } from '../../ui/BaseTree.vue'
 import type { Section } from '@/types/section'
 import type { ListItem } from '@/types/list'
 import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionSnapshot } from '@/composables/useSectionSnapshot'
 import { useThemePreset } from '@/composables/useThemePreset'
 import { sortByPosition, generateReorderPosition } from '@/lib/utils/position'
 
@@ -17,7 +18,8 @@ const emit = defineEmits<{ 'editing-change': [isEditing: boolean] }>()
 
 const { isStructureTheme } = useThemePreset()
 
-const { updateSectionContent, restoreSectionSnapshot, addListItem: addListItemAction, updateListItem, deleteListItem, reorderListItem } = useEditorActions()
+const { updateSectionContent, addListItem: addListItemAction, updateListItem, deleteListItem, reorderListItem } = useEditorActions()
+const { capture: captureSubItem, restore: restoreSubItem } = useSectionSnapshot(() => props.section)
 
 const listSectionTitle = ref('')
 const listSectionDescription = ref('')
@@ -79,19 +81,8 @@ const editListIcon = ref('')
 const editListIconType = ref<'image' | 'lucide' | 'none'>('none')
 const editListIconName = ref('')
 
-type SectionSnapshot = { content: unknown; settings_json: unknown; style_variant: string }
-const subItemSnapshot = ref<SectionSnapshot | null>(null)
-
-function captureSnapshot(): SectionSnapshot {
-  return {
-    content: JSON.parse(JSON.stringify(props.section.content ?? {})),
-    settings_json: JSON.parse(JSON.stringify(props.section.settings_json ?? {})),
-    style_variant: props.section.style_variant,
-  }
-}
-
 function openEditListItem(item: ListItem) {
-  subItemSnapshot.value = captureSnapshot()
+  captureSubItem()
   editingListItem.value = item
   editListTitle.value = item.title
   editListSubtitle.value = item.subtitle
@@ -122,20 +113,16 @@ function syncListItem() {
 }
 
 function cancelSubItem() {
-  if (subItemSnapshot.value) {
-    restoreSectionSnapshot(props.section.id, subItemSnapshot.value)
-  }
-  subItemSnapshot.value = null
+  restoreSubItem()
   closeEditListItem()
 }
 
 function saveSubItem() {
-  subItemSnapshot.value = null
   closeEditListItem()
 }
 
 function addListItem() {
-  subItemSnapshot.value = captureSnapshot()
+  captureSubItem()
   const newItem = addListItemAction(props.section.id, { title: 'New item', subtitle: '', url: 'https://', description: '', icon: '' })
   if (newItem) {
     editingListItem.value = newItem
