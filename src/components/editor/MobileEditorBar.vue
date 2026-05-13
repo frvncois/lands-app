@@ -4,7 +4,8 @@ import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon 
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { useThemeStore } from '@/stores/theme'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useEditorMutations } from '@/composables/useEditorMutations'
+import { useSectionLifecycle } from '@/composables/useSectionLifecycle'
 import { useIsMobile } from '@/composables/useIsMobile'
 import { usePlan } from '@/composables/usePlan'
 import { sortByPosition } from '@/lib/utils/position'
@@ -26,7 +27,8 @@ const landStore = useLandStore()
 const editorStore = useEditorStore()
 const themeStore = useThemeStore()
 const { isMobile } = useIsMobile()
-const { deleteSection, duplicateSection, updateTheme } = useEditorActions()
+const { deleteSection, duplicateSection } = useSectionLifecycle()
+const { updateTheme } = useEditorMutations()
 const { insertBeforeFooter, moveTo } = useSectionInsert()
 const { sectionIconMap, sectionLabelMap, getSectionTitle, nodes } = useSectionTree()
 const { withinSectionLimit, maxSections, isPaid } = usePlan()

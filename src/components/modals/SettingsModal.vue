@@ -5,14 +5,14 @@ import BaseInput from '../ui/BaseInput.vue'
 import BaseItem from '../ui/BaseItem.vue'
 import BaseButton from '../ui/BaseButton.vue'
 import { useLandStore } from '@/stores/land'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useEditorMutations } from '@/composables/useEditorMutations'
 import CustomDomainModal from './CustomDomainModal.vue'
 import DeleteProjectModal from './DeleteProjectModal.vue'
 
 const emit = defineEmits<{ close: [] }>()
 
 const landStore = useLandStore()
-const { updateLandSettings } = useEditorActions()
+const { updateLandSettings } = useEditorMutations()
 
 const title = ref(landStore.activeLand?.title ?? '')
 const url = ref(landStore.activeLand?.handle ?? '')

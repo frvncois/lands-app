@@ -1,5 +1,5 @@
 import { useLandStore } from '@/stores/land'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionLifecycle } from '@/composables/useSectionLifecycle'
 import {
   sortByPosition,
   generatePositionBefore,
@@ -10,7 +10,7 @@ import type { Section, SectionType } from '@/types/section'
 
 export function useSectionInsert() {
   const landStore = useLandStore()
-  const { addSection, reorderSection } = useEditorActions()
+  const { addSection, reorderSection } = useSectionLifecycle()
 
   function getSorted(): Section[] {
     return sortByPosition(landStore.activeLand?.sections ?? [])

@@ -7,18 +7,7 @@ import { landService } from '@/services/land.service'
 import type { Section, SectionSettings } from '@/types/section'
 import type { LandTheme } from '@/types/theme'
 
-// Re-exports from focused composables
-export { useListActions } from './useListActions'
-export { useCollectionActions } from './useCollectionActions'
-export { useStoreActions } from './useStoreActions'
-export { useSectionLifecycle } from './useSectionLifecycle'
-
-import { useListActions } from './useListActions'
-import { useCollectionActions } from './useCollectionActions'
-import { useStoreActions } from './useStoreActions'
-import { useSectionLifecycle } from './useSectionLifecycle'
-
-export function useEditorActions() {
+export function useEditorMutations() {
   const landStore = useLandStore()
   const editorStore = useEditorStore()
   const themeStore = useThemeStore()
@@ -43,12 +32,10 @@ export function useEditorActions() {
   // ─── Section Content/Settings ───
 
   function updateSectionContent(sectionId: string, content: Record<string, unknown>) {
-    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
     patchSection(sectionId, (s) => ({ ...s, content: { ...(s.content ?? {}), ...content } }) as unknown as Section)
   }
 
   function updateSectionSettings(sectionId: string, settings: Record<string, unknown>) {
-    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
     patchSection(sectionId, (s) => ({ ...s, settings_json: { ...s.settings_json, ...settings } }) as unknown as Section)
   }
 
@@ -63,7 +50,6 @@ export function useEditorActions() {
     settings_json: unknown
     style_variant: string
   }) {
-    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
     patchSection(sectionId, (s) => ({ ...s, content: data.content, style_variant: data.style_variant, settings_json: data.settings_json }) as unknown as Section)
   }
 
@@ -102,22 +88,12 @@ export function useEditorActions() {
   }
 
   return {
-    // Section content/settings
     updateSectionContent,
     updateSectionSettings,
     updateSectionStyleVariant,
     restoreSectionSnapshot,
-    // Land
     updateLandImages,
     updateTheme,
     updateLandSettings,
-    // List actions
-    ...useListActions(),
-    // Collection actions
-    ...useCollectionActions(),
-    // Store actions
-    ...useStoreActions(),
-    // Section lifecycle
-    ...useSectionLifecycle(),
   }
 }

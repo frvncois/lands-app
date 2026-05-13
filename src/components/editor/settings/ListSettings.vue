@@ -9,7 +9,7 @@ import BaseIconPicker from '../../ui/BaseIconPicker.vue'
 import type { TreeNode } from '../../ui/BaseTree.vue'
 import type { Section } from '@/types/section'
 import type { ListItem } from '@/types/list'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useListActions } from '@/composables/useListActions'
 import { useSectionSnapshot } from '@/composables/useSectionSnapshot'
 import { useThemePreset } from '@/composables/useThemePreset'
 import { sortByPosition, generateReorderPosition } from '@/lib/utils/position'
@@ -19,7 +19,7 @@ const emit = defineEmits<{ 'editing-change': [isEditing: boolean] }>()
 
 const { isStructureTheme } = useThemePreset()
 
-const { addListItem: addListItemAction, updateListItem, deleteListItem, reorderListItem } = useEditorActions()
+const { addListItem: addListItemAction, updateListItem, deleteListItem, reorderListItem } = useListActions()
 const { capture: captureSubItem, restore: restoreSubItem } = useSectionSnapshot(() => props.section)
 const { contentField } = useSectionForm(() => props.section)
 

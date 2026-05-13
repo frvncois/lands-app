@@ -8,7 +8,7 @@ import type { TreeNode } from '../../ui/BaseTree.vue'
 import ItemEditorSettings from './ItemEditorSettings.vue'
 import type { Section } from '@/types/section'
 import type { CollectionItem, Collection } from '@/types/collection'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useCollectionActions } from '@/composables/useCollectionActions'
 import { useThemePreset } from '@/composables/useThemePreset'
 import { sortByPosition, generateReorderPosition } from '@/lib/utils/position'
 
@@ -16,7 +16,7 @@ const props = defineProps<{ section: Section }>()
 
 const { isMinimalTheme } = useThemePreset()
 
-const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useEditorActions()
+const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useCollectionActions()
 
 const collection = computed(() => ((props.section.content as any)?.collections?.[0] ?? null) as Collection | null)
 const collectionItems = computed(() => collection.value ? sortByPosition(collection.value.items) : [])

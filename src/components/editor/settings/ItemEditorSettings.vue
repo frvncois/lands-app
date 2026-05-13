@@ -5,7 +5,8 @@ import BaseButton from '../../ui/BaseButton.vue'
 import BaseInput from '../../ui/BaseInput.vue'
 import BaseUpload from '../../ui/BaseUpload.vue'
 import ContentEditor from '../content/ContentEditor.vue'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useCollectionActions } from '@/composables/useCollectionActions'
+import { useStoreActions } from '@/composables/useStoreActions'
 import type { CollectionItem } from '@/types/collection'
 import type { StoreItem } from '@/types/store'
 
@@ -27,7 +28,8 @@ function dismiss() {
   setTimeout(() => emit('close'), 220)
 }
 
-const { updateCollectionItem, updateStoreItem } = useEditorActions()
+const { updateCollectionItem } = useCollectionActions()
+const { updateStoreItem } = useStoreActions()
 
 const isStore = computed(() => props.type === 'store')
 

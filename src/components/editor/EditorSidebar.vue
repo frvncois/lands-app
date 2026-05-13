@@ -22,7 +22,8 @@ import { useAppModals } from '@/stores/appModals'
 
 const appModals = useAppModals()
 import { useThemeStore } from '@/stores/theme'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useEditorMutations } from '@/composables/useEditorMutations'
+import { useSectionLifecycle } from '@/composables/useSectionLifecycle'
 import { useSectionInsert } from '@/composables/useSectionInsert'
 import { useSectionTree } from '@/composables/useSectionTree'
 import { usePlan } from '@/composables/usePlan'
@@ -33,7 +34,8 @@ import { THEME_PRESET_DEFINITIONS } from '@/lib/primitives/themePresets'
 const landStore = useLandStore()
 const editorStore = useEditorStore()
 const themeStore = useThemeStore()
-const { deleteSection, duplicateSection, updateTheme } = useEditorActions()
+const { deleteSection, duplicateSection } = useSectionLifecycle()
+const { updateTheme } = useEditorMutations()
 const { insertAt, insertBeforeFooter, moveTo } = useSectionInsert()
 const { sectionIconMap, sectionLabelMap, getSectionTitle, nodes } = useSectionTree()
 const { isPaid, withinSectionLimit, maxSections } = usePlan()

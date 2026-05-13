@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { sortByPosition } from '@/lib/utils/position'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useSectionLifecycle } from '@/composables/useSectionLifecycle'
 import { useSectionInsert } from '@/composables/useSectionInsert'
 import type { Section } from '@/types/section'
 import BaseContextMenu from '@/components/ui/BaseContextMenu.vue'
@@ -12,7 +12,7 @@ import SectionRenderer from '@/components/editor/sections/SectionRenderer.vue'
 
 const landStore = useLandStore()
 const editorStore = useEditorStore()
-const { deleteSection, duplicateSection } = useEditorActions()
+const { deleteSection, duplicateSection } = useSectionLifecycle()
 const { moveUp: _moveUp, moveDown: _moveDown } = useSectionInsert()
 
 const sections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))

@@ -10,7 +10,7 @@ import type { TreeNode } from '../../ui/BaseTree.vue'
 import ItemEditorSettings from './ItemEditorSettings.vue'
 import type { Section } from '@/types/section'
 import type { CollectionItem, Collection } from '@/types/collection'
-import { useEditorActions } from '@/composables/useEditorActions'
+import { useCollectionActions } from '@/composables/useCollectionActions'
 import { useLandStore } from '@/stores/land'
 import { useAppModals } from '@/stores/appModals'
 import { useStripeConnect } from '@/composables/useStripeConnect'
@@ -20,7 +20,7 @@ const props = defineProps<{ section: Section }>()
 
 const landStore = useLandStore()
 const appModals = useAppModals()
-const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useEditorActions()
+const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useCollectionActions()
 const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 
 const collection = computed(() => ((props.section.content as any)?.collections?.[0] ?? null) as Collection | null)
