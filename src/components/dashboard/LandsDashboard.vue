@@ -1,26 +1,19 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue'
-import { useAppModals } from '@/stores/appModals'
 import { useDashboardDetail, type DetailKey } from '@/composables/useDashboardDetail'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { usePlan } from '@/composables/usePlan'
-import { useCampaignStore } from '@/stores/campaign'
 import { useRouter } from 'vue-router'
-import { useStripeConnect } from '@/composables/useStripeConnect'
 import {
-  MegaphoneIcon,
   CurrencyDollarIcon,
   ShoppingBagIcon,
-  ArrowRightIcon,
   ArrowLeftIcon,
   ArrowTopRightOnSquareIcon,
   PencilSquareIcon,
   ChartBarIcon,
   PlusIcon,
   CreditCardIcon,
-  Squares2X2Icon,
-  SparklesIcon,
   ShareIcon,
 } from '@heroicons/vue/24/outline'
 import BaseChart from '@/components/ui/BaseChart.vue'
@@ -36,12 +29,15 @@ import NumberFlow from '@number-flow/vue'
 import { useCountUpStats } from '@/composables/useCountUpStats'
 
 import AnalyticsDetail from './detail/AnalyticsDetail.vue'
+import MetricCard from '@/components/dashboard/cards/MetricCard.vue'
+import ConnectStripeCard from '@/components/dashboard/cards/ConnectStripeCard.vue'
+import UpgradeCard from '@/components/dashboard/cards/UpgradeCard.vue'
+import CampaignCard from '@/components/dashboard/cards/CampaignCard.vue'
 import OrdersDetail from './detail/OrdersDetail.vue'
 import SellDetail from './detail/SellDetail.vue'
 import CampaignDetail from './detail/CampaignDetail.vue'
 import MonetizeDetail from './detail/MonetizeDetail.vue'
 
-const appModals = useAppModals()
 const { activeDetail, direction, openDetail, closeDetail } = useDashboardDetail()
 const landStore = useLandStore()
 
@@ -75,9 +71,7 @@ const stopInitWatch = watch(() => landStore.activeLandId, (id) => {
 watch(() => landStore.activeLandId, triggerCountUp)
 const editorStore = useEditorStore()
 const { canUseCampaign, isPaid } = usePlan()
-const campaignStore = useCampaignStore()
 const router = useRouter()
-const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 const showShare = ref(false)
 const showCampaignModal = ref(false)
 
@@ -217,51 +211,17 @@ function openStripePortal() {
 
 
         <!-- Analytics -->
-        <BaseCard variant="spaced" :icon="ChartBarIcon" title="Analytics" class="shrink-0 card-appear" style="animation-delay: 100ms">
-          <template #header-action>
-            <button
-              class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-              @click="openDetail('analytics')"
-            >
-              View More <ArrowRightIcon class="h-3 w-3" />
-            </button>
-          </template>
+        <MetricCard :icon="ChartBarIcon" title="Analytics" :animation-delay="100" show-view-more @view-more="openDetail('analytics')">
           <BaseChart :data="visitData" :height="80" />
-        </BaseCard>
+        </MetricCard>
 
 
 
         <!-- Sell & Monetize (no Stripe) -->
-        <div v-if="!landStore.isStripeConnected" class="shrink-0 card-appear rounded-xl border border-gray-200 flex flex-col justify-center items-center gap-3 py-8 px-4 text-center" style="animation-delay: 200ms">
-          <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
-            <CurrencyDollarIcon class="h-5 w-5 text-gray-900" />
-          </div>
-            <p class="text-sm font-semibold text-gray-900">Sell & Monetize</p>
-            <p class="text-xs text-gray-400 leading-relaxed">Connect your Stripe account and start selling products, classes and exclusive content.</p>
-          <BaseButton variant="solid" size="sm" :disabled="isConnectingStripe" @click="connectStripe">
-            <Transition name="stripe-btn" mode="out-in">
-              <span v-if="isConnectingStripe" key="loading" class="flex items-center gap-1.5">
-                <span class="stripe-spinner" />
-                Connecting…
-              </span>
-              <span v-else key="idle" class="flex items-center gap-1.5">
-                Connect Stripe
-              </span>
-            </Transition>
-          </BaseButton>
-        </div>
+        <ConnectStripeCard v-if="!landStore.isStripeConnected" />
 
         <!-- Orders (Stripe connected) -->
-        <BaseCard v-if="landStore.isStripeConnected" variant="spaced" :icon="ShoppingBagIcon" title="Orders" class="shrink-0 card-appear" style="animation-delay: 200ms">
-          <template #header-action>
-            <button
-              v-if="hasStoreItems"
-              class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-              @click="openDetail('orders')"
-            >
-              View More <ArrowRightIcon class="h-3 w-3" />
-            </button>
-          </template>
+        <MetricCard v-if="landStore.isStripeConnected" :icon="ShoppingBagIcon" title="Orders" :animation-delay="200" :show-view-more="hasStoreItems" @view-more="openDetail('orders')">
           <template v-if="hasStoreItems">
             <div class="flex gap-2">
               <div class="flex-1 rounded-lg bg-white p-2 space-y-0.5">
@@ -280,19 +240,10 @@ function openStripePortal() {
               <PlusIcon class="h-3.5 w-3.5" /> Add Product
             </BaseButton>
           </template>
-        </BaseCard>
+        </MetricCard>
 
         <!-- Monetize (Stripe connected) -->
-        <BaseCard v-if="landStore.isStripeConnected" variant="spaced" :icon="CurrencyDollarIcon" title="Monetize" class="shrink-0 card-appear" style="animation-delay: 300ms">
-          <template #header-action>
-            <button
-              v-if="hasMonetizeItems"
-              class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-              @click="openDetail('monetize')"
-            >
-              View More <ArrowRightIcon class="h-3 w-3" />
-            </button>
-          </template>
+        <MetricCard v-if="landStore.isStripeConnected" :icon="CurrencyDollarIcon" title="Monetize" :animation-delay="300" :show-view-more="hasMonetizeItems" @view-more="openDetail('monetize')">
           <template v-if="hasMonetizeItems">
             <div class="flex gap-2">
               <div class="flex-1 rounded-lg bg-white p-2 space-y-0.5">
@@ -313,48 +264,13 @@ function openStripePortal() {
               <PlusIcon class="h-3.5 w-3.5" /> Add Content
             </BaseButton>
           </template>
-        </BaseCard>
+        </MetricCard>
 
         <!-- Upgrade card (free plan only) -->
-        <div v-if="landStore.activeLand && !isPaid" class="flex-1 shrink-0 card-appear rounded-xl border bg-gray-50 border-gray-200 justify-center p-8 flex flex-col items-center gap-2 text-center" style="animation-delay: 400ms">
-          <div class="h-10 w-10 rounded-full bg-gray-900 flex items-center justify-center">
-            <SparklesIcon class="h-5 w-5 text-gray-100" />
-          </div>
-          <p class="text-sm font-semibold text-gray-900">Upgrade to Pro</p>
-          <div class="flex flex-wrap justify-center gap-1.5">
-            <p class="text-xs text-gray-500 leading-relaxed mb-2">Unlimited content, Analtyics, Campaign, Collaborators, Custom domain, and more</p>
-          </div>
-          <BaseButton variant="solid" size="sm" @click="appModals.openUpgrade()">
-            Upgrade Plan
-          </BaseButton>
-        </div>
+        <UpgradeCard v-if="landStore.activeLand && !isPaid" />
 
-        <!-- Campaign: no provider connected -->
-        <div v-if="canUseCampaign && !campaignStore.isConnected" class="shrink-0 flex-1 card-appear rounded-xl border border-gray-200 flex flex-col items-center justify-center gap-2 p-4 text-center" style="animation-delay: 500ms">
-          <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
-            <MegaphoneIcon class="h-4 w-4 text-gray-900" />
-          </div>
-          <div class="flex flex-col gap-1">
-            <p class="text-sm font-semibold text-gray-900">Connect email provider</p>
-            <p class="text-xs text-gray-400 leading-relaxed">Connect Mailchimp, Flodesk, Brevo and more to start capturing subscribers.</p>
-          </div>
-          <BaseButton variant="solid" size="sm" @click="showCampaignModal = true">
-            Set up Campaign
-          </BaseButton>
-        </div>
-
-        <!-- Campaign: connected -->
-        <BaseCard v-else-if="canUseCampaign && campaignStore.isConnected" variant="spaced" :icon="MegaphoneIcon" title="Campaign" class="shrink-0 card-appear" style="animation-delay: 500ms">
-          <template #header-action>
-            <button
-              class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
-              @click="openDetail('campaign')"
-            >
-              View More <ArrowRightIcon class="h-3 w-3" />
-            </button>
-          </template>
-          <p class="text-xs text-gray-400">0 subscribers</p>
-        </BaseCard>
+        <!-- Campaign -->
+        <CampaignCard v-if="canUseCampaign" @setup-campaign="showCampaignModal = true" />
 
 
 
@@ -396,27 +312,4 @@ function openStripePortal() {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Stripe button content swap */
-.stripe-btn-enter-active,
-.stripe-btn-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.stripe-btn-enter-from { opacity: 0; transform: scale(0.9); }
-.stripe-btn-leave-to   { opacity: 0; transform: scale(1.05); }
-
-/* Spinner */
-.stripe-spinner {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 1.5px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  opacity: 0.6;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 </style>
