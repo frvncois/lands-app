@@ -1,75 +1,38 @@
 import { computed } from 'vue'
 import { useLandStore } from '@/stores/land'
-import { useEditorStore } from '@/stores/editor'
 import { useToast } from '@/composables/useToast'
-import { sortByPosition, generatePositionAfter } from '@/lib/utils/position'
-import type { Section } from '@/types/section'
+import { useNestedItems } from './useNestedItems'
 import type { ListItem } from '@/types/list'
 
 export function useListActions() {
   const landStore = useLandStore()
-  const editorStore = useEditorStore()
   const { addToast } = useToast()
-
+  const { addToArray, updateInArray, deleteFromArray, reorderInArray } = useNestedItems()
   const activeLand = computed(() => landStore.activeLand)
 
-  function patchSection(sectionId: string, updater: (s: Section) => Section) {
-    if (!activeLand.value) return
-    const updatedSections = activeLand.value.sections.map((s) =>
-      s.id === sectionId ? updater(s) : s
-    )
-    landStore.updateLand(activeLand.value.id, { sections: updatedSections })
-    if (editorStore.activeSection?.id === sectionId) {
-      editorStore.setActiveSection(updatedSections.find((s) => s.id === sectionId) ?? null)
-    }
-    editorStore.markDirty()
-  }
-
-  function updateSectionContent(sectionId: string, content: Record<string, unknown>) {
-    // FIXME Phase 4: replace patchSection spreads with per-type useSectionForm mutations
-    patchSection(sectionId, (s) => ({ ...s, content: { ...(s.content ?? {}), ...content } }) as unknown as Section)
-  }
-
-  function getListItems(sectionId: string): ListItem[] {
-    const section = activeLand.value?.sections.find((s) => s.id === sectionId)
-    if (section?.type !== 'list') return []
-    return section.content?.items ?? []
+  function getItems(sectionId: string): ListItem[] {
+    const s = activeLand.value?.sections.find((s) => s.id === sectionId)
+    return s?.type === 'list' ? (s.content?.items ?? []) : []
   }
 
   function addListItem(sectionId: string, data: Pick<ListItem, 'title' | 'subtitle' | 'url' | 'description' | 'icon'>): ListItem {
-    const existing = getListItems(sectionId)
-    const sorted = sortByPosition(existing)
-    const newItem: ListItem = {
-      ...data,
-      id: crypto.randomUUID(),
-      section_id: sectionId,
-      position: generatePositionAfter(sorted[sorted.length - 1]?.position ?? null),
-    }
-    updateSectionContent(sectionId, { items: [...existing, newItem] })
+    const item = addToArray<ListItem>(sectionId, 'items', getItems(sectionId), { ...data, section_id: sectionId })
     addToast('Link added')
-    return newItem
+    return item
   }
 
   function updateListItem(sectionId: string, itemId: string, data: Partial<ListItem>) {
-    const items = getListItems(sectionId)
-    updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, ...data } : i)) })
+    updateInArray(sectionId, 'items', getItems(sectionId), itemId, data)
   }
 
   function deleteListItem(sectionId: string, itemId: string) {
-    const items = getListItems(sectionId)
-    updateSectionContent(sectionId, { items: items.filter((i) => i.id !== itemId) })
+    deleteFromArray(sectionId, 'items', getItems(sectionId), itemId)
     addToast('Link removed')
   }
 
   function reorderListItem(sectionId: string, itemId: string, newPosition: string) {
-    const items = getListItems(sectionId)
-    updateSectionContent(sectionId, { items: items.map((i) => (i.id === itemId ? { ...i, position: newPosition } : i)) })
+    reorderInArray(sectionId, 'items', getItems(sectionId), itemId, newPosition)
   }
 
-  return {
-    addListItem,
-    updateListItem,
-    deleteListItem,
-    reorderListItem,
-  }
+  return { addListItem, updateListItem, deleteListItem, reorderListItem }
 }
