@@ -54,8 +54,9 @@ export function useSectionLifecycle() {
       ? seeded
       : (defaults.content ? structuredClone(defaults.content) : {})) as unknown as Section['content']
 
-    // FIXME Phase 6: buildSections uses a generic SectionType loop — can't narrow to a specific
-    // discriminant at compile time, so we use as unknown as Section here.
+    // Building a section from a runtime SectionType string — TypeScript can't narrow the
+    // discriminant at compile time here, so we cast via unknown. Safe: all fields match the
+    // discriminated union shape for every SectionType value.
     const newSection = {
       id: crypto.randomUUID(),
       land_id: activeLand.value.id,
