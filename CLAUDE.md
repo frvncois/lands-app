@@ -68,9 +68,9 @@ A **Land** is the central entity — a user's public page identified by `handle`
 
 ### Section Rendering
 
-`EditorPreview.vue` maps section types to components via `componentMap`. Each `SectionXxx.vue` delegates to a style-variant sub-component (e.g. `TextMinimal`, `TextBold`, `TextEditorial`) found in `src/components/sections/{type}/`.
+`EditorPreview.vue` maps section types to components via `componentMap`. Each `SectionXxx.vue` delegates to a style-variant sub-component (e.g. `TextMinimal`, `TextBaseline`, `TextStructure`) found in `src/features/editor/components/sections/variants/{type}/`.
 
-Theme presets drive which style variant renders — see `src/lib/primitives/themePresets.ts`.
+Theme presets drive which style variant renders — see `src/features/theme/presets.ts`.
 
 ### State (Pinia Stores)
 
@@ -87,7 +87,7 @@ All section/land mutations go through the editor composables and call `editorSto
 
 ### Theme System
 
-`useThemeVars` (called in `App.vue`) writes CSS custom properties (`--theme-font`, `--theme-color-main`, etc.) to `:root`. Components consume these vars directly in styles. Theme configuration lives in `src/lib/primitives/themePresets.ts`.
+`useThemeVars` (called in `App.vue`) writes CSS custom properties (`--theme-font`, `--theme-color-main`, etc.) to `:root`. Components consume these vars directly in styles. Theme configuration lives in `src/features/theme/presets.ts`.
 
 ### Services
 
@@ -123,29 +123,50 @@ All services delegate to Supabase (auth, database, storage, Edge Functions). Ser
 
 ### Mock Data
 
-`src/lib/mock/` seeds all stores with realistic Faker.js data. Two builders:
+`src/shared/mock/` seeds all stores with realistic Faker.js data. Two builders:
 - `buildMockLand()` — full land with header, list, collection, store, footer, random theme, 0–3 collaborators
 - `buildMinimalMockLand()` — header + footer only (blank-state for new projects)
 
 ### UI Components
 
-All reusable primitives are in `src/components/ui/` prefixed with `Base` (e.g. `BaseButton`, `BaseInput`, `BaseDropdown`, `BaseModal`, `BasePlanGate`, `BaseToast`). Do not create one-off replacements — extend or use existing Base components.
+All reusable primitives are in `src/shared/ui/` prefixed with `Base` (e.g. `BaseButton`, `BaseInput`, `BaseDropdown`, `BaseModal`, `BasePlanGate`, `BaseToast`). Do not create one-off replacements — extend or use existing Base components.
 
 `BasePlanGate` is the standard paywall wrapper — use it to gate paid features in the UI.
 
 ### Campaign Integrations
 
-Supported email providers (stored as `land.campaign_integration`): Kit, Loops, Brevo, Flodesk, Resend, Mailchimp, Webhook. Each has a provider-specific config shape in `src/types/campaign.ts`. UI lives in `IntegrationSettingsModal.vue`.
+Supported email providers (stored as `land.campaign_integration`): Kit, Loops, Brevo, Flodesk, Resend, Mailchimp, Webhook. Each has a provider-specific config shape in `src/features/integrations/types/campaign.ts`. UI lives in `IntegrationSettingsModal.vue`.
+
+### Folder Layout
+
+The `src/` tree follows a feature-based layout:
+
+```
+src/
+  app/            # entry point, App.vue, router
+  shared/         # ui/, composables/, lib/, mock/ — cross-cutting, no feature deps
+  features/
+    auth/         # login, register, password reset
+    onboarding/   # new-user setup flow
+    dashboard/    # AppLayout, LandsDashboard, detail views
+    editor/       # AppHeader, EditorPreview, EditorSidebar, section components, editor composables
+    sections/     # Section types, registry, defaults, style-variants
+    theme/        # ThemeStore, presets, useThemeVars
+    lands/        # LandStore, land types, land service
+    plan/         # usePlan, plan types/details
+    modals/       # all modal components + useAppModals
+    integrations/ # campaign/collaborator/domain/stripe panels & services
+```
 
 ### Key Source Files
 
-- `src/composables/useEditorActions.ts` — all section/land mutations
-- `src/composables/useSectionLifecycle.ts` — section add/delete/reorder with plan enforcement
-- `src/components/shared/AppHeader.vue` — save/publish/discard flow, editor mode toggle
-- `src/lib/primitives/styleVariants.ts` — `STYLE_VARIANTS_BY_SECTION` map
-- `src/lib/primitives/sectionDefaults.ts` — default content/settings per section type
-- `src/lib/primitives/themePresets.ts` — theme preset definitions
-- `src/sections/index.ts` — `SectionPrimitive[]` (add section picker data)
+- `src/features/editor/composables/useEditorMutations.ts` — all section/land mutations
+- `src/features/editor/composables/useSectionLifecycle.ts` — section add/delete/reorder with plan enforcement
+- `src/features/editor/components/AppHeader.vue` — save/publish/discard flow, editor mode toggle
+- `src/features/sections/style-variants.ts` — `STYLE_VARIANTS_BY_SECTION` map
+- `src/features/sections/defaults.ts` — default content/settings per section type
+- `src/features/theme/presets.ts` — theme preset definitions
+- `src/features/sections/index.ts` — `SectionPrimitive[]` (add section picker data)
 
 ### Known Pre-existing Type Errors
 

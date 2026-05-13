@@ -1,8 +1,8 @@
 import { defineAsyncComponent } from 'vue'
 import type { Component, FunctionalComponent } from 'vue'
-import type { ThemePreset } from '@/types/theme'
-import type { Section, SectionType } from '@/types/section'
-import { SECTION_DEFAULTS } from '@/lib/primitives/sectionDefaults'
+import type { ThemePreset } from '@/features/theme/types'
+import type { Section, SectionType } from '@/features/sections/types'
+import { SECTION_DEFAULTS } from '@/features/sections/defaults'
 import {
   UserCircleIcon,
   ListBulletIcon,
@@ -15,49 +15,49 @@ import {
 } from '@heroicons/vue/24/outline'
 
 // Settings panels — sync imports (small, always needed in the editor)
-import HeaderDefaultSettings from '@/components/editor/settings/header/HeaderDefaultSettings.vue'
-import HeaderMinimalSettings from '@/components/editor/settings/header/HeaderMinimalSettings.vue'
-import HeaderStructureSettings from '@/components/editor/settings/header/HeaderStructureSettings.vue'
-import FooterDefaultSettings from '@/components/editor/settings/footer/FooterDefaultSettings.vue'
-import FooterMinimalSettings from '@/components/editor/settings/footer/FooterMinimalSettings.vue'
-import ContentMediaSettings from '@/components/editor/settings/ContentMediaSettings.vue'
-import ListSettings from '@/components/editor/settings/ListSettings.vue'
-import CollectionSettings from '@/components/editor/settings/CollectionSettings.vue'
-import StoreSettings from '@/components/editor/settings/StoreSettings.vue'
-import MonetizeSettings from '@/components/editor/settings/MonetizeSettings.vue'
-import CampaignSettings from '@/components/editor/settings/CampaignSettings.vue'
+import HeaderDefaultSettings from '@/features/editor/components/settings/header/HeaderDefaultSettings.vue'
+import HeaderMinimalSettings from '@/features/editor/components/settings/header/HeaderMinimalSettings.vue'
+import HeaderStructureSettings from '@/features/editor/components/settings/header/HeaderStructureSettings.vue'
+import FooterDefaultSettings from '@/features/editor/components/settings/footer/FooterDefaultSettings.vue'
+import FooterMinimalSettings from '@/features/editor/components/settings/footer/FooterMinimalSettings.vue'
+import ContentMediaSettings from '@/features/editor/components/settings/ContentMediaSettings.vue'
+import ListSettings from '@/features/editor/components/settings/ListSettings.vue'
+import CollectionSettings from '@/features/editor/components/settings/CollectionSettings.vue'
+import StoreSettings from '@/features/editor/components/settings/StoreSettings.vue'
+import MonetizeSettings from '@/features/editor/components/settings/MonetizeSettings.vue'
+import CampaignSettings from '@/features/editor/components/settings/CampaignSettings.vue'
 
 // Variant components — async so each theme variant is a separate lazy chunk
-const HeaderMinimal   = defineAsyncComponent(() => import('@/components/sections/header/HeaderMinimal.vue'))
-const HeaderBaseline  = defineAsyncComponent(() => import('@/components/sections/header/HeaderBaseline.vue'))
-const HeaderStructure = defineAsyncComponent(() => import('@/components/sections/header/HeaderStructure.vue'))
+const HeaderMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/header/HeaderMinimal.vue'))
+const HeaderBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/header/HeaderBaseline.vue'))
+const HeaderStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/header/HeaderStructure.vue'))
 
-const ContentMediaMinimal   = defineAsyncComponent(() => import('@/components/sections/content-media/ContentMediaMinimal.vue'))
-const ContentMediaBaseline  = defineAsyncComponent(() => import('@/components/sections/content-media/ContentMediaBaseline.vue'))
-const ContentMediaStructure = defineAsyncComponent(() => import('@/components/sections/content-media/ContentMediaStructure.vue'))
+const ContentMediaMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/content-media/ContentMediaMinimal.vue'))
+const ContentMediaBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/content-media/ContentMediaBaseline.vue'))
+const ContentMediaStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/content-media/ContentMediaStructure.vue'))
 
-const ListMinimal   = defineAsyncComponent(() => import('@/components/sections/list/ListMinimal.vue'))
-const ListBaseline  = defineAsyncComponent(() => import('@/components/sections/list/ListBaseline.vue'))
-const ListStructure = defineAsyncComponent(() => import('@/components/sections/list/ListStructure.vue'))
+const ListMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/list/ListMinimal.vue'))
+const ListBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/list/ListBaseline.vue'))
+const ListStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/list/ListStructure.vue'))
 
-const CollectionMinimal   = defineAsyncComponent(() => import('@/components/sections/collection/CollectionMinimal.vue'))
-const CollectionBaseline  = defineAsyncComponent(() => import('@/components/sections/collection/CollectionBaseline.vue'))
-const CollectionStructure = defineAsyncComponent(() => import('@/components/sections/collection/CollectionStructure.vue'))
+const CollectionMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/collection/CollectionMinimal.vue'))
+const CollectionBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/collection/CollectionBaseline.vue'))
+const CollectionStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/collection/CollectionStructure.vue'))
 
-const StoreMinimal   = defineAsyncComponent(() => import('@/components/sections/store/StoreMinimal.vue'))
-const StoreStructure = defineAsyncComponent(() => import('@/components/sections/store/StoreStructure.vue'))
+const StoreMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/store/StoreMinimal.vue'))
+const StoreStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/store/StoreStructure.vue'))
 
-const MonetizeMinimal   = defineAsyncComponent(() => import('@/components/sections/monetize/MonetizeMinimal.vue'))
-const MonetizeBaseline  = defineAsyncComponent(() => import('@/components/sections/monetize/MonetizeBaseline.vue'))
-const MonetizeStructure = defineAsyncComponent(() => import('@/components/sections/monetize/MonetizeStructure.vue'))
+const MonetizeMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/monetize/MonetizeMinimal.vue'))
+const MonetizeBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/monetize/MonetizeBaseline.vue'))
+const MonetizeStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/monetize/MonetizeStructure.vue'))
 
-const CampaignMinimal   = defineAsyncComponent(() => import('@/components/sections/campaign/CampaignMinimal.vue'))
-const CampaignBaseline  = defineAsyncComponent(() => import('@/components/sections/campaign/CampaignBaseline.vue'))
-const CampaignStructure = defineAsyncComponent(() => import('@/components/sections/campaign/CampaignStructure.vue'))
+const CampaignMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/campaign/CampaignMinimal.vue'))
+const CampaignBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/campaign/CampaignBaseline.vue'))
+const CampaignStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/campaign/CampaignStructure.vue'))
 
-const FooterMinimal   = defineAsyncComponent(() => import('@/components/sections/footer/FooterMinimal.vue'))
-const FooterBaseline  = defineAsyncComponent(() => import('@/components/sections/footer/FooterBaseline.vue'))
-const FooterStructure = defineAsyncComponent(() => import('@/components/sections/footer/FooterStructure.vue'))
+const FooterMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/footer/FooterMinimal.vue'))
+const FooterBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/footer/FooterBaseline.vue'))
+const FooterStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/footer/FooterStructure.vue'))
 
 // ─── Registry shape ───────────────────────────────────────────────────────────
 
