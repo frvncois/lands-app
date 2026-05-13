@@ -52,19 +52,21 @@ function handleAddSection(type: string) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <BaseTree :nodes="nodes" @settings="handleTreeSettings" @delete="deleteSection($event.id)" @duplicate="duplicateSection($event.id)" @reorder="handleReorder" @add="handleSectionDrop" />
-    <BaseButton variant="outline" size="sm" :disabled="atMaxSections" @click="showSections = !showSections">
-      {{ atMaxSections ? `Max ${maxSections + 2} sections reached` : '+ Add Section' }}
-    </BaseButton>
-    <Transition name="section-limit">
-      <UpgradeCard v-if="atMaxSections && !isPaid" variant="compact" />
+  <div>
+    <div class="flex flex-col gap-4">
+      <BaseTree :nodes="nodes" @settings="handleTreeSettings" @delete="deleteSection($event.id)" @duplicate="duplicateSection($event.id)" @reorder="handleReorder" @add="handleSectionDrop" />
+      <BaseButton variant="outline" size="sm" :disabled="atMaxSections" @click="showSections = !showSections">
+        {{ atMaxSections ? `Max ${maxSections + 2} sections reached` : '+ Add Section' }}
+      </BaseButton>
+      <Transition name="section-limit">
+        <UpgradeCard v-if="atMaxSections && !isPaid" variant="compact" />
+      </Transition>
+    </div>
+
+    <Transition name="modal-grow">
+      <SectionsModal v-if="showSections" @close="showSections = false" @select="handleAddSection($event); showSections = false" />
     </Transition>
   </div>
-
-  <Transition name="modal-grow">
-    <SectionsModal v-if="showSections" @close="showSections = false" @select="handleAddSection($event); showSections = false" />
-  </Transition>
 </template>
 
 <style scoped>
