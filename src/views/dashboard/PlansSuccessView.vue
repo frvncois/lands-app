@@ -4,18 +4,20 @@ import { useRouter, useRoute } from 'vue-router'
 import { CheckCircleIcon } from '@heroicons/vue/24/outline'
 import { useLandStore } from '@/stores/land'
 import { landService } from '@/services/land.service'
+import { usePolling } from '@/composables/usePolling'
 
 const router = useRouter()
 const route = useRoute()
 const landStore = useLandStore()
 const status = ref<'polling' | 'done' | 'timeout'>('polling')
+const { start: startPolling } = usePolling()
 
-onMounted(async () => {
+onMounted(() => {
   const landId = route.query.land_id as string | undefined
   if (!landId) { router.replace('/dashboard'); return }
 
   // Poll until plan is updated by webhook (max ~10s)
-  for (let i = 0; i < 10; i++) {
+  startPolling(async () => {
     const lands = await landService.getMyLands()
     const land = lands.find(l => l.id === landId)
     if (land?.plan === 'paid') {
@@ -23,12 +25,9 @@ onMounted(async () => {
       landStore.setActiveLand(landId)
       status.value = 'done'
       setTimeout(() => router.replace('/dashboard'), 1800)
-      return
+      return true
     }
-    await new Promise(r => setTimeout(r, 1000))
-  }
-
-  status.value = 'timeout'
+  }, { intervalMs: 1000, maxAttempts: 10, immediate: true, onTimeout: () => { status.value = 'timeout' } })
 })
 </script>
 

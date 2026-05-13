@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { usePolling } from '@/composables/usePolling'
 import { XMarkIcon, CheckCircleIcon, ClipboardIcon, ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseModal from '../ui/BaseModal.vue'
@@ -19,7 +20,7 @@ const domain = ref('')
 const isLoading = ref(false)
 const errorMsg = ref('')
 const { copy, copied } = useClipboardCopy()
-let pollInterval: ReturnType<typeof setInterval> | null = null
+const { start: _startPolling } = usePolling()
 
 // ─── Init from existing land domain ───
 onMounted(() => {
@@ -33,7 +34,6 @@ onMounted(() => {
   }
 })
 
-onUnmounted(() => stopPolling())
 
 // ─── Domain helpers ───
 const isApex = computed(() => domain.value.trim().split('.').length === 2)
@@ -90,13 +90,7 @@ async function disconnect() {
 
 // ─── Polling ───
 function startPolling() {
-  stopPolling()
-  checkStatus()
-  pollInterval = setInterval(checkStatus, 10_000)
-}
-
-function stopPolling() {
-  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+  _startPolling(checkStatus, { intervalMs: 10_000, immediate: true })
 }
 
 async function checkStatus() {
@@ -106,10 +100,10 @@ async function checkStatus() {
     landStore.updateLand(land.value.id, { custom_domain_status: status })
     if (status === 'active') {
       step.value = 'active'
-      stopPolling()
+      return true
     } else if (status === 'error') {
       step.value = 'error'
-      stopPolling()
+      return true
     }
   } catch { /* silent — keep polling */ }
 }
