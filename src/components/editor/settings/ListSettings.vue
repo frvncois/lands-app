@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useSectionForm } from '@/composables/useSectionForm'
 import { DocumentTextIcon } from '@heroicons/vue/24/outline'
 import BaseInput from '../../ui/BaseInput.vue'
 import BaseButton from '../../ui/BaseButton.vue'
@@ -18,26 +19,14 @@ const emit = defineEmits<{ 'editing-change': [isEditing: boolean] }>()
 
 const { isStructureTheme } = useThemePreset()
 
-const { updateSectionContent, addListItem: addListItemAction, updateListItem, deleteListItem, reorderListItem } = useEditorActions()
+const { addListItem: addListItemAction, updateListItem, deleteListItem, reorderListItem } = useEditorActions()
 const { capture: captureSubItem, restore: restoreSubItem } = useSectionSnapshot(() => props.section)
+const { contentField } = useSectionForm(() => props.section)
 
-const listSectionTitle = ref('')
-const listSectionDescription = ref('')
+const listSectionTitle = contentField('title', '')
+const listSectionDescription = contentField('description', '')
 
-function sync() {
-  listSectionTitle.value = (props.section.content as any)?.title ?? ''
-  listSectionDescription.value = (props.section.content as any)?.description ?? ''
-}
-
-sync()
-watch(() => props.section.id, () => { sync(); closeEditListItem() })
-
-function saveSectionTitle() {
-  updateSectionContent(props.section.id, { title: listSectionTitle.value })
-}
-function saveSectionDescription() {
-  updateSectionContent(props.section.id, { description: listSectionDescription.value })
-}
+watch(() => props.section.id, closeEditListItem)
 
 const listItems = computed(() => sortByPosition(((props.section.content as any)?.items ?? []) as ListItem[]))
 
@@ -145,8 +134,8 @@ defineExpose({ addListItem, cancelSubItem, saveSubItem })
 
     <!-- Item list view -->
     <div v-if="!editingListItem" key="list" class="flex flex-col gap-4 p-2 pr-0">
-      <BaseInput size="sm" label="Title" v-model="listSectionTitle" placeholder="My Items" @update:modelValue="saveSectionTitle" />
-      <BaseInput size="sm" type="textarea" label="Description" v-model="listSectionDescription" placeholder="Add a short description…" @update:modelValue="saveSectionDescription" />
+      <BaseInput size="sm" label="Title" v-model="listSectionTitle" placeholder="My Items" />
+      <BaseInput size="sm" type="textarea" label="Description" v-model="listSectionDescription" placeholder="Add a short description…" />
       <div class="flex flex-col gap-2">
         <span class="text-xs font-medium text-gray-500">List items</span>
         <div v-if="listItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">

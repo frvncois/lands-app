@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { CreditCardIcon, RectangleStackIcon } from '@heroicons/vue/24/outline'
 import BaseInput from '../../ui/BaseInput.vue'
 import BaseButton from '../../ui/BaseButton.vue'
@@ -23,54 +23,33 @@ const appModals = useAppModals()
 const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useEditorActions()
 const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 
-const collectionTitle = ref('')
-const monetizeSubtitle = ref('')
-const monetizeDescription = ref('')
-const monetizeCoverUrl = ref('')
-const monetizePrice = ref('')
-const monetizeBillingPeriod = ref<'monthly' | 'yearly'>('monthly')
-
 const collection = computed(() => ((props.section.content as any)?.collections?.[0] ?? null) as Collection | null)
 const collectionItems = computed(() => collection.value ? sortByPosition(collection.value.items) : [])
 
-function sync() {
-  const c = (props.section.content as any)?.collections?.[0]
-  collectionTitle.value = c?.title ?? ''
-  monetizeSubtitle.value = c?.subtitle ?? ''
-  monetizeDescription.value = c?.description ?? ''
-  monetizeCoverUrl.value = c?.cover_url ?? ''
-  monetizePrice.value = c?.price != null ? c.price.toString() : ''
-  monetizeBillingPeriod.value = c?.billing_period ?? 'monthly'
-}
-
-sync()
-watch(() => props.section.id, sync)
-
-function saveTitle() {
-  if (!collection.value) return
-  updateCollection(props.section.id, collection.value.id, { title: collectionTitle.value })
-}
-function saveSubtitle() {
-  if (!collection.value) return
-  updateCollection(props.section.id, collection.value.id, { subtitle: monetizeSubtitle.value })
-}
-function saveDescription() {
-  if (!collection.value) return
-  updateCollection(props.section.id, collection.value.id, { description: monetizeDescription.value })
-}
-function saveCover(url: string) {
-  if (!collection.value) return
-  updateCollection(props.section.id, collection.value.id, { cover_url: url })
-}
-function savePrice() {
-  if (!collection.value) return
-  updateCollection(props.section.id, collection.value.id, { price: parseFloat(monetizePrice.value) || 0 })
-}
-function saveBillingPeriod(period: 'monthly' | 'yearly') {
-  if (!collection.value) return
-  monetizeBillingPeriod.value = period
-  updateCollection(props.section.id, collection.value.id, { billing_period: period })
-}
+const collectionTitle = computed({
+  get: () => collection.value?.title ?? '',
+  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { title: v }) },
+})
+const monetizeSubtitle = computed({
+  get: () => collection.value?.subtitle ?? '',
+  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { subtitle: v }) },
+})
+const monetizeDescription = computed({
+  get: () => collection.value?.description ?? '',
+  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { description: v }) },
+})
+const monetizeCoverUrl = computed({
+  get: () => collection.value?.cover_url ?? '',
+  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { cover_url: v }) },
+})
+const monetizePrice = computed({
+  get: () => collection.value?.price != null ? collection.value.price.toString() : '',
+  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { price: parseFloat(v) || 0 }) },
+})
+const monetizeBillingPeriod = computed({
+  get: () => (collection.value?.billing_period ?? 'monthly') as 'monthly' | 'yearly',
+  set: (v: 'monthly' | 'yearly') => { if (collection.value) updateCollection(props.section.id, collection.value.id, { billing_period: v }) },
+})
 
 
 const collectionTreeNodes = computed<TreeNode[]>(() =>
@@ -150,9 +129,9 @@ defineExpose({ addItem })
 
     <!-- Connected -->
     <template v-else>
-      <BaseUpload type="image" size="sm" label="Cover" v-model="monetizeCoverUrl" @update:modelValue="saveCover" />
-      <BaseInput size="sm" label="Title" v-model="collectionTitle" placeholder="Exclusive Content" @update:modelValue="saveTitle" />
-      <BaseInput size="sm" label="Subtitle" v-model="monetizeSubtitle" placeholder="For your biggest fans" @update:modelValue="saveSubtitle" />
+      <BaseUpload type="image" size="sm" label="Cover" v-model="monetizeCoverUrl" />
+      <BaseInput size="sm" label="Title" v-model="collectionTitle" placeholder="Exclusive Content" />
+      <BaseInput size="sm" label="Subtitle" v-model="monetizeSubtitle" placeholder="For your biggest fans" />
       <div class="flex flex-col gap-1.5">
         <span class="text-xs font-medium text-gray-500">Description</span>
         <textarea
@@ -160,23 +139,22 @@ defineExpose({ addItem })
           placeholder="What members get access to…"
           rows="3"
           class="w-full px-3 py-2 text-xs rounded-xl border border-gray-200 bg-gray-50 resize-none outline-none focus:border-gray-400 transition-colors placeholder:text-gray-300"
-          @input="saveDescription"
         />
       </div>
       <div class="flex flex-col gap-1.5">
         <span class="text-xs font-medium text-gray-500">Price</span>
         <div class="flex gap-2">
-          <BaseInput label="" size="sm" v-model="monetizePrice" placeholder="9.00" class="flex-1" @update:modelValue="savePrice" />
+          <BaseInput label="" size="sm" v-model="monetizePrice" placeholder="9.00" class="flex-1" />
           <div class="flex rounded-xl border border-gray-200 overflow-hidden text-xs font-medium">
             <button
               class="px-3 py-1.5 transition-colors"
               :class="monetizeBillingPeriod === 'monthly' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'"
-              @click="saveBillingPeriod('monthly')"
+              @click="monetizeBillingPeriod = 'monthly'"
             >Monthly</button>
             <button
               class="px-3 py-1.5 transition-colors border-l border-gray-200"
               :class="monetizeBillingPeriod === 'yearly' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'"
-              @click="saveBillingPeriod('yearly')"
+              @click="monetizeBillingPeriod = 'yearly'"
             >Yearly</button>
           </div>
         </div>

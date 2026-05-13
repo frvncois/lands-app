@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { ShoppingBagIcon } from '@heroicons/vue/24/outline'
 import BaseInput from '../../ui/BaseInput.vue'
 import BaseButton from '../../ui/BaseButton.vue'
@@ -22,29 +22,18 @@ const appModals = useAppModals()
 const { updateStore, addStoreItem: addStoreItemAction, deleteStoreItem, reorderStoreItem } = useEditorActions()
 const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 
-const storeTitle = ref('')
-const storeDescription = ref('')
-
 const store = computed(() => ((props.section.content as any)?.stores?.[0] ?? null) as Store | null)
 const storeItems = computed(() => store.value ? sortByPosition(store.value.items) : [])
 
-function sync() {
-  const s = (props.section.content as any)?.stores?.[0] as Store | undefined
-  storeTitle.value = s?.title ?? ''
-  storeDescription.value = s?.description ?? ''
-}
+const storeTitle = computed({
+  get: () => store.value?.title ?? '',
+  set: (v: string) => { if (store.value) updateStore(props.section.id, store.value.id, { title: v }) },
+})
 
-sync()
-watch(() => props.section.id, sync)
-
-function saveTitle() {
-  if (!store.value) return
-  updateStore(props.section.id, store.value.id, { title: storeTitle.value })
-}
-function saveDescription() {
-  if (!store.value) return
-  updateStore(props.section.id, store.value.id, { description: storeDescription.value })
-}
+const storeDescription = computed({
+  get: () => store.value?.description ?? '',
+  set: (v: string) => { if (store.value) updateStore(props.section.id, store.value.id, { description: v }) },
+})
 
 
 const storeTreeNodes = computed<TreeNode[]>(() =>
@@ -121,8 +110,8 @@ defineExpose({ addStoreItem })
 
     <!-- Connected -->
     <template v-else>
-      <BaseInput size="sm" label="Title" v-model="storeTitle" placeholder="My Store" @update:modelValue="saveTitle" />
-      <BaseInput size="sm" type="textarea" label="Description" v-model="storeDescription" placeholder="Describe your store…" @update:modelValue="saveDescription" />
+      <BaseInput size="sm" label="Title" v-model="storeTitle" placeholder="My Store" />
+      <BaseInput size="sm" type="textarea" label="Description" v-model="storeDescription" placeholder="Describe your store…" />
       <div class="flex flex-col gap-2">
         <span class="text-xs font-medium text-gray-500">Products</span>
         <div v-if="storeItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
