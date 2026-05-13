@@ -15,8 +15,8 @@ export function useSectionSnapshot(getSection: () => Section) {
   function capture() {
     const s = getSection()
     snapshot.value = {
-      content: structuredClone(s.content ?? {}),
-      settings_json: structuredClone(s.settings_json ?? {}),
+      content: JSON.parse(JSON.stringify(s.content ?? {})),
+      settings_json: JSON.parse(JSON.stringify(s.settings_json ?? {})),
       style_variant: s.style_variant,
     }
   }
