@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, nextTick } from 'vue'
-import { useDashboardDetail, type DetailKey } from '@/composables/useDashboardDetail'
+import { useDashboardDetail } from '@/composables/useDashboardDetail'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
 import { usePlan } from '@/composables/usePlan'
@@ -8,12 +8,10 @@ import { useRouter } from 'vue-router'
 import {
   CurrencyDollarIcon,
   ShoppingBagIcon,
-  ArrowLeftIcon,
   ArrowTopRightOnSquareIcon,
   PencilSquareIcon,
   ChartBarIcon,
   PlusIcon,
-  CreditCardIcon,
   ShareIcon,
 } from '@heroicons/vue/24/outline'
 import BaseChart from '@/components/ui/BaseChart.vue'
@@ -28,15 +26,11 @@ import { monetizeStats } from '@/lib/mock/monetize'
 import NumberFlow from '@number-flow/vue'
 import { useCountUpStats } from '@/composables/useCountUpStats'
 
-import AnalyticsDetail from './detail/AnalyticsDetail.vue'
 import MetricCard from '@/components/dashboard/cards/MetricCard.vue'
 import ConnectStripeCard from '@/components/dashboard/cards/ConnectStripeCard.vue'
 import UpgradeCard from '@/components/dashboard/cards/UpgradeCard.vue'
 import CampaignCard from '@/components/dashboard/cards/CampaignCard.vue'
-import OrdersDetail from './detail/OrdersDetail.vue'
-import SellDetail from './detail/SellDetail.vue'
-import CampaignDetail from './detail/CampaignDetail.vue'
-import MonetizeDetail from './detail/MonetizeDetail.vue'
+import DashboardDetail from '@/components/dashboard/DashboardDetail.vue'
 
 const { activeDetail, direction, openDetail, closeDetail } = useDashboardDetail()
 const landStore = useLandStore()
@@ -75,14 +69,6 @@ const router = useRouter()
 const showShare = ref(false)
 const showCampaignModal = ref(false)
 
-const detailTitles: Record<DetailKey, string> = {
-  analytics: 'Analytics',
-  orders: 'Orders',
-  sell: 'Sell & Monetize',
-  campaign: 'Campaign',
-  monetize: 'Monetize',
-}
-
 // ─── Derived state ───
 
 const hasStoreItems = computed(() => {
@@ -113,11 +99,6 @@ function viewLive() {
   const handle = landStore.activeLand?.handle
   if (handle) window.open(`https://${handle}.lands.app`, '_blank')
 }
-
-
-function openStripePortal() {
-  window.open('https://dashboard.stripe.com', '_blank')
-}
 </script>
 
 <template>
@@ -137,37 +118,7 @@ function openStripePortal() {
     <Transition :name="direction === 'forward' ? 'modal-forward' : 'modal-back'" mode="out-in">
 
       <!-- ── Detail view ── -->
-      <div v-if="activeDetail" :key="activeDetail" class="flex flex-col h-full">
-        <!-- Detail header -->
-        <div class="flex items-center justify-between gap-2 p-4 shrink-0">
-          <div class="flex items-center gap-2">
-            <button
-              class="flex items-center justify-center h-6 w-6 rounded-full hover:bg-gray-200 transition-colors text-gray-500 shrink-0"
-              @click="closeDetail"
-            >
-              <ArrowLeftIcon class="h-3.5 w-3.5" />
-            </button>
-            <p class="text-xs font-medium text-gray-700">{{ detailTitles[activeDetail] }}</p>
-          </div>
-          <BaseButton
-            v-if="activeDetail === 'orders' || activeDetail === 'monetize'"
-            variant="outline"
-            size="sm"
-            @click="openStripePortal"
-          >
-            <CreditCardIcon class="h-3.5 w-3.5" />
-            Stripe Dashboard
-          </BaseButton>
-        </div>
-        <!-- Detail content -->
-        <div class="flex-1 overflow-y-auto">
-          <AnalyticsDetail v-if="activeDetail === 'analytics'" />
-          <OrdersDetail v-else-if="activeDetail === 'orders'" />
-          <SellDetail v-else-if="activeDetail === 'sell'" />
-          <CampaignDetail v-else-if="activeDetail === 'campaign'" />
-          <MonetizeDetail v-else-if="activeDetail === 'monetize'" />
-        </div>
-      </div>
+      <DashboardDetail v-if="activeDetail" :key="activeDetail" />
 
       <!-- ── Main dashboard view ── -->
       <Transition v-else :name="switchEnabled ? 'dashboard-switch' : ''" mode="out-in">
