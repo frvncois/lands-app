@@ -4,7 +4,7 @@
             <div>
                 <h1>Build a custom microsite</h1>
             </div>
-            <video src="@/assets/demo.webm" autoplay muted loop />
+            <video src="/demo.webm" autoplay muted loop />
         </div>
     </section>
 </template>

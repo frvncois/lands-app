@@ -1,7 +1,22 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-`src/main.ts` boots the Vue SPA, mounts `App.vue`, and injects the router plus Pinia stores from `src/stores`. Routes live in `src/views`, use `src/layouts`, and render block variants from `src/components/sections` and `src/sections`. Cross-cutting logic stays in `src/composables`, `src/services`, and `src/lib`, while static assets sit in `public/` and `src/assets`. Backend artifacts—SQL schema, triggers, and Stripe Edge Functions—reside in `supabase/`; keep schema changes mirrored there before deploying.
+`src/app/main.ts` boots the Vue SPA, mounts `src/app/App.vue`, and injects the router from `src/app/router`. The tree follows a feature-based layout:
+
+- `src/app/` — entry point, App.vue, router
+- `src/shared/` — `ui/` (Base* components), `composables/`, `lib/`, `mock/` — no feature dependencies
+- `src/features/auth/` — login, register, password reset
+- `src/features/onboarding/` — new-user setup flow
+- `src/features/dashboard/` — AppLayout, LandsDashboard, detail views, dashboard composables
+- `src/features/editor/` — AppHeader, EditorPreview, EditorSidebar, section variant components, editor composables/stores
+- `src/features/sections/` — Section types, registry, defaults, style-variants
+- `src/features/theme/` — ThemeStore, presets, useThemeVars
+- `src/features/lands/` — LandStore, land types, land service
+- `src/features/plan/` — usePlan, plan types/details
+- `src/features/modals/` — all modal components + useAppModals
+- `src/features/integrations/` — campaign/collaborator/domain/stripe panels & services
+
+Static assets sit in `public/` and `src/assets`. Backend artifacts—SQL schema, triggers, and Stripe Edge Functions—reside in `supabase/`; keep schema changes mirrored there before deploying.
 
 ## Build, Test, and Development Commands
 - `npm install` – install dependencies; use Node 20.19+ as enforced by the engines field.

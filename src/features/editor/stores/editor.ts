@@ -1,0 +1,76 @@
+import { ref } from 'vue'
+import { defineStore } from 'pinia'
+import type { Section } from '@/features/sections/types'
+import type { Land } from '@/features/lands/types'
+import type { LandTheme } from '@/features/theme/types'
+
+export const useEditorStore = defineStore('editor', () => {
+  const isEditMode = ref(false)
+  const activeSection = ref<Section | null>(null)
+  const showSectionSettings = ref(false)
+  const isDirty = ref(false)
+  const hasUnpublishedChanges = ref(false)
+  const landSnapshot = ref<Land | null>(null)
+  const themeSnapshot = ref<LandTheme | null>(null)
+  // Default to 944px (1280 - 336) — consuming component should call setPanelPos on mount
+  const panelPos = ref({ x: 944, y: 80 })
+
+  function enterEditMode() {
+    isEditMode.value = true
+  }
+
+  function exitEditMode() {
+    isEditMode.value = false
+    activeSection.value = null
+    showSectionSettings.value = false
+    isDirty.value = false
+    landSnapshot.value = null
+    themeSnapshot.value = null
+  }
+
+  function takeSnapshot(land: Land, theme: LandTheme | null) {
+    landSnapshot.value = JSON.parse(JSON.stringify(land))
+    themeSnapshot.value = theme ? JSON.parse(JSON.stringify(theme)) : null
+  }
+
+  function setActiveSection(section: Section | null, openSettings = false) {
+    activeSection.value = section
+    if (openSettings) showSectionSettings.value = true
+  }
+
+  function markDirty() {
+    isDirty.value = true
+  }
+
+  function markClean() {
+    isDirty.value = false
+    hasUnpublishedChanges.value = true
+  }
+
+  function markPublished() {
+    hasUnpublishedChanges.value = false
+  }
+
+  function setPanelPos(pos: { x: number; y: number }) {
+    panelPos.value = pos
+  }
+
+  return {
+    isEditMode,
+    activeSection,
+    showSectionSettings,
+    isDirty,
+    hasUnpublishedChanges,
+    landSnapshot,
+    themeSnapshot,
+    enterEditMode,
+    exitEditMode,
+    takeSnapshot,
+    setActiveSection,
+    markDirty,
+    markClean,
+    markPublished,
+    panelPos,
+    setPanelPos,
+  }
+})
