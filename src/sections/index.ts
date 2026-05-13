@@ -1,15 +1,6 @@
-import {
-  UserCircleIcon,
-  ListBulletIcon,
-  RectangleStackIcon,
-  ShoppingBagIcon,
-  CreditCardIcon,
-  MegaphoneIcon,
-  Bars3BottomLeftIcon,
-  NewspaperIcon,
-} from '@heroicons/vue/24/outline'
 import type { FunctionalComponent } from 'vue'
 import type { SectionType } from '@/types/section'
+import { SECTION_REGISTRY } from '@/features/sections/registry'
 
 export interface SectionPrimitive {
   id: SectionType
@@ -18,13 +9,6 @@ export interface SectionPrimitive {
   icon: FunctionalComponent
 }
 
-export const sectionPrimitives: SectionPrimitive[] = [
-  { id: 'header', label: 'Header', description: 'Name, bio and profile photo', icon: UserCircleIcon },
-  { id: 'content_media', label: 'Content + Media', description: 'Text, buttons and an image or video', icon: NewspaperIcon },
-  { id: 'list', label: 'List', description: 'Links and external resources', icon: ListBulletIcon },
-  { id: 'collection', label: 'Collection', description: 'Curated groups of items', icon: RectangleStackIcon },
-  { id: 'store', label: 'Store', description: 'Sell products and digital goods', icon: ShoppingBagIcon },
-  { id: 'monetize', label: 'Monetize', description: 'Memberships and recurring revenue', icon: CreditCardIcon },
-  { id: 'campaign', label: 'Campaign', description: 'Call to action or newsletter', icon: MegaphoneIcon },
-  { id: 'footer', label: 'Footer', description: 'Social links and closing info', icon: Bars3BottomLeftIcon },
-]
+export const sectionPrimitives: SectionPrimitive[] = (Object.values(SECTION_REGISTRY) as typeof SECTION_REGISTRY[SectionType][]).map(
+  ({ type, label, description, icon }) => ({ id: type, label, description, icon }),
+)

@@ -2,8 +2,6 @@ import {
   SECTION_TYPES,
   COLLECTION_DISPLAY_STYLES,
   LIST_STYLES,
-  MEDIA_STYLES,
-  TEXT_STYLES,
   type SectionType,
 } from '@/types/section'
 
@@ -17,16 +15,6 @@ export const STYLE_VARIANTS_BY_SECTION: Record<SectionType, StyleVariantOption[]
     { value: 'below', label: 'Below' },
     { value: 'overlapping', label: 'Overlapping' },
     { value: 'overlay', label: 'Overlay' },
-  ],
-  [SECTION_TYPES.text]: [
-    { value: TEXT_STYLES.default, label: 'Default' },
-    { value: TEXT_STYLES.centered, label: 'Centered' },
-    { value: TEXT_STYLES.wide, label: 'Wide' },
-  ],
-  [SECTION_TYPES.media]: [
-    { value: MEDIA_STYLES.default, label: 'Default' },
-    { value: MEDIA_STYLES.fullwidth, label: 'Full Width' },
-    { value: MEDIA_STYLES.compact, label: 'Compact' },
   ],
   [SECTION_TYPES.content_media]: [
     { value: 'default', label: 'Default' },

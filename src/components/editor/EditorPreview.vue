@@ -5,21 +5,10 @@ import { useEditorStore } from '@/stores/editor'
 import { sortByPosition } from '@/lib/utils/position'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { useSectionInsert } from '@/composables/useSectionInsert'
-import { defineAsyncComponent } from 'vue'
-import type { Component } from 'vue'
-import type { Section, SectionType } from '@/types/section'
+import type { Section } from '@/types/section'
 import BaseContextMenu from '@/components/ui/BaseContextMenu.vue'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
-const SectionHeader       = defineAsyncComponent(() => import('@/components/sections/SectionHeader.vue'))
-const SectionText         = defineAsyncComponent(() => import('@/components/sections/SectionText.vue'))
-const SectionMedia        = defineAsyncComponent(() => import('@/components/sections/SectionMedia.vue'))
-const SectionContentMedia = defineAsyncComponent(() => import('@/components/sections/SectionContentMedia.vue'))
-const SectionList         = defineAsyncComponent(() => import('@/components/sections/SectionList.vue'))
-const SectionCollection   = defineAsyncComponent(() => import('@/components/sections/SectionCollection.vue'))
-const SectionCampaign     = defineAsyncComponent(() => import('@/components/sections/SectionCampaign.vue'))
-const SectionStore        = defineAsyncComponent(() => import('@/components/sections/SectionStore.vue'))
-const SectionMonetize     = defineAsyncComponent(() => import('@/components/sections/SectionMonetize.vue'))
-const SectionFooter       = defineAsyncComponent(() => import('@/components/sections/SectionFooter.vue'))
+import SectionRenderer from '@/components/editor/sections/SectionRenderer.vue'
 
 const landStore = useLandStore()
 const editorStore = useEditorStore()
@@ -28,19 +17,6 @@ const { moveUp: _moveUp, moveDown: _moveDown } = useSectionInsert()
 
 const sections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))
 const isInteractive = computed(() => editorStore.isEditMode)
-
-const componentMap = {
-  header: SectionHeader,
-  text: SectionText,
-  media: SectionMedia,
-  content_media: SectionContentMedia,
-  list: SectionList,
-  collection: SectionCollection,
-  campaign: SectionCampaign,
-  store: SectionStore,
-  monetize: SectionMonetize,
-  footer: SectionFooter,
-} satisfies Record<SectionType, Component>
 
 function selectSection(section: Section) {
   editorStore.setActiveSection(section, true)
@@ -53,10 +29,6 @@ function handleSectionClick(section: Section) {
 
 function moveUp(section: Section) { _moveUp(section.id) }
 function moveDown(section: Section) { _moveDown(section.id) }
-
-function sectionComponent(section: Section) {
-  return componentMap[section.type]
-}
 
 const contextMenu = ref<{ x: number; y: number; section: Section; idx: number } | null>(null)
 
@@ -82,7 +54,7 @@ function closeContextMenu() {
           @contextmenu.prevent="onContextMenu($event, section, idx)"
         >
           <ErrorBoundary :key="section.id">
-            <component :is="sectionComponent(section)" :section="section" class="theme-section" style="font-family: var(--theme-font)" />
+            <SectionRenderer :section="section" class="theme-section" style="font-family: var(--theme-font)" />
           </ErrorBoundary>
 
           <template v-if="isInteractive">

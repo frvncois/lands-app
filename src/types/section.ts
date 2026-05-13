@@ -4,8 +4,6 @@ import type { Store } from '@/types/store'
 
 export const SECTION_TYPES = {
   header: 'header',
-  text: 'text',
-  media: 'media',
   content_media: 'content_media',
   list: 'list',
   collection: 'collection',
@@ -19,14 +17,6 @@ export type SectionType = typeof SECTION_TYPES[keyof typeof SECTION_TYPES]
 
 // --- Style variants per section type ---
 
-export const TEXT_STYLES = {
-  default: 'default',
-  centered: 'centered',
-  wide: 'wide',
-} as const
-
-export type TextStyle = typeof TEXT_STYLES[keyof typeof TEXT_STYLES]
-
 export const COLLECTION_DISPLAY_STYLES = {
   grid: 'grid',
   list: 'list',
@@ -34,14 +24,6 @@ export const COLLECTION_DISPLAY_STYLES = {
 } as const
 
 export type CollectionDisplayStyle = typeof COLLECTION_DISPLAY_STYLES[keyof typeof COLLECTION_DISPLAY_STYLES]
-
-export const MEDIA_STYLES = {
-  default: 'default',
-  fullwidth: 'fullwidth',
-  compact: 'compact',
-} as const
-
-export type MediaStyle = typeof MEDIA_STYLES[keyof typeof MEDIA_STYLES]
 
 export const LIST_STYLES = {
   default: 'default',
@@ -76,10 +58,6 @@ export interface HeaderSettings {
   profile_position: HeaderProfilePosition
 }
 
-export interface TextSettings {
-  style: TextStyle
-}
-
 export interface ContentMediaSettings {
   // content_media has no settings fields
 }
@@ -96,10 +74,6 @@ export interface MonetizeSettings {
   style: CollectionDisplayStyle
 }
 
-export interface MediaSettings {
-  style: MediaStyle
-}
-
 export interface ListSettings {
   style: ListStyle
 }
@@ -114,12 +88,10 @@ export interface FooterSettings {
 
 export type SectionSettings =
   | HeaderSettings
-  | TextSettings
   | ContentMediaSettings
   | CollectionSettings
   | StoreSettings
   | MonetizeSettings
-  | MediaSettings
   | ListSettings
   | CampaignSettings
   | FooterSettings
@@ -132,13 +104,6 @@ export interface HeaderContent {
   logo: string
   description?: string
   buttons?: ContentMediaButton[]
-}
-
-export interface TextContent {
-  title: string
-  subtitle: string
-  body: string // rich text
-  buttons: ContentMediaButton[]
 }
 
 export const MEDIA_TYPES = {
@@ -154,12 +119,6 @@ export interface MediaItem {
   url: string
   caption: string
   position: string // fractional index
-}
-
-export interface MediaContent {
-  media_type: MediaType
-  url: string
-  caption: string
 }
 
 export interface CampaignContent {
@@ -213,8 +172,6 @@ export interface MonetizeContent {
 
 export type SectionContent =
   | HeaderContent
-  | TextContent
-  | MediaContent
   | ContentMediaContent
   | ListContent
   | CollectionContent
@@ -237,8 +194,6 @@ interface BaseSection<TType extends SectionType, TContent, TSettings> {
 }
 
 export type HeaderSection = BaseSection<'header', HeaderContent, HeaderSettings>
-export type TextSection = BaseSection<'text', TextContent | null, TextSettings>
-export type MediaSection = BaseSection<'media', MediaContent | null, MediaSettings>
 export type ContentMediaSection = BaseSection<'content_media', ContentMediaContent, ContentMediaSettings>
 export type ListSection = BaseSection<'list', ListContent | null, ListSettings>
 export type CollectionSection = BaseSection<'collection', CollectionContent | null, CollectionSettings>
@@ -249,8 +204,6 @@ export type FooterSection = BaseSection<'footer', FooterContent, FooterSettings>
 
 export type Section =
   | HeaderSection
-  | TextSection
-  | MediaSection
   | ContentMediaSection
   | ListSection
   | CollectionSection

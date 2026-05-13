@@ -58,11 +58,3 @@ export const MOCK_MONETIZE_COLLECTIONS: Collection[] = [
   },
 ]
 
-export const MOCK_MEDIA_CONTENT = { media_type: 'image' as const, url: '', caption: '[ Your caption here ]' }
-
-export const MOCK_TEXT_CONTENT = {
-  title: '[ Section Title ]',
-  subtitle: '[ Subtitle or eyebrow text ]',
-  body: '<p>[ Your content goes here. Open the section settings to start writing. ]</p>',
-  buttons: [] as { id: string; label: string; url: string }[],
-}

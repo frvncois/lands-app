@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import { useLandStore } from '@/stores/land'
 import { PLAN_DETAILS } from '@/types/plan'
 import type { SectionType } from '@/types/section'
+import { SECTION_REGISTRY } from '@/features/sections/registry'
 
 export function usePlan() {
   const landStore = useLandStore()
@@ -37,7 +38,8 @@ export function usePlan() {
 
   /** Returns true if the section type is allowed on the current plan. */
   function canAddSectionType(type: SectionType): boolean {
-    if (type === 'campaign') return details.value.campaign
+    const requires = SECTION_REGISTRY[type].plan?.requires
+    if (requires === 'paid') return details.value.campaign  // reuse campaign gate for all paid-only types
     return true
   }
 

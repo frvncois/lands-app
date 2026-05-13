@@ -2,8 +2,6 @@ import {
   SECTION_TYPES,
   COLLECTION_DISPLAY_STYLES,
   LIST_STYLES,
-  MEDIA_STYLES,
-  TEXT_STYLES,
   HEADER_PROFILE_POSITIONS,
   HEADER_COVER_MEDIA_TYPES,
   type SectionType,
@@ -30,16 +28,6 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       logo: '',
       buttons: [],
     },
-  },
-  [SECTION_TYPES.text]: {
-    style_variant: TEXT_STYLES.default,
-    settings_json: { style: TEXT_STYLES.default },
-    content: null,
-  },
-  [SECTION_TYPES.media]: {
-    style_variant: MEDIA_STYLES.default,
-    settings_json: { style: MEDIA_STYLES.default },
-    content: null,
   },
   [SECTION_TYPES.collection]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,

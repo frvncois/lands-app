@@ -2,40 +2,17 @@
 import { computed } from 'vue'
 import { useLandStore } from '@/stores/land'
 import { sortByPosition } from '@/lib/utils/position'
-import SectionHeader from '@/components/sections/SectionHeader.vue'
-import SectionText from '@/components/sections/SectionText.vue'
-import SectionMedia from '@/components/sections/SectionMedia.vue'
-import SectionContentMedia from '@/components/sections/SectionContentMedia.vue'
-import SectionList from '@/components/sections/SectionList.vue'
-import SectionCollection from '@/components/sections/SectionCollection.vue'
-import SectionCampaign from '@/components/sections/SectionCampaign.vue'
-import SectionStore from '@/components/sections/SectionStore.vue'
-import SectionMonetize from '@/components/sections/SectionMonetize.vue'
-import SectionFooter from '@/components/sections/SectionFooter.vue'
+import SectionRenderer from '@/components/editor/sections/SectionRenderer.vue'
 
 const landStore = useLandStore()
 const sections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))
-
-const componentMap = {
-  header: SectionHeader,
-  text: SectionText,
-  media: SectionMedia,
-  content_media: SectionContentMedia,
-  list: SectionList,
-  collection: SectionCollection,
-  campaign: SectionCampaign,
-  store: SectionStore,
-  monetize: SectionMonetize,
-  footer: SectionFooter,
-}
 </script>
 
 <template>
   <div class="space-y-8">
-    <component
+    <SectionRenderer
       v-for="section in sections"
       :key="section.id"
-      :is="componentMap[section.type]"
       :section="section"
       class="theme-section"
       style="font-family: var(--theme-font)"
