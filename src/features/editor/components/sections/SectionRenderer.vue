@@ -4,7 +4,7 @@ import { useThemeStore } from '@/features/theme/stores/theme'
 import { SECTION_REGISTRY } from '@/features/sections/registry'
 import type { Section } from '@/features/sections/types'
 import {
-  MOCK_LIST_ITEMS,
+  MOCK_LINKS_ITEMS,
   MOCK_COLLECTIONS,
   MOCK_STORES,
   MOCK_MONETIZE_COLLECTIONS,
@@ -28,14 +28,14 @@ const displaySection = computed((): Section => {
   const s = props.section
 
   switch (s.type) {
-    case 'list': {
+    case 'links': {
       if (!s.content?.items?.length) {
         return {
           ...s,
           content: {
             title: s.content?.title || '[ Section Title ]',
             description: s.content?.description ?? '',
-            items: MOCK_LIST_ITEMS,
+            items: MOCK_LINKS_ITEMS,
           },
         }
       }

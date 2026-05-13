@@ -78,7 +78,7 @@ export function useLandCreator() {
         const store = section.content?.stores?.[0]
         if (store) store.section_id = section.id
       }
-      if (section.type === 'list') {
+      if (section.type === 'links') {
         section.content?.items?.forEach((item) => { item.section_id = section.id })
       }
 

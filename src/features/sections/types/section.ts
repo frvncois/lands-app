@@ -1,11 +1,11 @@
-import type { ListItem } from '@/features/sections/types/list'
+import type { ListItem } from '@/features/sections/types/links'
 import type { Collection } from '@/features/sections/types/collection'
 import type { Store } from '@/features/sections/types/store'
 
 export const SECTION_TYPES = {
   header: 'header',
   content_media: 'content_media',
-  list: 'list',
+  links: 'links',
   collection: 'collection',
   store: 'store',
   monetize: 'monetize',
@@ -25,12 +25,12 @@ export const COLLECTION_DISPLAY_STYLES = {
 
 export type CollectionDisplayStyle = typeof COLLECTION_DISPLAY_STYLES[keyof typeof COLLECTION_DISPLAY_STYLES]
 
-export const LIST_STYLES = {
+export const LINKS_STYLES = {
   default: 'default',
   compact: 'compact',
 } as const
 
-export type ListStyle = typeof LIST_STYLES[keyof typeof LIST_STYLES]
+export type LinksStyle = typeof LINKS_STYLES[keyof typeof LINKS_STYLES]
 
 // --- Header-specific constants ---
 
@@ -74,8 +74,8 @@ export interface MonetizeSettings {
   style: CollectionDisplayStyle
 }
 
-export interface ListSettings {
-  style: ListStyle
+export interface LinksSettings {
+  style: LinksStyle
 }
 
 export interface CampaignSettings {
@@ -92,7 +92,7 @@ export type SectionSettings =
   | CollectionSettings
   | StoreSettings
   | MonetizeSettings
-  | ListSettings
+  | LinksSettings
   | CampaignSettings
   | FooterSettings
 
@@ -152,7 +152,7 @@ export interface ContentMediaContent {
   buttons: ContentMediaButton[]
 }
 
-export interface ListContent {
+export interface LinksContent {
   title: string
   description: string
   items: ListItem[]
@@ -173,7 +173,7 @@ export interface MonetizeContent {
 export type SectionContent =
   | HeaderContent
   | ContentMediaContent
-  | ListContent
+  | LinksContent
   | CollectionContent
   | StoreContent
   | MonetizeContent
@@ -195,7 +195,7 @@ interface BaseSection<TType extends SectionType, TContent, TSettings> {
 
 export type HeaderSection = BaseSection<'header', HeaderContent, HeaderSettings>
 export type ContentMediaSection = BaseSection<'content_media', ContentMediaContent, ContentMediaSettings>
-export type ListSection = BaseSection<'list', ListContent | null, ListSettings>
+export type LinksSection = BaseSection<'links', LinksContent | null, LinksSettings>
 export type CollectionSection = BaseSection<'collection', CollectionContent | null, CollectionSettings>
 export type StoreSection = BaseSection<'store', StoreContent | null, StoreSettings>
 export type MonetizeSection = BaseSection<'monetize', MonetizeContent | null, MonetizeSettings>
@@ -205,7 +205,7 @@ export type FooterSection = BaseSection<'footer', FooterContent, FooterSettings>
 export type Section =
   | HeaderSection
   | ContentMediaSection
-  | ListSection
+  | LinksSection
   | CollectionSection
   | StoreSection
   | MonetizeSection

@@ -11,7 +11,7 @@ import { generatePositionAfter } from '@/shared/lib/position'
 import type { SectionType } from '@/features/sections/types'
 import type { Collection } from '@/features/sections/types/collection'
 import type { Store } from '@/features/sections/types/store'
-import type { ListItem } from '@/features/sections/types/list'
+import type { ListItem } from '@/features/sections/types/links'
 
 // ─── Purpose type ───
 
@@ -52,14 +52,14 @@ export const PURPOSE_OPTIONS: PurposeOption[] = [
     label: 'Business',
     description: 'Promote your company or service',
     icon: BuildingOfficeIcon,
-    sections: ['header', 'content_media', 'list', 'campaign', 'footer'],
+    sections: ['header', 'content_media', 'links', 'campaign', 'footer'],
   },
   {
     id: 'creator',
     label: 'Creator',
     description: 'Centralise your content and links',
     icon: DevicePhoneMobileIcon,
-    sections: ['header', 'content_media', 'collection', 'store', 'list', 'footer'],
+    sections: ['header', 'content_media', 'collection', 'store', 'links', 'footer'],
   },
   {
     id: 'event',
@@ -73,7 +73,7 @@ export const PURPOSE_OPTIONS: PurposeOption[] = [
     label: 'Writing',
     description: 'Share articles, essays or newsletters',
     icon: PencilIcon,
-    sections: ['header', 'list', 'collection', 'footer'],
+    sections: ['header', 'links', 'collection', 'footer'],
   },
 ]
 
@@ -90,7 +90,7 @@ interface StoreSeed {
   itemSeeds: { title: string; price: number }[]
 }
 
-interface ListSeed {
+interface LinksSeed {
   items: { title: string; url: string }[]
 }
 
@@ -98,7 +98,7 @@ interface PurposeSeeds {
   collection: CollectionSeed[]
   store: StoreSeed[]
   monetize: CollectionSeed[]
-  list: ListSeed[]
+  links: LinksSeed[]
 }
 
 // ─── Seed data per purpose ───
@@ -115,7 +115,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
       { title: 'Merch', itemSeeds: [{ title: 'Tote Bag', price: 25 }, { title: 'Hoodie', price: 65 }, { title: 'Poster', price: 18 }] },
       { title: 'Digital Downloads', itemSeeds: [{ title: 'Album Download', price: 12 }, { title: 'Sample Pack', price: 29 }] },
     ],
-    list: [
+    links: [
       { items: [{ title: 'Spotify', url: '#' }, { title: 'Apple Music', url: '#' }, { title: 'YouTube', url: '#' }, { title: 'Instagram', url: '#' }, { title: 'Bandcamp', url: '#' }] },
     ],
   },
@@ -129,7 +129,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
       { title: 'Features', description: 'What makes it great', itemTitles: ['Speed', 'Simplicity', 'Power'] },
       { title: 'Testimonials', description: 'What people say', itemTitles: ['Happy Customer', 'Case Study', 'Press Quote'] },
     ],
-    list: [
+    links: [
       { items: [{ title: 'Documentation', url: '#' }, { title: 'GitHub', url: '#' }, { title: 'Twitter', url: '#' }] },
     ],
   },
@@ -140,7 +140,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
       { title: 'Team', description: 'Who we are', itemTitles: ['Founder', 'Lead Designer', 'Developer'] },
       { title: 'Work', description: 'Selected projects', itemTitles: ['Client A', 'Client B', 'Client C'] },
     ],
-    list: [
+    links: [
       { items: [{ title: 'LinkedIn', url: '#' }, { title: 'Twitter', url: '#' }, { title: 'Contact', url: '#' }] },
     ],
   },
@@ -154,7 +154,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
     store: [
       { title: 'Shop', itemSeeds: [{ title: 'Course Bundle', price: 99 }, { title: 'Template Pack', price: 29 }, { title: 'Coaching Call', price: 199 }] },
     ],
-    list: [
+    links: [
       { items: [{ title: 'YouTube', url: '#' }, { title: 'Twitter', url: '#' }, { title: 'Instagram', url: '#' }, { title: 'TikTok', url: '#' }, { title: 'Newsletter', url: '#' }] },
     ],
   },
@@ -168,7 +168,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
     store: [
       { title: 'Tickets', itemSeeds: [{ title: 'Early Bird', price: 49 }, { title: 'Standard', price: 89 }, { title: 'VIP', price: 249 }] },
     ],
-    list: [
+    links: [
       { items: [{ title: 'Twitter', url: '#' }, { title: 'Instagram', url: '#' }, { title: 'Facebook Event', url: '#' }] },
     ],
   },
@@ -179,7 +179,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
       { title: 'Essays', description: 'Selected pieces', itemTitles: ['Deep Dive', 'Op-Ed', 'Reflection'] },
       { title: 'Projects', description: 'Longer work', itemTitles: ['Book in Progress', 'Newsletter Archive'] },
     ],
-    list: [
+    links: [
       { items: [{ title: 'Substack', url: '#' }, { title: 'Twitter', url: '#' }, { title: 'Medium', url: '#' }, { title: 'LinkedIn', url: '#' }] },
     ],
   },
@@ -191,7 +191,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
     store: [
       { title: 'Store', itemSeeds: [{ title: 'Product', price: 29 }, { title: 'Product', price: 49 }] },
     ],
-    list: [
+    links: [
       { items: [{ title: 'Link', url: '#' }, { title: 'Link', url: '#' }, { title: 'Link', url: '#' }] },
     ],
   },
@@ -287,8 +287,8 @@ export function buildSectionContent(
     return { stores: [store] }
   }
 
-  if (type === 'list') {
-    const variants = seeds.list ?? FALLBACK.list
+  if (type === 'links') {
+    const variants = seeds.links ?? FALLBACK.links
     const seed = variants[existingCount % variants.length]!
     const positions = makePositions(seed.items.length)
     const items: ListItem[] = seed.items.map((item, i) => ({

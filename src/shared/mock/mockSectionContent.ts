@@ -1,8 +1,8 @@
-import type { ListItem } from '@/features/sections/types/list'
+import type { ListItem } from '@/features/sections/types/links'
 import type { Collection } from '@/features/sections/types/collection'
 import type { Store } from '@/features/sections/types/store'
 
-export const MOCK_LIST_ITEMS: ListItem[] = [
+export const MOCK_LINKS_ITEMS: ListItem[] = [
   { id: 'mock-list-1', section_id: '', title: '[ Your first link ]', subtitle: '', url: '#', description: 'A short description', icon: '', position: 'a' },
   { id: 'mock-list-2', section_id: '', title: '[ Another link ]', subtitle: '', url: '#', description: 'Where it leads to', icon: '', position: 'b' },
   { id: 'mock-list-3', section_id: '', title: '[ One more link ]', subtitle: '', url: '#', description: '', icon: '', position: 'c' },

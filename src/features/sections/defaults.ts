@@ -1,7 +1,7 @@
 import {
   SECTION_TYPES,
   COLLECTION_DISPLAY_STYLES,
-  LIST_STYLES,
+  LINKS_STYLES,
   HEADER_PROFILE_POSITIONS,
   HEADER_COVER_MEDIA_TYPES,
   type SectionType,
@@ -56,9 +56,9 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       buttons: [],
     },
   },
-  [SECTION_TYPES.list]: {
-    style_variant: LIST_STYLES.default,
-    settings_json: { style: LIST_STYLES.default },
+  [SECTION_TYPES.links]: {
+    style_variant: LINKS_STYLES.default,
+    settings_json: { style: LINKS_STYLES.default },
     content: null,
   },
   [SECTION_TYPES.campaign]: {

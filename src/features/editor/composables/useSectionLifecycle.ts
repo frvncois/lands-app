@@ -75,7 +75,7 @@ export function useSectionLifecycle() {
       const store = newSection.content?.stores?.[0]
       if (store) store.section_id = newSection.id
     }
-    if (newSection.type === 'list') {
+    if (newSection.type === 'links') {
       newSection.content?.items?.forEach((item) => { item.section_id = newSection.id })
     }
 

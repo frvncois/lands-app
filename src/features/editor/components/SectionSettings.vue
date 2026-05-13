@@ -48,7 +48,7 @@ defineExpose({
   cancelSubItem: () => settingsRef.value?.cancelSubItem?.(),
   saveSubItem: () => { settingsRef.value?.saveSubItem?.(); takeSnapshot() },
   addItem: () => settingsRef.value?.addItem?.(),
-  addListItem: () => settingsRef.value?.addListItem?.(),
+  addLinksItem: () => settingsRef.value?.addLinksItem?.(),
   addStoreItem: () => settingsRef.value?.addStoreItem?.(),
 })
 </script>

@@ -22,7 +22,7 @@ const HeaderStructureSettings = defineAsyncComponent(() => import('@/features/ed
 const FooterDefaultSettings  = defineAsyncComponent(() => import('@/features/editor/components/settings/footer/FooterDefaultSettings.vue'))
 const FooterMinimalSettings  = defineAsyncComponent(() => import('@/features/editor/components/settings/footer/FooterMinimalSettings.vue'))
 const ContentMediaSettings   = defineAsyncComponent(() => import('@/features/editor/components/settings/ContentMediaSettings.vue'))
-const ListSettings           = defineAsyncComponent(() => import('@/features/editor/components/settings/ListSettings.vue'))
+const LinksSettings          = defineAsyncComponent(() => import('@/features/editor/components/settings/LinksSettings.vue'))
 const CollectionSettings     = defineAsyncComponent(() => import('@/features/editor/components/settings/CollectionSettings.vue'))
 const StoreSettings          = defineAsyncComponent(() => import('@/features/editor/components/settings/StoreSettings.vue'))
 const MonetizeSettings       = defineAsyncComponent(() => import('@/features/editor/components/settings/MonetizeSettings.vue'))
@@ -37,9 +37,9 @@ const ContentMediaMinimal   = defineAsyncComponent(() => import('@/features/edit
 const ContentMediaBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/content-media/ContentMediaBaseline.vue'))
 const ContentMediaStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/content-media/ContentMediaStructure.vue'))
 
-const ListMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/list/ListMinimal.vue'))
-const ListBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/list/ListBaseline.vue'))
-const ListStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/list/ListStructure.vue'))
+const LinksMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/links/LinksMinimal.vue'))
+const LinksBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/links/LinksBaseline.vue'))
+const LinksStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/links/LinksStructure.vue'))
 
 const CollectionMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/collection/CollectionMinimal.vue'))
 const CollectionBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/collection/CollectionBaseline.vue'))
@@ -110,15 +110,15 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     titleFrom: (s) => (s.type === 'content_media' ? s.content?.title ?? null : null),
   },
 
-  list: {
-    type: 'list',
-    label: 'List',
+  links: {
+    type: 'links',
+    label: 'Links',
     description: 'Links and external resources',
     icon: ListBulletIcon,
-    defaults: SECTION_DEFAULTS.list,
-    variants: { minimal: ListMinimal, baseline: ListBaseline, structure: ListStructure },
-    settingsPanel: { default: ListSettings },
-    titleFrom: (s) => (s.type === 'list' ? s.content?.title ?? null : null),
+    defaults: SECTION_DEFAULTS.links,
+    variants: { minimal: LinksMinimal, baseline: LinksBaseline, structure: LinksStructure },
+    settingsPanel: { default: LinksSettings },
+    titleFrom: (s) => (s.type === 'links' ? s.content?.title ?? null : null),
   },
 
   collection: {

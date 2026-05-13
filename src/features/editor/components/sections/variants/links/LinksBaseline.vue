@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { sortByPosition } from '@/shared/lib/position'
 import type { Section } from '@/features/sections/types'
-import type { ListItem } from '@/features/sections/types/list'
+import type { ListItem } from '@/features/sections/types/links'
 
 const props = defineProps<{ section: Section }>()
 const items = computed<ListItem[]>(() => sortByPosition((props.section.content as any)?.items ?? []))
