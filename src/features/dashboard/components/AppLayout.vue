@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from '@/features/editor/components/AppHeader.vue'
 import PlanModal from '@/features/modals/modals/PlanModal.vue'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 
 const appModals = useAppModals()
 

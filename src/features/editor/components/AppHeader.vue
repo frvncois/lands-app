@@ -16,7 +16,7 @@ import ConfirmLeaveModal from '@/features/modals/modals/ConfirmLeaveModal.vue';
 import ConfirmPublishedModal from '@/features/modals/modals/ConfirmPublishedModal.vue';
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { useLandStore } from '@/features/lands/stores/land'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 import { usePublishFlow } from '@/features/editor/composables/usePublishFlow'
 import authService from '@/features/auth/services/auth.service'
 

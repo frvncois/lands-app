@@ -12,7 +12,7 @@ import type { Store, StoreItem } from '@/features/sections/types/store'
 import { useStoreActions } from '@/features/editor/composables/useStoreActions'
 
 import { useLandStore } from '@/features/lands/stores/land'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 import { useStripeConnect } from '@/features/dashboard/composables/useStripeConnect'
 import { sortByPosition, generateReorderPosition } from '@/shared/lib/position'
 

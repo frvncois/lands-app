@@ -9,7 +9,7 @@ import SetupCampaignSettings from './SetupCampaignSettings.vue'
 import type { CampaignSection } from '@/features/sections/types'
 import { useSectionForm } from '@/features/editor/composables/useSectionForm'
 import { useThemePreset } from '@/features/theme/composables/useThemePreset'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 import { useCampaignStore } from '@/features/integrations/stores/campaign'
 import { usePlan } from '@/features/plan/composables/usePlan'
 

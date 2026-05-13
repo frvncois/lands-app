@@ -12,7 +12,7 @@ import type { Section } from '@/features/sections/types'
 import type { CollectionItem, Collection } from '@/features/sections/types/collection'
 import { useCollectionActions } from '@/features/editor/composables/useCollectionActions'
 import { useLandStore } from '@/features/lands/stores/land'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 import { useStripeConnect } from '@/features/dashboard/composables/useStripeConnect'
 import { sortByPosition, generateReorderPosition } from '@/shared/lib/position'
 

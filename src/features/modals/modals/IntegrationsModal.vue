@@ -4,7 +4,7 @@ import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePiece
 import BaseItem from '@/shared/ui/BaseItem.vue'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import IntegrationSettingsModal, { type Integration } from './IntegrationSettingsModal.vue'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 import { usePlan } from '@/features/plan/composables/usePlan'
 
 const emit = defineEmits<{ close: [], openCustomDomain: [] }>()

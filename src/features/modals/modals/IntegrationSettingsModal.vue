@@ -10,7 +10,7 @@ import CampaignPanel from '@/features/integrations/panels/CampaignPanel.vue'
 import StorePanel from '@/features/integrations/panels/StorePanel.vue'
 import SeoPanel from '@/features/integrations/panels/SeoPanel.vue'
 import QrCodePanel from '@/features/integrations/panels/QrCodePanel.vue'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 
 export interface Integration {
   id: string

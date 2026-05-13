@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { LockClosedIcon } from '@heroicons/vue/24/outline'
 import BaseButton from './BaseButton.vue'
-import { useAppModals } from '@/features/modals/composables/useAppModals'
+import { useAppModals } from '@/features/modals/stores/appModals'
 
 defineProps<{
   title: string
