@@ -14,20 +14,16 @@ async function saveCampaignIntegration(
   landId: string,
   integration: CampaignIntegration,
 ): Promise<void> {
-  // TODO: await supabase.from('lands').update({ campaign_integration: integration }).eq('id', landId)
-  if (import.meta.env.DEV) {
-    console.warn('[integrationService] saveCampaignIntegration is a stub — not persisted to DB', { landId, integration })
-  }
+  const { error } = await supabase.from('lands').update({ campaign_integration: integration }).eq('id', landId)
+  if (error) throw new Error(error.message)
 }
 
 /**
  * Removes the campaign integration for the given land.
  */
 async function removeCampaignIntegration(landId: string): Promise<void> {
-  // TODO: await supabase.from('lands').update({ campaign_integration: null }).eq('id', landId)
-  if (import.meta.env.DEV) {
-    console.warn('[integrationService] removeCampaignIntegration is a stub — not persisted to DB', { landId })
-  }
+  const { error } = await supabase.from('lands').update({ campaign_integration: null }).eq('id', landId)
+  if (error) throw new Error(error.message)
 }
 
 async function fetchProviderLists(provider: CampaignProviderType, apiKey: string): Promise<ProviderList[]> {

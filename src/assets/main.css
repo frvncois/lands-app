@@ -33,6 +33,20 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'serif';
+  src: url('./fonts/InstrumentSerif-Regular.ttf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'serif italic';
+  src: url('./fonts/InstrumentSerif-Italic.ttf') format('opentype');
+  font-weight: normal;
+  font-style: italic;
+}
+
 /* ── Modal panel transitions ── */
 
 /* Forward: slide in from right, out to left */

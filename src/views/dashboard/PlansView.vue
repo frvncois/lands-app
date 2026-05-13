@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { CheckIcon, XMarkIcon, RectangleStackIcon, SparklesIcon, CreditCardIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+import { ref } from 'vue'
+import { CheckIcon, SparklesIcon, CreditCardIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseInput from '@/components/ui/BaseInput.vue'
 import { useLandStore } from '@/stores/land'
-import { landService } from '@/services/land.service'
 import { useToast } from '@/composables/useToast'
+import { stripeService } from '@/services/stripe.service'
 import { PLAN_DETAILS } from '@/types/plan'
 import type { LandPlan } from '@/types/plan'
 
@@ -18,83 +17,34 @@ const billing = ref<'monthly' | 'yearly'>('monthly')
 const PRICE_MONTHLY = PLAN_DETAILS.paid.price_monthly  // 10 CAD
 const PRICE_YEARLY  = PLAN_DETAILS.paid.price_yearly   // 90 CAD
 
-// ─── Feature comparison ───
-interface FeatureRow { label: string; free: string | boolean; paid: string | boolean }
-
-const FEATURE_ROWS: FeatureRow[] = [
-  { label: 'Projects',                    free: '2 free projects',  paid: 'Unlimited' },
-  { label: 'Sections',                    free: true,               paid: true },
-  { label: 'Analytics',                   free: 'Basic',            paid: 'Advanced' },
-  { label: 'Subdomain (*.lands.app)',     free: true,               paid: true },
-  { label: 'Custom domain',              free: false,              paid: true },
-  { label: 'Collections per section',    free: 'Max 2',            paid: 'Unlimited' },
-  { label: 'Items per collection',       free: 'Max 10',           paid: 'Unlimited' },
-  { label: 'Campaign integrations',      free: false,              paid: true },
-  { label: 'Collaborators',              free: false,              paid: true },
-  { label: 'Remove Lands branding',      free: false,              paid: true },
-  { label: 'Priority support',           free: false,              paid: true },
-]
-
 const FEATURES: Record<LandPlan, string[]> = {
   free: ['2 free projects', 'Unlimited sections', 'Basic analytics', 'lands.app subdomain', 'Max 2 collections / Max 10 items'],
   paid: ['Unlimited projects', 'Unlimited sections', 'Advanced analytics', 'Custom domain', 'Unlimited collections & items', 'Campaign integrations', 'Collaborators', 'Remove Lands branding', 'Priority support'],
 }
 
+const isRedirecting = ref<string | null>(null)
+
 async function upgrade(landId: string) {
-  landStore.updateLand(landId, { plan: 'paid' })
+  isRedirecting.value = `upgrade-${landId}`
   try {
-    await landService.updateLand(landId, { plan: 'paid' })
-    addToast('Plan upgraded successfully')
+    const url = await stripeService.createSubscriptionCheckout(landId, billing.value)
+    window.location.href = url
   } catch {
-    landStore.updateLand(landId, { plan: 'free' })
-    addToast('Failed to upgrade plan — please try again', 'error')
+    addToast('Failed to start checkout — please try again', 'error')
+    isRedirecting.value = null
   }
 }
 
-async function downgrade(landId: string) {
-  landStore.updateLand(landId, { plan: 'free' })
+async function openBillingPortal(landId: string) {
+  isRedirecting.value = `portal-${landId}`
   try {
-    await landService.updateLand(landId, { plan: 'free' })
-    addToast('Plan downgraded')
+    const url = await stripeService.createBillingPortal(landId)
+    window.location.href = url
   } catch {
-    landStore.updateLand(landId, { plan: 'paid' })
-    addToast('Failed to downgrade plan — please try again', 'error')
+    addToast('Failed to open billing portal — please try again', 'error')
+    isRedirecting.value = null
   }
 }
-
-// ─── Billing ───
-const cardName = ref('')
-const cardNumber = ref('')
-const cardExpiry = ref('')
-const cardCvc = ref('')
-const isSavingCard = ref(false)
-
-async function saveCard() {
-  if (!cardNumber.value || !cardName.value) {
-    addToast('Please fill in all card details', 'error')
-    return
-  }
-  isSavingCard.value = true
-  try {
-    // TODO: integrate with Stripe payment method API
-    await new Promise(resolve => setTimeout(resolve, 800))
-    addToast('Card saved successfully')
-  } finally {
-    isSavingCard.value = false
-  }
-}
-
-// ─── Invoices (mock) ───
-const invoices = [
-  { id: 'INV-0004', date: 'Mar 1, 2026', description: 'Paid plan — my-portfolio', amount: '$10.00', status: 'Paid' },
-  { id: 'INV-0003', date: 'Feb 1, 2026', description: 'Paid plan — my-portfolio', amount: '$10.00', status: 'Paid' },
-  { id: 'INV-0002', date: 'Jan 1, 2026', description: 'Paid plan — my-portfolio', amount: '$10.00', status: 'Paid' },
-  { id: 'INV-0001', date: 'Dec 1, 2025', description: 'Paid plan — my-portfolio', amount: '$10.00', status: 'Paid' },
-]
-
-const totalMonthly = computed(() =>
-  landStore.lands.filter((l) => l.plan === 'paid').length * PRICE_MONTHLY
-)
 </script>
 
 <template>
@@ -206,17 +156,19 @@ const totalMonthly = computed(() =>
               v-if="land.plan === 'free'"
               size="sm"
               variant="solid"
+              :disabled="isRedirecting === `upgrade-${land.id}`"
               @click="upgrade(land.id)"
             >
-              Upgrade
+              {{ isRedirecting === `upgrade-${land.id}` ? 'Redirecting…' : 'Upgrade' }}
             </BaseButton>
             <BaseButton
               v-else
               size="sm"
               variant="outline"
-              @click="downgrade(land.id)"
+              :disabled="isRedirecting === `portal-${land.id}`"
+              @click="openBillingPortal(land.id)"
             >
-              Downgrade
+              {{ isRedirecting === `portal-${land.id}` ? 'Loading…' : 'Manage' }}
             </BaseButton>
           </div>
         </div>
@@ -225,68 +177,29 @@ const totalMonthly = computed(() =>
       </div>
     </div>
 
-    <!-- ── Billing Information ── -->
+    <!-- ── Billing portal ── -->
     <div class="flex flex-col gap-4 pt-8 pb-8">
       <div class="flex items-center gap-3">
         <div class="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-gray-100">
           <CreditCardIcon class="h-4 w-4 text-gray-600" />
         </div>
         <div>
-          <h2 class="text-base font-semibold text-gray-900">Billing information</h2>
-          <p class="text-xs text-gray-400">Your payment method</p>
+          <h2 class="text-base font-semibold text-gray-900">Billing</h2>
+          <p class="text-xs text-gray-400">Manage your payment method and view invoices</p>
         </div>
       </div>
-      <BaseInput size="lg" label="Name on card" placeholder="John Doe" v-model="cardName" />
-      <BaseInput size="lg" label="Card number" placeholder="4242 4242 4242 4242" v-model="cardNumber" />
-      <div class="flex gap-4">
-        <BaseInput size="lg" label="Expiry" placeholder="MM / YY" v-model="cardExpiry" />
-        <BaseInput size="lg" label="CVC" placeholder="123" v-model="cardCvc" />
-      </div>
-      <div>
-        <BaseButton variant="solid" size="md" :disabled="isSavingCard" @click="saveCard">
-          {{ isSavingCard ? 'Saving…' : 'Save card' }}
+      <div v-if="landStore.lands.some(l => l.plan === 'paid')">
+        <BaseButton
+          variant="outline"
+          size="md"
+          :disabled="!!isRedirecting"
+          @click="openBillingPortal(landStore.lands.find(l => l.plan === 'paid')!.id)"
+        >
+          {{ isRedirecting ? 'Loading…' : 'Open billing portal' }}
         </BaseButton>
+        <p class="text-xs text-gray-400 mt-2">View invoices, update your payment method, or cancel your subscription.</p>
       </div>
-    </div>
-
-    <!-- ── Invoices ── -->
-    <div class="flex flex-col gap-4 pt-8 pb-8">
-      <div class="flex items-center gap-3">
-        <div class="shrink-0 flex items-center justify-center h-8 w-8 rounded-xl bg-gray-100">
-          <DocumentTextIcon class="h-4 w-4 text-gray-600" />
-        </div>
-        <div>
-          <h2 class="text-base font-semibold text-gray-900">Invoices</h2>
-          <p class="text-xs text-gray-400">Your billing history</p>
-        </div>
-      </div>
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-xs text-gray-400 border-b border-gray-100">
-            <th class="pb-2 font-medium">Invoice</th>
-            <th class="pb-2 font-medium">Date</th>
-            <th class="pb-2 font-medium">Description</th>
-            <th class="pb-2 font-medium text-right">Amount</th>
-            <th class="pb-2 font-medium text-right">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="inv in invoices"
-            :key="inv.id"
-            class="border-b border-gray-100 last:border-0"
-          >
-            <td class="py-3 text-xs text-gray-400 font-mono">{{ inv.id }}</td>
-            <td class="py-3 text-xs text-gray-500">{{ inv.date }}</td>
-            <td class="py-3 text-xs text-gray-600">{{ inv.description }}</td>
-            <td class="py-3 text-xs text-gray-900 text-right font-medium">{{ inv.amount }}</td>
-            <td class="py-3 text-right">
-              <span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{{ inv.status }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-if="invoices.length === 0" class="text-sm text-gray-400">No invoices yet.</p>
+      <p v-else class="text-sm text-gray-400">No active paid plans. Upgrade a project to access billing.</p>
     </div>
 
   </section>

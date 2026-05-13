@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import BaseButton from '../ui/BaseButton.vue'
-import ContentEditor from '../editor/content/ContentEditor.vue'
+import BaseButton from '../../ui/BaseButton.vue'
+import ContentEditor from '../content/ContentEditor.vue'
 
 const props = defineProps<{ modelValue: string; title?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string]; close: [] }>()

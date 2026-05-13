@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
 import { XMarkIcon, ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/vue/24/outline'
-import BaseButton from '../ui/BaseButton.vue'
-import BaseInput from '../ui/BaseInput.vue'
-import BaseModal from '../ui/BaseModal.vue'
+import BaseButton from '../../ui/BaseButton.vue'
+import BaseInput from '../../ui/BaseInput.vue'
+import BaseModal from '../../ui/BaseModal.vue'
 import { CAMPAIGN_PROVIDERS, type CampaignProviderMeta, type CampaignConfig } from '@/types/campaign'
 import { useCampaignStore } from '@/stores/campaign'
 import { useLandStore } from '@/stores/land'

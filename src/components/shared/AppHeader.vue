@@ -177,6 +177,10 @@ async function handleLogout() {
   await authService.logout()
   router.push('/auth')
 }
+
+function openSupport() {
+  window.open('mailto:support@lands.app', '_blank')
+}
 </script>
 
 <template>
@@ -201,7 +205,7 @@ async function handleLogout() {
 
           <!--Account state-->
           <div v-else-if="route.path.startsWith('/dashboard/account') || route.path.startsWith('/dashboard/plans')" class="flex space-x-2 items-center">
-              <BaseButton size="sm" variant="outline">
+              <BaseButton size="sm" variant="outline" @click="openSupport">
                   <QuestionMarkCircleIcon class="h-4 w-4" />
                   Need help?
               </BaseButton>

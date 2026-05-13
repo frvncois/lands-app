@@ -641,68 +641,6 @@ function renderFooter(section: Section, theme: LandTheme, land: Land): string {
 </div>`
 }
 
-// ─── Feed Layout ───
-
-function renderFeedLayout(land: Land): string {
-  const sorted = sortByPosition(land.sections)
-  const header = sorted.find(s => s.type === 'header')
-  const hc = (header?.content ?? {}) as unknown as HeaderContent
-  const hs = (header?.settings_json ?? {}) as unknown as HeaderSettings
-
-  const footerSection        = sorted.find(s => s.type === 'footer')
-  const collectionSections   = sorted.filter(s => s.type === 'collection')
-  const listSections         = sorted.filter(s => s.type === 'list')
-  const monetizeSections     = sorted.filter(s => s.type === 'monetize')
-  const storeSections        = sorted.filter(s => s.type === 'store')
-  const contentMediaSections = sorted.filter(s => s.type === 'content_media')
-
-  const tabs: { id: string; label: string; html: string }[] = []
-  tabs.push({ id: 'feed', label: 'Feed', html: collectionSections.map(s => renderCollection(s, land.theme)).join('') || '<div class="flex items-center justify-center p-24 text-sm" style="color: var(--theme-main); opacity: 0.4">No collections yet</div>' })
-  if (listSections.length)         tabs.push({ id: 'links', label: 'Links', html: listSections.map(s => renderList(s, land.theme)).join('') })
-  if (monetizeSections.length)     tabs.push({ id: 'sub', label: 'Subscription', html: monetizeSections.map(s => renderMonetize(s, land.theme)).join('') })
-  if (storeSections.length)        tabs.push({ id: 'store', label: 'Store', html: storeSections.map(s => renderStore(s, land.theme)).join('') })
-  if (contentMediaSections.length) tabs.push({ id: 'about', label: 'About', html: contentMediaSections.map(s => renderContentMedia(s, land.theme)).join('') })
-
-  const tabBtns = tabs.map((t, i) =>
-    `<button class="feed-tab px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-opacity${i === 0 ? ' active' : ''}" data-tab="${t.id}" onclick="switchTab(this,'${t.id}')" style="${i === 0 ? `opacity:1;border-color:var(--theme-accent);color:var(--theme-accent)` : `opacity:0.5;border-color:transparent;color:var(--theme-main)`}">${esc(t.label)}</button>`
-  ).join('')
-
-  const tabPanels = tabs.map((t, i) =>
-    `<div id="fp-${t.id}" class="feed-panel"${i > 0 ? ' style="display:none"' : ''}>${t.html}</div>`
-  ).join('')
-
-  return `
-<div class="relative h-[380px] overflow-hidden" style="background: var(--theme-accent)">
-  ${hs?.cover_media_value ? `<img src="${esc(hs.cover_media_value)}" class="absolute inset-0 w-full h-full object-cover">` : ''}
-  <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.65) 100%)"></div>
-  <div class="absolute bottom-0 left-0 right-0 p-8">
-    ${hc.logo    ? `<img src="${esc(hc.logo)}" class="h-8 w-auto mb-2" style="filter: brightness(0) invert(1)" alt="">` : ''}
-    ${hc.title   ? `<h1 class="text-4xl font-bold text-white leading-tight">${esc(hc.title)}</h1>` : `<h1 class="text-4xl font-bold text-white leading-tight">${esc(land.title || land.handle)}</h1>`}
-    ${hc.subtitle ? `<p class="text-sm mt-1.5" style="color: rgba(255,255,255,0.7)">${esc(hc.subtitle)}</p>` : ''}
-  </div>
-</div>
-<div class="sticky top-0 z-10 bg-white border-b flex gap-0 px-6 overflow-x-auto" style="border-color: var(--theme-surface)">
-  ${tabBtns}
-</div>
-<div>${tabPanels}</div>
-${footerSection ? renderFooter(footerSection, land.theme, land) : ''}
-<script>
-function switchTab(btn, id) {
-  document.querySelectorAll('.feed-tab').forEach(function(el) {
-    el.style.opacity = '0.5';
-    el.style.borderBottomColor = 'transparent';
-    el.style.color = 'var(--theme-main)';
-  });
-  btn.style.opacity = '1';
-  btn.style.borderBottomColor = 'var(--theme-accent)';
-  btn.style.color = 'var(--theme-accent)';
-  document.querySelectorAll('.feed-panel').forEach(function(el) { el.style.display = 'none'; });
-  var p = document.getElementById('fp-' + id);
-  if (p) p.style.display = '';
-}
-<\/script>`
-}
-
 // ─── Dispatcher ───
 
 function renderSection(section: Section, theme: LandTheme, land: Land): string {
@@ -724,10 +662,7 @@ function renderSection(section: Section, theme: LandTheme, land: Land): string {
 // ─── Main ───
 
 export function renderLand(land: Land): string {
-  const isFeed = land.theme?.theme_preset === 'feed'
-  const body = isFeed
-    ? renderFeedLayout(land)
-    : sortByPosition(land.sections).map(s => renderSection(s, land.theme, land)).join('\n')
+  const body = sortByPosition(land.sections).map(s => renderSection(s, land.theme, land)).join('\n')
 
   return `<!DOCTYPE html>
 <html lang="en">

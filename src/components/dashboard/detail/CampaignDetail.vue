@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { MegaphoneIcon, CheckCircleIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import SetupCampaignModal from '@/components/modals/SetupCampaignModal.vue'
+import SetupCampaignSettings from '@/components/editor/settings/SetupCampaignSettings.vue'
 import { CAMPAIGN_PROVIDERS } from '@/types/campaign'
 import { useCampaignStore } from '@/stores/campaign'
 
@@ -78,7 +78,7 @@ const showSetupModal = ref(false)
 
   <Teleport to="body">
     <Transition name="modal-center">
-      <SetupCampaignModal v-if="showSetupModal" @close="showSetupModal = false" />
+      <SetupCampaignSettings v-if="showSetupModal" @close="showSetupModal = false" />
     </Transition>
   </Teleport>
 </template>

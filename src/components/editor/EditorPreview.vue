@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useLandStore } from '@/stores/land'
 import { useEditorStore } from '@/stores/editor'
-import { useThemeStore } from '@/stores/theme'
 import { sortByPosition, generatePositionBetween } from '@/lib/utils/position'
 import { useEditorActions } from '@/composables/useEditorActions'
 import { defineAsyncComponent } from 'vue'
@@ -10,8 +9,6 @@ import type { Component } from 'vue'
 import type { Section, SectionType } from '@/types/section'
 import BaseContextMenu from '@/components/ui/BaseContextMenu.vue'
 import ErrorBoundary from '@/components/ui/ErrorBoundary.vue'
-import FeedLayout from '@/components/sections/layout/FeedLayout.vue'
-
 const SectionHeader       = defineAsyncComponent(() => import('@/components/sections/SectionHeader.vue'))
 const SectionContentMedia = defineAsyncComponent(() => import('@/components/sections/SectionContentMedia.vue'))
 const SectionList         = defineAsyncComponent(() => import('@/components/sections/SectionList.vue'))
@@ -24,9 +21,6 @@ const SectionFooter       = defineAsyncComponent(() => import('@/components/sect
 const landStore = useLandStore()
 const editorStore = useEditorStore()
 const { deleteSection, duplicateSection, reorderSection } = useEditorActions()
-
-const themeStore = useThemeStore()
-const isFeedTheme = computed(() => themeStore.theme?.theme_preset === 'feed')
 
 const sections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))
 const isInteractive = computed(() => editorStore.isEditMode)
@@ -89,12 +83,7 @@ function closeContextMenu() {
 
 <template>
   <div>
-    <!-- Feed theme: custom layout with hero + tabs -->
-    <FeedLayout v-if="isFeedTheme" />
-
-    <!-- Standard themes: section list -->
-    <template v-else>
-      <div>
+    <div>
         <div
           v-for="(section, idx) in sections"
           :key="section.id"
@@ -192,6 +181,5 @@ function closeContextMenu() {
           @close="closeContextMenu"
         />
       </Teleport>
-    </template>
   </div>
 </template>

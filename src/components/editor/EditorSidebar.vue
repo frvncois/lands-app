@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon, GlobeAltIcon, Cog6ToothIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { Squares2X2Icon, SwatchIcon, SparklesIcon, EyeDropperIcon, LanguageIcon, GlobeAltIcon, Cog6ToothIcon, TrashIcon, ChevronLeftIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseTree from '../ui/BaseTree.vue'
 import BaseTab from '../ui/BaseTab.vue'
@@ -9,7 +9,7 @@ import BaseFont from '../ui/BaseFont.vue'
 import BaseInput from '../ui/BaseInput.vue'
 import BaseCard from '../ui/BaseCard.vue'
 import BaseToggle from '../ui/BaseToggle.vue'
-import SectionSettingsModal from '@/components/modals/SectionSettingsModal.vue'
+import SectionSettingsModal from '@/components/editor/SectionSettings.vue'
 import SectionsModal from '@/components/modals/SectionsModal.vue'
 import CustomDomainModal from '@/components/modals/CustomDomainModal.vue'
 import DeleteProjectModal from '@/components/modals/DeleteProjectModal.vue'
@@ -191,6 +191,16 @@ function applyPreset(preset: typeof presets[number]) {
 const sectionIconMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.icon]))
 const sectionLabelMap = Object.fromEntries(sectionPrimitives.map((p) => [p.id, p.label]))
 
+const FIXED_LABEL_TYPES = new Set(['header', 'footer', 'campaign'])
+
+function getSectionTitle(s: { type: string; content: unknown }): string | null {
+  if (FIXED_LABEL_TYPES.has(s.type)) return null
+  const c = s.content as any
+  if (s.type === 'collection' || s.type === 'monetize') return c?.collections?.[0]?.title || null
+  if (s.type === 'store') return c?.stores?.[0]?.title || null
+  return c?.title || null
+}
+
 const sectionCount = computed(() =>
   (landStore.activeLand?.sections ?? []).filter(s => s.type !== 'header' && s.type !== 'footer').length
 )
@@ -200,7 +210,7 @@ const nodes = computed<TreeNode[]>(() => {
   const sections = landStore.activeLand?.sections ?? []
   return sortByPosition(sections).map((s) => ({
     id: s.id,
-    label: sectionLabelMap[s.type] ?? (s.type.charAt(0).toUpperCase() + s.type.slice(1)),
+    label: getSectionTitle(s) || (sectionLabelMap[s.type] ?? (s.type.charAt(0).toUpperCase() + s.type.slice(1))),
     icon: sectionIconMap[s.type],
     locked: s.type === 'header' || s.type === 'footer',
   }))
@@ -262,18 +272,22 @@ function handleAddSection(type: string) {
       <Transition name="modal-fade" mode="out-in">
 
         <!-- Section settings header -->
-        <div v-if="editorStore.showSectionSettings && editorStore.activeSection" :key="editorStore.activeSection.id" class="flex items-center flex-1 justify-between pl-4 pr-2">
-          <Transition name="modal-title" mode="out-in">
-            <h2 :key="isSubItemEditing ? 'item' : 'section'" class="text-sm font-semibold text-gray-900">{{ (sectionLabelMap[editorStore.activeSection.type] ?? editorStore.activeSection.type) + (isSubItemEditing ? ' item' : '') }}</h2>
-          </Transition>
-          <div class="flex items-center gap-1">
-            <template v-if="isSubItemEditing">
-              <BaseButton variant="outline" size="xs" @click="sectionSettingsRef?.cancelSubItem">Cancel</BaseButton>
-              <BaseButton variant="solid" size="xs" @click="sectionSettingsRef?.saveSubItem">Save</BaseButton>
-            </template>
-            <template v-else>
-              <BaseButton variant="outline" size="xs" @click="sectionSettingsRef?.handleSave">Back</BaseButton>
-            </template>
+        <div v-if="editorStore.showSectionSettings && editorStore.activeSection" :key="editorStore.activeSection.id" class="flex items-center flex-1 justify-between pl-2 pr-2">
+          <div class="flex items-center gap-1 flex-1 min-w-0">
+            <button
+              v-if="!isSubItemEditing"
+              class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100 shrink-0"
+              @click="sectionSettingsRef?.handleSave"
+            >
+              <ChevronLeftIcon class="h-3 w-3" />
+            </button>
+            <Transition name="modal-title" mode="out-in">
+              <h2 :key="isSubItemEditing ? 'item' : 'section'" class="text-sm font-semibold text-gray-900 truncate">{{ (sectionLabelMap[editorStore.activeSection.type] ?? editorStore.activeSection.type) + (isSubItemEditing ? ' item' : '') }}</h2>
+            </Transition>
+          </div>
+          <div v-if="isSubItemEditing" class="flex items-center gap-1 shrink-0">
+            <BaseButton variant="outline" size="xs" @click="sectionSettingsRef?.cancelSubItem">Cancel</BaseButton>
+            <BaseButton variant="solid" size="xs" @click="sectionSettingsRef?.saveSubItem">Save</BaseButton>
           </div>
         </div>
 
@@ -300,7 +314,7 @@ function handleAddSection(type: string) {
       >
 
         <!-- Section settings content -->
-        <div v-if="editorStore.showSectionSettings && editorStore.activeSection" :key="editorStore.activeSection.id">
+        <div class="flex-1" v-if="editorStore.showSectionSettings && editorStore.activeSection" :key="editorStore.activeSection.id">
           <SectionSettingsModal
             ref="sectionSettingsRef"
             :section="editorStore.activeSection"

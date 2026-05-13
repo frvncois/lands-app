@@ -1,0 +1,1837 @@
+{
+  "setup": {
+    "name": "lands-app",
+    "platform": "web",
+    "framework": "vue",
+    "cssFramework": "tailwind",
+    "componentLibrary": "none",
+    "stateManagement": "pinia",
+    "iconLibrary": "heroicons",
+    "authProvider": "supabase",
+    "backendType": "supabase",
+    "realtime": false,
+    "context": "Lands is a SaaS landing-page builder where users create personal pages ('lands') composed of ordered, polymorphic sections. Users customise sections, theme presets, and publish to a .lands.app subdomain, with support for team collaboration, e-commerce, email campaign integrations, and custom domains."
+  },
+  "files": [
+    {
+      "name": "App",
+      "type": "component",
+      "description": "Root Vue component that initialises auth/user state, wires theme CSS variables via useThemeVars, and renders the RouterView with a global BaseToastContainer.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "main",
+      "type": "util",
+      "description": "App entry point: creates the Vue app, installs Pinia and Vue Router, and mounts to #app.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": []
+    },
+    {
+      "name": "AppLayout",
+      "type": "layout",
+      "description": "Primary dashboard shell that renders AppHeader, a scrollable RouterView content area, and a teleported PlanModal."
+    },
+    {
+      "name": "AuthLayout",
+      "type": "layout",
+      "description": "Two-column authentication shell with a branding/logo panel on the left and a RouterView form panel on the right."
+    },
+    {
+      "name": "OnboardingLayout",
+      "type": "layout",
+      "description": "Minimal single-column layout wrapper used during new-user onboarding flow."
+    },
+    {
+      "name": "LoginView",
+      "type": "view",
+      "description": "Email/password login form with links to the register and forgot-password flows."
+    },
+    {
+      "name": "RegisterView",
+      "type": "view",
+      "description": "Account registration form collecting name, email, and password."
+    },
+    {
+      "name": "LostPasswordView",
+      "type": "view",
+      "description": "Sends a password-reset email via Supabase OTP and shows a confirmation state."
+    },
+    {
+      "name": "StripeCallbackView",
+      "type": "view",
+      "description": "Handles Stripe Connect OAuth callback, exchanges the code via stripeService.handleCallback, then redirects to the dashboard."
+    },
+    {
+      "name": "AcceptInviteView",
+      "type": "view",
+      "description": "Processes a collaborator invite token via collaboratorService.acceptInvite and redirects to the dashboard."
+    },
+    {
+      "name": "ProjectView",
+      "type": "view",
+      "description": "Main editor/preview page composing LandsDashboard, EditorPreview, and the EditorSidebar side-by-side."
+    },
+    {
+      "name": "AccountView",
+      "type": "view",
+      "description": "User profile settings page for updating name, avatar, email, and deleting the account."
+    },
+    {
+      "name": "PlansView",
+      "type": "view",
+      "description": "Subscription selection page listing free vs paid tiers with Stripe Checkout integration."
+    },
+    {
+      "name": "PlansSuccessView",
+      "type": "view",
+      "description": "Post-upgrade confirmation page shown after a successful Stripe Checkout session."
+    },
+    {
+      "name": "SupportView",
+      "type": "view",
+      "description": "Help and support resources page with links and documentation for users."
+    },
+    {
+      "name": "CheckoutSuccessView",
+      "type": "view",
+      "description": "Post-purchase confirmation page shown after a successful product checkout."
+    },
+    {
+      "name": "CheckoutCancelView",
+      "type": "view",
+      "description": "Purchase cancellation page shown when a user abandons the Stripe checkout flow."
+    },
+    {
+      "name": "HomeView",
+      "type": "view",
+      "description": "Marketing homepage view composing MainHeader, HomeHero, FeaturesSection, ShowcaseSection, CardsSection, and PricingSection."
+    },
+    {
+      "name": "LandsUnpublishedView",
+      "type": "view",
+      "description": "Informational page shown when a visitor navigates to a land that has not yet been published."
+    },
+    {
+      "name": "OnboardingView",
+      "type": "view",
+      "description": "Multi-step new-user wizard that collects handle, purpose, and theme preferences before creating the first land."
+    },
+    {
+      "name": "AppHeader",
+      "type": "component",
+      "description": "Top dashboard header with the BaseMenu project switcher, edit-mode toggle, save/publish/discard buttons, and integrations shortcut.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "LandsLoading",
+      "type": "component",
+      "description": "Full-screen animated loading spinner shown while the app bootstraps or switches projects.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "OnboardingTour",
+      "type": "component",
+      "description": "Overlay onboarding guide that highlights key UI areas with tooltips to orient new users.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "LandsDashboard",
+      "type": "component",
+      "description": "Left-panel project list that lets users switch between lands and open dashboard detail tabs (analytics, orders, campaign, sell).",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "AnalyticsDetail",
+      "type": "component",
+      "description": "Analytics detail panel showing a page-view BaseChart and key visit metrics for the active land.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CampaignDetail",
+      "type": "component",
+      "description": "Campaign integration detail panel for connecting and managing an email provider on the active land.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MonetizeDetail",
+      "type": "component",
+      "description": "Memberships/monetization detail panel for configuring paid-access tiers on the active land.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "OrdersDetail",
+      "type": "component",
+      "description": "Orders detail panel listing purchase history for products sold via the active land's store.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SellDetail",
+      "type": "component",
+      "description": "Selling settings panel for connecting Stripe and configuring product delivery options.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "EditorPreview",
+      "type": "component",
+      "description": "Renders the active land's ordered sections via a SectionType→component map, handles section selection and right-click context menu in edit mode.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "EditorSidebar",
+      "type": "component",
+      "description": "Design settings panel with tabs for the sections tree (drag-to-reorder), theme (colours, fonts, preset), and land settings (handle, images, domain, delete).",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "LandsPreview",
+      "type": "component",
+      "description": "Read-only public preview of a land that renders all sections without edit-mode interactivity.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MobileEditorBar",
+      "type": "component",
+      "description": "Mobile-only bottom toolbar providing quick access to section settings, theme sidebar, and publish action.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionSettings",
+      "type": "component",
+      "description": "Section-specific settings sidebar that renders the correct settings sub-component (HeaderSettings, ListSettings, etc.) based on the active section type.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ContentEditor",
+      "type": "component",
+      "description": "TipTap-based rich-text editor supporting bold/italic formatting, images, audio, video, and file block extensions.",
+      "props": [
+        { "name": "modelValue", "type": "string", "required": true, "defaultValue": "", "description": "HTML string content bound via v-model." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "RichTextEditor",
+      "type": "component",
+      "description": "Simple TipTap StarterKit editor wrapper with bold/italic toolbar, bound via v-model.",
+      "props": [
+        { "name": "modelValue", "type": "string", "required": true, "defaultValue": "", "description": "HTML string content bound via v-model." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "AudioBlock",
+      "type": "lib",
+      "description": "TipTap Node extension defining a custom audio-block node type for the rich-text editor."
+    },
+    {
+      "name": "AudioBlockView",
+      "type": "component",
+      "description": "TipTap NodeView component that renders an inline audio player for AudioBlock nodes.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FileBlock",
+      "type": "lib",
+      "description": "TipTap Node extension defining a custom file-block node type for downloadable file attachments."
+    },
+    {
+      "name": "FileBlockView",
+      "type": "component",
+      "description": "TipTap NodeView component that renders a downloadable file attachment row for FileBlock nodes.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "VideoBlock",
+      "type": "lib",
+      "description": "TipTap Node extension defining a custom video-block node type for embedded video content."
+    },
+    {
+      "name": "VideoBlockView",
+      "type": "component",
+      "description": "TipTap NodeView component that renders an inline video player or iframe embed for VideoBlock nodes.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CampaignSettings",
+      "type": "component",
+      "description": "Editor settings panel for the campaign section: style variant, call-to-action copy, and provider setup shortcut.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CollectionItemContentSettings",
+      "type": "component",
+      "description": "Editor settings panel for editing a single collection item's title, image, description, and URL.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CollectionSettings",
+      "type": "component",
+      "description": "Editor settings panel for managing collections and their items within a collection section.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ContentMediaSettings",
+      "type": "component",
+      "description": "Editor settings panel for the content-media section: layout variant, media upload (image/video), and text content.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FooterSettings",
+      "type": "component",
+      "description": "Editor settings panel for the footer section's nav links, social icons, and copyright text.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HeaderSettings",
+      "type": "component",
+      "description": "Editor settings panel for the header section's profile photo, cover media, bio text, and profile-photo position.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HeaderDefaultSettings",
+      "type": "component",
+      "description": "Sub-panel for the default/baseline header variant settings.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HeaderMinimalSettings",
+      "type": "component",
+      "description": "Sub-panel for the minimal header variant settings.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HeaderStructureSettings",
+      "type": "component",
+      "description": "Sub-panel for the structure header variant settings.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FooterDefaultSettings",
+      "type": "component",
+      "description": "Sub-panel for the default footer variant settings.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FooterMinimalSettings",
+      "type": "component",
+      "description": "Sub-panel for the minimal footer variant settings.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ItemEditorSettings",
+      "type": "component",
+      "description": "Editor settings panel for a store product item: title, price, description, image, and variants.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ListSettings",
+      "type": "component",
+      "description": "Editor settings panel for managing link items (add, edit, reorder, delete) within a list section.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MonetizeSettings",
+      "type": "component",
+      "description": "Editor settings panel for configuring membership tiers and pricing in a monetize section.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SetupCampaignSettings",
+      "type": "component",
+      "description": "Step-by-step panel for connecting an email campaign provider (Kit, Loops, Brevo, etc.) to the active land.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "StoreSettings",
+      "type": "component",
+      "description": "Editor settings panel for managing store products, variants, and store layout in a store section.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CampaignPanel",
+      "type": "component",
+      "description": "Integration panel for selecting and configuring the active land's email campaign provider.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CollaboratorsPanel",
+      "type": "component",
+      "description": "Integration panel for managing team collaborators: invite, change role, remove, resend invite.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "QrCodePanel",
+      "type": "component",
+      "description": "Integration panel that generates and displays a QR code for the active land's public URL.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SeoPanel",
+      "type": "component",
+      "description": "Integration panel for editing the active land's SEO metadata (title, description, social image).",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "StorePanel",
+      "type": "component",
+      "description": "Integration panel for configuring store-level settings such as currency and Stripe product sync.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ConfirmDeleteAccountModal",
+      "type": "component",
+      "description": "Modal dialog that asks the user to confirm permanent account deletion before calling userService.deleteAccount.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "ConfirmLeaveModal",
+      "type": "component",
+      "description": "Modal dialog warning about unsaved changes when navigating away from the editor.",
+      "props": [],
+      "emits": ["confirm", "cancel"],
+      "slots": []
+    },
+    {
+      "name": "ConfirmPublishedModal",
+      "type": "component",
+      "description": "Modal dialog shown after a successful publish operation with a link to the live land URL.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "ConfirmRemoveCollaboratorModal",
+      "type": "component",
+      "description": "Modal dialog confirming removal of a collaborator from the active land.",
+      "props": [],
+      "emits": ["confirm", "cancel"],
+      "slots": []
+    },
+    {
+      "name": "ConfirmUnpublishModal",
+      "type": "component",
+      "description": "Modal dialog confirming the user wants to take their land offline.",
+      "props": [],
+      "emits": ["confirm", "cancel"],
+      "slots": []
+    },
+    {
+      "name": "CreateProjectModal",
+      "type": "component",
+      "description": "Modal dialog for creating a new land: collects the handle/slug and calls landService.createLand.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "CustomDomainModal",
+      "type": "component",
+      "description": "Modal dialog for connecting, verifying, and disconnecting a custom domain on the active land.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "DeleteProjectModal",
+      "type": "component",
+      "description": "Modal dialog that confirms deletion of the active land, calls landService.deleteLand, then redirects.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "IntegrationSettingsModal",
+      "type": "component",
+      "description": "Modal dialog for configuring a specific integration (campaign provider settings form).",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "IntegrationsModal",
+      "type": "component",
+      "description": "Hub modal listing all available integrations (collaborators, SEO, QR, store, campaign, custom domain) as entry points.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "InviteAcceptModal",
+      "type": "component",
+      "description": "Modal dialog shown to an authenticated user accepting a pending collaborator invite.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "InviteCollaboratorModal",
+      "type": "component",
+      "description": "Modal dialog for inviting a new team member by email with a role selector (admin/editor).",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "PlanModal",
+      "type": "component",
+      "description": "Paywall upgrade modal showing paid plan benefits and linking to Stripe Checkout.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "SectionsModal",
+      "type": "component",
+      "description": "Modal dialog presenting available section types for the user to add to their land.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "SettingsModal",
+      "type": "component",
+      "description": "Modal dialog wrapping all land-level settings (handle, title, images, visibility).",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "ShareModal",
+      "type": "component",
+      "description": "Modal dialog with public land URL, copy-link button, and sharing options.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "StripeConnectedModal",
+      "type": "component",
+      "description": "Modal dialog confirming that Stripe Connect was successfully linked to the active land.",
+      "props": [],
+      "emits": ["close"],
+      "slots": []
+    },
+    {
+      "name": "SectionCampaign",
+      "type": "component",
+      "description": "Campaign section router that selects CampaignMinimal, CampaignBaseline, or CampaignStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The campaign section data including content, settings_json, and style_variant." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionCollection",
+      "type": "component",
+      "description": "Collection section router that selects CollectionMinimal, CollectionBaseline, or CollectionStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The collection section data including collections array in content." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionContentMedia",
+      "type": "component",
+      "description": "Content-media section router that selects ContentMediaMinimal, ContentMediaBaseline, or ContentMediaStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The content-media section data with text content and media settings." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionFooter",
+      "type": "component",
+      "description": "Footer section router that selects FooterMinimal, FooterBaseline, or FooterStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The footer section data including links and social icons." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionHeader",
+      "type": "component",
+      "description": "Header section router that selects HeaderMinimal, HeaderBaseline, or HeaderStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The header section data including profile photo, cover, and bio." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionList",
+      "type": "component",
+      "description": "List section router that selects ListMinimal, ListBaseline, or ListStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The list section data including the items array." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionMedia",
+      "type": "component",
+      "description": "Media section router that selects MediaMinimal, MediaBaseline, or MediaStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The media section data including image/video URL and caption." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionMonetize",
+      "type": "component",
+      "description": "Monetize section router that selects MonetizeMinimal, MonetizeBaseline, or MonetizeStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The monetize section data including membership tiers." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionStore",
+      "type": "component",
+      "description": "Store section router that selects StoreMinimal or StoreStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The store section data including products and variants." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "SectionText",
+      "type": "component",
+      "description": "Text section router that selects TextMinimal, TextBaseline, or TextStructure based on the active theme preset.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "The text section data including rich-text body content." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CampaignBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the campaign section rendering an email opt-in form.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Campaign section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CampaignMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the campaign section rendering an email opt-in form.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Campaign section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CampaignStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the campaign section rendering an email opt-in form.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Campaign section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CollectionBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the collection section with grid/list/cards layout switching.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Collection section data including collections array." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CollectionMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the collection section with grid/list/cards layout switching.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Collection section data including collections array." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CollectionStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the collection section with grid/list/cards layout switching.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Collection section data including collections array." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ContentMediaBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the content-media section with default/reversed column layout.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Content-media section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ContentMediaMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the content-media section with default/reversed column layout.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Content-media section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ContentMediaStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the content-media section with default/reversed column layout.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Content-media section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FooterBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the footer section with nav links and social icons.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Footer section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FooterMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the footer section with nav links and social icons.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Footer section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FooterStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the footer section with nav links and social icons.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Footer section data." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HeaderBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the header section with profile photo, cover media, name, and bio.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Header section data including HeaderContent and HeaderSettings." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HeaderMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the header section with profile photo, cover media, name, and bio.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Header section data including HeaderContent and HeaderSettings." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HeaderStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the header section with profile photo, cover media, name, and bio.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Header section data including HeaderContent and HeaderSettings." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ListBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the list section rendering link items with default/compact spacing.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "List section data including items array." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ListMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the list section rendering link items with default/compact spacing.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "List section data including items array." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ListStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the list section rendering link items with default/compact spacing.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "List section data including items array." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MediaBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the media section rendering a full/default/compact image or video.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Media section data including media URL and caption." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MediaMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the media section rendering a full/default/compact image or video.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Media section data including media URL and caption." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MediaStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the media section rendering a full/default/compact image or video.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Media section data including media URL and caption." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MonetizeBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the monetize section rendering membership tier cards.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Monetize section data including membership tiers." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MonetizeMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the monetize section rendering membership tier cards.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Monetize section data including membership tiers." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MonetizeStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the monetize section rendering membership tier cards.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Monetize section data including membership tiers." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "StoreMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the store section rendering products in grid or list layout.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Store section data including stores array with items." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "StoreStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the store section rendering products in grid or list layout.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Store section data including stores array with items." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "TextBaseline",
+      "type": "component",
+      "description": "Baseline-theme variant of the text section rendering a prose block with default/centered/wide alignment.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Text section data including rich-text body." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "TextMinimal",
+      "type": "component",
+      "description": "Minimal-theme variant of the text section rendering a prose block with default/centered/wide alignment.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Text section data including rich-text body." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "TextStructure",
+      "type": "component",
+      "description": "Structure-theme variant of the text section rendering a prose block with default/centered/wide alignment.",
+      "props": [
+        { "name": "section", "type": "Section", "required": true, "defaultValue": "", "description": "Text section data including rich-text body." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "LandsLogo",
+      "type": "component",
+      "description": "SVG Lands logotype component used in the AppHeader and AuthLayout.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "HomeHero",
+      "type": "component",
+      "description": "Marketing homepage hero section with headline, sub-copy, CTA button, and product screenshot.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "MainHeader",
+      "type": "component",
+      "description": "Storefront top navigation bar with logo, nav links, and sign-up/login CTA.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "FeaturesSection",
+      "type": "component",
+      "description": "Marketing features grid showcasing key product capabilities with icons and copy.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "PricingSection",
+      "type": "component",
+      "description": "Marketing pricing section displaying free and paid plan cards with feature lists.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "ShowcaseSection",
+      "type": "component",
+      "description": "Marketing showcase section displaying example lands/portfolios built with the product.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "CardsSection",
+      "type": "component",
+      "description": "Marketing section displaying feature or use-case cards in a responsive grid layout.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "Accordion",
+      "type": "component",
+      "description": "Animated collapsible section with a labelled trigger button and smooth max-height transition.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Text label shown in the accordion header button." },
+        { "name": "open", "type": "boolean", "required": false, "defaultValue": "false", "description": "Controls whether the accordion is open; can only be closed from outside." }
+      ],
+      "emits": ["open"],
+      "slots": ["default"]
+    },
+    {
+      "name": "BaseAvatar",
+      "type": "component",
+      "description": "User avatar with file-picker upload button; displays initials when no image URL is provided.",
+      "props": [
+        { "name": "modelValue", "type": "string", "required": false, "defaultValue": "", "description": "URL of the current avatar image." },
+        { "name": "alt", "type": "string", "required": false, "defaultValue": "", "description": "Alt text used to derive initials fallback." },
+        { "name": "size", "type": "'sm' | 'md' | 'lg'", "required": false, "defaultValue": "md", "description": "Avatar display size." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "BaseBadge",
+      "type": "component",
+      "description": "Inline status badge with colour variants and optional dot indicator.",
+      "props": [
+        { "name": "variant", "type": "'default' | 'success' | 'warning' | 'error' | 'info'", "required": false, "defaultValue": "default", "description": "Colour scheme of the badge." },
+        { "name": "size", "type": "'xs' | 'sm'", "required": false, "defaultValue": "sm", "description": "Size of the badge text and padding." },
+        { "name": "dot", "type": "boolean", "required": false, "defaultValue": "false", "description": "When true, shows a coloured dot before the label." }
+      ],
+      "emits": [],
+      "slots": ["default"]
+    },
+    {
+      "name": "BaseButton",
+      "type": "component",
+      "description": "Multi-variant button with ghost, outline, solid, icon, and remove styles; supports loading spinner.",
+      "props": [
+        { "name": "variant", "type": "'ghost' | 'outline' | 'solid' | 'icon' | 'remove'", "required": false, "defaultValue": "ghost", "description": "Visual style variant." },
+        { "name": "size", "type": "'xs' | 'sm' | 'md' | 'lg'", "required": false, "defaultValue": "md", "description": "Button size affecting padding and font size." },
+        { "name": "active", "type": "boolean", "required": false, "defaultValue": "false", "description": "Applies active/pressed background state." },
+        { "name": "disabled", "type": "boolean", "required": false, "defaultValue": "false", "description": "Disables the button and applies not-allowed cursor." },
+        { "name": "loading", "type": "boolean", "required": false, "defaultValue": "false", "description": "Shows a spinning loader and disables interaction." }
+      ],
+      "emits": [],
+      "slots": ["default"]
+    },
+    {
+      "name": "BaseCard",
+      "type": "component",
+      "description": "Section card container with an optional icon, title, description, header-action slot, and actions slot.",
+      "props": [
+        { "name": "icon", "type": "FunctionalComponent", "required": false, "defaultValue": "", "description": "Icon component shown in the card header." },
+        { "name": "title", "type": "string", "required": true, "defaultValue": "", "description": "Card heading text." },
+        { "name": "description", "type": "string", "required": false, "defaultValue": "", "description": "Optional description rendered in the card body." },
+        { "name": "variant", "type": "'default' | 'spaced' | 'danger' | 'naked'", "required": false, "defaultValue": "default", "description": "Layout/colour variant of the card." }
+      ],
+      "emits": [],
+      "slots": ["default", "header-action", "actions"]
+    },
+    {
+      "name": "BaseChart",
+      "type": "component",
+      "description": "Animated SVG line chart with area fill and x-axis labels; draws on mount with a CSS stroke-dashoffset animation.",
+      "props": [
+        { "name": "data", "type": "ChartPoint[]", "required": true, "defaultValue": "", "description": "Array of { label, value } data points to plot." },
+        { "name": "color", "type": "string", "required": false, "defaultValue": "#18181B", "description": "Stroke and fill colour of the chart line." },
+        { "name": "height", "type": "number", "required": false, "defaultValue": "50", "description": "SVG height in pixels." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "BaseColorInput",
+      "type": "component",
+      "description": "Colour swatch trigger that opens a teleported BaseColorPicker popover; emits the selected hex colour.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Label displayed beside the colour swatch." },
+        { "name": "modelValue", "type": "string", "required": false, "defaultValue": "#000000", "description": "Current hex colour value." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "BaseColorPicker",
+      "type": "component",
+      "description": "Floating palette of 15 preset hex colours; emits the selected colour on click.",
+      "props": [],
+      "emits": ["select"],
+      "slots": []
+    },
+    {
+      "name": "BaseContextMenu",
+      "type": "component",
+      "description": "Right-click context menu with edit, duplicate, move-up, move-down, and delete actions for a section.",
+      "props": [
+        { "name": "x", "type": "number", "required": true, "defaultValue": "", "description": "Horizontal position of the menu in viewport pixels." },
+        { "name": "y", "type": "number", "required": true, "defaultValue": "", "description": "Vertical position of the menu in viewport pixels." },
+        { "name": "locked", "type": "boolean", "required": true, "defaultValue": "", "description": "When true, hides all actions except Edit (used for header/footer)." },
+        { "name": "canMoveUp", "type": "boolean", "required": true, "defaultValue": "", "description": "Enables the Move Up action." },
+        { "name": "canMoveDown", "type": "boolean", "required": true, "defaultValue": "", "description": "Enables the Move Down action." }
+      ],
+      "emits": ["edit", "duplicate", "moveUp", "moveDown", "delete", "close"],
+      "slots": []
+    },
+    {
+      "name": "BaseDropdown",
+      "type": "component",
+      "description": "Labelled inline dropdown that shows a list of string options in a floating panel.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Label shown to the left of the trigger button." },
+        { "name": "options", "type": "string[]", "required": true, "defaultValue": "", "description": "List of option strings to display." },
+        { "name": "modelValue", "type": "string", "required": false, "defaultValue": "", "description": "Currently selected option value." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "BaseDropdownMenu",
+      "type": "component",
+      "description": "Ellipsis-triggered dropdown menu that renders a list of DropdownMenuItem actions with optional icons and danger styling.",
+      "props": [
+        { "name": "items", "type": "DropdownMenuItem[]", "required": true, "defaultValue": "", "description": "Array of menu items each with label, optional icon, danger flag, and action callback." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "BaseFont",
+      "type": "component",
+      "description": "Font-pair selector button that previews title and body fonts loaded from Google Fonts.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Display name of the font pairing." },
+        { "name": "titleFont", "type": "string", "required": true, "defaultValue": "", "description": "CSS font-family value for the title sample text." },
+        { "name": "bodyFont", "type": "string", "required": true, "defaultValue": "", "description": "CSS font-family value for the body sample text." },
+        { "name": "titleGoogleFont", "type": "string", "required": false, "defaultValue": "", "description": "Google Fonts name to load for the title font." },
+        { "name": "bodyGoogleFont", "type": "string", "required": false, "defaultValue": "", "description": "Google Fonts name to load for the body font." },
+        { "name": "active", "type": "boolean", "required": false, "defaultValue": "", "description": "Highlights the button as selected." }
+      ],
+      "emits": ["click"],
+      "slots": []
+    },
+    {
+      "name": "BaseIconPicker",
+      "type": "component",
+      "description": "Icon/image picker supporting none, Lucide icon grid with search, or image upload modes; emits separate v-model events for iconType, iconName, and imageUrl.",
+      "props": [
+        { "name": "iconType", "type": "'image' | 'lucide' | 'none'", "required": true, "defaultValue": "", "description": "Currently active icon mode." },
+        { "name": "iconName", "type": "string", "required": true, "defaultValue": "", "description": "Name of the selected Lucide icon." },
+        { "name": "imageUrl", "type": "string", "required": true, "defaultValue": "", "description": "URL of the uploaded icon image." }
+      ],
+      "emits": ["update:iconType", "update:iconName", "update:imageUrl"],
+      "slots": []
+    },
+    {
+      "name": "BaseInput",
+      "type": "component",
+      "description": "Versatile form input supporting text, email, password (with show/hide toggle), slug (with .lands.app suffix), and textarea types.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Label rendered above the input field." },
+        { "name": "modelValue", "type": "string", "required": false, "defaultValue": "", "description": "Bound value via v-model." },
+        { "name": "placeholder", "type": "string", "required": false, "defaultValue": "", "description": "Placeholder text." },
+        { "name": "type", "type": "'text' | 'email' | 'password' | 'slug' | 'textarea'", "required": false, "defaultValue": "text", "description": "Input variant; password adds a visibility toggle, slug appends .lands.app." },
+        { "name": "size", "type": "'sm' | 'md' | 'lg'", "required": false, "defaultValue": "md", "description": "Controls font size and padding." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "BaseItem",
+      "type": "component",
+      "description": "Row item with an optional icon thumbnail, title, description, optional action button, and grab/click modes.",
+      "props": [
+        { "name": "icon", "type": "FunctionalComponent", "required": false, "defaultValue": "", "description": "Icon component shown in the item thumbnail." },
+        { "name": "title", "type": "string", "required": true, "defaultValue": "", "description": "Primary text label." },
+        { "name": "description", "type": "string", "required": false, "defaultValue": "", "description": "Secondary text shown below the title." },
+        { "name": "action", "type": "string", "required": false, "defaultValue": "", "description": "Label for an optional action button shown on the right." },
+        { "name": "clickable", "type": "boolean", "required": false, "defaultValue": "false", "description": "Renders as a button element and emits click." },
+        { "name": "grab", "type": "boolean", "required": false, "defaultValue": "false", "description": "Shows grab cursor and scale-up hover effect for drag handles." },
+        { "name": "size", "type": "'sm' | 'md' | 'lg'", "required": false, "defaultValue": "md", "description": "Controls padding and icon/text sizes." }
+      ],
+      "emits": ["action", "click"],
+      "slots": []
+    },
+    {
+      "name": "BaseLinkPicker",
+      "type": "component",
+      "description": "Dual-field input (label + URL) with a dropdown for typing a custom URL or picking a section anchor link.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Current link label text." },
+        { "name": "url", "type": "string", "required": true, "defaultValue": "", "description": "Current link URL or #section: anchor." },
+        { "name": "placeholder", "type": "string", "required": false, "defaultValue": "Label", "description": "Placeholder for the label input." }
+      ],
+      "emits": ["update:label", "update:url"],
+      "slots": []
+    },
+    {
+      "name": "BaseMenu",
+      "type": "component",
+      "description": "Project-switcher dropdown menu showing all user lands, nav links (Account, Plans, Support), and a Logout button.",
+      "props": [],
+      "emits": ["logout"],
+      "slots": []
+    },
+    {
+      "name": "BaseModal",
+      "type": "component",
+      "description": "Centred modal overlay with configurable max-width, padding, and overlay darkness; closes on backdrop click.",
+      "props": [
+        { "name": "maxWidth", "type": "string", "required": false, "defaultValue": "max-w-[400px]", "description": "Tailwind max-width class for the modal card." },
+        { "name": "padding", "type": "string", "required": false, "defaultValue": "p-6", "description": "Tailwind padding class for the modal card." },
+        { "name": "overlay", "type": "'default' | 'dark'", "required": false, "defaultValue": "default", "description": "Overlay background shade; dark uses bg-black/20." }
+      ],
+      "emits": ["close"],
+      "slots": ["default"]
+    },
+    {
+      "name": "BasePlanGate",
+      "type": "component",
+      "description": "Paywall blocker component showing a lock icon, title, description, and an Upgrade CTA that opens the PlanModal.",
+      "props": [
+        { "name": "title", "type": "string", "required": true, "defaultValue": "", "description": "Heading text explaining the gated feature." },
+        { "name": "description", "type": "string", "required": true, "defaultValue": "", "description": "Sub-copy describing what the upgrade unlocks." }
+      ],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "BaseProject",
+      "type": "component",
+      "description": "Project row button showing cover thumbnail, title, URL, and plan badge (Free/Pro); used in the BaseMenu switcher.",
+      "props": [
+        { "name": "title", "type": "string", "required": true, "defaultValue": "", "description": "Land display title." },
+        { "name": "url", "type": "string", "required": true, "defaultValue": "", "description": "Public URL shown as sub-label." },
+        { "name": "image", "type": "string", "required": false, "defaultValue": "", "description": "Cover image URL for the thumbnail." },
+        { "name": "active", "type": "boolean", "required": false, "defaultValue": "", "description": "Highlights the row as the currently selected project." },
+        { "name": "plan", "type": "'free' | 'paid'", "required": false, "defaultValue": "", "description": "Renders a Free or Pro badge." }
+      ],
+      "emits": ["click"],
+      "slots": []
+    },
+    {
+      "name": "BaseSelect",
+      "type": "component",
+      "description": "Labelled native select element with sm/md/lg size variants, bound via v-model.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Label rendered above the select." },
+        { "name": "modelValue", "type": "string", "required": false, "defaultValue": "", "description": "Currently selected value." },
+        { "name": "options", "type": "{ value: string; label: string }[]", "required": true, "defaultValue": "", "description": "Array of option objects to render." },
+        { "name": "size", "type": "'sm' | 'md' | 'lg'", "required": false, "defaultValue": "md", "description": "Controls font size and padding." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "BaseSwitch",
+      "type": "component",
+      "description": "Segmented control (pill switch) for selecting among a fixed set of string options.",
+      "props": [
+        { "name": "options", "type": "{ label: string; value: string }[]", "required": true, "defaultValue": "", "description": "Options to display as segments." },
+        { "name": "modelValue", "type": "string", "required": true, "defaultValue": "", "description": "Currently selected option value." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "BaseTab",
+      "type": "component",
+      "description": "Single tab button with icon, label, and an active underline indicator.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Tab label text." },
+        { "name": "icon", "type": "FunctionalComponent", "required": true, "defaultValue": "", "description": "Icon component rendered beside the label." },
+        { "name": "active", "type": "boolean", "required": false, "defaultValue": "", "description": "Renders the active underline and dark text colour." }
+      ],
+      "emits": ["click"],
+      "slots": []
+    },
+    {
+      "name": "BaseToast",
+      "type": "component",
+      "description": "Individual toast notification card with type-specific icon and colour, optional action button, and dismiss button.",
+      "props": [
+        { "name": "toast", "type": "Toast", "required": true, "defaultValue": "", "description": "Toast data object with id, message, type, and optional action." }
+      ],
+      "emits": ["dismiss"],
+      "slots": []
+    },
+    {
+      "name": "BaseToastContainer",
+      "type": "component",
+      "description": "Fixed bottom-right container that renders all active toasts from the useToast singleton with TransitionGroup animations.",
+      "props": [],
+      "emits": [],
+      "slots": []
+    },
+    {
+      "name": "BaseToggle",
+      "type": "component",
+      "description": "Toggle switch with label, optional description, and an animated slot that expands/collapses when enabled.",
+      "props": [
+        { "name": "label", "type": "string", "required": true, "defaultValue": "", "description": "Primary label text." },
+        { "name": "description", "type": "string", "required": false, "defaultValue": "", "description": "Optional sub-label shown below the primary label." },
+        { "name": "modelValue", "type": "boolean", "required": false, "defaultValue": "", "description": "Toggle state bound via v-model." },
+        { "name": "size", "type": "'sm' | 'md' | 'lg'", "required": false, "defaultValue": "md", "description": "Controls knob and label sizes." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": ["default"]
+    },
+    {
+      "name": "BaseTree",
+      "type": "component",
+      "description": "Draggable tree list of sections (via vuedraggable) with collapse/expand, settings, duplicate, and delete actions per node.",
+      "props": [
+        { "name": "nodes", "type": "TreeNode[]", "required": true, "defaultValue": "", "description": "Array of tree nodes to render; each node may have children for nested lists." },
+        { "name": "depth", "type": "number", "required": false, "defaultValue": "", "description": "Current nesting depth (used internally for recursive rendering)." },
+        { "name": "group", "type": "string | object", "required": false, "defaultValue": "", "description": "vuedraggable group config; defaults to sections group with pull/put enabled." }
+      ],
+      "emits": ["delete", "duplicate", "settings", "reorder", "add"],
+      "slots": []
+    },
+    {
+      "name": "BaseUpload",
+      "type": "component",
+      "description": "File upload component with image preview, drag-zone, upload-progress state, and removal; delegates upload to storageService.",
+      "props": [
+        { "name": "label", "type": "string", "required": false, "defaultValue": "", "description": "Optional label rendered above the upload zone." },
+        { "name": "modelValue", "type": "string", "required": false, "defaultValue": "", "description": "URL of the currently uploaded file." },
+        { "name": "type", "type": "'image' | 'file'", "required": false, "defaultValue": "image", "description": "Upload mode; image shows a preview, file shows a filename row." },
+        { "name": "size", "type": "'sm' | 'md' | 'lg'", "required": false, "defaultValue": "md", "description": "Controls preview area height." }
+      ],
+      "emits": ["update:modelValue"],
+      "slots": []
+    },
+    {
+      "name": "ErrorBoundary",
+      "type": "component",
+      "description": "Error boundary wrapper that catches render errors from child sections and displays a fallback UI instead of crashing.",
+      "props": [],
+      "emits": [],
+      "slots": ["default"]
+    },
+    {
+      "name": "useEditorActions",
+      "type": "composable",
+      "description": "Central composable for all land/section mutations; patches sections in the store and marks editor dirty after every change.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "updateSectionContent", "type": "(sectionId: string, content: Record<string, unknown>) => void", "description": "Merges partial content into the section's content object." },
+        { "name": "updateSectionSettings", "type": "(sectionId: string, settings: Record<string, unknown>) => void", "description": "Merges partial settings into the section's settings_json." },
+        { "name": "updateSectionStyleVariant", "type": "(sectionId: string, variant: string) => void", "description": "Updates a section's style_variant." },
+        { "name": "restoreSectionSnapshot", "type": "(sectionId: string, data: { content: unknown; settings_json: unknown; style_variant: string }) => void", "description": "Restores a section to a previously captured snapshot." },
+        { "name": "updateLandImages", "type": "(data: { cover_image?: string; avatar_image?: string }) => void", "description": "Updates the active land's cover and/or avatar image URLs." },
+        { "name": "updateTheme", "type": "(theme: Partial<LandTheme>) => void", "description": "Merges partial theme overrides into the active land's theme." },
+        { "name": "addSection", "type": "(...args) => void", "description": "Re-export from useSectionLifecycle." },
+        { "name": "deleteSection", "type": "(...args) => void", "description": "Re-export from useSectionLifecycle." },
+        { "name": "duplicateSection", "type": "(...args) => void", "description": "Re-export from useSectionLifecycle." },
+        { "name": "reorderSection", "type": "(...args) => void", "description": "Re-export from useSectionLifecycle." }
+      ]
+    },
+    {
+      "name": "useSectionLifecycle",
+      "type": "composable",
+      "description": "Manages section add/delete/duplicate/reorder operations with plan-limit enforcement and storage URL cleanup.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "addSection", "type": "(type: SectionType, position: string) => void", "description": "Creates and inserts a new section at the given fractional position; enforces plan limits." },
+        { "name": "deleteSection", "type": "(sectionId: string) => Promise<void>", "description": "Removes a section and cleans up associated storage URLs." },
+        { "name": "duplicateSection", "type": "(sectionId: string) => void", "description": "Deep-clones a section and inserts it immediately after the original." },
+        { "name": "reorderSection", "type": "(sectionId: string, newPosition: string) => void", "description": "Updates a section's fractional position key." }
+      ]
+    },
+    {
+      "name": "useListActions",
+      "type": "composable",
+      "description": "CRUD operations for list items within a list section, using fractional indexing for ordering.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "addListItem", "type": "(sectionId: string, data: Pick<ListItem, 'title' | 'subtitle' | 'url' | 'description' | 'icon'>) => ListItem", "description": "Appends a new link item to the list section." },
+        { "name": "updateListItem", "type": "(sectionId: string, itemId: string, data: Partial<ListItem>) => void", "description": "Merges partial data into an existing list item." },
+        { "name": "deleteListItem", "type": "(sectionId: string, itemId: string) => void", "description": "Removes a list item by ID." },
+        { "name": "reorderListItem", "type": "(sectionId: string, itemId: string, newPosition: string) => void", "description": "Updates the fractional position of a list item." }
+      ]
+    },
+    {
+      "name": "useCollectionActions",
+      "type": "composable",
+      "description": "CRUD operations for collections and their items within collection/monetize sections, with plan-limit gating.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "addCollection", "type": "(sectionId: string) => void", "description": "Adds a new collection to the section (gated by plan limit)." },
+        { "name": "updateCollection", "type": "(sectionId: string, collectionId: string, data: Partial<Collection>) => void", "description": "Updates a collection's metadata." },
+        { "name": "deleteCollection", "type": "(sectionId: string, collectionId: string) => void", "description": "Removes a collection and all its items." },
+        { "name": "reorderCollection", "type": "(sectionId: string, collectionId: string, newPosition: string) => void", "description": "Updates a collection's fractional position." },
+        { "name": "addCollectionItem", "type": "(sectionId: string, collectionId: string, data: Partial<CollectionItem>) => CollectionItem | undefined", "description": "Appends a new item to a collection (gated by plan limit)." },
+        { "name": "updateCollectionItem", "type": "(sectionId: string, collectionId: string, itemId: string, data: Partial<CollectionItem>) => void", "description": "Updates a collection item's data." },
+        { "name": "deleteCollectionItem", "type": "(sectionId: string, collectionId: string, itemId: string) => void", "description": "Removes an item from a collection." },
+        { "name": "reorderCollectionItem", "type": "(sectionId: string, collectionId: string, itemId: string, newPosition: string) => void", "description": "Updates a collection item's fractional position." }
+      ]
+    },
+    {
+      "name": "useStoreActions",
+      "type": "composable",
+      "description": "CRUD operations for store products and their items within store sections, with plan-limit gating.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "addStoreItem", "type": "(sectionId: string, storeId: string, data: Pick<StoreItem, 'title' | 'description' | 'image' | 'price' | 'variants' | 'inventory' | 'product_type' | 'file_url'>) => StoreItem | undefined", "description": "Adds a new product to a store (gated by plan limit)." },
+        { "name": "updateStoreItem", "type": "(sectionId: string, storeId: string, itemId: string, data: Partial<StoreItem>) => void", "description": "Updates a store product's data." },
+        { "name": "deleteStoreItem", "type": "(sectionId: string, storeId: string, itemId: string) => void", "description": "Removes a product from a store." },
+        { "name": "reorderStoreItem", "type": "(sectionId: string, storeId: string, itemId: string, newPosition: string) => void", "description": "Updates a store item's fractional position." }
+      ]
+    },
+    {
+      "name": "useCollaboratorActions",
+      "type": "composable",
+      "description": "Async operations for team collaborator management: reads from the active land and delegates mutations to collaboratorService.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "getCollaborators", "type": "() => Collaborator[]", "description": "Returns the active land's current collaborators array." },
+        { "name": "invite", "type": "(email: string, role: CollaboratorRole) => Promise<Collaborator | null>", "description": "Sends an invite and appends the new collaborator to the land." },
+        { "name": "updateRole", "type": "(collaboratorId: string, role: CollaboratorRole) => Promise<void>", "description": "Changes a collaborator's role." },
+        { "name": "remove", "type": "(collaboratorId: string) => Promise<void>", "description": "Removes a collaborator from the land." },
+        { "name": "resendInvite", "type": "(collaboratorId: string) => Promise<void>", "description": "Re-sends the invite email for a pending collaborator." },
+        { "name": "acceptInvite", "type": "(token: string) => Promise<void>", "description": "Accepts a pending invite via token." }
+      ]
+    },
+    {
+      "name": "useDragSort",
+      "type": "composable",
+      "description": "Generic drag-and-drop reordering helper using fractional indexing; wraps vuedraggable drag start/end events.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [
+        { "name": "getItems", "type": "() => T[]", "description": "Returns the current ordered list of positionable items (called after vuedraggable has mutated the array)." },
+        { "name": "onReorder", "type": "(itemId: string, newPosition: string) => void", "description": "Callback invoked with the dragged item's ID and its newly computed fractional position." }
+      ],
+      "returns": [
+        { "name": "isDragging", "type": "Ref<boolean>", "description": "True while a drag operation is in progress." },
+        { "name": "onDragStart", "type": "() => void", "description": "Handler to bind to vuedraggable's @start event." },
+        { "name": "onDragEnd", "type": "(event: { oldIndex: number; newIndex: number }) => void", "description": "Handler to bind to vuedraggable's @end event; calculates and emits the new position." }
+      ]
+    },
+    {
+      "name": "useIsMobile",
+      "type": "composable",
+      "description": "Reactive mobile breakpoint detection using a resize listener; breakpoint is 1024px.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "isMobile", "type": "Ref<boolean>", "description": "True when the viewport width is less than 1024px." }
+      ]
+    },
+    {
+      "name": "usePlan",
+      "type": "composable",
+      "description": "Feature gate and content-limit helpers derived from the active land's plan tier.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "plan", "type": "ComputedRef<'free' | 'paid'>", "description": "The active land's plan tier." },
+        { "name": "isPaid", "type": "ComputedRef<boolean>", "description": "True when the plan is paid." },
+        { "name": "canUseCollaborators", "type": "ComputedRef<boolean>", "description": "True when the plan allows team collaborators." },
+        { "name": "canUseCampaign", "type": "ComputedRef<boolean>", "description": "True when the plan allows campaign integrations." },
+        { "name": "canUseCustomDomain", "type": "ComputedRef<boolean>", "description": "True when the plan allows custom domain connection." },
+        { "name": "maxSections", "type": "ComputedRef<number>", "description": "Maximum content sections allowed (-1 = unlimited)." },
+        { "name": "maxCollectionSections", "type": "ComputedRef<number>", "description": "Maximum collection/store/monetize sections allowed." },
+        { "name": "maxCollectionsPerSection", "type": "ComputedRef<number>", "description": "Maximum collections per collection section." },
+        { "name": "maxItemsPerCollection", "type": "ComputedRef<number>", "description": "Maximum items per collection or store." },
+        { "name": "withinSectionLimit", "type": "(currentCount: number) => boolean", "description": "Returns true if a new content section can be added." },
+        { "name": "withinCollectionSectionLimit", "type": "(currentCount: number) => boolean", "description": "Returns true if another collection-type section can be added." },
+        { "name": "canAddSectionType", "type": "(type: SectionType) => boolean", "description": "Returns true if the given section type is allowed on the current plan." },
+        { "name": "withinCollectionLimit", "type": "(currentCount: number) => boolean", "description": "Returns true if a new collection can be added to a section." },
+        { "name": "withinItemLimit", "type": "(currentCount: number) => boolean", "description": "Returns true if a new item can be added to a collection or store." }
+      ]
+    },
+    {
+      "name": "useThemePreset",
+      "type": "composable",
+      "description": "Derives boolean flags for the active theme preset to simplify conditional rendering in section components.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "isMinimalTheme", "type": "ComputedRef<boolean>", "description": "True when the preset is 'minimal' or 'baseline'." },
+        { "name": "isStructureTheme", "type": "ComputedRef<boolean>", "description": "True when the preset is 'structure'." }
+      ]
+    },
+    {
+      "name": "useThemeVars",
+      "type": "composable",
+      "description": "Watches the theme store and writes CSS custom properties (--theme-main, --theme-accent, --theme-font-title, etc.) to :root.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": []
+    },
+    {
+      "name": "useToast",
+      "type": "composable",
+      "description": "Module-level singleton toast queue; all callers share the same reactive toasts array.",
+      "props": [],
+      "emits": [],
+      "slots": [],
+      "params": [],
+      "returns": [
+        { "name": "toasts", "type": "Ref<Toast[]>", "description": "Reactive array of active toast notifications." },
+        { "name": "addToast", "type": "(message: string, type?: Toast['type'], duration?: number, options?: { persistent?: boolean; action?: Toast['action'] }) => string", "description": "Adds a toast and auto-removes it after duration ms unless persistent." },
+        { "name": "removeToast", "type": "(id: string) => void", "description": "Immediately removes a toast by ID." }
+      ]
+    },
+    {
+      "name": "land.service",
+      "type": "util",
+      "description": "Supabase-backed service for land CRUD: getMyLands, createLand, save (sections+theme with AbortController), updateLand (metadata), deleteLand."
+    },
+    {
+      "name": "auth.service",
+      "type": "util",
+      "description": "Supabase auth service: login, register, verifyOtp, forgotPassword, resetPassword, logout, getSession."
+    },
+    {
+      "name": "user.service",
+      "type": "util",
+      "description": "Supabase profile service: getMe, updateMe, deleteAccount."
+    },
+    {
+      "name": "storage.service",
+      "type": "util",
+      "description": "Supabase Storage service: upload (auto-converts to WebP), remove, and extractSectionUrls utility."
+    },
+    {
+      "name": "stripe.service",
+      "type": "util",
+      "description": "Stripe Connect and billing service via Edge Functions: connectUrl, handleCallback, disconnect, createSubscriptionCheckout, createBillingPortal."
+    },
+    {
+      "name": "publish.service",
+      "type": "util",
+      "description": "Publishes a land via Edge Function with exponential backoff retry (500ms → 1s → 1.5s)."
+    },
+    {
+      "name": "collaborator.service",
+      "type": "util",
+      "description": "Collaborator management via Edge Functions: invite, updateRole, remove, resendInvite, acceptInvite, refuseInvite."
+    },
+    {
+      "name": "domain.service",
+      "type": "util",
+      "description": "Custom domain management via Edge Function: connect, disconnect, verify."
+    },
+    {
+      "name": "integration.service",
+      "type": "util",
+      "description": "Campaign integration service: saveCampaignIntegration, removeCampaignIntegration, fetchProviderLists."
+    },
+    {
+      "name": "land (store)",
+      "type": "util",
+      "description": "Pinia store holding the list of lands, activeLandId, and loading state; provides setLands, setActiveLand, addLand, updateLand, deleteLand."
+    },
+    {
+      "name": "editor (store)",
+      "type": "util",
+      "description": "Pinia store for editor state: isEditMode, activeSection, isDirty, hasUnpublishedChanges, land/themeSnapshot; provides enterEditMode, exitEditMode, takeSnapshot, markDirty, markClean, markPublished."
+    },
+    {
+      "name": "theme (store)",
+      "type": "util",
+      "description": "Pinia store for the active land's LandTheme; provides setTheme, updateThemeField, clearTheme."
+    },
+    {
+      "name": "user (store)",
+      "type": "util",
+      "description": "Pinia store for the current user profile and authentication status; provides setUser, clearUser."
+    },
+    {
+      "name": "auth (store)",
+      "type": "util",
+      "description": "Pinia store for auth flow state (isLoading, error, resetEmailSent, passwordResetSuccess); provides setLoading, setError, clearError, $reset."
+    },
+    {
+      "name": "appModals (store)",
+      "type": "util",
+      "description": "Pinia store for global modal visibility: activeModal, activeIntegration, dashboardDetail; provides openIntegrations, openDashboardDetail, openUpgrade, close."
+    },
+    {
+      "name": "campaign (store)",
+      "type": "util",
+      "description": "Pinia store for the campaign integration editor state; provides setIntegration, clearIntegration."
+    },
+    {
+      "name": "router/index",
+      "type": "util",
+      "description": "Vue Router config: defines all routes (/, /auth/*, /dashboard/*, /onboarding, /checkout/*) and a beforeEach guard that enforces auth and redirects new users to onboarding."
+    },
+    {
+      "name": "sections/index",
+      "type": "lib",
+      "description": "Exports sectionPrimitives array (SectionPrimitive[]) used by the add-section picker, each entry has id (SectionType), label, description, and icon."
+    },
+    {
+      "name": "themePresets",
+      "type": "lib",
+      "description": "THEME_PRESET_DEFINITIONS map defining font, colour, and style-variant defaults for minimal, baseline, and structure presets."
+    },
+    {
+      "name": "sectionDefaults",
+      "type": "lib",
+      "description": "SECTION_DEFAULTS map providing default content, settings_json, and style_variant for each SectionType."
+    },
+    {
+      "name": "sectionSettingsConfig",
+      "type": "lib",
+      "description": "Configuration objects driving the section settings UI — field definitions, labels, and option lists per section type."
+    },
+    {
+      "name": "styleVariants",
+      "type": "lib",
+      "description": "STYLE_VARIANTS_BY_SECTION map listing the allowed style_variant strings for each SectionType."
+    },
+    {
+      "name": "purposeDefaults",
+      "type": "lib",
+      "description": "buildSectionContent() seeds realistic default content for new sections based on the land's declared purpose."
+    },
+    {
+      "name": "mockSectionContent",
+      "type": "lib",
+      "description": "Static mock content fixtures for each section type used during development."
+    },
+    {
+      "name": "position",
+      "type": "util",
+      "description": "Fractional indexing helpers: generatePositionAfter, generatePositionBefore, generatePositionBetween, generatePositions, sortByPosition."
+    },
+    {
+      "name": "color",
+      "type": "util",
+      "description": "Colour utility functions for hex manipulation and contrast calculations."
+    },
+    {
+      "name": "formatting",
+      "type": "util",
+      "description": "Text formatting helpers (truncation, currency, number formatting)."
+    },
+    {
+      "name": "slug",
+      "type": "util",
+      "description": "URL slug generation and validation utilities."
+    },
+    {
+      "name": "favicon",
+      "type": "util",
+      "description": "Extracts a favicon URL from a given website URL."
+    },
+    {
+      "name": "videoEmbed",
+      "type": "util",
+      "description": "Parses YouTube and Vimeo URLs and returns embeddable iframe src strings."
+    },
+    {
+      "name": "imageFallback",
+      "type": "util",
+      "description": "Returns a placeholder image URL when a given image URL fails to load."
+    },
+    {
+      "name": "fonts",
+      "type": "util",
+      "description": "loadGoogleFont() dynamically injects a Google Fonts <link> tag for a given font family."
+    },
+    {
+      "name": "markdown",
+      "type": "util",
+      "description": "Parses markdown strings to sanitised HTML using marked and DOMPurify."
+    },
+    {
+      "name": "lucideIcons",
+      "type": "util",
+      "description": "LUCIDE_ICONS array of { name, label, group, component } entries used by BaseIconPicker."
+    },
+    {
+      "name": "debounce",
+      "type": "util",
+      "description": "Generic debounce utility that delays function execution until after a specified wait."
+    },
+    {
+      "name": "supabase",
+      "type": "lib",
+      "description": "Initialises and exports the Supabase client singleton using VITE_SUPABASE_URL and VITE_SUPABASE_KEY env vars."
+    },
+    {
+      "name": "email/index",
+      "type": "lib",
+      "description": "Email integration router that dispatches subscribe requests to the correct provider adapter based on the campaign integration type."
+    },
+    {
+      "name": "email/types",
+      "type": "lib",
+      "description": "Type definitions for email integration payloads and adapter interfaces."
+    },
+    {
+      "name": "email/adapters/kit",
+      "type": "lib",
+      "description": "Kit (ConvertKit) provider adapter: subscribes an email address to a Kit form via their API."
+    },
+    {
+      "name": "email/adapters/loops",
+      "type": "lib",
+      "description": "Loops provider adapter: subscribes an email address to a Loops audience."
+    },
+    {
+      "name": "email/adapters/brevo",
+      "type": "lib",
+      "description": "Brevo (Sendinblue) provider adapter: adds a contact to a Brevo list."
+    },
+    {
+      "name": "email/adapters/flodesk",
+      "type": "lib",
+      "description": "Flodesk provider adapter: subscribes an email address to a Flodesk segment."
+    },
+    {
+      "name": "email/adapters/mailchimp",
+      "type": "lib",
+      "description": "Mailchimp provider adapter: adds a subscriber to a Mailchimp audience."
+    },
+    {
+      "name": "email/adapters/mailerlite",
+      "type": "lib",
+      "description": "MailerLite provider adapter: adds a subscriber to a MailerLite group."
+    },
+    {
+      "name": "email/adapters/webhook",
+      "type": "lib",
+      "description": "Generic webhook provider adapter: POSTs subscriber data to a user-configured URL."
+    },
+    {
+      "name": "mock/generators",
+      "type": "lib",
+      "description": "Faker.js-based generators for realistic mock land, section, user, and collaborator data."
+    },
+    {
+      "name": "mock/landBuilder",
+      "type": "lib",
+      "description": "buildMockLand() and buildMinimalMockLand() factory functions used to seed Pinia stores in development."
+    },
+    {
+      "name": "mock/analytics",
+      "type": "lib",
+      "description": "Mock analytics data (page views, referrers, device breakdown) for the AnalyticsDetail panel."
+    },
+    {
+      "name": "mock/orders",
+      "type": "lib",
+      "description": "Mock order data for the OrdersDetail panel."
+    },
+    {
+      "name": "mock/monetize",
+      "type": "lib",
+      "description": "Mock membership/monetization data for the MonetizeDetail panel."
+    },
+    {
+      "name": "mock/provider",
+      "type": "lib",
+      "description": "Mock campaign provider data for the CampaignDetail panel."
+    }
+  ]
+}

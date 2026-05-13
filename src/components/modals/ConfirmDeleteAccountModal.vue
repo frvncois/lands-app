@@ -86,15 +86,6 @@ async function submit() {
         </div>
       </div>
 
-      <!-- Email confirmation note -->
-      <div class="flex flex-col gap-1 p-3 rounded-xl bg-gray-50 border border-gray-100">
-        <p class="text-xs font-medium text-gray-700">Email confirmation</p>
-        <p class="text-xs text-gray-400">
-          After confirming, we'll send a final confirmation email to <span class="font-medium text-gray-600">your account email</span> before deleting your account.
-          <!-- TODO: Implement email sending via SMTP when configured -->
-        </p>
-      </div>
-
       <!-- Confirm input -->
       <div class="flex flex-col gap-2">
         <p class="text-xs text-gray-500">Type <span class="font-semibold text-gray-800">DELETE</span> to confirm</p>

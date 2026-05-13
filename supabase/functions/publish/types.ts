@@ -1,5 +1,5 @@
 export interface LandTheme {
-  theme_preset: 'minimal' | 'baseline' | 'structure' | 'feed'
+  theme_preset: 'minimal' | 'baseline' | 'structure'
   color_main: string
   color_accent: string
   color_surface: string

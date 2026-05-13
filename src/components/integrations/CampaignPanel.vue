@@ -4,7 +4,7 @@ import { MegaphoneIcon } from '@heroicons/vue/24/outline'
 import BaseButton from '../ui/BaseButton.vue'
 import BaseBadge from '../ui/BaseBadge.vue'
 import BasePlanGate from '../ui/BasePlanGate.vue'
-import SetupCampaignModal from '../modals/SetupCampaignModal.vue'
+import SetupCampaignSettings from '../editor/settings/SetupCampaignSettings.vue'
 import { CAMPAIGN_PROVIDERS } from '@/types/campaign'
 import { useCampaignStore } from '@/stores/campaign'
 import { useToast } from '@/composables/useToast'
@@ -64,7 +64,7 @@ function disconnect() {
 
   <Teleport to="body">
     <Transition name="modal-center">
-      <SetupCampaignModal v-if="showSetupModal" @close="showSetupModal = false" />
+      <SetupCampaignSettings v-if="showSetupModal" @close="showSetupModal = false" />
     </Transition>
   </Teleport>
 

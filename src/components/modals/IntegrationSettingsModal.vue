@@ -105,10 +105,9 @@ function viewAnalytics() {
       </div>
     </template>
 
-    <!-- ── Other integrations — placeholder ── -->
+    <!-- ── Other integrations ── -->
     <template v-else>
       <p class="text-xs text-gray-400">{{ integration.description }}</p>
-      <p class="text-xs text-gray-300 italic">Settings coming soon.</p>
     </template>
 
   </div>

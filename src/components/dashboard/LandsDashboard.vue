@@ -28,7 +28,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import ShareModal from '@/components/modals/ShareModal.vue'
-import SetupCampaignModal from '@/components/modals/SetupCampaignModal.vue'
+import SetupCampaignSettings from '@/components/editor/settings/SetupCampaignSettings.vue'
 import { visitData, totalViews, avgPerDay } from '@/lib/mock/analytics'
 import { orderStats } from '@/lib/mock/orders'
 import { monetizeStats } from '@/lib/mock/monetize'
@@ -178,7 +178,7 @@ function closeDetail() {
       <ShareModal v-if="showShare" @close="showShare = false" />
     </Transition>
     <Transition name="modal-center">
-      <SetupCampaignModal v-if="showCampaignModal" @close="showCampaignModal = false" />
+      <SetupCampaignSettings v-if="showCampaignModal" @close="showCampaignModal = false" />
     </Transition>
     <Transition name="modal-fade">
       <div v-if="landStore.isLoading" class="absolute inset-0 bg-white z-10" />

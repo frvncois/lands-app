@@ -41,6 +41,25 @@ export function generatePositions(
 }
 
 /**
+ * Calculate the new position key when reordering an item within a sorted list.
+ * Pass the full sorted array, the old index, and the target new index.
+ */
+export function generateReorderPosition<T extends { position: string }>(
+  items: T[],
+  oldIndex: number,
+  newIndex: number,
+): string {
+  const remaining = items.filter((_, i) => i !== oldIndex)
+  const prevPos = remaining[newIndex - 1]?.position ?? null
+  const nextPos = remaining[newIndex]?.position ?? null
+  return prevPos === null
+    ? generatePositionBefore(nextPos)
+    : nextPos === null
+      ? generatePositionAfter(prevPos)
+      : generatePositionBetween(prevPos, nextPos)
+}
+
+/**
  * Sort an array of items by their `position` field (string comparison).
  * Fractional index strings are designed to sort lexicographically.
  */
