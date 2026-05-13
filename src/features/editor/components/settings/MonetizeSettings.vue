@@ -13,6 +13,7 @@ import type { CollectionItem, Collection } from '@/features/sections/types/colle
 import { useCollectionActions } from '@/features/editor/composables/useCollectionActions'
 import { useLandStore } from '@/features/lands/stores/land'
 import { useAppModals } from '@/features/modals/stores/appModals'
+import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
 import { useStripeConnect } from '@/features/dashboard/composables/useStripeConnect'
 import { sortByPosition, generateReorderPosition } from '@/shared/lib/position'
 
@@ -20,6 +21,11 @@ const props = defineProps<{ section: Section }>()
 
 const landStore = useLandStore()
 const appModals = useAppModals()
+
+function goToMonetize() {
+  useDashboardDetail().openDetail('monetize')
+  appModals.close()
+}
 const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useCollectionActions()
 const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 
@@ -193,7 +199,7 @@ defineExpose({ addItem })
           </div>
         </template>
         <template #actions>
-          <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('monetize')">View details</BaseButton>
+          <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="goToMonetize()">View details</BaseButton>
         </template>
       </BaseCard>
     </template>

@@ -10,12 +10,18 @@ import type { CampaignSection } from '@/features/sections/types'
 import { useSectionForm } from '@/features/editor/composables/useSectionForm'
 import { useThemePreset } from '@/features/theme/composables/useThemePreset'
 import { useAppModals } from '@/features/modals/stores/appModals'
+import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
 import { useCampaignStore } from '@/features/integrations/stores/campaign'
 import { usePlan } from '@/features/plan/composables/usePlan'
 
 const props = defineProps<{ section: CampaignSection }>()
 
 const appModals = useAppModals()
+
+function goToCampaign() {
+  useDashboardDetail().openDetail('campaign')
+  appModals.close()
+}
 const campaignStore = useCampaignStore()
 const { canUseCampaign } = usePlan()
 const { isMinimalTheme } = useThemePreset()
@@ -67,7 +73,7 @@ const showSetupCampaignSettings = ref(false)
           </div>
         </div>
         <template #actions>
-          <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('campaign')">View details</BaseButton>
+          <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="goToCampaign()">View details</BaseButton>
         </template>
       </BaseCard>
     </template>

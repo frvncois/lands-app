@@ -11,6 +11,7 @@ import StorePanel from '@/features/integrations/panels/StorePanel.vue'
 import SeoPanel from '@/features/integrations/panels/SeoPanel.vue'
 import QrCodePanel from '@/features/integrations/panels/QrCodePanel.vue'
 import { useAppModals } from '@/features/modals/stores/appModals'
+import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
 
 export interface Integration {
   id: string
@@ -27,7 +28,8 @@ const analyticsEnabled = ref(true)
 const gaId = ref('')
 
 function viewAnalytics() {
-  appModals.openDashboardDetail('analytics')
+  useDashboardDetail().openDetail('analytics')
+  appModals.close()
 }
 </script>
 

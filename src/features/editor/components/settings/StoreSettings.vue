@@ -13,6 +13,7 @@ import { useStoreActions } from '@/features/editor/composables/useStoreActions'
 
 import { useLandStore } from '@/features/lands/stores/land'
 import { useAppModals } from '@/features/modals/stores/appModals'
+import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
 import { useStripeConnect } from '@/features/dashboard/composables/useStripeConnect'
 import { sortByPosition, generateReorderPosition } from '@/shared/lib/position'
 
@@ -20,6 +21,11 @@ const props = defineProps<{ section: Section }>()
 
 const landStore = useLandStore()
 const appModals = useAppModals()
+
+function goToOrders() {
+  useDashboardDetail().openDetail('orders')
+  appModals.close()
+}
 const { updateStore, addStoreItem: addStoreItemAction, deleteStoreItem, reorderStoreItem } = useStoreActions()
 const { connectStripe, isConnecting: isConnectingStripe } = useStripeConnect()
 
@@ -147,7 +153,7 @@ defineExpose({ addStoreItem })
           </div>
         </template>
         <template #actions>
-          <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="appModals.openDashboardDetail('orders')">View orders</BaseButton>
+          <BaseButton size="sm" variant="outline" class="w-full justify-center" @click="goToOrders()">View orders</BaseButton>
         </template>
       </BaseCard>
     </template>

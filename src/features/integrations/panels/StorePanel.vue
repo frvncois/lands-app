@@ -8,10 +8,16 @@ import { useLandStore } from '@/features/lands/stores/land'
 import { stripeService } from '@/features/integrations/services/stripe.service'
 import { addToast } from '@/shared/composables/useToast'
 import { useAppModals } from '@/features/modals/stores/appModals'
+import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
 import { useStripeConnect } from '@/features/dashboard/composables/useStripeConnect'
 
 const landStore = useLandStore()
 const appModals = useAppModals()
+
+function goToOrders() {
+  useDashboardDetail().openDetail('orders')
+  appModals.close()
+}
 
 const isDisconnecting = ref(false)
 const { connectStripe, isConnecting } = useStripeConnect()
@@ -82,7 +88,7 @@ function openStripeSettings() {
 
     <!-- Orders -->
     <div v-if="landStore.isStripeConnected" class="p-4 pt-0">
-      <BaseButton variant="solid" size="sm" class="w-full justify-center" @click="appModals.openDashboardDetail('orders')">
+      <BaseButton variant="solid" size="sm" class="w-full justify-center" @click="goToOrders()">
         View Orders
       </BaseButton>
     </div>
