@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-type IntegrationId = 'analytics' | 'campaign' | 'collaborators' | 'sell_monetize'
+type IntegrationId = 'analytics' | 'campaign' | 'collaborators' | 'sell'
 
 export const useAppModals = defineStore('appModals', () => {
   const activeModal = ref<'integrations' | 'upgrade' | null>(null)

@@ -10,7 +10,6 @@ import {
   MusicalNoteIcon,
   TicketIcon,
   ShoppingBagIcon,
-  CreditCardIcon,
   MegaphoneIcon,
   Bars3BottomLeftIcon,
   NewspaperIcon,
@@ -27,7 +26,6 @@ const ContentMediaSettings   = defineAsyncComponent(() => import('@/features/edi
 const LinksSettings          = defineAsyncComponent(() => import('@/features/editor/components/settings/LinksSettings.vue'))
 const CollectionSettings     = defineAsyncComponent(() => import('@/features/editor/components/settings/CollectionSettings.vue'))
 const StoreSettings          = defineAsyncComponent(() => import('@/features/editor/components/settings/StoreSettings.vue'))
-const MonetizeSettings       = defineAsyncComponent(() => import('@/features/editor/components/settings/MonetizeSettings.vue'))
 const CampaignSettings       = defineAsyncComponent(() => import('@/features/editor/components/settings/CampaignSettings.vue'))
 
 // Variant components — async so each theme variant is a separate lazy chunk
@@ -49,10 +47,6 @@ const CollectionStructure = defineAsyncComponent(() => import('@/features/editor
 
 const StoreMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/store/StoreMinimal.vue'))
 const StoreStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/store/StoreStructure.vue'))
-
-const MonetizeMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/monetize/MonetizeMinimal.vue'))
-const MonetizeBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/monetize/MonetizeBaseline.vue'))
-const MonetizeStructure = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/monetize/MonetizeStructure.vue'))
 
 const CampaignMinimal   = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/campaign/CampaignMinimal.vue'))
 const CampaignBaseline  = defineAsyncComponent(() => import('@/features/editor/components/sections/variants/campaign/CampaignBaseline.vue'))
@@ -166,17 +160,6 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     variants: { minimal: StoreMinimal, structure: StoreStructure },
     settingsPanel: { default: StoreSettings },
     titleFrom: (s) => (s.type === 'store' ? s.content?.stores?.[0]?.title ?? null : null),
-  },
-
-  monetize: {
-    type: 'monetize',
-    label: 'Monetize',
-    description: 'Memberships and recurring revenue',
-    icon: CreditCardIcon,
-    defaults: SECTION_DEFAULTS.monetize,
-    variants: { minimal: MonetizeMinimal, baseline: MonetizeBaseline, structure: MonetizeStructure },
-    settingsPanel: { default: MonetizeSettings },
-    titleFrom: (s) => (s.type === 'monetize' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
   campaign: {

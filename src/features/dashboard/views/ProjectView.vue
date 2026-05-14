@@ -64,7 +64,7 @@ watch(() => editorStore.isEditMode, syncUnpublishedToast)
       class="transition-[width] duration-500 ease-in-out overflow-hidden shrink-0 h-full"
       :class="editorStore.isEditMode
         ? 'w-0'
-        : (activeDashboardDetail === 'orders' || activeDashboardDetail === 'monetize')
+        : activeDashboardDetail === 'orders'
           ? 'w-full lg:w-[420px]'
           : 'w-full lg:w-72'"
     >

@@ -13,7 +13,7 @@ export function useCollectionActions() {
 
   function getCols(sectionId: string): Collection[] {
     const s = activeLand.value?.sections.find((s) => s.id === sectionId)
-    return (s?.type === 'post' || s?.type === 'releases' || s?.type === 'concert' || s?.type === 'monetize')
+    return (s?.type === 'post' || s?.type === 'releases' || s?.type === 'concert')
       ? (s.content?.collections ?? [])
       : []
   }

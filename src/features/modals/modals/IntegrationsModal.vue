@@ -19,7 +19,7 @@ const integrations: Integration[] = [
   { id: 'custom_domain', title: 'Custom Domain',     description: 'Connect your own domain to this land',     icon: GlobeAltIcon },
   { id: 'qr_code',       title: 'QR Code',           description: 'Download a QR code for your project',       icon: QrCodeIcon },
   { id: 'seo',           title: 'SEO',               description: 'Meta title, description and social image',  icon: MagnifyingGlassIcon },
-  { id: 'sell_monetize', title: 'Sell & Monetize',   description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
+  { id: 'sell', title: 'Sell',   description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
 ]
 
 const active = ref<Integration | null>(null)

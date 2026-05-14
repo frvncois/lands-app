@@ -49,11 +49,6 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
     content: null,
   },
-  [SECTION_TYPES.monetize]: {
-    style_variant: COLLECTION_DISPLAY_STYLES.grid,
-    settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
-    content: null,
-  },
   [SECTION_TYPES.content_media]: {
     style_variant: 'default',
     settings_json: {},

@@ -20,7 +20,7 @@ withDefaults(defineProps<{
   >
 
     <!-- Header -->
-    <div class="flex items-center gap-2" :class="variant === 'spaced' ? 'p-4' : variant === 'naked' ? 'pt-0' : 'p-2'">
+    <div class="flex items-center gap-4" :class="variant === 'spaced' ? 'p-4' : variant === 'naked' ? 'pt-0' : 'p-2'">
       <div
         v-if="icon"
         class="shrink-0 flex items-center justify-center h-7 w-7 rounded-md"

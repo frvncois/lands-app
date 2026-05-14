@@ -63,8 +63,7 @@ const articles: DocArticle[] = [
   { id: 'sc-6', category: 'Sections', title: 'Collection section', description: 'Showcase a grid of content items with covers and descriptions.' },
   { id: 'sc-7', category: 'Sections', title: 'Campaign section', description: 'Capture email subscribers from your landing page.' },
   { id: 'sc-8', category: 'Sections', title: 'Store section', description: 'Sell physical and digital products directly from your land.' },
-  { id: 'sc-9', category: 'Sections', title: 'Monetize section', description: 'Offer monthly subscription access to exclusive content.' },
-  { id: 'sc-10', category: 'Sections', title: 'Footer section', description: 'Customize the bottom of your land with links and branding.' },
+  { id: 'sc-9', category: 'Sections', title: 'Footer section', description: 'Customize the bottom of your land with links and branding.' },
 
   // Integrations
   { id: 'int-1', category: 'Integrations', title: 'Connecting Mailchimp', description: 'Sync email subscribers to your Mailchimp audience.' },
@@ -73,7 +72,7 @@ const articles: DocArticle[] = [
   { id: 'int-4', category: 'Integrations', title: 'Connecting Flodesk', description: 'Add subscribers to a Flodesk segment.' },
   { id: 'int-5', category: 'Integrations', title: 'Connecting Brevo', description: 'Sync contacts to a Brevo list.' },
   { id: 'int-6', category: 'Integrations', title: 'Using a Webhook', description: 'POST subscriber data to your own endpoint.' },
-  { id: 'int-7', category: 'Integrations', title: 'Connecting Stripe', description: 'Accept payments for your store and monetize sections.' },
+  { id: 'int-7', category: 'Integrations', title: 'Connecting Stripe', description: 'Accept payments for your store.' },
   { id: 'int-8', category: 'Integrations', title: 'Google Analytics', description: 'Track visits and engagement with your GA4 account.' },
 
   // Custom Domain

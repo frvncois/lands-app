@@ -11,8 +11,8 @@ const { connectStripe, isConnecting } = useStripeConnect()
     <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center">
       <CurrencyDollarIcon class="h-5 w-5 text-gray-900" />
     </div>
-    <p class="text-sm font-semibold text-gray-900">Sell & Monetize</p>
-    <p class="text-xs text-gray-400 leading-relaxed">Connect your Stripe account and start selling products, classes and exclusive content.</p>
+    <p class="text-sm font-semibold text-gray-900">Sell</p>
+    <p class="text-xs text-gray-400 leading-relaxed">Connect your Stripe account and start selling products and digital goods.</p>
     <BaseButton variant="solid" size="sm" :disabled="isConnecting" @click="connectStripe">
       <Transition name="stripe-btn" mode="out-in">
         <span v-if="isConnecting" key="loading" class="flex items-center gap-1.5">

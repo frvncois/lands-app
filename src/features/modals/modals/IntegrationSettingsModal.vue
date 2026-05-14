@@ -43,7 +43,7 @@ function viewAnalytics() {
       <h2 class="text-sm font-semibold text-gray-900">{{ integration.title }}</h2>
     </div>
     <div class="flex items-center gap-1">
-      <template v-if="['analytics', 'collaborators', 'campaign', 'sell_monetize', 'custom_domain', 'seo', 'qr_code'].includes(integration.id)">
+      <template v-if="['analytics', 'collaborators', 'campaign', 'sell', 'custom_domain', 'seo', 'qr_code'].includes(integration.id)">
         <BaseButton variant="outline" size="xs" @click="$emit('back')">Back</BaseButton>
       </template>
       <template v-else>
@@ -53,7 +53,7 @@ function viewAnalytics() {
     </div>
   </div>
 
-  <div class="flex flex-col overflow-y-auto" :class="!['collaborators', 'campaign', 'sell_monetize', 'seo', 'qr_code'].includes(integration.id) && 'p-4 gap-4'">
+  <div class="flex flex-col overflow-y-auto" :class="!['collaborators', 'campaign', 'sell', 'seo', 'qr_code'].includes(integration.id) && 'p-4 gap-4'">
 
     <!-- ── Analytics ── -->
     <template v-if="integration.id === 'analytics'">
@@ -74,8 +74,8 @@ function viewAnalytics() {
       <CollaboratorsPanel />
     </template>
 
-    <!-- ── Sell & Monetize ── -->
-    <template v-else-if="integration.id === 'sell_monetize'">
+    <!-- ── Sell ── -->
+    <template v-else-if="integration.id === 'sell'">
       <StorePanel />
     </template>
 

@@ -30,7 +30,7 @@ export function usePlan() {
     return max === -1 || currentCount < max
   }
 
-  /** Returns true if another collection/store/monetize section can be added to the project. */
+  /** Returns true if another collection/store section can be added to the project. */
   function withinCollectionSectionLimit(currentCount: number): boolean {
     const max = maxCollectionSections.value
     return max === -1 || currentCount < max

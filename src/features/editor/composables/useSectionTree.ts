@@ -22,7 +22,7 @@ const FIXED_LABEL_TYPES = new Set(['header', 'footer', 'campaign'])
 export function getSectionTitle(s: { type: string; content: unknown }): string | null {
   if (FIXED_LABEL_TYPES.has(s.type)) return null
   const c = s.content as Record<string, any>
-  if (s.type === 'collection' || s.type === 'monetize') return c?.collections?.[0]?.title || null
+  if (s.type === 'collection') return c?.collections?.[0]?.title || null
   if (s.type === 'store') return c?.stores?.[0]?.title || null
   return c?.title || null
 }

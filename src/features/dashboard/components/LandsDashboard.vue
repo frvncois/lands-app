@@ -5,7 +5,6 @@ import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { usePlan } from '@/features/plan/composables/usePlan'
 import {
-  CurrencyDollarIcon,
   ShoppingBagIcon,
   ArrowTopRightOnSquareIcon,
   PencilSquareIcon,
@@ -21,7 +20,6 @@ import ShareModal from '@/features/modals/modals/ShareModal.vue'
 import SetupCampaignSettings from '@/features/editor/components/settings/SetupCampaignSettings.vue'
 import { visitData, totalViews } from '@/shared/mock/analytics'
 import { orderStats } from '@/shared/mock/orders'
-import { monetizeStats } from '@/shared/mock/monetize'
 import NumberFlow from '@number-flow/vue'
 import { useCountUpStats } from '@/features/dashboard/composables/useCountUpStats'
 
@@ -38,10 +36,8 @@ const { display: countUp, trigger: triggerCountUp } = useCountUpStats({
   views: totalViews,
   orderNew: orderStats.new,
   orderShipped: orderStats.shipped,
-  monetizeSubscribers: monetizeStats.subscribers,
-  monetizeRevenue: monetizeStats.revenueMonthly,
 })
-const { views: displayViews, orderNew: displayOrderNew, orderShipped: displayOrderShipped, monetizeSubscribers: displayMonetizeSubscribers, monetizeRevenue: displayMonetizeRevenue } = countUp
+const { views: displayViews, orderNew: displayOrderNew, orderShipped: displayOrderShipped } = countUp
 
 onMounted(triggerCountUp)
 
@@ -72,8 +68,6 @@ const hasStoreItems = computed(() => {
       return stores.some((st) => st.items.length > 0)
     })
 })
-
-const hasMonetizeItems = computed(() => (landStore.activeLand?.sections ?? []).some((s) => s.type === 'monetize'))
 
 // ─── Actions ───
 
@@ -124,11 +118,6 @@ function viewLive() {
               <NumberFlow :value="displayViews" class="text-lg font-semibold text-gray-900 leading-tight" />
               <p class="text-xs text-gray-400">last 30 days</p>
             </div>
-            <div class="flex-1 rounded-lg bg-gray-50 p-3 space-y-0.5">
-              <p class="text-xs text-gray-400">Revenue</p>
-              <NumberFlow :value="displayMonetizeRevenue" :format="{ style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }" class="text-lg font-semibold text-gray-900 leading-tight" />
-              <p class="text-xs text-gray-400">this month</p>
-            </div>
           </div>
           <div class="flex flex-col gap-2">
             <BaseButton variant="solid" size="sm" class="flex-1 justify-center bg-indigo-600" @click="goToEditor">
@@ -150,7 +139,7 @@ function viewLive() {
           <BaseChart :data="visitData" :height="80" />
         </MetricCard>
 
-        <!-- Sell & Monetize (no Stripe) -->
+        <!-- Sell (no Stripe) -->
         <ConnectStripeCard v-if="!landStore.isStripeConnected" />
 
         <!-- Orders (Stripe connected) -->
@@ -171,30 +160,6 @@ function viewLive() {
             <p class="text-xs text-gray-500 leading-relaxed mb-4">Add products and start selling online.</p>
             <BaseButton variant="solid" size="sm" class="w-full justify-center" @click="goToEditor">
               <PlusIcon class="h-3.5 w-3.5" /> Add Product
-            </BaseButton>
-          </template>
-        </MetricCard>
-
-        <!-- Monetize (Stripe connected) -->
-        <MetricCard v-if="landStore.isStripeConnected" :icon="CurrencyDollarIcon" title="Monetize" :animation-delay="300" :show-view-more="hasMonetizeItems" @view-more="openDetail('monetize')">
-          <template v-if="hasMonetizeItems">
-            <div class="flex gap-2">
-              <div class="flex-1 rounded-lg bg-white p-2 space-y-0.5">
-                <p class="text-xs text-gray-400">Subscribers</p>
-                <NumberFlow :value="displayMonetizeSubscribers" class="text-lg font-semibold text-gray-900 leading-tight" />
-                <p class="text-xs text-gray-400">total</p>
-              </div>
-              <div class="flex-1 rounded-lg bg-white p-2 space-y-0.5">
-                <p class="text-xs text-gray-400">Revenue</p>
-                <NumberFlow :value="displayMonetizeRevenue" :format="{ style: 'currency', currency: 'CAD', maximumFractionDigits: 0 }" class="text-lg font-semibold text-gray-900 leading-tight" />
-                <p class="text-xs text-gray-400">this month</p>
-              </div>
-            </div>
-          </template>
-          <template v-else>
-            <p class="text-xs text-gray-500 leading-relaxed mb-4">Offer memberships or paid content and earn recurring revenue.</p>
-            <BaseButton variant="solid" size="sm" class="w-full justify-center" @click="goToEditor">
-              <PlusIcon class="h-3.5 w-3.5" /> Add Content
             </BaseButton>
           </template>
         </MetricCard>

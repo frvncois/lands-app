@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-export type DetailKey = 'analytics' | 'orders' | 'sell' | 'campaign' | 'monetize'
+export type DetailKey = 'analytics' | 'orders' | 'sell' | 'campaign'
 
 // ─── Module-level singleton state ───
 const activeDetail = ref<DetailKey | null>(null)

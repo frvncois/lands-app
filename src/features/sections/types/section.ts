@@ -10,7 +10,6 @@ export const SECTION_TYPES = {
   releases: 'releases',
   concert: 'concert',
   store: 'store',
-  monetize: 'monetize',
   campaign: 'campaign',
   footer: 'footer',
 } as const
@@ -72,10 +71,6 @@ export interface StoreSettings {
   style: CollectionDisplayStyle
 }
 
-export interface MonetizeSettings {
-  style: CollectionDisplayStyle
-}
-
 export interface LinksSettings {
   style: LinksStyle
 }
@@ -93,7 +88,6 @@ export type SectionSettings =
   | ContentMediaSettings
   | CollectionSettings
   | StoreSettings
-  | MonetizeSettings
   | LinksSettings
   | CampaignSettings
   | FooterSettings
@@ -168,17 +162,12 @@ export interface StoreContent {
   stores: Store[]
 }
 
-export interface MonetizeContent {
-  collections: Collection[]
-}
-
 export type SectionContent =
   | HeaderContent
   | ContentMediaContent
   | LinksContent
   | CollectionContent
   | StoreContent
-  | MonetizeContent
   | CampaignContent
   | FooterContent
 
@@ -202,7 +191,6 @@ export type PostSection = BaseSection<'post', CollectionContent | null, Collecti
 export type ReleasesSection = BaseSection<'releases', CollectionContent | null, CollectionSettings>
 export type ConcertSection = BaseSection<'concert', CollectionContent | null, CollectionSettings>
 export type StoreSection = BaseSection<'store', StoreContent | null, StoreSettings>
-export type MonetizeSection = BaseSection<'monetize', MonetizeContent | null, MonetizeSettings>
 export type CampaignSection = BaseSection<'campaign', CampaignContent, CampaignSettings>
 export type FooterSection = BaseSection<'footer', FooterContent, FooterSettings>
 
@@ -214,6 +202,5 @@ export type Section =
   | ReleasesSection
   | ConcertSection
   | StoreSection
-  | MonetizeSection
   | CampaignSection
   | FooterSection

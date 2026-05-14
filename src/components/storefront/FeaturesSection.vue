@@ -2,7 +2,7 @@
     <section>
         <ul>
             <li><h3>Publish<br> your content</h3></li>
-            <li><h3>Sell and<br> monetize</h3></li>
+            <li><h3>Sell</h3></li>
             <li><h3>Grow<br> your Audience</h3></li>
         </ul>
 

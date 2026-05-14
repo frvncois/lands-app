@@ -14,7 +14,7 @@ export interface PlanDetails {
   campaign: boolean
   custom_domain: boolean
   max_sections: number                 // -1 = unlimited (excludes header/footer)
-  max_collection_sections: number      // -1 = unlimited; caps collection/store/monetize section count
+  max_collection_sections: number      // -1 = unlimited; caps collection/store section count
   max_collections_per_section: number  // -1 = unlimited; sub-collections within one section
   max_items_per_collection: number     // -1 = unlimited
 }

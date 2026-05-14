@@ -7,7 +7,6 @@ import {
   MOCK_LINKS_ITEMS,
   MOCK_COLLECTIONS,
   MOCK_STORES,
-  MOCK_MONETIZE_COLLECTIONS,
 } from '@/shared/mock/mockSectionContent'
 
 const props = defineProps<{ section: Section }>()
@@ -52,12 +51,6 @@ const displaySection = computed((): Section => {
     case 'store': {
       if (!s.content?.stores?.length) {
         return { ...s, content: { ...s.content, stores: MOCK_STORES } }
-      }
-      break
-    }
-    case 'monetize': {
-      if (!s.content?.collections?.length) {
-        return { ...s, content: { ...s.content, collections: MOCK_MONETIZE_COLLECTIONS } }
       }
       break
     }

@@ -11,7 +11,7 @@ import type { CollectionItem } from '@/features/sections/types/collection'
 import type { StoreItem } from '@/features/sections/types/store'
 
 const props = defineProps<{
-  type: 'post' | 'releases' | 'concert' | 'monetize' | 'store'
+  type: 'post' | 'releases' | 'concert' | 'store'
   item: CollectionItem | StoreItem
   sectionId: string
   collectionId?: string
@@ -33,7 +33,7 @@ const { updateStoreItem } = useStoreActions()
 
 const isStore = computed(() => props.type === 'store')
 
-// ─── Collection / Monetize local state ───
+// ─── Collection local state ───
 const colMediaUrl = ref('')
 const colTitle = ref('')
 const colSubtitle = ref('')
@@ -76,7 +76,6 @@ watch(() => props.item, (item) => {
 
 const headerLabel = computed(() => {
   if (props.type === 'store') return 'Product'
-  if (props.type === 'monetize') return 'Monetize item'
   if (props.type === 'releases') return 'Release'
   if (props.type === 'concert') return 'Event'
   return 'Post'
@@ -151,7 +150,7 @@ function removeVariant(i: number) {
           <!-- Left panel: fields -->
           <div class="w-72 shrink-0 border-r border-gray-100 overflow-y-auto p-4 space-y-4">
 
-            <!-- Collection / Monetize fields -->
+            <!-- Collection fields -->
             <template v-if="!isStore">
               <BaseUpload type="image" size="sm" label="Cover" v-model="colMediaUrl" />
               <BaseInput size="sm" label="Title" v-model="colTitle" />

@@ -99,7 +99,6 @@ interface PurposeSeeds {
   releases: CollectionSeed[]
   concert: CollectionSeed[]
   store: StoreSeed[]
-  monetize: CollectionSeed[]
   links: LinksSeed[]
 }
 
@@ -200,9 +199,6 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
     concert: [
       { title: 'Events', description: '', itemTitles: ['Item', 'Item', 'Item'] },
     ],
-    monetize: [
-      { title: 'Membership', description: '', itemTitles: ['Item', 'Item'] },
-    ],
     store: [
       { title: 'Store', itemSeeds: [{ title: 'Product', price: 29 }, { title: 'Product', price: 49 }] },
     ],
@@ -251,34 +247,6 @@ export function buildSectionContent(
       section_id: '',
       title: seed.title,
       description: seed.description,
-      position: generatePositionAfter(null),
-      items: seed.itemTitles.map((title, i) => ({
-        id: crypto.randomUUID(),
-        collection_id: collectionId,
-        title,
-        subtitle: '',
-        description: '',
-        media_url: '',
-        content: '',
-        external_url: '',
-        position: positions[i]!,
-        created_at: new Date().toISOString(),
-      })),
-    }
-    return { collections: [col] }
-  }
-
-  if (type === 'monetize') {
-    const variants = seeds.monetize ?? FALLBACK.monetize
-    const seed = variants[existingCount % variants.length]!
-    const collectionId = crypto.randomUUID()
-    const positions = makePositions(seed.itemTitles.length)
-    const col: Collection = {
-      id: collectionId,
-      section_id: '',
-      title: seed.title,
-      description: seed.description,
-      price: 9,
       position: generatePositionAfter(null),
       items: seed.itemTitles.map((title, i) => ({
         id: crypto.randomUUID(),

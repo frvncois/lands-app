@@ -73,7 +73,7 @@ function back() { if (step.value > 1) step.value-- }
 
 const FEATURES = [
   { icon: SparklesIcon, title: 'Beautiful themes', description: 'Choose from Minimal, Structure, or Baseline and make it yours.' },
-  { icon: CurrencyDollarIcon, title: 'Sell & Monetize', description: 'Sell products, digital goods, and exclusive content.' },
+  { icon: CurrencyDollarIcon, title: 'Sell', description: 'Sell products and digital goods.' },
   { icon: LinkIcon, title: 'Links in bio', description: 'Centralise all your links in one beautiful place.' },
   { icon: MegaphoneIcon, title: 'Campaign tools', description: 'Grow your audience with newsletter and campaign sections.' },
   { icon: GlobeAltIcon, title: 'Custom domains', description: 'Use your own domain to strengthen your brand.' },

@@ -6,16 +6,14 @@ import AnalyticsDetail from './detail/AnalyticsDetail.vue'
 import OrdersDetail from './detail/OrdersDetail.vue'
 import SellDetail from './detail/SellDetail.vue'
 import CampaignDetail from './detail/CampaignDetail.vue'
-import MonetizeDetail from './detail/MonetizeDetail.vue'
 
 const { activeDetail, closeDetail } = useDashboardDetail()
 
 const detailTitles: Record<DetailKey, string> = {
   analytics: 'Analytics',
   orders: 'Orders',
-  sell: 'Sell & Monetize',
+  sell: 'Sell',
   campaign: 'Campaign',
-  monetize: 'Monetize',
 }
 
 function openStripePortal() {
@@ -37,7 +35,7 @@ function openStripePortal() {
         <p class="text-xs font-medium text-gray-700">{{ detailTitles[activeDetail] }}</p>
       </div>
       <BaseButton
-        v-if="activeDetail === 'orders' || activeDetail === 'monetize'"
+        v-if="activeDetail === 'orders'"
         variant="outline"
         size="sm"
         @click="openStripePortal"
@@ -52,7 +50,6 @@ function openStripePortal() {
       <OrdersDetail v-else-if="activeDetail === 'orders'" />
       <SellDetail v-else-if="activeDetail === 'sell'" />
       <CampaignDetail v-else-if="activeDetail === 'campaign'" />
-      <MonetizeDetail v-else-if="activeDetail === 'monetize'" />
     </div>
   </div>
 </template>

@@ -56,7 +56,7 @@ function openStripeSettings() {
         <CurrencyDollarIcon class="h-4 w-4 text-gray-900" />
       </div>
       <div class="flex flex-col gap-1">
-        <p class="text-sm font-semibold text-gray-900">Sell & Monetize</p>
+        <p class="text-sm font-semibold text-gray-900">Sell</p>
         <p class="text-xs text-gray-400 leading-relaxed">Connect your Stripe account and start selling products, classes and exclusive content.</p>
       </div>
       <BaseButton variant="solid" size="sm" :disabled="isConnecting" @click="connectStripe">
