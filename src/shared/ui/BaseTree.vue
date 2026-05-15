@@ -99,18 +99,8 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
             {{ node.label.length > 15 ? node.label.slice(0, 15) + '…' : node.label }}
           </button>
 
-          <!-- Action icons -->
+          <!-- Action icons — mutually exclusive: trash for userAddable, eye for everything else -->
           <div class="flex items-center gap-1 opacity-0 group-hover/node:opacity-100 transition-opacity">
-            <BaseButton
-              variant="icon"
-              size="xs"
-              :title="node.visible === false ? 'Show section' : 'Hide section'"
-              :class="node.visible === false ? 'text-gray-300' : 'text-gray-500'"
-              @click.stop="$emit('toggle-visibility', node)"
-            >
-              <EyeSlashIcon v-if="node.visible === false" class="h-3.5 w-3.5" />
-              <EyeIcon v-else class="h-3.5 w-3.5" />
-            </BaseButton>
             <BaseButton
               v-if="node.userAddable"
               variant="icon"
@@ -120,6 +110,17 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
               @click.stop="$emit('delete', node)"
             >
               <TrashIcon class="h-3.5 w-3.5" />
+            </BaseButton>
+            <BaseButton
+              v-else
+              variant="icon"
+              size="xs"
+              :title="node.visible === false ? 'Show section' : 'Hide section'"
+              :class="node.visible === false ? 'text-gray-300' : 'text-gray-500'"
+              @click.stop="$emit('toggle-visibility', node)"
+            >
+              <EyeSlashIcon v-if="node.visible === false" class="h-3.5 w-3.5" />
+              <EyeIcon v-else class="h-3.5 w-3.5" />
             </BaseButton>
             <BaseButton variant="solid" size="xs" @click.stop="$emit('settings', node)">
               Edit
