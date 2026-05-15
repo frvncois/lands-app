@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { Section } from '@/features/sections/types'
 
 const props = defineProps<{ section: Section }>()
-const c = computed(() => props.section.type === 'content_media' ? props.section.content : null)
+const c = computed(() => (props.section.type === 'content_media' || props.section.type === 'about') ? props.section.content : null)
 
 function getVideoEmbed(url: string): { type: 'iframe' | 'video'; src: string } | null {
   if (!url) return null

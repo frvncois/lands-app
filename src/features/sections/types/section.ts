@@ -5,10 +5,12 @@ import type { Store } from '@/features/sections/types/store'
 export const SECTION_TYPES = {
   header: 'header',
   content_media: 'content_media',
+  about: 'about',
   links: 'links',
   post: 'post',
   releases: 'releases',
   concert: 'concert',
+  videos: 'videos',
   store: 'store',
   campaign: 'campaign',
   footer: 'footer',
@@ -187,10 +189,12 @@ interface BaseSection<TType extends SectionType, TContent, TSettings> {
 
 export type HeaderSection = BaseSection<'header', HeaderContent, HeaderSettings>
 export type ContentMediaSection = BaseSection<'content_media', ContentMediaContent, ContentMediaSettings>
+export type AboutSection = BaseSection<'about', ContentMediaContent, ContentMediaSettings>
 export type LinksSection = BaseSection<'links', LinksContent | null, LinksSettings>
 export type PostSection = BaseSection<'post', CollectionContent | null, CollectionSettings>
 export type ReleasesSection = BaseSection<'releases', CollectionContent | null, CollectionSettings>
 export type ConcertSection = BaseSection<'concert', CollectionContent | null, CollectionSettings>
+export type VideosSection = BaseSection<'videos', CollectionContent | null, CollectionSettings>
 export type StoreSection = BaseSection<'store', StoreContent | null, StoreSettings>
 export type CampaignSection = BaseSection<'campaign', CampaignContent, CampaignSettings>
 export type FooterSection = BaseSection<'footer', FooterContent, FooterSettings>
@@ -198,10 +202,12 @@ export type FooterSection = BaseSection<'footer', FooterContent, FooterSettings>
 export type Section =
   | HeaderSection
   | ContentMediaSection
+  | AboutSection
   | LinksSection
   | PostSection
   | ReleasesSection
   | ConcertSection
+  | VideosSection
   | StoreSection
   | CampaignSection
   | FooterSection

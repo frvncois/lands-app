@@ -5,12 +5,12 @@ import BaseInput from '@/shared/ui/BaseInput.vue'
 import BaseUpload from '@/shared/ui/BaseUpload.vue'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import BaseToggle from '@/shared/ui/BaseToggle.vue'
-import type { ContentMediaSection, ContentMediaButton } from '@/features/sections/types'
+import type { ContentMediaSection, AboutSection, ContentMediaButton } from '@/features/sections/types'
 import { useEditorMutations } from '@/features/editor/composables/useEditorMutations'
 import { useSectionForm } from '@/features/editor/composables/useSectionForm'
 import { useThemePreset } from '@/features/theme/composables/useThemePreset'
 
-const props = defineProps<{ section: ContentMediaSection }>()
+const props = defineProps<{ section: ContentMediaSection | AboutSection }>()
 
 const { isStructureTheme } = useThemePreset()
 const { updateSectionContent, updateSectionStyleVariant } = useEditorMutations()

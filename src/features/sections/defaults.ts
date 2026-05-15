@@ -49,6 +49,12 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
     content: null,
     visible: true,
   },
+  [SECTION_TYPES.videos]: {
+    style_variant: COLLECTION_DISPLAY_STYLES.grid,
+    settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
+    content: null,
+    visible: true,
+  },
   [SECTION_TYPES.store]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
@@ -64,6 +70,19 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       title: '',
       subtitle: '',
       body: '',
+      buttons: [],
+    },
+    visible: true,
+  },
+  [SECTION_TYPES.about]: {
+    style_variant: 'default',
+    settings_json: {},
+    content: {
+      media_type: 'image',
+      media_url: '',
+      title: 'About',
+      subtitle: 'A little about me',
+      body: 'Share your story, background and what drives you.',
       buttons: [],
     },
     visible: true,

@@ -38,46 +38,52 @@ export const PURPOSE_OPTIONS: PurposeOption[] = [
     label: 'Artist',
     description: 'Share your visual art, music or creative practice',
     icon: MusicalNoteIcon,
-    sections: ['header', 'content_media', 'releases', 'concert', 'store', 'campaign', 'footer'],
+    sections: ['header', 'about', 'content_media', 'releases', 'videos', 'concert', 'store', 'campaign', 'footer'],
   },
   {
     id: 'product',
     label: 'Product',
     description: 'Sell products or digital goods',
     icon: ShoppingBagIcon,
-    sections: ['header', 'content_media', 'post', 'store', 'campaign', 'footer'],
+    sections: ['header', 'about', 'content_media', 'post', 'store', 'campaign', 'footer'],
   },
   {
     id: 'business',
     label: 'Business',
     description: 'Promote your company or service',
     icon: BuildingOfficeIcon,
-    sections: ['header', 'content_media', 'links', 'campaign', 'footer'],
+    sections: ['header', 'about', 'content_media', 'links', 'campaign', 'footer'],
   },
   {
     id: 'creator',
     label: 'Creator',
     description: 'Centralise your content and links',
     icon: DevicePhoneMobileIcon,
-    sections: ['header', 'content_media', 'post', 'releases', 'store', 'links', 'footer'],
+    sections: ['header', 'about', 'content_media', 'post', 'videos', 'releases', 'store', 'links', 'footer'],
   },
   {
     id: 'event',
     label: 'Event',
     description: 'Promote a conference, concert or meetup',
     icon: TicketIcon,
-    sections: ['header', 'content_media', 'concert', 'store', 'campaign', 'footer'],
+    sections: ['header', 'about', 'content_media', 'concert', 'store', 'campaign', 'footer'],
   },
   {
     id: 'writing',
     label: 'Writing',
     description: 'Share articles, essays or newsletters',
     icon: PencilIcon,
-    sections: ['header', 'links', 'post', 'footer'],
+    sections: ['header', 'about', 'links', 'post', 'footer'],
   },
 ]
 
 // ─── Seed content types ───
+
+interface AboutSeed {
+  title: string
+  subtitle: string
+  body: string
+}
 
 interface CollectionSeed {
   title: string
@@ -95,9 +101,11 @@ interface LinksSeed {
 }
 
 interface PurposeSeeds {
+  about: AboutSeed[]
   post: CollectionSeed[]
   releases: CollectionSeed[]
   concert: CollectionSeed[]
+  videos: CollectionSeed[]
   store: StoreSeed[]
   links: LinksSeed[]
 }
@@ -107,8 +115,14 @@ interface PurposeSeeds {
 
 const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   artist: {
+    about: [
+      { title: 'About Me', subtitle: 'Artist', body: 'A few lines about your creative journey, influences and the story behind your work.' },
+    ],
     releases: [
       { title: 'Discography', description: 'My albums and EPs', itemTitles: ['First Light', 'Midnight Sessions', 'The Blue EP'] },
+    ],
+    videos: [
+      { title: 'Videos', description: 'Live sessions, music videos and performances', itemTitles: ['Music Video', 'Live Session', 'Behind the Scenes'] },
     ],
     concert: [
       { title: 'Tour Dates', description: 'Upcoming shows', itemTitles: ['Summer Tour 2026', 'Album Release Show', 'Festival Set'] },
@@ -123,6 +137,9 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   product: {
+    about: [
+      { title: 'About the Product', subtitle: 'Built for makers', body: 'The problem we solve and why we built it.' },
+    ],
     post: [
       { title: 'Features', description: 'What makes it great', itemTitles: ['Speed', 'Simplicity', 'Power'] },
       { title: 'Testimonials', description: 'What people say', itemTitles: ['Happy Customer', 'Case Study', 'Press Quote'] },
@@ -137,6 +154,9 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   business: {
+    about: [
+      { title: 'About Us', subtitle: 'Our story', body: 'What we do, why we do it and the team behind the work.' },
+    ],
     post: [
       { title: 'Services', description: 'What we offer', itemTitles: ['Consulting', 'Strategy', 'Execution', 'Support'] },
       { title: 'Team', description: 'Who we are', itemTitles: ['Founder', 'Lead Designer', 'Developer'] },
@@ -148,10 +168,15 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   creator: {
+    about: [
+      { title: 'About Me', subtitle: 'Creator', body: 'Who you are, what you make and why people should follow along.' },
+    ],
     post: [
-      { title: 'Videos', description: 'Latest content', itemTitles: ['Episode 1', 'Episode 2', 'Episode 3', 'Episode 4'] },
       { title: 'Articles', description: 'Writing', itemTitles: ['Post Title', 'Post Title', 'Post Title'] },
       { title: 'Courses', description: 'Learn from me', itemTitles: ['Intro Course', 'Advanced Workshop', 'Masterclass'] },
+    ],
+    videos: [
+      { title: 'Videos', description: 'Latest content', itemTitles: ['Episode 1', 'Episode 2', 'Episode 3', 'Episode 4'] },
     ],
     releases: [
       { title: 'Albums', description: 'Music releases', itemTitles: ['First Album', 'EP', 'Single'] },
@@ -165,6 +190,9 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   event: {
+    about: [
+      { title: 'About the Event', subtitle: 'What to expect', body: 'A brief description of the event, its goals and what attendees can look forward to.' },
+    ],
     concert: [
       { title: 'Schedule', description: "What's on", itemTitles: ['Opening Keynote', 'Workshop', 'Panel Discussion', 'Closing Night'] },
       { title: 'Speakers', description: 'Featured guests', itemTitles: ['Speaker 1', 'Speaker 2', 'Speaker 3'] },
@@ -179,6 +207,9 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   writing: {
+    about: [
+      { title: 'About the Author', subtitle: 'Writer', body: 'Who you are and what you write about.' },
+    ],
     post: [
       { title: 'Articles', description: 'Long-form writing', itemTitles: ['Essay Title', 'Essay Title', 'Essay Title', 'Essay Title'] },
       { title: 'Essays', description: 'Selected pieces', itemTitles: ['Deep Dive', 'Op-Ed', 'Reflection'] },
@@ -190,6 +221,9 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   },
 
   custom: {
+    about: [
+      { title: 'About', subtitle: '', body: 'Tell your story here.' },
+    ],
     post: [
       { title: 'Collection', description: '', itemTitles: ['Item', 'Item', 'Item'] },
     ],
@@ -198,6 +232,9 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
     ],
     concert: [
       { title: 'Events', description: '', itemTitles: ['Item', 'Item', 'Item'] },
+    ],
+    videos: [
+      { title: 'Videos', description: '', itemTitles: ['Video', 'Video', 'Video'] },
     ],
     store: [
       { title: 'Store', itemSeeds: [{ title: 'Product', price: 29 }, { title: 'Product', price: 49 }] },
@@ -237,8 +274,21 @@ export function buildSectionContent(
   const p = (purpose as Purpose | undefined) ?? 'custom'
   const seeds = SEEDS[p] ?? FALLBACK
 
-  if (type === 'post' || type === 'releases' || type === 'concert') {
-    const variants = seeds[type] ?? FALLBACK[type]
+  if (type === 'about') {
+    const variants = seeds.about ?? FALLBACK.about
+    const seed = variants[existingCount % variants.length]!
+    return {
+      media_type: 'image',
+      media_url: '',
+      title: seed.title,
+      subtitle: seed.subtitle,
+      body: seed.body,
+      buttons: [],
+    }
+  }
+
+  if (type === 'post' || type === 'releases' || type === 'concert' || type === 'videos') {
+    const variants = (seeds[type as 'post' | 'releases' | 'concert' | 'videos']) ?? (FALLBACK[type as 'post' | 'releases' | 'concert' | 'videos'])
     const seed = variants[existingCount % variants.length]!
     const collectionId = crypto.randomUUID()
     const positions = makePositions(seed.itemTitles.length)

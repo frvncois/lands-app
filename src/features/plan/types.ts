@@ -28,7 +28,7 @@ export const PLAN_DETAILS: Record<LandPlan, PlanDetails> = {
     collaborators: false,
     campaign: false,
     custom_domain: false,
-    max_sections: 6,
+    max_sections: 10,
     max_collection_sections: 2,
     max_collections_per_section: 2,
     max_items_per_collection: 10,

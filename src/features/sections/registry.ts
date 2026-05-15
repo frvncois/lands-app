@@ -13,6 +13,8 @@ import {
   MegaphoneIcon,
   Bars3BottomLeftIcon,
   NewspaperIcon,
+  InformationCircleIcon,
+  VideoCameraIcon,
 } from '@heroicons/vue/24/outline'
 
 // Settings panels — lazy to avoid circular import:
@@ -109,6 +111,17 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     titleFrom: (s) => (s.type === 'content_media' ? s.content?.title ?? null : null),
   },
 
+  about: {
+    type: 'about',
+    label: 'About',
+    description: 'Your story and background',
+    icon: InformationCircleIcon,
+    defaults: SECTION_DEFAULTS.about,
+    variants: { minimal: ContentMediaMinimal, baseline: ContentMediaBaseline, structure: ContentMediaStructure },
+    settingsPanel: { default: ContentMediaSettings },
+    titleFrom: (s) => (s.type === 'about' ? s.content?.title ?? null : null),
+  },
+
   links: {
     type: 'links',
     label: 'Links',
@@ -151,6 +164,17 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
     settingsPanel: { default: CollectionSettings },
     titleFrom: (s) => (s.type === 'concert' ? s.content?.collections?.[0]?.title ?? null : null),
+  },
+
+  videos: {
+    type: 'videos',
+    label: 'Videos',
+    description: 'Video gallery',
+    icon: VideoCameraIcon,
+    defaults: SECTION_DEFAULTS.videos,
+    variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
+    settingsPanel: { default: CollectionSettings },
+    titleFrom: (s) => (s.type === 'videos' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
   store: {

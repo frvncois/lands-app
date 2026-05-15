@@ -109,7 +109,7 @@ defineExpose({ addItem })
   </div>
   <ItemEditorSettings
     v-if="itemEditorCollectionItem && collection"
-    :type="(section.type as 'post' | 'releases' | 'concert')"
+    :type="(section.type as 'post' | 'releases' | 'concert' | 'videos')"
     :item="itemEditorCollectionItem"
     :section-id="section.id"
     :collection-id="collection.id"

@@ -4,7 +4,7 @@ import { PhotoIcon } from '@heroicons/vue/24/outline'
 import type { Section } from '@/features/sections/types'
 
 const props = defineProps<{ section: Section }>()
-const c = computed(() => props.section.type === 'content_media' ? props.section.content : null)
+const c = computed(() => (props.section.type === 'content_media' || props.section.type === 'about') ? props.section.content : null)
 const reversed = computed(() => props.section.style_variant === 'reversed')
 
 </script>

@@ -11,7 +11,7 @@ import type { CollectionItem } from '@/features/sections/types/collection'
 import type { StoreItem } from '@/features/sections/types/store'
 
 const props = defineProps<{
-  type: 'post' | 'releases' | 'concert' | 'store'
+  type: 'post' | 'releases' | 'concert' | 'videos' | 'store'
   item: CollectionItem | StoreItem
   sectionId: string
   collectionId?: string
