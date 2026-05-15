@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ChevronRightIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
+import { ChevronRightIcon, EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import draggable from 'vuedraggable'
 import type { FunctionalComponent } from 'vue'
 import BaseButton from './BaseButton.vue'
@@ -12,6 +12,7 @@ export interface TreeNode {
   imageUrl?: string
   locked?: boolean
   visible?: boolean
+  userAddable?: boolean
   sectionType?: string
   children?: TreeNode[]
 }
@@ -24,6 +25,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'toggle-visibility': [node: TreeNode]
+  delete: [node: TreeNode]
   settings: [node: TreeNode]
   reorder: [oldIndex: number, newIndex: number]
   add: [sectionType: string, newIndex: number]
@@ -108,6 +110,16 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
             >
               <EyeSlashIcon v-if="node.visible === false" class="h-3.5 w-3.5" />
               <EyeIcon v-else class="h-3.5 w-3.5" />
+            </BaseButton>
+            <BaseButton
+              v-if="node.userAddable"
+              variant="icon"
+              size="xs"
+              title="Remove content block"
+              class="hover:text-red-500 hover:bg-red-50"
+              @click.stop="$emit('delete', node)"
+            >
+              <TrashIcon class="h-3.5 w-3.5" />
             </BaseButton>
             <BaseButton variant="solid" size="xs" @click.stop="$emit('settings', node)">
               Edit

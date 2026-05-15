@@ -5,6 +5,8 @@ import { addToast } from '@/shared/composables/useToast'
 import { usePlan } from '@/features/plan/composables/usePlan'
 import { SECTION_DEFAULTS } from '@/features/sections/defaults'
 import { buildSectionContent } from '@/features/sections/purpose-defaults'
+import { SECTION_REGISTRY } from '@/features/sections/registry'
+import { storageService, extractSectionUrls } from '@/features/integrations/services/storage.service'
 import type { Section, SectionType } from '@/features/sections/types'
 
 export function useSectionLifecycle() {
@@ -86,6 +88,23 @@ export function useSectionLifecycle() {
     addToast(`${type.charAt(0).toUpperCase() + type.slice(1)} section added`)
   }
 
+  function deleteSection(sectionId: string) {
+    if (!activeLand.value) return
+    const section = activeLand.value.sections.find((s) => s.id === sectionId)
+    if (!section) return
+    // Only userAddable types can be deleted — fixed types must be hidden instead
+    if (!SECTION_REGISTRY[section.type].userAddable) return
+    const urls = extractSectionUrls(section)
+    Promise.all(urls.map((url) => storageService.remove(url))).catch((e) => {
+      console.error('[storage] Failed to clean up section assets:', e)
+    })
+    const updatedSections = activeLand.value.sections.filter((s) => s.id !== sectionId)
+    landStore.updateLand(activeLand.value.id, { sections: updatedSections })
+    if (editorStore.activeSection?.id === sectionId) editorStore.setActiveSection(null)
+    editorStore.markDirty()
+    addToast('Content block removed')
+  }
+
   function reorderSection(sectionId: string, newPosition: string) {
     if (!activeLand.value) return
     const updatedSections = activeLand.value.sections.map((s) =>
@@ -97,6 +116,7 @@ export function useSectionLifecycle() {
 
   return {
     addSection,
+    deleteSection,
     reorderSection,
   }
 }

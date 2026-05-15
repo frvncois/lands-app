@@ -8,6 +8,7 @@ import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { useSectionInsert } from '@/features/editor/composables/useSectionInsert'
 import { useSectionTree } from '@/features/editor/composables/useSectionTree'
+import { useSectionLifecycle } from '@/features/editor/composables/useSectionLifecycle'
 import { useEditorMutations } from '@/features/editor/composables/useEditorMutations'
 import { usePlan } from '@/features/plan/composables/usePlan'
 import { sortByPosition } from '@/shared/lib/position'
@@ -16,6 +17,7 @@ const landStore = useLandStore()
 const editorStore = useEditorStore()
 const { insertAt, insertBeforeFooter, moveTo } = useSectionInsert()
 const { nodes } = useSectionTree()
+const { deleteSection } = useSectionLifecycle()
 const { toggleSectionVisibility } = useEditorMutations()
 const { isPaid, withinSectionLimit, maxSections } = usePlan()
 
@@ -46,6 +48,7 @@ function handleReorder(oldIndex: number, newIndex: number) {
       :nodes="nodes"
       @settings="handleTreeSettings"
       @toggle-visibility="toggleSectionVisibility($event.id)"
+      @delete="deleteSection($event.id)"
       @reorder="handleReorder"
       @add="handleSectionDrop"
     />

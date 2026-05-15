@@ -3,6 +3,7 @@ import type { FunctionalComponent } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { sortByPosition } from '@/shared/lib/position'
 import { sectionPrimitives } from '@/features/sections/index'
+import { SECTION_REGISTRY } from '@/features/sections/registry'
 import type { TreeNode } from '@/shared/ui/BaseTree.vue'
 
 // Lazy memoized maps — NOT computed at module init time.
@@ -39,6 +40,7 @@ export function useSectionTree() {
       icon: sectionIconMap[s.type],
       locked: s.type === 'header' || s.type === 'footer',
       visible: s.visible,
+      userAddable: !!SECTION_REGISTRY[s.type]?.userAddable,
     }))
   )
 
