@@ -5,7 +5,7 @@ import BaseButton from '@/shared/ui/BaseButton.vue';
 import {
   LinkIcon,
   PencilSquareIcon,
-  PuzzlePieceIcon,
+  Cog6ToothIcon,
   CloudArrowUpIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/vue/24/outline'
@@ -55,13 +55,13 @@ function openSupport() {
 
           <!--Preview state-->
           <div v-if="!editorStore.isEditMode && route.path === '/dashboard'" class="flex space-x-2 items-center">
-              <BaseButton size="sm" variant="outline" :active="appModals.activeModal === 'integrations'" @click="appModals.activeModal === 'integrations' ? appModals.close() : appModals.openIntegrations()">
-                  <PuzzlePieceIcon class="h-4 w-4" />
-                  Tools
-              </BaseButton>
               <BaseButton size="sm" variant="solid" @click="enterEditor">
                   <PencilSquareIcon class="h-4 w-4" />
-                  Edit
+                  Open editor
+              </BaseButton>
+              <BaseButton size="sm" variant="outline" :active="appModals.activeModal === 'integrations'" @click="appModals.activeModal === 'integrations' ? appModals.close() : appModals.openIntegrations()">
+                  <Cog6ToothIcon class="h-4 w-4" />
+                  Settings
               </BaseButton>
           </div>
 

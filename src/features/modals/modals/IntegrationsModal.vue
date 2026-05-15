@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon, GlobeAltIcon, MagnifyingGlassIcon, QrCodeIcon } from '@heroicons/vue/24/outline'
+import { useRouter } from 'vue-router'
+import { ChartBarIcon, MegaphoneIcon, UsersIcon, CurrencyDollarIcon, PuzzlePieceIcon, GlobeAltIcon, MagnifyingGlassIcon, QrCodeIcon, Cog6ToothIcon } from '@heroicons/vue/24/outline'
 import BaseItem from '@/shared/ui/BaseItem.vue'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import IntegrationSettingsModal, { type Integration } from './IntegrationSettingsModal.vue'
@@ -9,17 +10,24 @@ import { usePlan } from '@/features/plan/composables/usePlan'
 
 const emit = defineEmits<{ close: [], openCustomDomain: [] }>()
 
+const router = useRouter()
 const appModals = useAppModals()
 const { canUseCustomDomain } = usePlan()
 
+function goToSupport() {
+  appModals.close()
+  router.push('/dashboard/support')
+}
+
 const integrations: Integration[] = [
+  { id: 'publish_settings', title: 'Publish Settings', description: 'Title, URL, visibility and password protection', icon: Cog6ToothIcon },
   { id: 'analytics',     title: 'Analytics',        description: 'Track visits and engagement',              icon: ChartBarIcon },
   { id: 'campaign',      title: 'Campaign',          description: 'Manage marketing campaigns',               icon: MegaphoneIcon },
   { id: 'collaborators', title: 'Collaborators',     description: 'Invite team members to your project',      icon: UsersIcon },
   { id: 'custom_domain', title: 'Custom Domain',     description: 'Connect your own domain to this land',     icon: GlobeAltIcon },
-  { id: 'qr_code',       title: 'QR Code',           description: 'Download a QR code for your project',       icon: QrCodeIcon },
-  { id: 'seo',           title: 'SEO',               description: 'Meta title, description and social image',  icon: MagnifyingGlassIcon },
-  { id: 'sell', title: 'Sell',   description: 'Manage products, orders and payments',     icon: CurrencyDollarIcon },
+  { id: 'qr_code',       title: 'QR Code',           description: 'Download a QR code for your project',      icon: QrCodeIcon },
+  { id: 'seo',           title: 'SEO',               description: 'Meta title, description and social image', icon: MagnifyingGlassIcon },
+  { id: 'sell',          title: 'Sell',              description: 'Manage products, orders and payments',      icon: CurrencyDollarIcon },
 ]
 
 const active = ref<Integration | null>(null)
@@ -81,7 +89,7 @@ function onAfterEnter() {
           <component :is="active?.icon ?? PuzzlePieceIcon" :key="active?.id ?? 'list'" class="h-4 w-4 text-gray-900" />
         </Transition>
         <Transition name="modal-title" mode="out-in">
-          <h2 :key="active?.id ?? 'list'" class="text-sm font-semibold text-gray-900">{{ active?.title ?? 'Tools' }}</h2>
+          <h2 :key="active?.id ?? 'list'" class="text-sm font-semibold text-gray-900">{{ active?.title ?? 'Settings' }}</h2>
         </Transition>
       </div>
       <div class="flex items-center gap-1 shrink-0">
@@ -121,7 +129,7 @@ function onAfterEnter() {
             :description="integration.description"
             @click="goTo(integration)"
           />
-          <BaseButton size="sm" variant="outline" class="mt-2">About integrations</BaseButton>
+          <BaseButton size="sm" variant="outline" class="mt-2" @click="goToSupport">Need help?</BaseButton>
         </div>
       </Transition>
     </div>

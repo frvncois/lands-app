@@ -120,9 +120,6 @@ function viewLive() {
             </div>
           </div>
           <div class="flex flex-col gap-2">
-            <BaseButton variant="solid" size="sm" class="flex-1 justify-center bg-indigo-600" @click="goToEditor">
-              <PencilSquareIcon class="h-3.5 w-3.5" /> Edit & Publish
-            </BaseButton>
             <div v-if="landStore.activeLand?.is_published" class="flex gap-2">
               <BaseButton variant="outline" size="sm" class="flex-1 justify-center" @click="viewLive">
                 <ArrowTopRightOnSquareIcon class="h-3.5 w-3.5" /> View Live

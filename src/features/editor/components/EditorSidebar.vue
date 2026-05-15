@@ -52,7 +52,7 @@ const sectionSettingsRef = ref<InstanceType<typeof SectionSettingsModal> | null>
         <!-- Default tabs header -->
         <div v-else key="tabs" class="flex flex-1">
           <BaseTab label="Content" :icon="Squares2X2Icon" :active="activeTab === 'content'" @click="setTab('content')" />
-          <BaseTab label="Options" :icon="SwatchIcon" :active="activeTab === 'design'" @click="setTab('design')" />
+          <BaseTab label="Design" :icon="SwatchIcon" :active="activeTab === 'design'" @click="setTab('design')" />
         </div>
 
       </Transition>

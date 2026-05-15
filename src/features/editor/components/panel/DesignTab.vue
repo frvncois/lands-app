@@ -7,19 +7,14 @@ import BaseFont from '@/shared/ui/BaseFont.vue'
 import ThemePresetPicker from '@/features/editor/components/panel/design/ThemePresetPicker.vue'
 import ColorPalette from '@/features/editor/components/panel/design/ColorPalette.vue'
 import TypographyPicker from '@/features/editor/components/panel/design/TypographyPicker.vue'
-import PublishSettingsCard from '@/features/editor/components/panel/PublishSettingsCard.vue'
-import UpgradeCard from '@/features/editor/components/panel/UpgradeCard.vue'
-import DangerZoneCard from '@/features/editor/components/panel/DangerZoneCard.vue'
 import type { TreeNode } from '@/shared/ui/BaseTree.vue'
 import { useEditorPanel } from '@/features/editor/composables/useEditorPanel'
-import { usePlan } from '@/features/plan/composables/usePlan'
 import { useIsMobile } from '@/shared/composables/useIsMobile'
 import { useThemeStore } from '@/features/theme/stores/theme'
 import { useEditorMutations } from '@/features/editor/composables/useEditorMutations'
 import { THEME_PRESET_DEFINITIONS } from '@/features/theme/presets'
 
 const { activeDesignPanel, openDesignPanel } = useEditorPanel()
-const { isPaid } = usePlan()
 const { isMobile } = useIsMobile()
 const themeStore = useThemeStore()
 const { updateTheme } = useEditorMutations()
@@ -117,11 +112,6 @@ const activePairings = computed(() => THEME_PRESET_DEFINITIONS[themeStore.theme?
           :group="{ name: 'design', pull: false, put: false }"
           @settings="handleDesignSettings"
         />
-      </div>
-      <div class="flex flex-col flex-1 gap-2">
-        <PublishSettingsCard />
-        <UpgradeCard v-if="!isPaid" variant="full" />
-        <DangerZoneCard />
       </div>
     </div>
 

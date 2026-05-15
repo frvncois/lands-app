@@ -10,6 +10,7 @@ import CampaignPanel from '@/features/integrations/panels/CampaignPanel.vue'
 import StorePanel from '@/features/integrations/panels/StorePanel.vue'
 import SeoPanel from '@/features/integrations/panels/SeoPanel.vue'
 import QrCodePanel from '@/features/integrations/panels/QrCodePanel.vue'
+import PublishSettingsPanel from '@/features/integrations/panels/PublishSettingsPanel.vue'
 import { useAppModals } from '@/features/modals/stores/appModals'
 import { useDashboardDetail } from '@/features/dashboard/composables/useDashboardDetail'
 
@@ -43,7 +44,7 @@ function viewAnalytics() {
       <h2 class="text-sm font-semibold text-gray-900">{{ integration.title }}</h2>
     </div>
     <div class="flex items-center gap-1">
-      <template v-if="['analytics', 'collaborators', 'campaign', 'sell', 'custom_domain', 'seo', 'qr_code'].includes(integration.id)">
+      <template v-if="['analytics', 'collaborators', 'campaign', 'sell', 'custom_domain', 'seo', 'qr_code', 'publish_settings'].includes(integration.id)">
         <BaseButton variant="outline" size="xs" @click="$emit('back')">Back</BaseButton>
       </template>
       <template v-else>
@@ -87,6 +88,11 @@ function viewAnalytics() {
     <!-- ── QR Code ── -->
     <template v-else-if="integration.id === 'qr_code'">
       <QrCodePanel />
+    </template>
+
+    <!-- ── Publish Settings ── -->
+    <template v-else-if="integration.id === 'publish_settings'">
+      <PublishSettingsPanel />
     </template>
 
     <!-- ── Custom Domain — plan gate ── -->
