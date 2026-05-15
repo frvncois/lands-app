@@ -116,7 +116,7 @@ interface PurposeSeeds {
 const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
   artist: {
     about: [
-      { title: 'About Me', subtitle: 'Artist', body: 'A few lines about your creative journey, influences and the story behind your work.' },
+      { title: 'About', subtitle: 'Artist', body: 'A few lines about your creative journey, influences and the story behind your work.' },
     ],
     releases: [
       { title: 'Discography', description: 'My albums and EPs', itemTitles: ['First Light', 'Midnight Sessions', 'The Blue EP'] },
@@ -169,7 +169,7 @@ const SEEDS: Record<Purpose, Partial<PurposeSeeds>> = {
 
   creator: {
     about: [
-      { title: 'About Me', subtitle: 'Creator', body: 'Who you are, what you make and why people should follow along.' },
+      { title: 'About', subtitle: 'Creator', body: 'Who you are, what you make and why people should follow along.' },
     ],
     post: [
       { title: 'Articles', description: 'Writing', itemTitles: ['Post Title', 'Post Title', 'Post Title'] },

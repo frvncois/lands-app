@@ -89,10 +89,10 @@ defineExpose({ addItem })
 
 <template>
   <div class="flex flex-col gap-4 p-2 pr-0">
-    <BaseInput size="sm" label="Title" v-model="collectionTitle" placeholder="My Collection" />
-    <BaseInput v-if="isMinimalTheme" size="sm" type="textarea" label="Description" v-model="collectionDescription" placeholder="A short description…" />
+    <BaseInput v-if="section.type === 'post'" size="sm" label="Title" v-model="collectionTitle" placeholder="My Collection" />
+    <BaseInput v-if="isMinimalTheme && section.type === 'post'" size="sm" type="textarea" label="Description" v-model="collectionDescription" placeholder="A short description…" />
     <div class="flex flex-col gap-2">
-      <span class="text-xs font-medium text-gray-500">Collection items</span>
+      <span v-if="section.type === 'post'" class="text-xs font-medium text-gray-500">Collection items</span>
       <div v-if="collectionItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
         <p class="text-xs text-gray-400">No items yet</p>
       </div>

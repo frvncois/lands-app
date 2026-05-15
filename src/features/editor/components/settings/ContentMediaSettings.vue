@@ -64,7 +64,7 @@ function removeButton(id: string) {
       <BaseUpload v-if="mediaType === 'image'" type="image" size="sm" label="" v-model="mediaUrl" />
       <BaseInput v-else size="sm" label="" v-model="mediaUrl" placeholder="YouTube, Vimeo, or direct video URL…" />
     </div>
-    <BaseInput size="sm" label="Title" v-model="title" placeholder="Your headline" />
+    <BaseInput v-if="section.type !== 'about'" size="sm" label="Title" v-model="title" placeholder="Your headline" />
     <BaseInput size="sm" label="Subtitle" v-model="subtitle" placeholder="Eyebrow text" />
     <BaseInput size="sm" type="textarea" label="Body" v-model="body" placeholder="Supporting text" />
     <div class="flex flex-col gap-2">

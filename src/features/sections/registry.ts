@@ -162,7 +162,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
 
   concert: {
     type: 'concert',
-    label: 'Concert',
+    label: 'Dates',
     description: 'Tour dates, events and shows',
     icon: TicketIcon,
     defaults: SECTION_DEFAULTS.concert,
