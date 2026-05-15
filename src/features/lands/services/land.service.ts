@@ -17,7 +17,9 @@ function normalizeLand(row: Record<string, unknown>): Land {
   return {
     ...LAND_DEFAULTS,
     ...row,
-    sections: Array.isArray(row.sections) ? row.sections : [],
+    sections: Array.isArray(row.sections)
+      ? (row.sections as Record<string, unknown>[]).map((s) => ({ visible: true, ...s }))
+      : [],
     theme: (row.theme && typeof row.theme === 'object' && !Array.isArray(row.theme))
       ? { ...DEFAULT_THEME, ...(row.theme as Partial<LandTheme>) }
       : { ...DEFAULT_THEME },

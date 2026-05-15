@@ -15,7 +15,12 @@ const editorStore = useEditorStore()
 const { deleteSection, duplicateSection } = useSectionLifecycle()
 const { moveUp: _moveUp, moveDown: _moveDown } = useSectionInsert()
 
-const sections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))
+const allSections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))
+const sections = computed(() =>
+  editorStore.isEditMode
+    ? allSections.value
+    : allSections.value.filter((s) => s.visible !== false)
+)
 const isInteractive = computed(() => editorStore.isEditMode)
 
 function selectSection(section: Section) {
@@ -48,8 +53,11 @@ function closeContextMenu() {
         <div
           v-for="(section, idx) in sections"
           :key="section.id"
-          class="relative group"
-          :class="isInteractive ? 'cursor-pointer' : ''"
+          class="relative group transition-opacity"
+          :class="[
+            isInteractive ? 'cursor-pointer' : '',
+            isInteractive && section.visible === false ? 'opacity-50' : '',
+          ]"
           @click="handleSectionClick(section)"
           @contextmenu.prevent="onContextMenu($event, section, idx)"
         >

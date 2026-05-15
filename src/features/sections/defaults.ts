@@ -12,6 +12,7 @@ interface SectionDefault {
   style_variant: string
   settings_json: Record<string, unknown>
   content: Record<string, unknown> | null
+  visible: boolean
 }
 
 export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
@@ -28,26 +29,31 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       logo: '',
       buttons: [],
     },
+    visible: true,
   },
   [SECTION_TYPES.post]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
     content: null,
+    visible: true,
   },
   [SECTION_TYPES.releases]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
     content: null,
+    visible: true,
   },
   [SECTION_TYPES.concert]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
     content: null,
+    visible: true,
   },
   [SECTION_TYPES.store]: {
     style_variant: COLLECTION_DISPLAY_STYLES.grid,
     settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
     content: null,
+    visible: true,
   },
   [SECTION_TYPES.content_media]: {
     style_variant: 'default',
@@ -60,11 +66,13 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       body: '',
       buttons: [],
     },
+    visible: true,
   },
   [SECTION_TYPES.links]: {
     style_variant: LINKS_STYLES.default,
     settings_json: { style: LINKS_STYLES.default },
     content: null,
+    visible: true,
   },
   [SECTION_TYPES.campaign]: {
     style_variant: 'default',
@@ -75,6 +83,7 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       button_label: 'Subscribe',
       placeholder: 'Your email address',
     },
+    visible: true,
   },
   [SECTION_TYPES.footer]: {
     style_variant: 'default',
@@ -83,5 +92,6 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       title: 'Project Title',
       subtitle: 'A short tagline',
     },
+    visible: true,
   },
 }

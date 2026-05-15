@@ -42,6 +42,12 @@ export function useEditorMutations() {
     patchSection(sectionId, (s) => ({ ...s, style_variant: variant }))
   }
 
+  // ─── Section Visibility ───
+
+  function toggleSectionVisibility(sectionId: string) {
+    patchSection(sectionId, (s) => ({ ...s, visible: !s.visible }))
+  }
+
   // ─── Section Snapshot Restore ───
 
   function restoreSectionSnapshot(sectionId: string, data: {
@@ -90,6 +96,7 @@ export function useEditorMutations() {
     updateSectionContent,
     updateSectionSettings,
     updateSectionStyleVariant,
+    toggleSectionVisibility,
     restoreSectionSnapshot,
     updateLandImages,
     updateTheme,

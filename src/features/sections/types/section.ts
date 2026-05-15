@@ -182,6 +182,7 @@ interface BaseSection<TType extends SectionType, TContent, TSettings> {
   settings_json: TSettings
   content: TContent
   created_at: string
+  visible: boolean
 }
 
 export type HeaderSection = BaseSection<'header', HeaderContent, HeaderSettings>

@@ -64,6 +64,7 @@ export function useSectionLifecycle() {
       settings_json: defaults.settings_json,
       content,
       created_at: new Date().toISOString(),
+      visible: true,
     } as unknown as Section
 
     // Patch section_id into seeded content — use discriminant narrowing for clean access

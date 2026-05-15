@@ -76,6 +76,8 @@ export interface SectionDefinition {
    */
   settingsPanel: Partial<Record<ThemePreset, Component>> & { default: Component }
   plan?: { requires: 'free' | 'paid' }
+  /** Only content_media can be added by the user post-seeding. */
+  userAddable?: boolean
   /** 'first' = header (always position 0), 'last' = footer (always last). */
   fixedPosition?: 'first' | 'last'
   /** Returns a subtitle label from the section's content, or null to use the static type label. */
@@ -103,6 +105,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     defaults: SECTION_DEFAULTS.content_media,
     variants: { minimal: ContentMediaMinimal, baseline: ContentMediaBaseline, structure: ContentMediaStructure },
     settingsPanel: { default: ContentMediaSettings },
+    userAddable: true,
     titleFrom: (s) => (s.type === 'content_media' ? s.content?.title ?? null : null),
   },
 
