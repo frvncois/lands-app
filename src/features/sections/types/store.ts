@@ -1,12 +1,10 @@
-export interface StoreVariantOption {
-  value: string
-  inventory: number
-}
-
 export interface StoreVariant {
   id: string
-  name: string
-  options: StoreVariantOption[]
+  title: string  // e.g. "Size: Large"
+  type: string   // freeform category label, e.g. "Size", "Color"
+  price: number
+  image: string
+  inventory: number
 }
 
 export interface StoreItem {
@@ -16,6 +14,7 @@ export interface StoreItem {
   title: string
   description: string
   image: string
+  gallery: string[]
   price: number
   product_type: 'physical' | 'digital'
   variants: StoreVariant[]

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { RectangleStackIcon } from '@heroicons/vue/24/outline'
-import BaseInput from '@/shared/ui/BaseInput.vue'
 import BaseButton from '@/shared/ui/BaseButton.vue'
 import BaseTree from '@/shared/ui/BaseTree.vue'
 import type { TreeNode } from '@/shared/ui/BaseTree.vue'
@@ -9,27 +8,14 @@ import ItemEditorSettings from './ItemEditorSettings.vue'
 import type { Section } from '@/features/sections/types'
 import type { CollectionItem, Collection } from '@/features/sections/types/collection'
 import { useCollectionActions } from '@/features/editor/composables/useCollectionActions'
-import { useThemePreset } from '@/features/theme/composables/useThemePreset'
 import { sortByPosition, generateReorderPosition } from '@/shared/lib/position'
 
 const props = defineProps<{ section: Section }>()
 
-const { isMinimalTheme } = useThemePreset()
-
-const { updateCollection, addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useCollectionActions()
+const { addCollectionItem, deleteCollectionItem, reorderCollectionItem } = useCollectionActions()
 
 const collection = computed(() => ((props.section.content as any)?.collections?.[0] ?? null) as Collection | null)
 const collectionItems = computed(() => collection.value ? sortByPosition(collection.value.items) : [])
-
-const collectionTitle = computed({
-  get: () => collection.value?.title ?? '',
-  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { title: v }) },
-})
-
-const collectionDescription = computed({
-  get: () => collection.value?.description ?? '',
-  set: (v: string) => { if (collection.value) updateCollection(props.section.id, collection.value.id, { description: v }) },
-})
 
 const collectionTreeNodes = computed<TreeNode[]>(() =>
   collectionItems.value.map((item) => ({
@@ -72,13 +58,13 @@ function duplicateItem(item: CollectionItem) {
   if (!collection.value) return
   addCollectionItem(props.section.id, collection.value.id, {
     title: item.title, subtitle: item.subtitle, description: item.description, media_url: item.media_url,
-    content: item.content, external_url: item.external_url,
+    content: item.content, external_url: item.external_url, settings_json: { ...item.settings_json },
   })
 }
 
 function addItem() {
   if (!collection.value) return
-  const newItem = addCollectionItem(props.section.id, collection.value.id, { title: 'New item', subtitle: '', description: '', media_url: '', content: '', external_url: '' })
+  const newItem = addCollectionItem(props.section.id, collection.value.id, { title: 'New item', subtitle: '', description: '', media_url: '', content: '', external_url: '', settings_json: {} })
   if (newItem) {
     itemEditorCollectionItem.value = newItem
   }
@@ -89,10 +75,7 @@ defineExpose({ addItem })
 
 <template>
   <div class="flex flex-col gap-4 p-2 pr-0">
-    <BaseInput v-if="section.type === 'post'" size="sm" label="Title" v-model="collectionTitle" placeholder="My Collection" />
-    <BaseInput v-if="isMinimalTheme && section.type === 'post'" size="sm" type="textarea" label="Description" v-model="collectionDescription" placeholder="A short description…" />
     <div class="flex flex-col gap-2">
-      <span v-if="section.type === 'post'" class="text-xs font-medium text-gray-500">Collection items</span>
       <div v-if="collectionItems.length === 0" class="flex flex-col gap-4 p-8 bg-gray-50 items-center rounded-xl">
         <p class="text-xs text-gray-400">No items yet</p>
       </div>
@@ -109,7 +92,7 @@ defineExpose({ addItem })
   </div>
   <ItemEditorSettings
     v-if="itemEditorCollectionItem && collection"
-    :type="(section.type as 'post' | 'releases' | 'concert' | 'videos')"
+    :type="(section.type as 'releases' | 'concert' | 'videos')"
     :item="itemEditorCollectionItem"
     :section-id="section.id"
     :collection-id="collection.id"

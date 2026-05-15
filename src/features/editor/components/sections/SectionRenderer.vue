@@ -40,7 +40,6 @@ const displaySection = computed((): Section => {
       }
       break
     }
-    case 'post':
     case 'releases':
     case 'concert': {
       if (!s.content?.collections?.length) {

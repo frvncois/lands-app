@@ -21,7 +21,7 @@ export const DEFAULT_LAND_SECTIONS: SectionType[] = [
 ]
 
 export function createDefaultContent(type: SectionType): Record<string, unknown> {
-  if (type === 'post' || type === 'releases' || type === 'concert' || type === 'videos') {
+  if (type === 'releases' || type === 'concert' || type === 'videos') {
     const collectionId = crypto.randomUUID()
     return {
       collections: [{
@@ -68,12 +68,6 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       subtitle: '',
       logo: '',
     },
-    visible: true,
-  },
-  [SECTION_TYPES.post]: {
-    style_variant: COLLECTION_DISPLAY_STYLES.grid,
-    settings_json: { style: COLLECTION_DISPLAY_STYLES.grid },
-    content: null,
     visible: true,
   },
   [SECTION_TYPES.releases]: {

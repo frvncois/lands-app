@@ -7,7 +7,6 @@ export const SECTION_TYPES = {
   content_media: 'content_media',
   about: 'about',
   links: 'links',
-  post: 'post',
   releases: 'releases',
   concert: 'concert',
   videos: 'videos',
@@ -190,7 +189,6 @@ export type HeaderSection = BaseSection<'header', HeaderContent, HeaderSettings>
 export type ContentMediaSection = BaseSection<'content_media', ContentMediaContent, ContentMediaSettings>
 export type AboutSection = BaseSection<'about', ContentMediaContent, ContentMediaSettings>
 export type LinksSection = BaseSection<'links', LinksContent | null, LinksSettings>
-export type PostSection = BaseSection<'post', CollectionContent | null, CollectionSettings>
 export type ReleasesSection = BaseSection<'releases', CollectionContent | null, CollectionSettings>
 export type ConcertSection = BaseSection<'concert', CollectionContent | null, CollectionSettings>
 export type VideosSection = BaseSection<'videos', CollectionContent | null, CollectionSettings>
@@ -203,7 +201,6 @@ export type Section =
   | ContentMediaSection
   | AboutSection
   | LinksSection
-  | PostSection
   | ReleasesSection
   | ConcertSection
   | VideosSection

@@ -6,7 +6,6 @@ import { SECTION_DEFAULTS } from '@/features/sections/defaults'
 import {
   UserCircleIcon,
   ListBulletIcon,
-  DocumentTextIcon,
   MusicalNoteIcon,
   TicketIcon,
   ShoppingBagIcon,
@@ -134,18 +133,6 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     variants: { minimal: LinksMinimal, baseline: LinksBaseline, structure: LinksStructure },
     settingsPanel: { default: LinksSettings },
     titleFrom: (s) => (s.type === 'links' ? s.content?.title ?? null : null),
-  },
-
-  post: {
-    type: 'post',
-    label: 'Post',
-    description: 'Articles, essays and curated content',
-    icon: DocumentTextIcon,
-    defaults: SECTION_DEFAULTS.post,
-    variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
-    settingsPanel: { default: CollectionSettings },
-    inHeaderNav: true,
-    titleFrom: (s) => (s.type === 'post' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
   releases: {

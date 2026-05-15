@@ -16,9 +16,9 @@ export const MOCK_COLLECTIONS: Collection[] = [
     description: '[ A short description of this collection ]',
     position: 'a',
     items: [
-      { id: 'mock-col-item-1', collection_id: 'mock-col-1', title: '[ Item Title ]', subtitle: '', description: '[ Description ]', media_url: '', content: '', external_url: '', position: 'a', created_at: '' },
-      { id: 'mock-col-item-2', collection_id: 'mock-col-1', title: '[ Item Title ]', subtitle: '', description: '[ Description ]', media_url: '', content: '', external_url: '', position: 'b', created_at: '' },
-      { id: 'mock-col-item-3', collection_id: 'mock-col-1', title: '[ Item Title ]', subtitle: '', description: '[ Description ]', media_url: '', content: '', external_url: '', position: 'c', created_at: '' },
+      { id: 'mock-col-item-1', collection_id: 'mock-col-1', title: '[ Item Title ]', subtitle: '', description: '[ Description ]', media_url: '', content: '', external_url: '', settings_json: {}, position: 'a', created_at: '' },
+      { id: 'mock-col-item-2', collection_id: 'mock-col-1', title: '[ Item Title ]', subtitle: '', description: '[ Description ]', media_url: '', content: '', external_url: '', settings_json: {}, position: 'b', created_at: '' },
+      { id: 'mock-col-item-3', collection_id: 'mock-col-1', title: '[ Item Title ]', subtitle: '', description: '[ Description ]', media_url: '', content: '', external_url: '', settings_json: {}, position: 'c', created_at: '' },
     ],
   },
 ]
@@ -33,10 +33,9 @@ export const MOCK_STORES: Store[] = [
     membership_price: 0,
     position: 'a',
     items: [
-      { id: 'mock-store-item-1', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 29, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'a', created_at: '' },
-      { id: 'mock-store-item-2', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 49, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'b', created_at: '' },
-      { id: 'mock-store-item-3', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', price: 19, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'c', created_at: '' },
+      { id: 'mock-store-item-1', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', gallery: [], price: 29, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'a', created_at: '' },
+      { id: 'mock-store-item-2', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', gallery: [], price: 49, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'b', created_at: '' },
+      { id: 'mock-store-item-3', store_id: 'mock-store-1', type: 'product', title: '[ Product Name ]', description: '[ Short description ]', image: '', gallery: [], price: 19, variants: [], inventory: 0, product_type: 'physical', file_url: '', content: '', position: 'c', created_at: '' },
     ],
   },
 ]
-

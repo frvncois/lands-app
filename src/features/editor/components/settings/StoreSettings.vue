@@ -69,7 +69,8 @@ function handleDuplicate(node: TreeNode) {
   if (!item || !store.value) return
   addStoreItemAction(props.section.id, store.value.id, {
     title: item.title, description: item.description, image: item.image,
-    price: item.price, variants: JSON.parse(JSON.stringify(item.variants)),
+    gallery: [...item.gallery], price: item.price,
+    variants: JSON.parse(JSON.stringify(item.variants)),
     inventory: item.inventory, product_type: item.product_type, file_url: item.file_url,
   })
 }
@@ -87,7 +88,7 @@ function openEditStoreItem(item: StoreItem) {
 
 function addStoreItem() {
   if (!store.value) return
-  const newItem = addStoreItemAction(props.section.id, store.value.id, { title: 'New item', description: '', image: '', price: 0, variants: [], inventory: 0, product_type: 'physical', file_url: '' })
+  const newItem = addStoreItemAction(props.section.id, store.value.id, { title: 'New item', description: '', image: '', gallery: [], price: 0, variants: [], inventory: 0, product_type: 'physical', file_url: '' })
   if (newItem) {
     itemEditorStoreItem.value = newItem
   }

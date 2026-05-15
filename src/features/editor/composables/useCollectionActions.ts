@@ -13,7 +13,7 @@ export function useCollectionActions() {
 
   function getCols(sectionId: string): Collection[] {
     const s = activeLand.value?.sections.find((s) => s.id === sectionId)
-    return (s?.type === 'post' || s?.type === 'releases' || s?.type === 'concert')
+    return (s?.type === 'releases' || s?.type === 'concert' || s?.type === 'videos')
       ? (s.content?.collections ?? [])
       : []
   }
@@ -38,7 +38,7 @@ export function useCollectionActions() {
     reorderInArray(sectionId, 'collections', getCols(sectionId), colId, newPos)
   }
 
-  function addCollectionItem(sectionId: string, colId: string, data: Pick<CollectionItem, 'title' | 'subtitle' | 'description' | 'media_url' | 'content' | 'external_url'>): CollectionItem | undefined {
+  function addCollectionItem(sectionId: string, colId: string, data: Pick<CollectionItem, 'title' | 'subtitle' | 'description' | 'media_url' | 'content' | 'external_url' | 'settings_json'>): CollectionItem | undefined {
     const col = getCols(sectionId).find((c) => c.id === colId)
     if (col && !withinItemLimit(col.items.length)) { addToast(`Free plan allows up to ${maxItemsPerCollection.value} items per collection — upgrade to add more`, 'error'); return undefined }
     const item = addToNested<Collection, CollectionItem>(sectionId, 'collections', getCols(sectionId), colId, { ...data, collection_id: colId, created_at: new Date().toISOString() })

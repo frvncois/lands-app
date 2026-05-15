@@ -19,7 +19,7 @@ export function useStoreActions() {
   function addStoreItem(
     sectionId: string,
     storeId: string,
-    data: Pick<StoreItem, 'title' | 'description' | 'image' | 'price' | 'variants' | 'inventory' | 'product_type' | 'file_url'>,
+    data: Pick<StoreItem, 'title' | 'description' | 'image' | 'gallery' | 'price' | 'variants' | 'inventory' | 'product_type' | 'file_url'>,
   ): StoreItem | undefined {
     const stores = getStores(sectionId)
     const store = stores.find((s) => s.id === storeId)
