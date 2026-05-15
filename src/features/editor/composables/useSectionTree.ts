@@ -38,6 +38,7 @@ export function useSectionTree() {
       label: getSectionTitle(s) || (sectionLabelMap[s.type] ?? (s.type.charAt(0).toUpperCase() + s.type.slice(1))),
       icon: sectionIconMap[s.type],
       locked: s.type === 'header' || s.type === 'footer',
+      visible: s.visible,
     }))
   )
 

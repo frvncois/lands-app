@@ -3,10 +3,8 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import BaseButton from './BaseButton.vue'
 import {
   PencilSquareIcon,
-  DocumentDuplicateIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  TrashIcon,
 } from '@heroicons/vue/24/outline'
 
 const props = defineProps<{
@@ -19,10 +17,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   edit: []
-  duplicate: []
   moveUp: []
   moveDown: []
-  delete: []
   close: []
 }>()
 
@@ -65,20 +61,11 @@ const btnClass = 'w-full !justify-start'
       </BaseButton>
 
       <template v-if="!locked">
-        <BaseButton size="sm" :class="btnClass" @click="$emit('duplicate'); $emit('close')">
-          <DocumentDuplicateIcon class="h-3.5 w-3.5" /> Duplicate
-        </BaseButton>
         <BaseButton size="sm" :class="btnClass" :disabled="!canMoveUp" @click="$emit('moveUp'); $emit('close')">
           <ArrowUpIcon class="h-3.5 w-3.5" /> Move up
         </BaseButton>
         <BaseButton size="sm" :class="btnClass" :disabled="!canMoveDown" @click="$emit('moveDown'); $emit('close')">
           <ArrowDownIcon class="h-3.5 w-3.5" /> Move down
-        </BaseButton>
-
-        <div class="my-1 border-t border-gray-100" />
-
-        <BaseButton size="sm" :class="btnClass" class="!text-red-500 hover:!bg-red-50" @click="$emit('delete'); $emit('close')">
-          <TrashIcon class="h-3.5 w-3.5" /> Delete
         </BaseButton>
       </template>
     </div>

@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { sortByPosition } from '@/shared/lib/position'
-import { useSectionLifecycle } from '@/features/editor/composables/useSectionLifecycle'
 import { useSectionInsert } from '@/features/editor/composables/useSectionInsert'
 import type { Section } from '@/features/sections/types'
 import BaseContextMenu from '@/shared/ui/BaseContextMenu.vue'
@@ -12,7 +11,6 @@ import SectionRenderer from '@/features/editor/components/sections/SectionRender
 
 const landStore = useLandStore()
 const editorStore = useEditorStore()
-const { deleteSection, duplicateSection } = useSectionLifecycle()
 const { moveUp: _moveUp, moveDown: _moveDown } = useSectionInsert()
 
 const allSections = computed(() => sortByPosition(landStore.activeLand?.sections ?? []))
@@ -106,23 +104,6 @@ function closeContextMenu() {
                     <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
                   </button>
 
-                  <div class="w-px h-3 bg-white/20 mx-0.5" />
-
-                  <button
-                    title="Duplicate"
-                    class="flex items-center justify-center w-5 h-5 rounded hover:bg-white/20 transition-colors"
-                    @click.stop="duplicateSection(section.id)"
-                  >
-                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  </button>
-
-                  <button
-                    title="Delete"
-                    class="flex items-center justify-center w-5 h-5 rounded hover:bg-red-500/80 transition-colors"
-                    @click.stop="deleteSection(section.id)"
-                  >
-                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                  </button>
                 </template>
               </div>
             </div>
@@ -143,10 +124,8 @@ function closeContextMenu() {
           :can-move-up="contextMenu.idx > 1 && sections[contextMenu.idx - 1]?.type !== 'header'"
           :can-move-down="contextMenu.idx < sections.length - 2 && sections[contextMenu.idx + 1]?.type !== 'footer'"
           @edit="selectSection(contextMenu.section)"
-          @duplicate="duplicateSection(contextMenu.section.id)"
           @move-up="moveUp(contextMenu.section)"
           @move-down="moveDown(contextMenu.section)"
-          @delete="deleteSection(contextMenu.section.id)"
           @close="closeContextMenu"
         />
       </Teleport>

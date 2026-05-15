@@ -3,10 +3,8 @@ import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { addToast } from '@/shared/composables/useToast'
 import { usePlan } from '@/features/plan/composables/usePlan'
-import { sortByPosition, generatePositionBetween } from '@/shared/lib/position'
 import { SECTION_DEFAULTS } from '@/features/sections/defaults'
 import { buildSectionContent } from '@/features/sections/purpose-defaults'
-import { storageService, extractSectionUrls } from '@/features/integrations/services/storage.service'
 import type { Section, SectionType } from '@/features/sections/types'
 
 export function useSectionLifecycle() {
@@ -88,50 +86,6 @@ export function useSectionLifecycle() {
     addToast(`${type.charAt(0).toUpperCase() + type.slice(1)} section added`)
   }
 
-  function deleteSection(sectionId: string) {
-    if (!activeLand.value) return
-    const section = activeLand.value.sections.find((s) => s.id === sectionId)
-    if (section?.type === 'header' || section?.type === 'footer') return
-    if (section) {
-      const urls = extractSectionUrls(section)
-      Promise.all(urls.map((url) => storageService.remove(url))).catch((e) => {
-        console.error('[storage] Failed to clean up section assets:', e)
-      })
-    }
-    const updatedSections = activeLand.value.sections.filter((s) => s.id !== sectionId)
-    landStore.updateLand(activeLand.value.id, { sections: updatedSections })
-    if (editorStore.activeSection?.id === sectionId) editorStore.setActiveSection(null)
-    editorStore.markDirty()
-    addToast('Section deleted')
-  }
-
-  function duplicateSection(sectionId: string) {
-    if (!activeLand.value) return
-    const sorted = sortByPosition(activeLand.value.sections)
-    const idx = sorted.findIndex((s) => s.id === sectionId)
-    if (idx === -1) return
-    const original = sorted[idx]!
-    if (original.type === 'header' || original.type === 'footer') return
-    const contentSections = activeLand.value.sections.filter((s) => s.type !== 'header' && s.type !== 'footer')
-    if (!withinSectionLimit(contentSections.length)) {
-      addToast(`Free plan allows up to ${maxSections.value} sections — upgrade to add more`, 'error')
-      return
-    }
-    const next = sorted[idx + 1] ?? null
-    const position = generatePositionBetween(original.position, next?.position ?? null)
-    // Header always first, footer always last
-    const copy: Section = {
-      ...JSON.parse(JSON.stringify(original)),
-      id: crypto.randomUUID(),
-      position,
-      created_at: new Date().toISOString(),
-    }
-    landStore.updateLand(activeLand.value.id, {
-      sections: [...activeLand.value.sections, copy],
-    })
-    editorStore.markDirty()
-  }
-
   function reorderSection(sectionId: string, newPosition: string) {
     if (!activeLand.value) return
     const updatedSections = activeLand.value.sections.map((s) =>
@@ -143,8 +97,6 @@ export function useSectionLifecycle() {
 
   return {
     addSection,
-    deleteSection,
-    duplicateSection,
     reorderSection,
   }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ChevronRightIcon, TrashIcon, Square2StackIcon } from '@heroicons/vue/24/outline'
+import { ChevronRightIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
 import draggable from 'vuedraggable'
 import type { FunctionalComponent } from 'vue'
 import BaseButton from './BaseButton.vue'
@@ -11,6 +11,7 @@ export interface TreeNode {
   icon?: FunctionalComponent
   imageUrl?: string
   locked?: boolean
+  visible?: boolean
   sectionType?: string
   children?: TreeNode[]
 }
@@ -22,8 +23,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  delete: [node: TreeNode]
-  duplicate: [node: TreeNode]
+  'toggle-visibility': [node: TreeNode]
   settings: [node: TreeNode]
   reorder: [oldIndex: number, newIndex: number]
   add: [sectionType: string, newIndex: number]
@@ -99,14 +99,16 @@ function onDragEnd(event: { oldIndex: number; newIndex: number }) {
 
           <!-- Action icons -->
           <div class="flex items-center gap-1 opacity-0 group-hover/node:opacity-100 transition-opacity">
-            <template v-if="!node.locked">
-              <BaseButton variant="icon" size="xs" title="Duplicate" @click.stop="$emit('duplicate', node)">
-                <Square2StackIcon class="h-3.5 w-3.5" />
-              </BaseButton>
-              <BaseButton variant="icon" size="xs" title="Delete" class="hover:text-red-500 hover:bg-red-50" @click.stop="$emit('delete', node)">
-                <TrashIcon class="h-3.5 w-3.5" />
-              </BaseButton>
-            </template>
+            <BaseButton
+              variant="icon"
+              size="xs"
+              :title="node.visible === false ? 'Show section' : 'Hide section'"
+              :class="node.visible === false ? 'text-gray-300' : 'text-gray-500'"
+              @click.stop="$emit('toggle-visibility', node)"
+            >
+              <EyeSlashIcon v-if="node.visible === false" class="h-3.5 w-3.5" />
+              <EyeIcon v-else class="h-3.5 w-3.5" />
+            </BaseButton>
             <BaseButton variant="solid" size="xs" @click.stop="$emit('settings', node)">
               Edit
             </BaseButton>
