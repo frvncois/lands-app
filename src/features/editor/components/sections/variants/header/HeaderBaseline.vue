@@ -2,12 +2,27 @@
 import { computed } from 'vue'
 import type { Section } from '@/features/sections/types'
 import { useLandStore } from '@/features/lands/stores/land'
+import { SECTION_REGISTRY } from '@/features/sections/registry'
+import { getSectionTitle } from '@/features/editor/composables/useSectionTree'
+import { sortByPosition } from '@/shared/lib/position'
 
 const props = defineProps<{ section: Section }>()
 const content = computed(() => props.section.type === 'header' ? props.section.content : null)
 const settings = computed(() => props.section.type === 'header' ? props.section.settings_json : null)
 const landStore = useLandStore()
 const projectTitle = computed(() => landStore.activeLand?.title)
+
+const navItems = computed(() => {
+  const sections = landStore.activeLand?.sections ?? []
+  return sortByPosition(sections)
+    .filter(s => s.visible !== false)
+    .filter(s => SECTION_REGISTRY[s.type]?.inHeaderNav === true)
+    .map(s => ({
+      id: s.id,
+      label: getSectionTitle(s) || SECTION_REGISTRY[s.type].label,
+      href: `#section-${s.id}`,
+    }))
+})
 
 const coverVideo = computed(() => {
   if (!settings.value) return null
@@ -40,17 +55,15 @@ const coverVideo = computed(() => {
           <img v-if="content?.logo" :src="content.logo" class="h-8 w-auto object-contain object-left" />
           <span v-else-if="projectTitle" class="text-sm font-semibold uppercase tracking-widest" style="color: var(--theme-main); opacity: 0.6">{{ projectTitle }}</span>
         </div>
-        <div>
-          <div v-if="content?.buttons?.length" class="flex items-center gap-4">
-            <a
-              v-for="btn in content.buttons"
-              :key="btn.id"
-              :href="btn.url || '#'"
-              class="text-sm font-medium underline underline-offset-4 transition-opacity hover:opacity-60"
-              style="color: var(--theme-main)"
-            >{{ btn.label }}</a>
-          </div>
-        </div>
+        <nav v-if="navItems.length" class="flex items-center gap-4">
+          <a
+            v-for="item in navItems"
+            :key="item.id"
+            :href="item.href"
+            class="text-sm font-medium underline underline-offset-4 transition-opacity hover:opacity-60"
+            style="color: var(--theme-main)"
+          >{{ item.label }}</a>
+        </nav>
       </div>
       <div class="space-y-6">
         <h1 class="text-8xl font-semibold max-w-[15ch] leading-22" style="color: var(--theme-main)">{{ content?.title }}</h1>

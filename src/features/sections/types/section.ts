@@ -101,7 +101,6 @@ export interface HeaderContent {
   subtitle: string
   logo: string
   description?: string
-  buttons?: ContentMediaButton[]
 }
 
 const MEDIA_TYPES = {

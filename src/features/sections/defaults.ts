@@ -27,7 +27,6 @@ export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
       title: '',
       subtitle: '',
       logo: '',
-      buttons: [],
     },
     visible: true,
   },

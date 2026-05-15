@@ -80,6 +80,8 @@ export interface SectionDefinition {
   plan?: { requires: 'free' | 'paid' }
   /** Only content_media can be added by the user post-seeding. */
   userAddable?: boolean
+  /** Include this section type as a nav item in the header. */
+  inHeaderNav?: boolean
   /** 'first' = header (always position 0), 'last' = footer (always last). */
   fixedPosition?: 'first' | 'last'
   /** Returns a subtitle label from the section's content, or null to use the static type label. */
@@ -119,6 +121,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     defaults: SECTION_DEFAULTS.about,
     variants: { minimal: ContentMediaMinimal, baseline: ContentMediaBaseline, structure: ContentMediaStructure },
     settingsPanel: { default: ContentMediaSettings },
+    inHeaderNav: true,
     titleFrom: (s) => (s.type === 'about' ? s.content?.title ?? null : null),
   },
 
@@ -141,6 +144,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     defaults: SECTION_DEFAULTS.post,
     variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
     settingsPanel: { default: CollectionSettings },
+    inHeaderNav: true,
     titleFrom: (s) => (s.type === 'post' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
@@ -152,6 +156,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     defaults: SECTION_DEFAULTS.releases,
     variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
     settingsPanel: { default: CollectionSettings },
+    inHeaderNav: true,
     titleFrom: (s) => (s.type === 'releases' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
@@ -163,6 +168,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     defaults: SECTION_DEFAULTS.concert,
     variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
     settingsPanel: { default: CollectionSettings },
+    inHeaderNav: true,
     titleFrom: (s) => (s.type === 'concert' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
@@ -174,6 +180,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     defaults: SECTION_DEFAULTS.videos,
     variants: { minimal: CollectionMinimal, baseline: CollectionBaseline, structure: CollectionStructure },
     settingsPanel: { default: CollectionSettings },
+    inHeaderNav: true,
     titleFrom: (s) => (s.type === 'videos' ? s.content?.collections?.[0]?.title ?? null : null),
   },
 
@@ -186,6 +193,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     // No baseline variant — falls back to minimal in SectionRenderer
     variants: { minimal: StoreMinimal, structure: StoreStructure },
     settingsPanel: { default: StoreSettings },
+    inHeaderNav: true,
     titleFrom: (s) => (s.type === 'store' ? s.content?.stores?.[0]?.title ?? null : null),
   },
 

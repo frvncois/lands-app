@@ -77,7 +77,7 @@ const displaySection = computed((): Section => {
 </script>
 
 <template>
-  <div class="relative">
+  <div class="relative" :id="`section-${props.section.id}`">
     <component :is="variant" :section="displaySection" />
   </div>
 </template>
