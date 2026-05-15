@@ -29,7 +29,6 @@ export interface Land {
   is_published: boolean
   is_private: boolean
   private_password: string | null
-  purpose?: string
   created_at: string
   updated_at: string
 }

@@ -3,8 +3,7 @@ import { useLandStore } from '@/features/lands/stores/land'
 import { useEditorStore } from '@/features/editor/stores/editor'
 import { addToast } from '@/shared/composables/useToast'
 import { usePlan } from '@/features/plan/composables/usePlan'
-import { SECTION_DEFAULTS } from '@/features/sections/defaults'
-import { buildSectionContent } from '@/features/sections/purpose-defaults'
+import { SECTION_DEFAULTS, createDefaultContent } from '@/features/sections/defaults'
 import { SECTION_REGISTRY } from '@/features/sections/registry'
 import { storageService, extractSectionUrls } from '@/features/integrations/services/storage.service'
 import type { Section, SectionType } from '@/features/sections/types'
@@ -42,15 +41,7 @@ export function useSectionLifecycle() {
     }
 
     const defaults = SECTION_DEFAULTS[type]
-    const purpose = activeLand.value.purpose
-
-    // Count existing sections of this type to cycle through content variants
-    const existingCount = activeLand.value.sections.filter((s) => s.type === type).length
-
-    const seeded = buildSectionContent(purpose, type, existingCount)
-    const content = (Object.keys(seeded).length > 0
-      ? seeded
-      : (defaults.content ? structuredClone(defaults.content) : {})) as unknown as Section['content']
+    const content = createDefaultContent(type) as unknown as Section['content']
 
     // Building a section from a runtime SectionType string — TypeScript can't narrow the
     // discriminant at compile time here, so we cast via unknown. Safe: all fields match the

@@ -2,16 +2,15 @@ import { ref } from 'vue'
 import { useLandStore } from '@/features/lands/stores/land'
 import { landService } from '@/features/lands/services/land.service'
 import { useSlugFromTitle } from '@/features/onboarding/composables/useSlugFromTitle'
-import { SECTION_DEFAULTS } from '@/features/sections/defaults'
-import { PURPOSE_OPTIONS, buildSectionContent, type Purpose } from '@/features/sections/purpose-defaults'
+import { SECTION_DEFAULTS, DEFAULT_LAND_SECTIONS, createDefaultContent } from '@/features/sections/defaults'
 import { generatePositionAfter } from '@/shared/lib/position'
 import type { LandTheme } from '@/features/theme/types'
-import type { Section, SectionType } from '@/features/sections/types'
+import type { Section } from '@/features/sections/types'
 import type { Land } from '@/features/lands/types'
 
 /**
- * Per-instance wizard composable. Owns shared wizard state (title, handle,
- * purpose), the buildSections function (single canonical implementation),
+ * Per-instance wizard composable. Owns shared wizard state (title, handle),
+ * the buildSections function (single canonical implementation),
  * and the create() async flow.
  *
  * Theme, colors, and fonts are NOT owned here because the two flows handle
@@ -24,40 +23,36 @@ export function useLandCreator() {
 
   const title = ref('')
   const { handle, onHandleInput } = useSlugFromTitle(title)
-  const selectedPurpose = ref<Purpose | null>(null)
   const isLoading = ref(false)
   const error = ref('')
 
   /**
-   * Build seeded sections for a new land.
+   * Build default sections for a new land.
    *
    * Note: this function iterates over SectionType[] at runtime, so TypeScript
    * cannot statically narrow the discriminant for each section. The
    * `as unknown as Section` cast is intentional and contained here — it is the
    * canonical single location for this pattern.
    */
-  function buildSections(types: SectionType[], landId: string, projectTitle: string, purpose: Purpose): Section[] {
+  function buildSections(landId: string, projectTitle: string): Section[] {
     const sections: Section[] = []
     let lastPos: string | null = null
-    const countByType: Partial<Record<SectionType, number>> = {}
 
-    for (const type of types) {
+    for (const type of DEFAULT_LAND_SECTIONS) {
       const defaults = SECTION_DEFAULTS[type]
       const pos = generatePositionAfter(lastPos)
       lastPos = pos
-
-      const existingCount = countByType[type] ?? 0
-      countByType[type] = existingCount + 1
 
       let content: Record<string, unknown>
       if (type === 'header') {
         content = { ...(defaults.content ? structuredClone(defaults.content) : {}), title: projectTitle, subtitle: 'A short tagline about what you do' }
       } else {
-        const seeded = buildSectionContent(purpose, type, existingCount)
-        content = Object.keys(seeded).length > 0 ? seeded : (defaults.content ? structuredClone(defaults.content) : {})
+        content = createDefaultContent(type)
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Building a section from a runtime SectionType string — TypeScript can't narrow the
+      // discriminant at compile time here, so we cast via unknown. Safe: all fields match the
+      // discriminated union shape for every SectionType value.
       const section = {
         id: crypto.randomUUID(),
         land_id: landId,
@@ -96,17 +91,15 @@ export function useLandCreator() {
   async function create(params: {
     title: string
     handle: string
-    purposeId: Purpose
     theme: LandTheme
   }): Promise<Land> {
     isLoading.value = true
     error.value = ''
     try {
-      const purposeOpt = PURPOSE_OPTIONS.find(p => p.id === params.purposeId)!
       const land = await landService.createLand({ title: params.title, handle: params.handle })
-      const sections = buildSections(purposeOpt.sections, land.id, params.title, params.purposeId)
+      const sections = buildSections(land.id, params.title)
       await landService.save(land.id, { sections, theme: params.theme })
-      landStore.addLand({ ...land, sections, theme: params.theme, purpose: params.purposeId })
+      landStore.addLand({ ...land, sections, theme: params.theme })
       return land
     } catch (e) {
       error.value = (e as Error).message
@@ -116,5 +109,5 @@ export function useLandCreator() {
     }
   }
 
-  return { title, handle, onHandleInput, selectedPurpose, isLoading, error, create, buildSections }
+  return { title, handle, onHandleInput, isLoading, error, create, buildSections }
 }

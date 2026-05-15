@@ -5,17 +5,16 @@ import BaseButton from '@/shared/ui/BaseButton.vue'
 import BaseModal from '@/shared/ui/BaseModal.vue'
 import { addToast } from '@/shared/composables/useToast'
 import { THEME_PRESET_DEFINITIONS } from '@/features/theme/presets'
-import { PURPOSE_OPTIONS } from '@/features/sections/purpose-defaults'
 import { THEME_PRESETS, type ThemePreset } from '@/features/theme/types'
 import { useLandCreator } from '@/features/onboarding/composables/useLandCreator'
 const emit = defineEmits<{ close: [] }>()
-const { title, handle, onHandleInput, selectedPurpose, isLoading, error, create } = useLandCreator()
+const { title, handle, onHandleInput, isLoading, error, create } = useLandCreator()
 
 // ─── Step state ───
 const step = ref(1)
-const TOTAL_STEPS = 4
+const TOTAL_STEPS = 2
 
-// ─── Step 3: Palette ───
+// ─── Step 2: Palette ───
 interface Palette {
   id: string
   label: string
@@ -34,8 +33,6 @@ const PALETTES: Palette[] = [
 ]
 
 const selectedPalette = ref<string | null>(null)
-
-// ─── Step 4: Theme ───
 const selectedTheme = ref<ThemePreset | null>(null)
 const THEME_OPTIONS = Object.values(THEME_PRESETS)
 
@@ -50,9 +47,7 @@ const handleError = computed(() => {
 
 const stepValid = computed(() => {
   if (step.value === 1) return title.value.trim().length > 0 && handle.value.trim().length >= 2 && handle.value.trim().length <= 63 && !handleError.value
-  if (step.value === 2) return selectedPurpose.value !== null
-  if (step.value === 3) return selectedTheme.value !== null
-  if (step.value === 4) return selectedPalette.value !== null
+  if (step.value === 2) return selectedTheme.value !== null && selectedPalette.value !== null
   return false
 })
 
@@ -70,7 +65,7 @@ async function doCreate() {
     color_surface: palette.surface,
   }
   try {
-    await create({ title: title.value.trim(), handle: handle.value.trim(), purposeId: selectedPurpose.value!, theme })
+    await create({ title: title.value.trim(), handle: handle.value.trim(), theme })
     addToast('Project created')
     emit('close')
   } catch {
@@ -105,9 +100,7 @@ function back() {
           </button>
           <h3 class="text-base font-semibold text-gray-900">
             <span v-if="step === 1">Create new Land</span>
-            <span v-else-if="step === 2">What's it for?</span>
-            <span v-else-if="step === 3">Choose a theme</span>
-            <span v-else-if="step === 4">Pick a palette</span>
+            <span v-else-if="step === 2">Choose your style</span>
           </h3>
         </div>
         <button class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100" @click="$emit('close')">
@@ -158,33 +151,11 @@ function back() {
         </div>
       </div>
 
-      <!-- Step 2: Purpose -->
-      <div v-else-if="step === 2" class="px-6 pb-6">
-        <div class="grid grid-cols-1 gap-2">
-          <button
-            v-for="option in PURPOSE_OPTIONS"
-            :key="option.id"
-            type="button"
-            class="flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all"
-            :class="selectedPurpose === option.id
-              ? 'border-gray-900 bg-gray-50 ring-2 ring-gray-900/10'
-              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
-            @click="selectedPurpose = option.id"
-          >
-            <div class="shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-gray-200">
-              <component :is="option.icon" class="h-4 w-4 text-gray-600" />
-            </div>
-            <div class="flex flex-col min-w-0">
-              <span class="text-sm font-medium text-gray-900">{{ option.label }}</span>
-              <span class="text-xs text-gray-500">{{ option.description }}</span>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 3: Theme -->
-      <div v-else-if="step === 3" class="px-6 pb-6">
+      <!-- Step 2: Theme + Palette -->
+      <div v-else-if="step === 2" class="px-6 pb-6 space-y-5">
+        <!-- Theme -->
         <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium text-gray-700">Theme</p>
           <button
             v-for="themeKey in THEME_OPTIONS"
             :key="themeKey"
@@ -211,28 +182,29 @@ function back() {
             </div>
           </button>
         </div>
-      </div>
 
-      <!-- Step 4: Palette -->
-      <div v-else-if="step === 4" class="px-6 pb-6">
-        <div class="grid grid-cols-2 gap-3">
-          <button
-            v-for="palette in PALETTES"
-            :key="palette.id"
-            type="button"
-            class="flex flex-col gap-2 p-3 rounded-xl border text-left transition-all"
-            :class="selectedPalette === palette.id
-              ? 'border-gray-900 ring-2 ring-gray-900/10'
-              : 'border-gray-200 hover:border-gray-300'"
-            @click="selectedPalette = palette.id"
-          >
-            <div class="flex gap-1.5 h-8">
-              <div class="flex-1 rounded-md" :style="{ backgroundColor: palette.surface }" />
-              <div class="w-8 rounded-md" :style="{ backgroundColor: palette.main }" />
-              <div class="w-8 rounded-md" :style="{ backgroundColor: palette.accent }" />
-            </div>
-            <span class="text-xs font-medium text-gray-700">{{ palette.label }}</span>
-          </button>
+        <!-- Palette -->
+        <div class="flex flex-col gap-2">
+          <p class="text-sm font-medium text-gray-700">Color palette</p>
+          <div class="grid grid-cols-2 gap-3">
+            <button
+              v-for="palette in PALETTES"
+              :key="palette.id"
+              type="button"
+              class="flex flex-col gap-2 p-3 rounded-xl border text-left transition-all"
+              :class="selectedPalette === palette.id
+                ? 'border-gray-900 ring-2 ring-gray-900/10'
+                : 'border-gray-200 hover:border-gray-300'"
+              @click="selectedPalette = palette.id"
+            >
+              <div class="flex gap-1.5 h-8">
+                <div class="flex-1 rounded-md" :style="{ backgroundColor: palette.surface }" />
+                <div class="w-8 rounded-md" :style="{ backgroundColor: palette.main }" />
+                <div class="w-8 rounded-md" :style="{ backgroundColor: palette.accent }" />
+              </div>
+              <span class="text-xs font-medium text-gray-700">{{ palette.label }}</span>
+            </button>
+          </div>
         </div>
       </div>
 

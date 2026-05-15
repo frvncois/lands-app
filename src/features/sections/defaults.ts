@@ -6,6 +6,7 @@ import {
   HEADER_COVER_MEDIA_TYPES,
   type SectionType,
 } from '@/features/sections/types'
+import { generatePositionAfter } from '@/shared/lib/position'
 
 
 interface SectionDefault {
@@ -13,6 +14,45 @@ interface SectionDefault {
   settings_json: Record<string, unknown>
   content: Record<string, unknown> | null
   visible: boolean
+}
+
+export const DEFAULT_LAND_SECTIONS: SectionType[] = [
+  'header', 'about', 'content_media', 'releases', 'videos', 'concert', 'store', 'campaign', 'footer',
+]
+
+export function createDefaultContent(type: SectionType): Record<string, unknown> {
+  if (type === 'post' || type === 'releases' || type === 'concert' || type === 'videos') {
+    const collectionId = crypto.randomUUID()
+    return {
+      collections: [{
+        id: collectionId,
+        section_id: '',
+        title: '',
+        description: '',
+        position: generatePositionAfter(null),
+        items: [],
+      }],
+    }
+  }
+  if (type === 'store') {
+    return {
+      stores: [{
+        id: crypto.randomUUID(),
+        section_id: '',
+        title: '',
+        description: '',
+        mode: 'products',
+        membership_price: 0,
+        position: generatePositionAfter(null),
+        items: [],
+      }],
+    }
+  }
+  if (type === 'links') {
+    return { items: [] }
+  }
+  const def = SECTION_DEFAULTS[type]
+  return def.content ? structuredClone(def.content) : {}
 }
 
 export const SECTION_DEFAULTS: Record<SectionType, SectionDefault> = {
